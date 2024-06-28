@@ -66,6 +66,7 @@
     <!-- Overlay for Copying String -->
     <div id="copy-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 hidden">
         <div class="bg-white p-4 rounded-md shadow-md text-center">
+			<div id="qrcode"></div>
             <p class="text-lg font-semibold mb-2">Copy this:</p>
             <textarea readonly id="copy-text" class="bg-gray-200 px-4 py-2 rounded-md break-all block"></textarea>
             <button id="copy-button" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Copy</button>
@@ -376,7 +377,7 @@
 				candidate
 			}) => {
 				console.log('Candidate found', candidate)
-				if (!candidate || candidate.type !== 'srflx') return;
+				// if (!candidate || candidate.type !== 'srflx') return;
 				await cb(app.pc.localDescription.sdp);
 			};
 		}
@@ -406,7 +407,8 @@
 			app.pc.onicecandidate = async ({
 				candidate
 			}) => {
-				if (!candidate || candidate.type !== 'srflx') return;
+				console.log(candidate)
+				// if (!candidate || candidate.type !== 'srflx') return;
 				await cb(app.pc.localDescription.sdp)
 			};
 		}
@@ -552,11 +554,15 @@
 			const urlParams = new URLSearchParams(window.location.search);
 			window.removeEventListener("load", windowLoader);
 			if (!urlParams.get('offer')) {
+				const now = Date.now();
 				await getOffer(async (sdp) => {
+					if (Date.now() - now > 3 * 1000) { return }
 					const link = document.getElementById('copy-text');
 					document.getElementById('copy-overlay').classList.remove('hidden');
 					const compressed = await compress(sdp, "gzip");
 					urlParams.set('offer', compressed);
+					document.getElementById("qrcode").innerHTML = '';
+					new QRCode(document.getElementById("qrcode"), window.location.origin + window.location.pathname + '?' +  urlParams.toString());
 					// window.history.pushState("", "", '?' +  urlParams.toString());
 					link.innerHTML = window.location.origin + window.location.pathname + '?' +  urlParams.toString();
 					const btn = document.getElementById("copy-button");
@@ -575,25 +581,52 @@
 					btn2.classList.remove('hidden');
 					link2.classList.remove('hidden');
 					btn2.addEventListener("click", async (ev) => {
-						const answer = await decompress(link2.value.trim(), "gzip");
+						let data = link2.value;
+						// if (data.indexOf('?') != -1) {
+						// 	data = new URLSearchParams(new URL(data).search).get('answer');
+						// }
+						const answer = await decompress(data.trim(), "gzip");
 						app.pc.setRemoteDescription({
 							type: "answer",
 							sdp: answer.trim() + '\n'
 						});
 					})
+					const bc = new BroadcastChannel("manual_rtc");
+					app.bc = bc;
+					bc.onmessage = async (event) => {
+						let data = event.data;
+						const answer = await decompress(data.trim(), "gzip");
+						app.pc.setRemoteDescription({
+							type: "answer",
+							sdp: answer.trim() + '\n'
+						});
+					};
 				})
+			} else if (urlParams.get('answer')) {
+				console.log("ASDDS")
+				const bc = new BroadcastChannel("manual_rtc");
+				await bc.postMessage(urlParams.get('answer'));
+				bc.close();
+				document.getElementById('copy-overlay').classList.remove('hidden');
+				document.getElementById('copy-overlay').innerHTML = '<p class="bg-white p-4 rounded-md shadow-md text-center">call started on another tab, please close this one</p>';
 			} else {
+				const now = Date.now();
 				const offer = await decompress(urlParams.get('offer'), "gzip");
 				await getAnswer(offer, async (sdp) => {
+					if (Date.now() - now > 3 * 1000) { return }
+					console.log(sdp)
 					const link = document.getElementById('copy-text');
 					document.getElementById('copy-overlay').classList.remove('hidden');
 					const compressed = await compress(sdp, "gzip");
+					urlParams.set('answer', compressed);
+					document.getElementById("qrcode").innerHTML = '';
+					new QRCode(document.getElementById("qrcode"), window.location.origin + window.location.pathname + '?' +  urlParams.toString());
 					link.innerHTML = compressed;
 					const btn = document.getElementById("copy-button");
 					btn.innerHTML = "Copy";
 					btn.addEventListener("click", async (ev) => {
 						if (navigator.clipboard) {
-							await navigator.clipboard.writeText(compressed);
+							await navigator.clipboard.writeText(link.innerHTML);
 							btn.innerHTML = "Copied successfully";
 						} else {
 							btn.innerHTML = "Error copying, please copy manually";
@@ -607,6 +640,7 @@
 
 	</script>
 	<script src="sdpcompress.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </body>
 
 </html>
