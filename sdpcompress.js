@@ -1,4 +1,6 @@
-list = `{str}
+
+list = `
+{str}
 v=0
 o={str} {uint64} {uint8} IN IP4 {ip}
 s=0
@@ -24,7 +26,11 @@ a=setup:passive
 a=mid:0
 a=sctp-port:5000
 a=max-message-size:{uint32}
-a=sendrecv`.split('\n')
+a=sendrecv
+s=-
+a=candidate:{uint32} 1 udp {uint32} {ip} {uint16} typ host generation 0 network-id {uint8}
+a=candidate:{uint32} 1 udp {uint32} {ip} {uint16} typ srflx raddr {ip} rport {uint16} generation 0 network-id {uint8}
+`.trim().split('\n')
 
 const encoders = {
     'uint8': (f) => new Uint8Array([f]),
