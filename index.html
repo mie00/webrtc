@@ -558,7 +558,7 @@
 					const compressed = await compress(sdp, "gzip");
 					urlParams.set('offer', compressed);
 					// window.history.pushState("", "", '?' +  urlParams.toString());
-					link.innerHTML = window.location + '?' +  urlParams.toString();
+					link.innerHTML = window.location.origin + window.location.pathname + '?' +  urlParams.toString();
 					const btn = document.getElementById("copy-button");
 					btn.innerHTML = "Copy";
 					btn.addEventListener("click", async (ev) => {
