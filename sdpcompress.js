@@ -30,6 +30,7 @@ a=sendrecv
 s=-
 a=candidate:{uint32} 1 udp {uint32} {ip} {uint16} typ host generation 0 network-id {uint8}
 a=candidate:{uint32} 1 udp {uint32} {ip} {uint16} typ srflx raddr {ip} rport {uint16} generation 0 network-id {uint8}
+a=candidate:{uint32} 1 tcp {uint32} {ip} {uint16} typ host tcptype active generation 0 network-id {uint8}
 `.trim().split('\n')
 
 const encoders = {
