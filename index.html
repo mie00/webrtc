@@ -526,28 +526,28 @@
 			offset += max_size;
 		}
 
-		// copied from https://gist.github.com/Explosion-Scratch/357c2eebd8254f8ea5548b0e6ac7a61b
-		async function compress(string, encoding) {
-			const byteArray = new TextEncoder().encode(string);
-			const cs = new CompressionStream(encoding);
-			const writer = cs.writable.getWriter();
-			writer.write(byteArray);
-			writer.close();
-			const compressed = await new Response(cs.readable).arrayBuffer();
-			return btoa(String.fromCharCode(...new Uint8Array(compressed)));
-		}
+		// // copied from https://gist.github.com/Explosion-Scratch/357c2eebd8254f8ea5548b0e6ac7a61b
+		// async function compress(string, encoding) {
+		// 	const byteArray = new TextEncoder().encode(string);
+		// 	const cs = new CompressionStream(encoding);
+		// 	const writer = cs.writable.getWriter();
+		// 	writer.write(byteArray);
+		// 	writer.close();
+		// 	const compressed = await new Response(cs.readable).arrayBuffer();
+		// 	return btoa(String.fromCharCode(...new Uint8Array(compressed)));
+		// }
 
-		async function decompress(byteArray, encoding) {
-			const compressedBuffer = Uint8Array.from(atob(byteArray), c => c.charCodeAt(0));
-			const cs = new DecompressionStream(encoding);
-			const writer = cs.writable.getWriter();
-			writer.write(compressedBuffer);
-			writer.close();
-			console.log("ZZZZZZZZZAS", atob(byteArray));
-			const arrayBuffer = await (new Response(cs.readable).arrayBuffer());
-			console.log("ZZZZZZZZZAS");
-			return new TextDecoder().decode(arrayBuffer);
-		}
+		// async function decompress(byteArray, encoding) {
+		// 	const compressedBuffer = Uint8Array.from(atob(byteArray), c => c.charCodeAt(0));
+		// 	const cs = new DecompressionStream(encoding);
+		// 	const writer = cs.writable.getWriter();
+		// 	writer.write(compressedBuffer);
+		// 	writer.close();
+		// 	console.log("ZZZZZZZZZAS", atob(byteArray));
+		// 	const arrayBuffer = await (new Response(cs.readable).arrayBuffer());
+		// 	console.log("ZZZZZZZZZAS");
+		// 	return new TextDecoder().decode(arrayBuffer);
+		// }
 		const windowLoader = async () => {
 			const urlParams = new URLSearchParams(window.location.search);
 			window.removeEventListener("load", windowLoader);
@@ -606,6 +606,7 @@
 
 
 	</script>
+	<script src="sdpcompress.js"></script>
 </body>
 
 </html>
