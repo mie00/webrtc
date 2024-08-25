@@ -76,13 +76,7 @@
     </div>
 
 	<script>
-		// function toggleSettings() {
-        //     const settingsPanel = document.getElementById('settingsPanel');
-        //     settingsPanel.classList.toggle('hidden');
-        // }
-		// const output = document.getElementById('output');
 		const app = {streams: {}, config: {}, viewStreams: {}};
-        // const handshakeSection = document.getElementById('handshake');
 
 		document.getElementById('hangup').addEventListener('click', () => {
 			if (app.pc) {
@@ -186,65 +180,7 @@
 				}
 				app.viewStreams[stream.id] = stream;
 			}
-			
-			// let mediaElement = document.getElementById(`local-${changed}`);
-			// if ((changed === 'video' && app.config.video) || (changed === 'screen' && app.config.screen)) {
-			// 	if (!mediaElement) {
-			// 		mediaElement = document.createElement((changed === 'video' && app.config.video) || (changed === 'screen' && app.config.screen)?'video':'audio')
-			// 		document.getElementById('media').appendChild(mediaElement);
-			// 	}
-			// 	mediaElement.id = `local-${changed}`
-			// 	mediaElement.srcObject = app.streams[changed];
-			// 	mediaElement.muted = true;
-			// 	mediaElement.autoplay = true;
-			// } else if (mediaElement) {
-			// 	mediaElement.remove();
-			// }
 		}
-
-		// let localStream;
-
-		// async function initMedia() {
-		// 	if (localStream) {
-		// 		localStream.getTracks().forEach(function(track) {
-		// 			track.stop();
-		// 		});
-		// 	}
-		// 	if (app.stream_type == 'audio' || app.stream_type == 'video') {
-		// 		localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: app.stream_type == 'video' });
-		// 		const localPlayer = document.getElementById('video1');
-		// 		localPlayer.srcObject = localStream;
-		// 		localPlayer.muted = true;
-		// 		localPlayer.onloadedmetadata = () => {
-		// 			localPlayer.play();
-		// 		};
-		// 		localPlayer.height = localPlayer.clientHeight.toString() + 'px';
-		// 	} else if (app.stream_type == 'screen') {
-		// 		localStream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: {cursor: "always"} });
-		// 		const localPlayer = document.getElementById('video1');
-		// 		localPlayer.srcObject = localStream;
-		// 		localPlayer.muted = true;
-		// 		localPlayer.onloadedmetadata = () => {
-		// 			localPlayer.play();
-		// 		};
-		// 		localPlayer.height = localPlayer.clientHeight.toString() + 'px';
-		// 	} else {
-		// 		localStream = null;
-		// 	}
-
-		// 	if (localStream && app.pc) {
-		// 		console.log("ASDASDASDASDASD")
-		// 		localStream.getTracks().forEach((track) => {
-		// 			app.pc.addTrack(track, localStream);
-		// 		});
-		// 	}
-		// }
-
-		// // Add event listener to detect changes on the select element
-		// document.getElementById('mediaType').addEventListener('change', async function() {
-		// 	app.stream_type = this.value;
-		// 	await initMedia();
-		// });
 
 		async function init() {
 			const config = {
@@ -259,20 +195,12 @@
 			});
 			app.nego_dc = nego_dc;
 			nego_dc.onopen = () => {
-				// handshakeSection.classList.add('hidden');
 				document.getElementById("copy-overlay").classList.add('hidden');
 				history.pushState('', '', window.location.origin + window.location.pathname)
 			};
 			nego_dc.onclose = () => {
 				windowLoader();
 			}
-
-			// if (localStream && app.pc) {
-			// 	localStream.getTracks().forEach((track) => {
-			// 		console.log("tracks", track)
-			// 		app.pc.addTrack(track, localStream);
-			// 	});
-			// }
 
 			app.pc.addEventListener("track", (ev) => {
 				let mediaElement = document.createElement(ev.track.kind);
@@ -288,12 +216,6 @@
 					document.getElementById(`stream-${ev.streams[changed].id}`).remove();
 					delete app.viewStreams[ev.streams[changed].id];
 				}
-				// const video = document.getElementById('video2');
-				// video.srcObject = ev.streams[0];
-
-				// video.onloadedmetadata = () => {
-				// 	video.play();
-				// };
 			})
 
 			nego_dc.onmessage = async e => {
@@ -356,6 +278,7 @@
 			}
 
 		}
+
 		const log = msg => output.innerHTML += `<br>${msg}`;
 		chat.onkeypress = function (e) {
 			if (e.keyCode != 13) return;
@@ -377,19 +300,9 @@
 				candidate
 			}) => {
 				console.log('Candidate found', candidate)
-				// if (!candidate || candidate.type !== 'srflx') return;
 				await cb(app.pc.localDescription.sdp);
 			};
 		}
-
-		// async function createOffer() {
-		// 	button.disabled = true;
-		// 	await getOffer((sdp) => {
-		// 		offer.value = sdp;
-		// 		offer.select();
-		// 		answer.placeholder = "Paste answer here. And Press Enter";
-		// 	})
-		// }
 
 		async function getAnswer(offer, cb) {
 			await init();
@@ -408,31 +321,9 @@
 				candidate
 			}) => {
 				console.log(candidate)
-				// if (!candidate || candidate.type !== 'srflx') return;
 				await cb(app.pc.localDescription.sdp)
 			};
 		}
-
-		// offer.onkeypress = async function (e) {
-		// 	if (e.keyCode != 13) return;
-		// 	button.disabled = offer.disabled = true;
-			
-		// 	await getAnswer(offer.value, (sdp) => {
-		// 		answer.focus();
-		// 		answer.value = sdp;
-		// 		answer.select();
-		// 	});
-		// };
-
-		// answer.onkeypress = function (e) {
-		// 	if (e.keyCode != 13 || app.pc.signalingState != "have-local-offer") return;
-		// 	answer.disabled = true;
-		// 	app.pc.setRemoteDescription({
-		// 		type: "answer",
-		// 		sdp: answer.value.trim() + '\n'
-		// 	});
-		// };
-
 
 		function handleChange() {
 			let stat = 'ConnectionState: <strong>' + app.pc?.connectionState + '</strong> IceConnectionState: <strong>' + app.pc?.iceConnectionState + '</strong>';
@@ -449,26 +340,12 @@
 
 
 		document.getElementById('file-upload').addEventListener('change', handleFileSelect);
-		// document.getElementById('dropArea').addEventListener('dragover', handleDragOver);
-		// document.getElementById('dropArea').addEventListener('drop', handleFileDrop);
 
 		function handleFileSelect(event) {
 			const file = event.target.files[0];
 			readFile(file);
 		}
 
-		// function handleDragOver(event) {
-		// 	event.preventDefault();
-		// 	event.stopPropagation();
-		// 	event.dataTransfer.dropEffect = 'copy';
-		// }
-
-		// function handleFileDrop(event) {
-		// 	event.preventDefault();
-		// 	event.stopPropagation();
-		// 	const file = event.dataTransfer.files[0];
-		// 	readFile(file);
-		// }
 		function splitArrayBuffer(arrayBuffer, chunkSize) {
 			const uint8Array = new Uint8Array(arrayBuffer);
 			const chunks = [];
@@ -528,28 +405,6 @@
 			offset += max_size;
 		}
 
-		// // copied from https://gist.github.com/Explosion-Scratch/357c2eebd8254f8ea5548b0e6ac7a61b
-		// async function compress(string, encoding) {
-		// 	const byteArray = new TextEncoder().encode(string);
-		// 	const cs = new CompressionStream(encoding);
-		// 	const writer = cs.writable.getWriter();
-		// 	writer.write(byteArray);
-		// 	writer.close();
-		// 	const compressed = await new Response(cs.readable).arrayBuffer();
-		// 	return btoa(String.fromCharCode(...new Uint8Array(compressed)));
-		// }
-
-		// async function decompress(byteArray, encoding) {
-		// 	const compressedBuffer = Uint8Array.from(atob(byteArray), c => c.charCodeAt(0));
-		// 	const cs = new DecompressionStream(encoding);
-		// 	const writer = cs.writable.getWriter();
-		// 	writer.write(compressedBuffer);
-		// 	writer.close();
-		// 	console.log("ZZZZZZZZZAS", atob(byteArray));
-		// 	const arrayBuffer = await (new Response(cs.readable).arrayBuffer());
-		// 	console.log("ZZZZZZZZZAS");
-		// 	return new TextDecoder().decode(arrayBuffer);
-		// }
 		const windowLoader = async () => {
 			const urlParams = new URLSearchParams(window.location.search);
 			window.removeEventListener("load", windowLoader);
@@ -563,7 +418,6 @@
 					urlParams.set('offer', compressed);
 					document.getElementById("qrcode").innerHTML = '';
 					new QRCode(document.getElementById("qrcode"), window.location.origin + window.location.pathname + '?' +  urlParams.toString());
-					// window.history.pushState("", "", '?' +  urlParams.toString());
 					link.innerHTML = window.location.origin + window.location.pathname + '?' +  urlParams.toString();
 					const btn = document.getElementById("copy-button");
 					btn.innerHTML = "Copy";
@@ -582,9 +436,6 @@
 					link2.classList.remove('hidden');
 					btn2.addEventListener("click", async (ev) => {
 						let data = link2.value;
-						// if (data.indexOf('?') != -1) {
-						// 	data = new URLSearchParams(new URL(data).search).get('answer');
-						// }
 						const answer = await decompress(data.trim(), "gzip");
 						app.pc.setRemoteDescription({
 							type: "answer",
@@ -603,7 +454,6 @@
 					};
 				})
 			} else if (urlParams.get('answer')) {
-				console.log("ASDDS")
 				const bc = new BroadcastChannel("manual_rtc");
 				await bc.postMessage(urlParams.get('answer'));
 				bc.close();
