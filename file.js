@@ -3,7 +3,6 @@ function updateProgressBar(id, file_size, get_ready) {
 
     // Calculate progress percentage (0 to 100)
     const progressPercentage = (file_size - bufferedAmount) / file_size * 100;
-    console.log("FASD", progressPercentage, id, file_size, bufferedAmount);
     const elem = document.getElementById(`file-${id}`);
     elem.value = progressPercentage;
     elem.innerHTML = `${progressPercentage}%`
@@ -17,7 +16,6 @@ function setupFileChannel(app) {
     app.dc_file = dc_file;
 
     dc_file.onmessage = e => {
-        console.log(e)
         if (!app.file_stuff) {
             const id = Math.random().toString(16).slice(2);
             app.file_stuff = JSON.parse(e.data);

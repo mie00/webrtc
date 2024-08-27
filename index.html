@@ -78,7 +78,7 @@
 	<script src="/file.js"></script>
 	<script src="/stream.js"></script>
 	<script>
-		const app = {streams: {}, config: {}, viewStreams: {}};
+		const app = {};
 
 		document.getElementById('hangup').addEventListener('click', () => {
 			if (app.pc) {
@@ -95,6 +95,12 @@
 
 			const pc = new RTCPeerConnection(config);
 			app.pc = pc;
+
+			app.pc.oniceconnectionstatechange = e => log(app.pc.iceConnectionState);
+
+			app.pc.onconnectionstatechange = ev => handleChange();
+			app.pc.oniceconnectionstatechange = ev => handleChange();
+
 			const nego_dc = pc.createDataChannel("nego", {
 				negotiated: true,
 				id: 0
@@ -178,7 +184,7 @@
 			if (!urlParams.get('offer')) {
 				const now = Date.now();
 				await getOffer(async (sdp) => {
-					if (Date.now() - now > 3 * 1000) { return }
+					if (Date.now() - now > 10 * 1000) { return }
 					const link = document.getElementById('copy-text');
 					document.getElementById('copy-overlay').classList.remove('hidden');
 					const compressed = await compress(sdp, "gzip");
@@ -230,7 +236,7 @@
 				const now = Date.now();
 				const offer = await decompress(urlParams.get('offer'), "gzip");
 				await getAnswer(offer, async (sdp) => {
-					if (Date.now() - now > 3 * 1000) { return }
+					if (Date.now() - now > 10 * 1000) { return }
 					console.log(sdp)
 					const link = document.getElementById('copy-text');
 					document.getElementById('copy-overlay').classList.remove('hidden');

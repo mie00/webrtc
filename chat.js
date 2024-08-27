@@ -9,10 +9,6 @@ function setupChatChannel(app) {
         chat.select();
     };
     dc.onmessage = e => log(`> ${e.data}`);
-    app.pc.oniceconnectionstatechange = e => log(app.pc.iceConnectionState);
-
-    app.pc.onconnectionstatechange = ev => handleChange();
-    app.pc.oniceconnectionstatechange = ev => handleChange();
 }
 
 chat.onkeypress = function (e) {

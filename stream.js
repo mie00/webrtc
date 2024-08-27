@@ -1,4 +1,7 @@
 function setupTrackHandler(app) {
+    app.streams = {}
+    app.config = {}
+    app.viewStreams = {}
     app.pc.addEventListener("track", (ev) => {
         let mediaElement = document.createElement(ev.track.kind);
         document.getElementById('media').appendChild(mediaElement);
@@ -9,7 +12,6 @@ function setupTrackHandler(app) {
         mediaElement.classList.add('w-full')
         app.viewStreams[ev.streams[0].id] = ev.streams[0];
         ev.track.onended = (ev) => {
-            console.log(ev);
             document.getElementById(`stream-${ev.streams[changed].id}`).remove();
             delete app.viewStreams[ev.streams[changed].id];
         }
