@@ -39,6 +39,10 @@
                 <button id="toggle-video" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Toggle Video</button>
                 <button id="toggle-audio" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Toggle Audio</button>
                 <button id="toggle-screen" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Share Screen</button>
+                <div class="flex items-center">
+                    <input id="forward-host" type="text" placeholder="host to forward" class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="http://127.0.0.1:5000">
+                    <button id="start-forward" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md ml-auto">Forward</button>
+                </div>
             </div>
             <!-- End On/Off Buttons -->
 
@@ -74,9 +78,10 @@
             <button id="copy-button-2" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2 hidden">Accept</button>
         </div>
     </div>
-	<script src="/chat.js"></script>
-	<script src="/file.js"></script>
-	<script src="/stream.js"></script>
+	<script src="chat.js"></script>
+	<script src="file.js"></script>
+	<script src="stream.js"></script>
+	<script src="forward.js"></script>
 	<script>
 		const app = {};
 
@@ -122,10 +127,12 @@
 					nego_dc.send(JSON.stringify(pc.localDescription));
 				}
 			};
+
 			setupTrackHandler(app);
 			if (true) {
 				setupChatChannel(app);
 				setupFileChannel(app);
+				setupForwardChannel(app);
 			}
 		}
 
