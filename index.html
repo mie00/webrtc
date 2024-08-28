@@ -2,100 +2,130 @@
 <html>
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Styled Page</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Styled Page</title>
+	<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
+
 <body class="bg-gray-100 h-screen flex flex-col">
-    <!-- Header -->
-    <header class="bg-white shadow-md py-4 px-6 flex justify-between items-center">
-        <h1 class="text-xl font-semibold text-gray-800">Video Call App</h1>
-        <button id='hangup' class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md">Hang Up</button>
-    </header>
+	<!-- Header -->
+	<header class="bg-white shadow-md py-4 px-6 flex justify-between items-center">
+		<h1 class="text-xl font-semibold text-gray-800">Video Call App</h1>
+		<button id='hangup' class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md">Hang Up</button>
+	</header>
 
-    <!-- Main Content - Video Call Area and Controls -->
-    <main class="flex-1 flex">
-        <!-- Video Call Area -->
-        <div id="media" class="flex-1 relative bg-black">
-            <!-- Placeholder for video streams -->
-            <!-- You would typically use a library like Twilio Video SDK or similar to manage video streams -->
-        </div>
+	<!-- Main Content - Video Call Area and Controls -->
+	<main class="flex-1 flex">
+		<!-- Video Call Area -->
+		<div id="media" class="flex-1 relative bg-black">
+			<!-- Placeholder for video streams -->
+			<!-- You would typically use a library like Twilio Video SDK or similar to manage video streams -->
+		</div>
 
-        <!-- Controls Panel -->
-        <div class="w-1/4 bg-gray-200 p-4 flex flex-col space-y-4">
-            <!-- Participants -->
-            <div class="flex items-center space-x-2">
-                <div class="bg-gray-400 rounded-full h-4 w-4"></div> <!-- Participant indicator -->
-                <p id="stat" class="text-sm font-medium text-gray-700"></p>
-            </div>
-            <!-- End Participants -->
+		<!-- Controls Panel -->
+		<div class="w-1/4 bg-gray-200 p-4 flex flex-col space-y-4">
+			<!-- Participants -->
+			<div class="flex items-center space-x-2">
+				<div class="bg-gray-400 rounded-full h-4 w-4"></div> <!-- Participant indicator -->
+				<p id="stat" class="text-sm font-medium text-gray-700"></p>
+			</div>
+			<!-- End Participants -->
 
 			<div class="flex flex-col space-y-2">
-				Stun server <input id="stun-servers" type="text" placeholder="Stun servers" class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="stun.l.google.com:19302">
+				Stun server <input id="stun-servers" type="text" placeholder="Stun servers"
+					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="stun.l.google.com:19302">
 			</div>
-            <!-- On/Off Buttons -->
-            <div class="flex flex-col space-y-2">
-                <button id="toggle-video" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Toggle Video</button>
-                <button id="toggle-audio" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Toggle Audio</button>
-                <button id="toggle-screen" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Share Screen</button>
-                <div class="flex items-center">
-                    <input id="forward-host" type="text" placeholder="host to forward" class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="http://127.0.0.1:5000">
-                    <button id="start-forward" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md ml-auto">Forward</button>
-                </div>
-            </div>
-            <!-- End On/Off Buttons -->
+			<!-- On/Off Buttons -->
+			<div class="flex flex-col space-y-2">
+				<button id="toggle-video" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Toggle
+					Video</button>
+				<button id="toggle-audio" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Toggle
+					Audio</button>
+				<button id="toggle-screen" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Share
+					Screen</button>
+				<div class="flex items-center">
+					<input id="forward-host" type="text" placeholder="host to forward"
+						class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="http://127.0.0.1:5000">
+					<button id="start-forward"
+						class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md ml-auto">Forward</button>
+				</div>
+			</div>
+			<!-- End On/Off Buttons -->
 
-            <!-- Chat Panel -->
-            <div class="flex-1 flex flex-col border-t border-gray-300 pt-4">
-                <!-- Messages Area -->
-                <div id="output" class="flex-1 overflow-y-auto px-4">
-                </div>
+			<!-- Chat Panel -->
+			<div class="flex-1 flex flex-col border-t border-gray-300 pt-4">
+				<!-- Messages Area -->
+				<div id="output" class="flex-1 overflow-y-auto px-4">
+				</div>
 
-                <!-- Message Input and Upload Button -->
-                <div class="flex items-center space-x-2 p-2">
-                    <input id="chat" type="text" placeholder="Type your message..." class="flex-1 border border-gray-300 px-3 py-2 rounded-md">
-                    <!-- <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Send</button> -->
-                <div class="p-2">
-                    <label for="file-upload" class="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">📎</label>
-                    <input id="file-upload" type="file" class="hidden">
-                </div>
-                </div>
-            </div>
-            <!-- End Chat Panel -->
-        </div>
-        <!-- End Controls Panel -->
-    </main>
+				<!-- Message Input and Upload Button -->
+				<div class="flex items-center space-x-2 p-2">
+					<input id="chat" type="text" placeholder="Type your message..."
+						class="flex-1 border border-gray-300 px-3 py-2 rounded-md">
+					<!-- <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Send</button> -->
+					<div class="p-2">
+						<label for="file-upload"
+							class="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">📎</label>
+						<input id="file-upload" type="file" class="hidden">
+					</div>
+				</div>
+			</div>
+			<!-- End Chat Panel -->
+		</div>
+		<!-- End Controls Panel -->
+	</main>
 
-    <!-- Overlay for Copying String -->
-    <div id="copy-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 hidden">
-        <div class="bg-white p-4 rounded-md shadow-md text-center">
+	<!-- Overlay for Copying String -->
+	<div id="copy-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 hidden">
+		<div class="bg-white p-4 rounded-md shadow-md text-center">
 			<div id="qrcode"></div>
-            <p class="text-lg font-semibold mb-2">Copy this:</p>
-            <textarea readonly id="copy-text" class="bg-gray-200 px-4 py-2 rounded-md break-all block"></textarea>
-            <button id="copy-button" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Copy</button>
-            <textarea id="copy-text-2" class="bg-gray-200 px-4 py-2 rounded-md break-all block hidden"></textarea>
-            <button id="copy-button-2" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2 hidden">Accept</button>
-        </div>
-    </div>
+			<p class="text-lg font-semibold mb-2">Copy this:</p>
+			<textarea readonly id="copy-text" class="bg-gray-200 px-4 py-2 rounded-md break-all block"></textarea>
+			<button id="copy-button"
+				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Copy</button>
+			<textarea id="paste-text" class="bg-gray-200 px-4 py-2 rounded-md break-all block hidden"></textarea>
+			<button id="accept-button"
+				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2 hidden">Accept</button>
+		</div>
+	</div>
 	<script src="chat.js"></script>
 	<script src="file.js"></script>
 	<script src="stream.js"></script>
 	<script src="forward.js"></script>
 	<script>
-		const app = {};
+		const app = {
+			cleanups: [],
+		};
 
-		document.getElementById('hangup').addEventListener('click', () => {
+		const destroy = () => {
+			if (app.nego_dc) {
+				app.nego_dc.onclose = null;
+			}
 			if (app.pc) {
+				for (var cleanup of app.cleanups) {
+					cleanup();
+				}
+				try {
+					app.nego_dc.send(JSON.stringify({
+						type: "hangup",
+					}))
+				} catch { }
 				app.pc.close();
 				app.pc = null;
+				Object.keys(app).forEach(key => delete app[key]);
+				app.cleanups = [];
 			}
+			document.getElementById('media').innerHTML = '';
+			document.getElementById('output').innerHTML = '';
 			windowLoader();
-		})
+		}
+
+		document.getElementById('hangup').addEventListener('click', destroy)
 
 		async function init() {
 			const config = {
-				iceServers: document.getElementById("stun-servers").value.split(',').filter(link => link).map(link => ({urls: "stun:" + link})),
+				iceServers: document.getElementById("stun-servers").value.split(',').filter(link => link).map(link => ({ urls: "stun:" + link })),
 			};
 
 			const pc = new RTCPeerConnection(config);
@@ -115,17 +145,29 @@
 				document.getElementById("copy-overlay").classList.add('hidden');
 				history.pushState('', '', window.location.origin + window.location.pathname)
 			};
+
 			nego_dc.onclose = () => {
-				windowLoader();
-			}
+				destroy()
+			};
+
+			app.nego_handlers = {
+				"answer": (data) => pc.setRemoteDescription(data),
+				"offer": async (data) => {
+					pc.setRemoteDescription(data);
+					await pc.setLocalDescription();
+					nego_dc.send(JSON.stringify(pc.localDescription));
+				},
+				"hangup": (data) => destroy(),
+			};
 
 			nego_dc.onmessage = async e => {
 				const data = JSON.parse(e.data);
-				pc.setRemoteDescription(data);
-				if (data.type === "offer") {
-					await pc.setLocalDescription();
-					nego_dc.send(JSON.stringify(pc.localDescription));
-				}
+				const handler = app.nego_handlers[data.type];
+				if (!handler) {
+					console.log("cannot find handler for", data.type)
+					return;
+				};
+				handler(data);
 			};
 
 			setupTrackHandler(app);
@@ -142,7 +184,7 @@
 			await init();
 			await app.pc.setLocalDescription(await app.pc.createOffer());
 
-			app.pc.onnegotiationneeded = async function() {
+			app.pc.onnegotiationneeded = async function () {
 				const offer = await app.pc.createOffer()
 				await app.pc.setLocalDescription(offer);
 				app.nego_dc.send(JSON.stringify(offer));
@@ -150,7 +192,7 @@
 			app.pc.onicecandidate = async ({
 				candidate
 			}) => {
-				console.log('Candidate found', candidate)
+				console.log('Candidate found (offer)', candidate)
 				await cb(app.pc.localDescription.sdp);
 			};
 		}
@@ -163,7 +205,7 @@
 			});
 			await app.pc.setLocalDescription(await app.pc.createAnswer());
 
-			app.pc.onnegotiationneeded = async function() {
+			app.pc.onnegotiationneeded = async function () {
 				const offer = await app.pc.createOffer()
 				await app.pc.setLocalDescription(offer);
 				app.nego_dc.send(JSON.stringify(offer));
@@ -171,7 +213,7 @@
 			app.pc.onicecandidate = async ({
 				candidate
 			}) => {
-				console.log(candidate)
+				console.log('Candidate found (answer)', candidate)
 				await cb(app.pc.localDescription.sdp)
 			};
 		}
@@ -184,54 +226,65 @@
 		}
 		handleChange();
 
+		const copyHandler = async (ev) => {
+			if (navigator.clipboard) {
+				try {
+					const link = document.getElementById('copy-text');
+					await navigator.clipboard.writeText(link.value);
+					ev.target.innerHTML = "Copied successfully";
+				} catch {
+					ev.target.innerHTML = "Error copying, please copy manually";
+				}
+			} else {
+				ev.target.innerHTML = "Clipboard unavailable, please copy manually";
+			}
+		}
+		document.getElementById("copy-button").addEventListener("click", copyHandler);
+
+		const acceptHandler = async (ev) => {
+			let data = document.getElementById('paste-text').value;
+			const answer = await decompress(data.trim(), "gzip");
+			app.pc.setRemoteDescription({
+				type: "answer",
+				sdp: answer.trim() + '\n'
+			});
+		}
+
+		document.getElementById("accept-button").addEventListener("click", acceptHandler)
 
 		const windowLoader = async () => {
+			console.log("coming here")
 			const urlParams = new URLSearchParams(window.location.search);
 			window.removeEventListener("load", windowLoader);
+			const qrElem = document.getElementById("qrcode");
 			if (!urlParams.get('offer')) {
 				const now = Date.now();
+				const link = document.getElementById('copy-text');
+				document.getElementById('copy-overlay').classList.remove('hidden');
+				const btn = document.getElementById("copy-button");
+				const btn2 = document.getElementById("accept-button");
+				const link2 = document.getElementById('paste-text');
+				link2.value = '';
+				btn2.classList.remove('hidden');
+				link2.classList.remove('hidden');
+				const bc = new BroadcastChannel("manual_rtc");
+				app.bc = bc;
+				bc.onmessage = async (event) => {
+					let data = event.data;
+					const answer = await decompress(data.trim(), "gzip");
+					app.pc.setRemoteDescription({
+						type: "answer",
+						sdp: answer.trim() + '\n'
+					});
+				};
 				await getOffer(async (sdp) => {
 					if (Date.now() - now > 10 * 1000) { return }
-					const link = document.getElementById('copy-text');
-					document.getElementById('copy-overlay').classList.remove('hidden');
 					const compressed = await compress(sdp, "gzip");
 					urlParams.set('offer', compressed);
-					document.getElementById("qrcode").innerHTML = '';
-					new QRCode(document.getElementById("qrcode"), window.location.origin + window.location.pathname + '?' +  urlParams.toString());
-					link.innerHTML = window.location.origin + window.location.pathname + '?' +  urlParams.toString();
-					const btn = document.getElementById("copy-button");
+					qrElem.innerHTML = '';
+					new QRCode(qrElem, window.location.origin + window.location.pathname + '?' + urlParams.toString());
+					link.value = window.location.origin + window.location.pathname + '?' + urlParams.toString();
 					btn.innerHTML = "Copy";
-					btn.addEventListener("click", async (ev) => {
-						if (navigator.clipboard) {
-							await navigator.clipboard.writeText(link.innerHTML);
-							btn.innerHTML = "Copied successfully";
-						} else {
-							btn.innerHTML = "Error copying, please copy manually";
-						}
-					})
-					const btn2 = document.getElementById("copy-button-2");
-					const link2 = document.getElementById('copy-text-2');
-					link2.value = '';
-					btn2.classList.remove('hidden');
-					link2.classList.remove('hidden');
-					btn2.addEventListener("click", async (ev) => {
-						let data = link2.value;
-						const answer = await decompress(data.trim(), "gzip");
-						app.pc.setRemoteDescription({
-							type: "answer",
-							sdp: answer.trim() + '\n'
-						});
-					})
-					const bc = new BroadcastChannel("manual_rtc");
-					app.bc = bc;
-					bc.onmessage = async (event) => {
-						let data = event.data;
-						const answer = await decompress(data.trim(), "gzip");
-						app.pc.setRemoteDescription({
-							type: "answer",
-							sdp: answer.trim() + '\n'
-						});
-					};
 				})
 			} else if (urlParams.get('answer')) {
 				const bc = new BroadcastChannel("manual_rtc");
@@ -242,35 +295,29 @@
 			} else {
 				const now = Date.now();
 				const offer = await decompress(urlParams.get('offer'), "gzip");
+				const link = document.getElementById('copy-text');
+				document.getElementById('copy-overlay').classList.remove('hidden');
+				const btn = document.getElementById("copy-button");
 				await getAnswer(offer, async (sdp) => {
 					if (Date.now() - now > 10 * 1000) { return }
-					console.log(sdp)
-					const link = document.getElementById('copy-text');
-					document.getElementById('copy-overlay').classList.remove('hidden');
 					const compressed = await compress(sdp, "gzip");
 					urlParams.set('answer', compressed);
-					document.getElementById("qrcode").innerHTML = '';
-					new QRCode(document.getElementById("qrcode"), window.location.origin + window.location.pathname + '?' +  urlParams.toString());
-					link.innerHTML = compressed;
-					const btn = document.getElementById("copy-button");
+					qrElem.innerHTML = '';
+					new QRCode(qrElem, window.location.origin + window.location.pathname + '?' + urlParams.toString());
+					link.value = compressed;
 					btn.innerHTML = "Copy";
-					btn.addEventListener("click", async (ev) => {
-						if (navigator.clipboard) {
-							await navigator.clipboard.writeText(link.innerHTML);
-							btn.innerHTML = "Copied successfully";
-						} else {
-							btn.innerHTML = "Error copying, please copy manually";
-						}
-					})
 				})
 			}
 		}
+		console.log('coming here 2')
 		window.addEventListener("load", windowLoader);
 
 
 	</script>
 	<script src="sdpcompress.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+		integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA=="
+		crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </body>
 
 </html>

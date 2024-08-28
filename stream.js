@@ -16,6 +16,9 @@ function setupTrackHandler(app) {
             delete app.viewStreams[ev.streams[changed].id];
         }
     })
+    app.nego_handlers['stream.end'] = (data) => {
+        document.getElementById(`stream-${data.stream}`).remove();
+    }
 }
 
 
@@ -30,6 +33,10 @@ const setupLocalStream = async (changed) => {
         app.streams[changed].getTracks().forEach(function(track) {
             track.stop();
             track.dispatchEvent(new Event("ended"));
+            app.nego_dc.send(JSON.stringify({
+                type: "stream.end",
+                stream: app.streams[changed].id,
+            }))
         });
     }
     let stream;

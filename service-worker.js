@@ -16,7 +16,7 @@ self.addEventListener('activate', (event) => {
 
 // Convert event.request.body to ArrayBuffer
 async function bodyToArrayByffer(body) {
-    if (body === null) {
+    if (!body) {
         return null;
     }
     const reader = body.getReader();
@@ -55,8 +55,8 @@ function objectToArrayBuffer(data) {
 
 self.addEventListener('fetch', (event) => {
     console.log("got a new fetch", "ref", event.request.referrer, "url", event.request.url, event, Object.fromEntries(event.request.headers))
-    const url = new URL(event.request.referrer)
-    let host = url.searchParams.get('host');
+    const url = event.request.referrer?new URL(event.request.referrer):undefined;
+    let host = url?.searchParams.get('host');
     let homepage = false;
     if (!host) {
         const url = new URL(event.request.url)
@@ -86,8 +86,32 @@ self.addEventListener('fetch', (event) => {
         self.counter = 0;
     }
     const id = self.counter++;
-    self.handlers ||= {};
-    const resp = new Promise((resolve, reject) => {
+    self.handlers ||= {};;
+    let rurl = new URL(event.request.url);
+    const hurl = new URL(host);
+    if (homepage) {
+        rurl = hurl;
+    } else {
+        rurl.host = hurl.host;
+        rurl.protocol = hurl.protocol;
+    }
+    console.log("handling2 fetch for host", homepage, host, hurl, rurl, event.request.referrer, event.request.url, id);
+
+    const postRequest = async function () {
+        console.log(self.clientId)
+        const client = await self.clients.get(self.clientId);
+        console.log("sending message to window", client.url);
+        const body = await bodyToArrayByffer(event.request.body);
+        client.postMessage({
+            id: id,
+            url: rurl.toString(),
+            method: event.request.method,
+            headers: Object.fromEntries(event.request.headers),
+            body: body,
+        });
+    };
+
+    const resp = postRequest().then(() => new Promise((resolve, reject) => {
         self.handlers[id] = (data, err) => {
             console.log("called callback for fetch", data, err)
             if (err) {
@@ -98,36 +122,8 @@ self.addEventListener('fetch', (event) => {
             resolve(new Response(arrayBuffer, data));
             delete self.handlers[id];
         }
-    });
-    let rurl = new URL(event.request.url);
-    const hurl = new URL(host);
-    if (homepage) {
-        rurl = hurl;
-    } else {
-        rurl.host = hurl.host;
-        rurl.protocol = hurl.protocol;
-    }
-    console.log("handling2 fetch for host", homepage, host, hurl, rurl, event.request.referrer, event.request.url, id);
-    (async function () {
-        const clientList = await self.clients.matchAll({
-            type: "window",
-        });
-        for (const client of clientList) {
-            const curl = new URL(client.url);
-            if (curl.searchParams.get('hosts_host') != host) {
-                continue
-            }
-            console.log("sending message to window", client.url);
-            const body = await bodyToArrayByffer(event.request.body);
-            client.postMessage({
-                id: id,
-                url: rurl.toString(),
-                method: event.request.method,
-                headers: Object.fromEntries(event.request.headers),
-                body: body,
-            });
-        }
-    })();
+    }));
+
     event.respondWith(resp);
 });
 
@@ -136,6 +132,7 @@ self.addEventListener('message', function (event) {
     switch (event.data.type) {
         case 'host':
             self.host = event.data.host;
+            self.clientId = event.source.id;
         case 'response':
             if (self.handlers[event.data.id]) {
                 self.handlers[event.data.id](event.data);

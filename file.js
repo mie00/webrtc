@@ -70,13 +70,10 @@ function readFile(file) {
     log(`<label for="file-${id}">${file.name}</label> <span id="f-${id}"><progress id="file-${id}" value="0" max="100"> 0% </progress></span>`)
     let offset = 0;
     const max_size = 2 * 1024 * 1024;
-    var sent_header = false;
+    app.dc_file.send(JSON.stringify({ name: file.name, type: file.type, size: file.size }));
+
     const reader = new FileReader();
     reader.onload = function (event) {
-        if (!sent_header) {
-            app.dc_file.send(JSON.stringify({ name: file.name, type: file.type, size: file.size }));
-            sent_header = true;
-        }
         for (var chunk of splitArrayBuffer(event.target.result, 128 * 1024)) {
             app.dc_file.send(chunk);
         }

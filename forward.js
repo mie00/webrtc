@@ -12,6 +12,7 @@ async function sendData(reader, id) {
         await cb();
     }
 
+    // TODO: convert to proper promise
     const cb = async function () {
         app.forward.removeEventListener("bufferedamountlow", clearBufferAndCb);
         if (!gvalue) {
@@ -72,11 +73,8 @@ function setupForwardChannel(app) {
                 document.getElementById('media').appendChild(iframeElement);
                 iframeElement.src = `/iframe-content.html?host=${data.host}`;
                 iframeElement.id = `iframe-${data.host}`
-                iframeElement.classList.add('w-full');
-                iframeElement.classList.add('h-screen');
+                iframeElement.classList.add('w-full', 'h-screen', 'bg-white');
                 iframeElement.allowTransparency="false";
-                iframeElement.style.backgroundColor = "white";
-
 
                 // add hosts_host to url params of current page, not iframe
                 const url = new URL(window.location.href);
@@ -88,8 +86,19 @@ function setupForwardChannel(app) {
                 });
                 break;
             case "request":
+                const logElement = document.getElementById(`log-${app.allowed_host}`);
+                let logLine = document.createElement('p');
+                logLine.id = `ll-${data.id}`
+                logElement.insertBefore(logLine, logElement.firstChild)
+                logLine.innerHTML = `${data.url}`
+                const status = document.createElement('span')
+                status.id = `lls-${data.id}`
+                status.classList.add("right")
+                status.innerHTML = '🌀'
+                logLine.appendChild(status);
                 if (!data.url.startsWith(app.allowed_host)) {
                     console.log("not allowed", app.allowed_host, data.url)
+                    status.innerHTML = '❌'
                     return;
                 }
                 fetch(data.url, data).then(async response => {
@@ -100,7 +109,7 @@ function setupForwardChannel(app) {
                         statusText: response.statusText,
                         headers: Object.fromEntries(response.headers),
                     }));
-                    (async function () {
+                    return (async function () {
                         if (response.body === null) {
                             app.forward.send(JSON.stringify({
                                 type: "end",
@@ -110,12 +119,14 @@ function setupForwardChannel(app) {
                         }
                         const reader = response.body.getReader();
                         await sendData(reader, data.id);
+                        status.innerHTML = '✅';
                     }());
                 }).catch(err => {
                     app.forward.send(JSON.stringify({
                         type: "error",
                         err: JSON.stringify(err, Object.getOwnPropertyNames(err)),
                     }));
+                    status.innerHTML = '⭕';
                 });
                 break;
             case "response":
@@ -129,25 +140,43 @@ function setupForwardChannel(app) {
                 delete app.inflight[data.id];
                 cb(data);
                 break;
+            case "offer.end":
+                document.getElementById(`iframe-${data.host}`).remove();
+                break;
             default:
                 console.log("unknown2 message type", data)
         }
     };
 }
 
-function sendOffer(app, hostname) {
-    app.allowed_host = hostname;
-    app.forward.send(JSON.stringify({ type: "offer", host: hostname }));
-}
-
-document.getElementById('start-forward').addEventListener('click', () => {
+const startForwardHandler = (ev) => {
     const val = document.getElementById('forward-host').value;
     if (!val) {
         alert("empty value");
         return;
     }
-    sendOffer(app, val);
-})
+    
+    const to_remove = !app.allowed_host?'bg-blue-500':'bg-gray-500';
+    const to_add = !app.allowed_host?'bg-gray-500':'bg-blue-500';
+    ev.target.classList.remove(to_remove);
+    ev.target.classList.add(to_add);
+
+    if (!app.allowed_host) {
+        app.allowed_host = val;
+        app.forward.send(JSON.stringify({ type: "offer", host: val }));
+
+        let logElement = document.createElement('div');
+        document.getElementById('media').appendChild(logElement);
+        logElement.id = `log-${app.allowed_host}`;
+        logElement.classList.add('w-full', 'max-h-screen', 'bg-white', 'overflow-x-hidden', 'overflow-y-scroll');
+    } else {
+        app.forward.send(JSON.stringify({ type: "offer.end", host: app.allowed_host }));
+        document.getElementById(`log-${app.allowed_host}`).remove()
+        app.allowed_host = '';
+    }
+}
+
+document.getElementById('start-forward').addEventListener('click', startForwardHandler)
 
 function concatUint8Arrays(arrays) {
     // Calculate the total length of all arrays
@@ -186,7 +215,7 @@ if ('serviceWorker' in navigator) {
         .catch((err) => console.log(err));
 
     var msg = new MessageChannel();
-    navigator.serviceWorker.addEventListener('message', function (event) {
+    const handler = function (event) {
         console.log('got event from service worker, sending message to peer', event)
         const id = event.data.id;
         let r = { data: [] };
@@ -208,7 +237,9 @@ if ('serviceWorker' in navigator) {
             type: "request",
             ...event.data
         }))
-    });
+    }
+    navigator.serviceWorker.addEventListener('message', handler);
+    msg.port1.onmessage = handler;
 }
 
 /*
