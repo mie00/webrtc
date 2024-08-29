@@ -52,6 +52,12 @@ async function sendData(reader, id) {
 
 
 function setupForwardChannel(app) {
+    app.cleanups.push(() => {
+        if (app._send_host_interval) {
+            clearInterval(app._send_host_interval);
+            app._send_host_interval = null;
+        }
+    })
     app.allowed_host = null;
     app.inflight = {};
     app.queue = [];
@@ -69,6 +75,14 @@ function setupForwardChannel(app) {
         let cb;
         switch (data.type) {
             case "offer":
+                if (!('serviceWorker' in navigator)) {
+                    alert("cannot do service workers, won't be able to do forwarding");
+                    app.forward.send(JSON.stringify({
+                        type: "offer.error",
+                        error: "no service worker on peer"
+                    }));
+                    return;
+                }
                 let iframeElement = document.createElement('iframe');
                 document.getElementById('media').appendChild(iframeElement);
                 iframeElement.src = `/iframe-content.html?host=${data.host}`;
@@ -80,10 +94,16 @@ function setupForwardChannel(app) {
                 const url = new URL(window.location.href);
                 url.searchParams.set('hosts_host', data.host);
                 window.history.pushState(null, '', url.toString());
-                navigator.serviceWorker.controller.postMessage({
+                const sendHost = () => navigator.serviceWorker.controller.postMessage({
                     type: 'host',
                     host: data.host,
                 });
+                sendHost();
+                if (app._send_host_interval) {
+                    clearInterval(app._send_host_interval);
+                    app._send_host_interval = null;
+                }
+                app._send_host_interval = setInterval(sendHost, 10000)
                 break;
             case "request":
                 const logElement = document.getElementById(`log-${app.allowed_host}`);
@@ -141,27 +161,35 @@ function setupForwardChannel(app) {
                 cb(data);
                 break;
             case "offer.end":
+                if (app._send_host_interval) {
+                    clearInterval(app._send_host_interval);
+                    app._send_host_interval = null;
+                }
                 document.getElementById(`iframe-${data.host}`).remove();
                 break;
+            case "offer.error":
+                alert("failed to forward to the other side");
+                toggleForwardHandler();
             default:
                 console.log("unknown2 message type", data)
         }
     };
 }
 
-const startForwardHandler = (ev) => {
-    const val = document.getElementById('forward-host').value;
-    if (!val) {
-        alert("empty value");
-        return;
-    }
+const toggleForwardHandler = () => {
     
     const to_remove = !app.allowed_host?'bg-blue-500':'bg-gray-500';
     const to_add = !app.allowed_host?'bg-gray-500':'bg-blue-500';
-    ev.target.classList.remove(to_remove);
-    ev.target.classList.add(to_add);
+    const forwardButton = document.getElementById('start-forward');
+    forwardButton.classList.remove(to_remove);
+    forwardButton.classList.add(to_add);
 
     if (!app.allowed_host) {
+        const val = document.getElementById('forward-host').value;
+        if (!val) {
+            alert("empty value");
+            return;
+        }
         app.allowed_host = val;
         app.forward.send(JSON.stringify({ type: "offer", host: val }));
 
@@ -176,7 +204,7 @@ const startForwardHandler = (ev) => {
     }
 }
 
-document.getElementById('start-forward').addEventListener('click', startForwardHandler)
+document.getElementById('start-forward').addEventListener('click', toggleForwardHandler)
 
 function concatUint8Arrays(arrays) {
     // Calculate the total length of all arrays
