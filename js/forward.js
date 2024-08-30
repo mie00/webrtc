@@ -180,7 +180,6 @@ function setupForwardChannel(app) {
 }
 
 const toggleForwardHandler = async () => {
-    
     const to_remove = !app.allowed_host?'bg-blue-500':'bg-gray-500';
     const to_add = !app.allowed_host?'bg-gray-500':'bg-blue-500';
     const forwardButton = document.getElementById('start-forward');
@@ -188,7 +187,7 @@ const toggleForwardHandler = async () => {
     forwardButton.classList.add(to_add);
 
     if (!app.allowed_host) {
-        const val = document.getElementById('forward-host').value;
+        let val = document.getElementById('forward-host').value;
         if (!val) {
             alert("empty value");
             return;
