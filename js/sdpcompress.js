@@ -93,7 +93,7 @@ function compress(inp) {
     const inp_list = inp.trim().split(sep);
     const arr = concatTypedArraysMulti(...inp_list.map(compress_line));
     const ret = btoa(String.fromCharCode(...arr))
-    console.log(inp.trim(), decompress(ret))
+    console.log({'compressed': inp.trim()})
     return ret
 }
 

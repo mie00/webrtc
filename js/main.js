@@ -36,24 +36,14 @@ async function init() {
     const pc = new RTCPeerConnection(config);
     app.pc = pc;
 
-    app.pc.oniceconnectionstatechange = e => log(app.pc.iceConnectionState);
-
-    app.pc.onconnectionstatechange = ev => handleChange();
-    app.pc.oniceconnectionstatechange = ev => handleChange();
+    app.pc.onconnectionstatechange = handleChange;
+    app.pc.oniceconnectionstatechange = handleChange;
 
     const nego_dc = pc.createDataChannel("nego", {
         negotiated: true,
         id: 0
     });
     app.nego_dc = nego_dc;
-    nego_dc.onopen = () => {
-        document.getElementById("copy-overlay").classList.add('hidden');
-        history.pushState('', '', window.location.origin + window.location.pathname)
-    };
-
-    nego_dc.onclose = () => {
-        destroy()
-    };
 
     app.nego_handlers = {
         "answer": (data) => pc.setRemoteDescription(data),
@@ -87,6 +77,9 @@ const log = msg => output.innerHTML += `<br>${msg}`;
 
 async function getOffer(cb) {
     await init();
+    if (app.polite === undefined) {
+        app.polite = false;
+    }
     await app.pc.setLocalDescription(await app.pc.createOffer());
 
     app.pc.onnegotiationneeded = async function () {
@@ -104,6 +97,9 @@ async function getOffer(cb) {
 
 async function getAnswer(offer, cb) {
     await init();
+    if (app.polite === undefined) {
+        app.polite = true;
+    }
     await app.pc.setRemoteDescription({
         type: "offer",
         sdp: offer.trim() + '\n'
@@ -123,11 +119,67 @@ async function getAnswer(offer, cb) {
     };
 }
 
-function handleChange() {
-    let stat = 'ConnectionState: <strong>' + app.pc?.connectionState + '</strong> IceConnectionState: <strong>' + app.pc?.iceConnectionState + '</strong>';
-    document.getElementById('stat').innerHTML = stat;
+async function sha256(message) {
+    // encode as UTF-8
+    const msgBuffer = new TextEncoder().encode(message);                    
+
+    // hash the message
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+
+    // convert ArrayBuffer to Array
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+
+    // convert bytes to hex string                  
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+}
+
+async function genEmojis(digest) {
+    if (!crypto.subtle) {
+        return "❗❗❗❗❗❗❗❗";
+    }
+    const msgBuffer = new TextEncoder().encode(digest);                    
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const limit = Math.pow(EMOJIS.length, 4) + Math.pow(EMOJIS.length, 3) + Math.pow(EMOJIS.length, 2) + EMOJIS.length;
+    let val = 0;
+    let ind = 0;
+    while (val < limit && ind < hashArray.length) {
+        val += Math.pow(hashArray[i], ind + 1);
+        ind += 1
+    }
+    return (EMOJIS[val % EMOJIS.length]) + 
+           (EMOJIS[Math.floor(val / EMOJIS.length) % EMOJIS.length]) +
+           (EMOJIS[Math.floor(val / EMOJIS.length / EMOJIS.length) % EMOJIS.length]) +
+           (EMOJIS[Math.floor(val / EMOJIS.length / EMOJIS.length / EMOJIS.length) % EMOJIS.length])
+}
+
+async function handleChange() {
+    document.getElementById('connection-stat').innerHTML = app.pc?.connectionState;
+    document.getElementById('ice-connection-stat').innerHTML = app.pc?.iceConnectionState;
     console.log('%c' + new Date().toISOString() + ': ConnectionState: %c' + app.pc?.connectionState + ' %cIceConnectionState: %c' + app.pc?.iceConnectionState,
         'color:yellow', 'color:orange', 'color:yellow', 'color:orange');
+        const toRemove = ['bg-gray-400', 'bg-red-400', 'bg-green-400'];
+        const toAdd = app.pc?.connectionState === 'connected' && app.pc?.iceConnectionState === 'connected'?'bg-green-400':
+            app.pc?.connectionState === 'failed' || app.pc?.iceConnectionState === 'failed'?'bg-red-400':'bg-gray=400';
+        document.getElementById('indicator').classList.remove.apply(document.getElementById('indicator').classList, toRemove);
+        document.getElementById('indicator').classList.add(toAdd);
+    if (app.pc?.connectionState === 'connected' && app.pc?.iceConnectionState === 'connected') {
+        if (!app.connected) {
+            const firstSDP = app.polite?app.pc.remoteDescription.sdp:app.pc.localDescription.sdp;
+            const secondSDP = !app.polite?app.pc.remoteDescription.sdp:app.pc.localDescription.sdp;
+            const fingerprints = firstSDP.split(/\r\n|\r|\n/).filter(x => x.match(/^a=fingerprint/)).concat(
+                secondSDP.split(/\r\n|\r|\n/).filter(x => x.match(/^a=fingerprint/))).join('\r\n');
+            const ejs = await genEmojis(fingerprints);
+            console.log('ejs', ejs)
+            document.getElementById('connection-secret').innerHTML = ejs;
+        }
+        app.connected = true;
+        document.getElementById("copy-overlay").classList.add('hidden');
+        history.pushState('', '', window.location.origin + window.location.pathname);
+    } else if (app.connected && (app.pc?.connectionState != 'connected' || app.pc?.iceConnectionState != 'connected')) {
+        destroy();
+    }
 }
 handleChange();
 

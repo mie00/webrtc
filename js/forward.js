@@ -69,7 +69,7 @@ function setupForwardChannel(app) {
     forward.onopen = () => {
         chat.select();
     };
-    forward.onmessage = e => {
+    forward.onmessage = async e => {
         const data = JSON.parse(e.data);
         console.log("got message in forward channel from peer", data);
         let cb;
@@ -83,12 +83,6 @@ function setupForwardChannel(app) {
                     }));
                     return;
                 }
-                let iframeElement = document.createElement('iframe');
-                document.getElementById('media').appendChild(iframeElement);
-                iframeElement.src = `/iframe-content.html?host=${data.host}`;
-                iframeElement.id = `iframe-${data.host}`
-                iframeElement.classList.add('w-full', 'h-screen', 'bg-white');
-                iframeElement.allowTransparency="false";
 
                 // add hosts_host to url params of current page, not iframe
                 const url = new URL(window.location.href);
@@ -103,7 +97,14 @@ function setupForwardChannel(app) {
                     clearInterval(app._send_host_interval);
                     app._send_host_interval = null;
                 }
-                app._send_host_interval = setInterval(sendHost, 10000)
+                app._send_host_interval = setInterval(sendHost, 10000);
+
+                let iframeElement = document.createElement('iframe');
+                document.getElementById('media').appendChild(iframeElement);
+                iframeElement.src = `/iframe-content.html?host=${data.host}`;
+                iframeElement.id = `iframe-${data.host}`
+                iframeElement.classList.add('w-full', 'h-screen', 'bg-white');
+                iframeElement.allowTransparency="false";
                 break;
             case "request":
                 const logElement = document.getElementById(`log-${app.allowed_host}`);
@@ -165,18 +166,20 @@ function setupForwardChannel(app) {
                     clearInterval(app._send_host_interval);
                     app._send_host_interval = null;
                 }
-                document.getElementById(`iframe-${data.host}`).remove();
+                const iframeElem = document.getElementById(`iframe-${data.host}`);
+                iframeElem?.remove();
                 break;
             case "offer.error":
                 alert("failed to forward to the other side");
-                toggleForwardHandler();
+                await toggleForwardHandler();
+                break;
             default:
                 console.log("unknown2 message type", data)
         }
     };
 }
 
-const toggleForwardHandler = () => {
+const toggleForwardHandler = async () => {
     
     const to_remove = !app.allowed_host?'bg-blue-500':'bg-gray-500';
     const to_add = !app.allowed_host?'bg-gray-500':'bg-blue-500';
@@ -190,6 +193,15 @@ const toggleForwardHandler = () => {
             alert("empty value");
             return;
         }
+
+        try {
+            const res = await fetch(val);
+            await res.arrayBuffer();
+        } catch {
+            alert("error doing fetch, make sure CORS is set to allow requests from " + window.location.host);
+            return;
+        }
+
         app.allowed_host = val;
         app.forward.send(JSON.stringify({ type: "offer", host: val }));
 

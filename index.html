@@ -4,6 +4,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; img-src 'self' https: data:; connect-src 'self' https: http:;">
 	<title>Styled Page</title>
 	<link href="thridparty/css/tailwind.min.css" rel="stylesheet">
 </head>
@@ -11,7 +12,7 @@
 <body class="bg-gray-100 h-screen flex flex-col">
 	<!-- Header -->
 	<header class="bg-white shadow-md py-4 px-6 flex justify-between items-center">
-		<h1 class="text-xl font-semibold text-gray-800">Video Call App</h1>
+		<h1 class="text-xl font-semibold text-gray-800">Video Call App</h1><strong id="connection-secret"></strong>
 		<button id='hangup' class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md">Hang Up</button>
 	</header>
 
@@ -25,12 +26,12 @@
 
 		<!-- Controls Panel -->
 		<div class="w-1/4 bg-gray-200 p-4 flex flex-col space-y-4">
-			<!-- Participants -->
 			<div class="flex items-center space-x-2">
-				<div class="bg-gray-400 rounded-full h-4 w-4"></div> <!-- Participant indicator -->
-				<p id="stat" class="text-sm font-medium text-gray-700"></p>
+				<div id="indicator" class="bg-gray-400 rounded-full h-4 w-4"></div> <!-- Participant indicator -->
+				<p class="text-sm font-medium text-gray-700">
+					ConnectionState: <strong id="connection-stat"></strong> IceConnectionState: <strong id="ice-connection-stat"></strong>
+				</p>
 			</div>
-			<!-- End Participants -->
 
 			<div class="flex flex-col space-y-2">
 				Stun server <input id="stun-servers" type="text" placeholder="Stun servers"
@@ -89,6 +90,7 @@
 				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2 hidden">Accept</button>
 		</div>
 	</div>
+	<script src="js/emojis.js"></script>
 	<script src="js/chat.js"></script>
 	<script src="js/file.js"></script>
 	<script src="js/stream.js"></script>
