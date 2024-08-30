@@ -198,8 +198,19 @@ const toggleForwardHandler = async () => {
             const res = await fetch(val);
             await res.arrayBuffer();
         } catch {
-            alert("error doing fetch, make sure CORS is set to allow requests from " + window.location.host);
-            return;
+            if (val.startsWith('http://127.0.0.1') || val.startsWith('http://localhost')) {
+                val = val.replace(/http:\/\/[^/:]+/, 'http://local.mie00.com')
+                try {
+                    const res = await fetch(val);
+                    await res.arrayBuffer();
+                } catch {
+                    alert(`error doing fetch, use firefox. Or if you want to keep using chrome, click on the site settings besides the url and choose "Allow" for "Insecure content"`);
+                    return;
+                }
+            } else {
+                alert("error doing fetch, make sure CORS is set to allow requests from " + window.location.host);
+                return;
+            }
         }
 
         app.allowed_host = val;

@@ -168,8 +168,8 @@ async function handleChange() {
         if (!app.connected) {
             const firstSDP = app.polite?app.pc.remoteDescription.sdp:app.pc.localDescription.sdp;
             const secondSDP = !app.polite?app.pc.remoteDescription.sdp:app.pc.localDescription.sdp;
-            const fingerprints = firstSDP.split(/\r\n|\r|\n/).filter(x => x.match(/^a=fingerprint/)).concat(
-                secondSDP.split(/\r\n|\r|\n/).filter(x => x.match(/^a=fingerprint/))).join('\r\n');
+            const fingerprints = firstSDP.split(/\r\n|\r|\n/).filter(x => x.match(/^a=fingerprint/)).map(x => 'polite:' + x).concat(
+                secondSDP.split(/\r\n|\r|\n/).filter(x => x.match(/^a=fingerprint/)).map(x => 'impolite:' + x)).join('\r\n');
             const ejs = await genEmojis(fingerprints);
             console.log('ejs', ejs)
             document.getElementById('connection-secret').innerHTML = ejs;
