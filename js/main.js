@@ -336,6 +336,7 @@ const debounceEmit = () => {
 const windowLoader = async () => {
     const urlParams = new URLSearchParams(window.location.search);
     window.removeEventListener("load", windowLoader);
+    const qrElem = document.getElementById("qrcode");
     if (!urlParams.has('r')) {
         socket.on('init', async (id) => {
             console.log("init", id);
@@ -346,6 +347,12 @@ const windowLoader = async () => {
             link.value = window.location.toString();
             const btn = document.getElementById("copy-button");
             btn.innerHTML = "Copy";
+            qrElem.innerHTML = '';
+            try {
+                new QRCode(qrElem, window.location.origin + window.location.pathname + '?' + urlParams.toString());
+            } catch (e) {
+                console.log("qr code generation error", e)
+            }
         });
         socket.on('subscribed', async (sid) => {
             // debounce
