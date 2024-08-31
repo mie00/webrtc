@@ -57,7 +57,13 @@ async function init() {
             await app.clients[cid].pc.setLocalDescription();
             app.clients[cid].nego_dc.send(JSON.stringify(app.clients[cid].pc.localDescription));
         },
-        "hangup": (data, cid) => destroyClient(cid),
+        "hangup": (data, cid) => {
+            if (!app.clients[cid].polite) {
+                destroyClient(cid);
+            } else {
+                destroy();
+            }
+        },
     };
 
     streamInit(app);
@@ -338,6 +344,8 @@ const windowLoader = async () => {
             const link = document.getElementById('copy-text');
             document.getElementById('copy-overlay').classList.remove('hidden');
             link.value = window.location.toString();
+            const btn = document.getElementById("copy-button");
+            btn.innerHTML = "Copy";
         });
         socket.on('subscribed', async (sid) => {
             // debounce

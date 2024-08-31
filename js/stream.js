@@ -27,8 +27,8 @@ function setupTrackHandler(app, cid) {
         app.viewStreams[ev.streams[0].id] = ev.streams[0];
         ev.track.onended = (ev) => {
             console.log(ev)
-            document.getElementById(`stream-${ev.streams[0].id}`)?.remove();
-            delete app.viewStreams[ev.streams[0].id];
+            document.getElementById(`stream-${ev.target.id}`)?.remove();
+            delete app.viewStreams[ev.target.id];
         }
 
         for (let cid2 of Object.keys(app.clients)) {
