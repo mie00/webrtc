@@ -378,6 +378,10 @@ const windowLoader = async () => {
                 emit('answer', sid, sdp);
             })
         });
+        socket.on('error', async () => {
+            history.replaceState(null, '', window.location.origin + window.location.pathname);
+            windowLoader();
+        });
         socket.emit('subscribe', id);
     }
 }
