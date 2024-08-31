@@ -1,26 +1,34 @@
 
-const app = {
-    cleanups: [],
-};
+const app = {};
 
-const destroy = () => {
-    if (app.nego_dc) {
-        app.nego_dc.onclose = null;
+const destroyClient = (cid) => {
+    if (app.clients[cid].nego_dc) {
+        app.clients[cid].nego_dc.onclose = null;
     }
-    if (app.pc) {
-        for (var cleanup of app.cleanups) {
-            cleanup();
+    if (app.clients[cid].pc) {
+        for (var cleanup of Object.values(app.cleanups)) {
+            cleanup(cid);
         }
         try {
-            app.nego_dc.send(JSON.stringify({
+            app.clients[cid].nego_dc.send(JSON.stringify({
                 type: "hangup",
             }))
         } catch { }
-        app.pc.close();
-        app.pc = null;
-        Object.keys(app).forEach(key => delete app[key]);
-        app.cleanups = [];
+        app.clients[cid].pc.close();
+        app.clients[cid].pc = null;
+        Object.keys(app.clients[cid]).forEach(key => delete app.clients[cid][key]);
     }
+    delete app.clients[cid]
+}
+
+const destroy = () => {
+    for (var cid of Object.keys(app.clients)) {
+        destroyClient(cid);
+    }
+    for (var cleanup of Object.values(app.cleanups)) {
+        cleanup();
+    }
+    app.cleanups = {};
     document.getElementById('media').innerHTML = '';
     document.getElementById('output').innerHTML = '';
     windowLoader();
@@ -28,100 +36,128 @@ const destroy = () => {
 
 document.getElementById('hangup').addEventListener('click', destroy)
 
+function uuidv4() {
+    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+        (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
+    );
+}
+
 async function init() {
+    if (app.inited) {
+        return;
+    }
+    app.cleanups = {}
+    app.clients = {}
+    app.inited = true;
+    app.nego_handlers = {
+        "answer": (data, cid) => app.clients[cid].pc.setRemoteDescription(data),
+        "offer": async (data, cid) => {
+            app.clients[cid].pc.setRemoteDescription(data);
+            await app.clients[cid].pc.setLocalDescription();
+            app.clients[cid].nego_dc.send(JSON.stringify(app.clients[cid].pc.localDescription));
+        },
+        "hangup": (data, cid) => destroyClient(cid),
+    };
+
+    streamInit(app);
+    forwardInit(app);
+}
+
+async function initClient() {
+    init();
     const config = {
         iceServers: document.getElementById("stun-servers").value.split(',').filter(link => link).map(link => ({ urls: "stun:" + link })),
     };
 
-    const pc = new RTCPeerConnection(config);
-    app.pc = pc;
+    const cid = uuidv4();
+    app.clients[cid] = {};
 
-    app.pc.onconnectionstatechange = handleChange;
-    app.pc.oniceconnectionstatechange = handleChange;
+    const pc = new RTCPeerConnection(config);
+    app.clients[cid].pc = pc;
+
+    app.clients[cid].pc.onconnectionstatechange = () => handleChange(cid);
+    app.clients[cid].pc.oniceconnectionstatechange = () => handleChange(cid);
 
     const nego_dc = pc.createDataChannel("nego", {
         negotiated: true,
         id: 0
     });
-    app.nego_dc = nego_dc;
-
-    app.nego_handlers = {
-        "answer": (data) => pc.setRemoteDescription(data),
-        "offer": async (data) => {
-            pc.setRemoteDescription(data);
-            await pc.setLocalDescription();
-            nego_dc.send(JSON.stringify(pc.localDescription));
-        },
-        "hangup": (data) => destroy(),
-    };
+    app.clients[cid].nego_dc = nego_dc;
+    nego_dc.onclose = async e => {
+        destroyClient(cid);
+    }
 
     nego_dc.onmessage = async e => {
         const data = JSON.parse(e.data);
+        console.log("got negotiation message", data);
         const handler = app.nego_handlers[data.type];
         if (!handler) {
             console.log("cannot find handler for", data.type)
             return;
         };
-        handler(data);
+        handler(data, cid);
     };
 
-    setupTrackHandler(app);
+    setupTrackHandler(app, cid);
     if (true) {
-        setupChatChannel(app);
-        setupFileChannel(app);
-        setupForwardChannel(app);
+        setupChatChannel(app, cid);
+        setupFileChannel(app, cid);
+        setupForwardChannel(app, cid);
     }
+    return cid;
 }
 
 const log = msg => output.innerHTML += `<br>${msg}`;
 
 async function getOffer(cb) {
-    await init();
-    if (app.polite === undefined) {
-        app.polite = false;
+    const cid = await initClient();
+    if (app.clients[cid].polite === undefined) {
+        app.clients[cid].polite = false;
     }
-    await app.pc.setLocalDescription(await app.pc.createOffer());
+    await app.clients[cid].pc.setLocalDescription(await app.clients[cid].pc.createOffer());
 
-    app.pc.onnegotiationneeded = async function () {
-        const offer = await app.pc.createOffer()
-        await app.pc.setLocalDescription(offer);
-        app.nego_dc.send(JSON.stringify(offer));
+    app.clients[cid].pc.onnegotiationneeded = async function () {
+        const offer = await app.clients[cid].pc.createOffer()
+        await app.clients[cid].pc.setLocalDescription(offer);
+        app.clients[cid].nego_dc.send(JSON.stringify(offer));
     };
-    app.pc.onicecandidate = async ({
+    app.clients[cid].pc.onicecandidate = async ({
         candidate
     }) => {
         console.log('Candidate found (offer)', candidate)
-        await cb(app.pc.localDescription.sdp);
+        await cb(app.clients[cid].pc.localDescription.sdp);
     };
+    return cid;
 }
 
 async function getAnswer(offer, cb) {
-    await init();
-    if (app.polite === undefined) {
-        app.polite = true;
+    const cid = await initClient();
+    if (app.clients[cid].polite === undefined) {
+        app.clients[cid].polite = true;
     }
-    await app.pc.setRemoteDescription({
+    await app.clients[cid].pc.setRemoteDescription({
         type: "offer",
         sdp: offer.trim() + '\n'
     });
-    await app.pc.setLocalDescription(await app.pc.createAnswer());
+    await app.clients[cid].pc.setLocalDescription(await app.clients[cid].pc.createAnswer());
 
-    app.pc.onnegotiationneeded = async function () {
-        const offer = await app.pc.createOffer()
-        await app.pc.setLocalDescription(offer);
-        app.nego_dc.send(JSON.stringify(offer));
+    app.clients[cid].pc.onnegotiationneeded = async function () {
+        const offer = await app.clients[cid].pc.createOffer()
+        await app.clients[cid].pc.setLocalDescription(offer);
+        app.clients[cid].nego_dc.send(JSON.stringify(offer));
     };
-    app.pc.onicecandidate = async ({
+    app.clients[cid].pc.onicecandidate = async ({
         candidate
     }) => {
         console.log('Candidate found (answer)', candidate)
-        await cb(app.pc.localDescription.sdp)
+        await cb(app.clients[cid].pc.localDescription.sdp)
     };
+    return cid;
 }
 
 async function sha256(message) {
     // encode as UTF-8
-    const msgBuffer = new TextEncoder().encode(message);                    
+    const msgBuffer = new TextEncoder().encode(message);
 
     // hash the message
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -138,7 +174,7 @@ async function genEmojis(digest) {
     if (!crypto.subtle) {
         return "❗❗❗❗❗❗❗❗";
     }
-    const msgBuffer = new TextEncoder().encode(digest);                    
+    const msgBuffer = new TextEncoder().encode(digest);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const limit = Math.pow(EMOJIS.length, 4) + Math.pow(EMOJIS.length, 3) + Math.pow(EMOJIS.length, 2) + EMOJIS.length;
@@ -148,40 +184,38 @@ async function genEmojis(digest) {
         val += Math.pow(hashArray[i], ind + 1);
         ind += 1
     }
-    return (EMOJIS[val % EMOJIS.length]) + 
-           (EMOJIS[Math.floor(val / EMOJIS.length) % EMOJIS.length]) +
-           (EMOJIS[Math.floor(val / EMOJIS.length / EMOJIS.length) % EMOJIS.length]) +
-           (EMOJIS[Math.floor(val / EMOJIS.length / EMOJIS.length / EMOJIS.length) % EMOJIS.length])
+    return (EMOJIS[val % EMOJIS.length]) +
+        (EMOJIS[Math.floor(val / EMOJIS.length) % EMOJIS.length]) +
+        (EMOJIS[Math.floor(val / EMOJIS.length / EMOJIS.length) % EMOJIS.length]) +
+        (EMOJIS[Math.floor(val / EMOJIS.length / EMOJIS.length / EMOJIS.length) % EMOJIS.length])
 }
 
-async function handleChange() {
-    document.getElementById('connection-stat').innerHTML = app.pc?.connectionState;
-    document.getElementById('ice-connection-stat').innerHTML = app.pc?.iceConnectionState;
-    console.log('%c' + new Date().toISOString() + ': ConnectionState: %c' + app.pc?.connectionState + ' %cIceConnectionState: %c' + app.pc?.iceConnectionState,
+async function handleChange(cid) {
+    document.getElementById('connection-stat').innerHTML = app.clients[cid].pc?.connectionState;
+    document.getElementById('ice-connection-stat').innerHTML = app.clients[cid].pc?.iceConnectionState;
+    console.log('%c' + new Date().toISOString() + ': ConnectionState: %c' + app.clients[cid].pc?.connectionState + ' %cIceConnectionState: %c' + app.clients[cid].pc?.iceConnectionState,
         'color:yellow', 'color:orange', 'color:yellow', 'color:orange');
-        const toRemove = ['bg-gray-400', 'bg-red-400', 'bg-green-400'];
-        const toAdd = app.pc?.connectionState === 'connected' && app.pc?.iceConnectionState === 'connected'?'bg-green-400':
-            app.pc?.connectionState === 'failed' || app.pc?.iceConnectionState === 'failed'?'bg-red-400':'bg-gray=400';
-        document.getElementById('indicator').classList.remove.apply(document.getElementById('indicator').classList, toRemove);
-        document.getElementById('indicator').classList.add(toAdd);
-    if (app.pc?.connectionState === 'connected' && app.pc?.iceConnectionState === 'connected') {
-        if (!app.connected) {
-            const firstSDP = app.polite?app.pc.remoteDescription.sdp:app.pc.localDescription.sdp;
-            const secondSDP = !app.polite?app.pc.remoteDescription.sdp:app.pc.localDescription.sdp;
+    const toRemove = ['bg-gray-400', 'bg-red-400', 'bg-green-400'];
+    const toAdd = app.clients[cid].pc?.connectionState === 'connected' && app.clients[cid].pc?.iceConnectionState === 'connected' ? 'bg-green-400' :
+        app.clients[cid].pc?.connectionState === 'failed' || app.clients[cid].pc?.iceConnectionState === 'failed' ? 'bg-red-400' : 'bg-gray=400';
+    document.getElementById('indicator').classList.remove.apply(document.getElementById('indicator').classList, toRemove);
+    document.getElementById('indicator').classList.add(toAdd);
+    if (app.clients[cid].pc?.connectionState === 'connected' && app.clients[cid].pc?.iceConnectionState === 'connected') {
+        if (!app.clients[cid].connected) {
+            const firstSDP = app.clients[cid].polite ? app.clients[cid].pc.remoteDescription.sdp : app.clients[cid].pc.localDescription.sdp;
+            const secondSDP = !app.clients[cid].polite ? app.clients[cid].pc.remoteDescription.sdp : app.clients[cid].pc.localDescription.sdp;
             const fingerprints = firstSDP.split(/\r\n|\r|\n/).filter(x => x.match(/^a=fingerprint/)).map(x => 'polite:' + x).concat(
                 secondSDP.split(/\r\n|\r|\n/).filter(x => x.match(/^a=fingerprint/)).map(x => 'impolite:' + x)).join('\r\n');
             const ejs = await genEmojis(fingerprints);
             console.log('ejs', ejs)
             document.getElementById('connection-secret').innerHTML = ejs;
         }
-        app.connected = true;
+        app.clients[cid].connected = true;
         document.getElementById("copy-overlay").classList.add('hidden');
         history.pushState('', '', window.location.origin + window.location.pathname);
-    } else if (app.connected && (app.pc?.connectionState != 'connected' || app.pc?.iceConnectionState != 'connected')) {
-        destroy();
     }
 }
-handleChange();
+// handleChange();
 
 const copyHandler = async (ev) => {
     if (navigator.clipboard) {
@@ -198,16 +232,14 @@ const copyHandler = async (ev) => {
 }
 document.getElementById("copy-button").addEventListener("click", copyHandler);
 
-const acceptHandler = async (ev) => {
+const acceptHandler = async (cid) => {
     let data = document.getElementById('paste-text').value;
     const answer = await decompress(data.trim(), "gzip");
-    app.pc.setRemoteDescription({
+    app.clients[cid].pc.setRemoteDescription({
         type: "answer",
         sdp: answer.trim() + '\n'
     });
 }
-
-document.getElementById("accept-button").addEventListener("click", acceptHandler)
 
 const windowLoader = async () => {
     console.log("coming here")
@@ -224,25 +256,30 @@ const windowLoader = async () => {
         link2.value = '';
         btn2.classList.remove('hidden');
         link2.classList.remove('hidden');
+        const cid = await getOffer(async (sdp) => {
+            if (Date.now() - now > 10 * 1000) { return }
+            const compressed = await compress(sdp, "gzip");
+            urlParams.set('offer', compressed);
+            qrElem.innerHTML = '';
+            try {
+                new QRCode(qrElem, window.location.origin + window.location.pathname + '?' + urlParams.toString());
+            } catch (e) {
+                console.log("qr code generation error", e)
+            }
+            link.value = window.location.origin + window.location.pathname + '?' + urlParams.toString();
+            btn.innerHTML = "Copy";
+        })
         const bc = new BroadcastChannel("manual_rtc");
         app.bc = bc;
         bc.onmessage = async (event) => {
             let data = event.data;
             const answer = await decompress(data.trim(), "gzip");
-            app.pc.setRemoteDescription({
+            app.clients[cid].pc.setRemoteDescription({
                 type: "answer",
                 sdp: answer.trim() + '\n'
             });
         };
-        await getOffer(async (sdp) => {
-            if (Date.now() - now > 10 * 1000) { return }
-            const compressed = await compress(sdp, "gzip");
-            urlParams.set('offer', compressed);
-            qrElem.innerHTML = '';
-            new QRCode(qrElem, window.location.origin + window.location.pathname + '?' + urlParams.toString());
-            link.value = window.location.origin + window.location.pathname + '?' + urlParams.toString();
-            btn.innerHTML = "Copy";
-        })
+        document.getElementById("accept-button").addEventListener("click", () => acceptHandler(cid));
     } else if (urlParams.get('answer')) {
         const bc = new BroadcastChannel("manual_rtc");
         await bc.postMessage(urlParams.get('answer'));
@@ -255,12 +292,16 @@ const windowLoader = async () => {
         const link = document.getElementById('copy-text');
         document.getElementById('copy-overlay').classList.remove('hidden');
         const btn = document.getElementById("copy-button");
-        await getAnswer(offer, async (sdp) => {
+        const cid = await getAnswer(offer, async (sdp) => {
             if (Date.now() - now > 10 * 1000) { return }
             const compressed = await compress(sdp, "gzip");
             urlParams.set('answer', compressed);
             qrElem.innerHTML = '';
-            new QRCode(qrElem, window.location.origin + window.location.pathname + '?' + urlParams.toString());
+            try {
+                new QRCode(qrElem, window.location.origin + window.location.pathname + '?' + urlParams.toString());
+            } catch (e) {
+                console.log("qr code generation error", e)
+            }
             link.value = compressed;
             btn.innerHTML = "Copy";
         })

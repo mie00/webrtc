@@ -1,10 +1,10 @@
 
-function setupChatChannel(app) {
-    const dc = app.pc.createDataChannel("chat", {
+function setupChatChannel(app, cid) {
+    const dc = app.clients[cid].pc.createDataChannel("chat", {
         negotiated: true,
         id: 1
     });
-    app.dc = dc;
+    app.clients[cid].dc = dc;
     dc.onopen = () => {
         chat.select();
     };
@@ -13,7 +13,9 @@ function setupChatChannel(app) {
 
 chat.onkeypress = function (e) {
     if (e.keyCode != 13) return;
-    app.dc.send(chat.value);
+    for (var client of Object.values(app.clients)) {
+        client.dc.send(chat.value);
+    }
     log(chat.value);
     chat.value = "";
 };

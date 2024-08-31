@@ -8,38 +8,38 @@ function updateProgressBar(id, file_size, get_ready) {
     elem.innerHTML = `${progressPercentage}%`
 }
 
-function setupFileChannel(app) {
-    const dc_file = app.pc.createDataChannel("file", {
+function setupFileChannel(app, cid) {
+    const dc_file = app.clients[cid].pc.createDataChannel("file", {
         negotiated: true,
         id: 2
     });
-    app.dc_file = dc_file;
+    app.clients[cid].dc_file = dc_file;
 
     dc_file.onmessage = e => {
-        if (!app.file_stuff) {
+        if (!app.clients[cid].file_stuff) {
             const id = Math.random().toString(16).slice(2);
-            app.file_stuff = JSON.parse(e.data);
-            app.file_stuff.segments = [];
-            app.file_stuff.remaining_size = app.file_stuff.size;
-            app.file_stuff.id = id;
-            log(`> <label for="file-${id}">${app.file_stuff.name}</label> <span id="f-${id}"><progress id="file-${id}" value="0" max="100"> 0% </progress></span>`)
+            app.clients[cid].file_stuff = JSON.parse(e.data);
+            app.clients[cid].file_stuff.segments = [];
+            app.clients[cid].file_stuff.remaining_size = app.clients[cid].file_stuff.size;
+            app.clients[cid].file_stuff.id = id;
+            log(`> <label for="file-${id}">${app.clients[cid].file_stuff.name}</label> <span id="f-${id}"><progress id="file-${id}" value="0" max="100"> 0% </progress></span>`)
             return
         }
-        app.file_stuff.segments.push(e.data);
-        app.file_stuff.remaining_size -= e.data.byteLength || e.data.size;
-        updateProgressBar(app.file_stuff.id, app.file_stuff.size, () => app.file_stuff.remaining_size);
-        if (app.file_stuff.remaining_size === 0) {
-            const blob = new Blob(app.file_stuff.segments, { type: app.file_stuff.type });
+        app.clients[cid].file_stuff.segments.push(e.data);
+        app.clients[cid].file_stuff.remaining_size -= e.data.byteLength || e.data.size;
+        updateProgressBar(app.clients[cid].file_stuff.id, app.clients[cid].file_stuff.size, () => app.clients[cid].file_stuff.remaining_size);
+        if (app.clients[cid].file_stuff.remaining_size === 0) {
+            const blob = new Blob(app.clients[cid].file_stuff.segments, { type: app.clients[cid].file_stuff.type });
             const url = URL.createObjectURL(blob);
-            document.getElementById(`f-${app.file_stuff.id}`).innerHTML = `
-                <a id="download-${app.file_stuff.id}" class="w-full py-2 px-4 bg-blue-500 text-white rounded shadow hover:bg-blue-700">Download</a>
-                <a id="view-${app.file_stuff.id}" class="w-full py-2 px-4 bg-blue-500 text-white rounded shadow hover:bg-blue-700" target="_blank">View</a>`;
-            const a = document.getElementById(`download-${app.file_stuff.id}`);
+            document.getElementById(`f-${app.clients[cid].file_stuff.id}`).innerHTML = `
+                <a id="download-${app.clients[cid].file_stuff.id}" class="w-full py-2 px-4 bg-blue-500 text-white rounded shadow hover:bg-blue-700">Download</a>
+                <a id="view-${app.clients[cid].file_stuff.id}" class="w-full py-2 px-4 bg-blue-500 text-white rounded shadow hover:bg-blue-700" target="_blank">View</a>`;
+            const a = document.getElementById(`download-${app.clients[cid].file_stuff.id}`);
             a.href = url;
-            a.download = app.file_stuff.name;
-            const aview = document.getElementById(`view-${app.file_stuff.id}`)
+            a.download = app.clients[cid].file_stuff.name;
+            const aview = document.getElementById(`view-${app.clients[cid].file_stuff.id}`)
             aview.href = url;
-            app.file_stuff = null;
+            app.clients[cid].file_stuff = null;
         }
     };
 }
@@ -48,7 +48,9 @@ document.getElementById('file-upload').addEventListener('change', handleFileSele
 
 function handleFileSelect(event) {
     const file = event.target.files[0];
-    readFile(file);
+    for (var cid of Object.keys(app.clients)) {
+        readFile(file, cid);
+    }
 }
 
 function splitArrayBuffer(arrayBuffer, chunkSize) {
@@ -65,24 +67,24 @@ function splitArrayBuffer(arrayBuffer, chunkSize) {
     return chunks;
 }
 
-function readFile(file) {
+function readFile(file, cid) {
     const id = Math.random().toString(16).slice(2);
     log(`<label for="file-${id}">${file.name}</label> <span id="f-${id}"><progress id="file-${id}" value="0" max="100"> 0% </progress></span>`)
     let offset = 0;
     const max_size = 2 * 1024 * 1024;
-    app.dc_file.send(JSON.stringify({ name: file.name, type: file.type, size: file.size }));
+    app.clients[cid].dc_file.send(JSON.stringify({ name: file.name, type: file.type, size: file.size }));
 
     const reader = new FileReader();
     reader.onload = function (event) {
         for (var chunk of splitArrayBuffer(event.target.result, 128 * 1024)) {
-            app.dc_file.send(chunk);
+            app.clients[cid].dc_file.send(chunk);
         }
         if (app.file_progress_interval) {
             clearInterval(app.file_progress_interval);
             app.file_progress_interval = null;
         }
         app.file_progress_interval = setInterval(() => {
-            const getRemaining = () => ((app.dc_file.bufferedAmount || 0) + (file.size - Math.min(offset, file.size)));
+            const getRemaining = () => ((app.clients[cid].dc_file.bufferedAmount || 0) + (file.size - Math.min(offset, file.size)));
             updateProgressBar(id, file.size, getRemaining);
             if (getRemaining() == 0) {
                 clearInterval(app.file_progress_interval);
@@ -95,13 +97,13 @@ function readFile(file) {
         reader.readAsArrayBuffer(file.slice(offset, offset + max_size));
         offset += max_size;
         if (offset > file.size) {
-            app.dc_file.removeEventListener("bufferedamountlow", buffer_cb);
+            app.clients[cid].dc_file.removeEventListener("bufferedamountlow", buffer_cb);
             document.getElementById('file-upload').disabled = false;
         }
     };
     if (file.size > max_size) {
         document.getElementById('file-upload').disabled = true;
-        app.dc_file.addEventListener("bufferedamountlow", buffer_cb);
+        app.clients[cid].dc_file.addEventListener("bufferedamountlow", buffer_cb);
     }
     reader.readAsArrayBuffer(file.slice(offset, offset + max_size));
     offset += max_size;

@@ -1,5 +1,5 @@
 
-async function sendData(reader, id) {
+async function sendData(reader, id, cid) {
     console.log("reader", reader)
     const max_size = 2 * 1024;
     let offset = 0;
@@ -14,7 +14,7 @@ async function sendData(reader, id) {
 
     // TODO: convert to proper promise
     const cb = async function () {
-        app.forward.removeEventListener("bufferedamountlow", clearBufferAndCb);
+        app.clients[cid].forward.removeEventListener("bufferedamountlow", clearBufferAndCb);
         if (!gvalue) {
             const { done, value } = await reader.read();
             offset = 0;
@@ -25,7 +25,7 @@ async function sendData(reader, id) {
 
         while (gvalue && offset < gvalue.byteLength) {
             console.log("sending data", "length", gvalue.byteLength, "offset", offset, "sentOnBuffer", sentOnBuffer)
-            app.forward.send(JSON.stringify({
+            app.clients[cid].forward.send(JSON.stringify({
                 type: "data",
                 id: id,
                 chunk: gvalue.slice(offset, offset + 10 * 1024),
@@ -33,13 +33,13 @@ async function sendData(reader, id) {
             sentOnBuffer += Math.min(gvalue.byteLength, offset + 10 * 1024) - offset;
             offset = Math.min(gvalue.byteLength, offset + 10 * 1024);
             if (sentOnBuffer > max_size) {
-                app.forward.addEventListener("bufferedamountlow", clearBufferAndCb);
+                app.clients[cid].forward.addEventListener("bufferedamountlow", clearBufferAndCb);
                 return;
             }
         }
         gvalue = null;
         if (gdone) {
-            app.forward.send(JSON.stringify({
+            app.clients[cid].forward.send(JSON.stringify({
                 type: "end",
                 id: id,
             }));
@@ -50,22 +50,26 @@ async function sendData(reader, id) {
     cb();
 }
 
-
-function setupForwardChannel(app) {
-    app.cleanups.push(() => {
+function forwardInit() {
+    app.cleanups['forward'] = (cid) => {
+        if (cid) {
+            return;
+        }
         if (app._send_host_interval) {
             clearInterval(app._send_host_interval);
             app._send_host_interval = null;
         }
-    })
+    };
     app.allowed_host = null;
     app.inflight = {};
-    app.queue = [];
-    const forward = app.pc.createDataChannel("forward", {
+}
+
+function setupForwardChannel(app, cid) {
+    const forward = app.clients[cid].pc.createDataChannel("forward", {
         negotiated: true,
         id: 3
     });
-    app.forward = forward;
+    app.clients[cid].forward = forward;
     forward.onopen = () => {
         chat.select();
     };
@@ -77,12 +81,13 @@ function setupForwardChannel(app) {
             case "offer":
                 if (!('serviceWorker' in navigator)) {
                     alert("cannot do service workers, won't be able to do forwarding");
-                    app.forward.send(JSON.stringify({
+                    app.clients[cid].forward.send(JSON.stringify({
                         type: "offer.error",
                         error: "no service worker on peer"
                     }));
                     return;
                 }
+                app.forward_peer = cid;
 
                 // add hosts_host to url params of current page, not iframe
                 const url = new URL(window.location.href);
@@ -123,7 +128,7 @@ function setupForwardChannel(app) {
                     return;
                 }
                 fetch(data.url, data).then(async response => {
-                    app.forward.send(JSON.stringify({
+                    app.clients[cid].forward.send(JSON.stringify({
                         type: "response",
                         id: data.id,
                         status: response.status,
@@ -132,18 +137,18 @@ function setupForwardChannel(app) {
                     }));
                     return (async function () {
                         if (response.body === null) {
-                            app.forward.send(JSON.stringify({
+                            app.clients[cid].forward.send(JSON.stringify({
                                 type: "end",
                                 id: data.id,
                             }));
                             return null;
                         }
                         const reader = response.body.getReader();
-                        await sendData(reader, data.id);
+                        await sendData(reader, data.id, cid);
                         status.innerHTML = '✅';
                     }());
                 }).catch(err => {
-                    app.forward.send(JSON.stringify({
+                    app.clients[cid].forward.send(JSON.stringify({
                         type: "error",
                         err: JSON.stringify(err, Object.getOwnPropertyNames(err)),
                     }));
@@ -213,14 +218,18 @@ const toggleForwardHandler = async () => {
         }
 
         app.allowed_host = val;
-        app.forward.send(JSON.stringify({ type: "offer", host: val }));
+        for (var client of Object.values(app.clients)) {
+            client.forward.send(JSON.stringify({ type: "offer", host: val }));
+        }
 
         let logElement = document.createElement('div');
         document.getElementById('media').appendChild(logElement);
         logElement.id = `log-${app.allowed_host}`;
         logElement.classList.add('w-full', 'max-h-screen', 'bg-white', 'overflow-x-hidden', 'overflow-y-scroll');
     } else {
-        app.forward.send(JSON.stringify({ type: "offer.end", host: app.allowed_host }));
+        for (var client of Object.values(app.clients)) {
+            client.forward.send(JSON.stringify({ type: "offer.end", host: app.allowed_host }));
+        }
         document.getElementById(`log-${app.allowed_host}`).remove()
         app.allowed_host = '';
     }
@@ -283,7 +292,7 @@ if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.controller.postMessage(r.response);
             }
         }
-        app.forward.send(JSON.stringify({
+        app.clients[app.forward_peer].forward.send(JSON.stringify({
             type: "request",
             ...event.data
         }))

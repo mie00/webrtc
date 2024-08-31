@@ -1,8 +1,21 @@
-function setupTrackHandler(app) {
+function streamInit(app) {
     app.streams = {}
     app.config = {}
     app.viewStreams = {}
-    app.pc.addEventListener("track", (ev) => {
+    app.nego_handlers['stream.end'] = (data, cid) => {
+        document.getElementById(`stream-${data.stream}`)?.remove();
+
+        for (let cid2 of Object.keys(app.clients)) {
+            if (cid == cid2) {
+                continue;
+            }
+            app.clients[cid2].nego_dc.send(JSON.stringify(data));
+        }
+    }
+}
+
+function setupTrackHandler(app, cid) {
+    app.clients[cid].pc.addEventListener("track", (ev) => {
         let mediaElement = document.createElement(ev.track.kind);
         document.getElementById('media').appendChild(mediaElement);
         mediaElement.id = `stream-${ev.streams[0].id}`;
@@ -12,12 +25,21 @@ function setupTrackHandler(app) {
         mediaElement.classList.add('w-full')
         app.viewStreams[ev.streams[0].id] = ev.streams[0];
         ev.track.onended = (ev) => {
-            document.getElementById(`stream-${ev.streams[changed].id}`).remove();
-            delete app.viewStreams[ev.streams[changed].id];
+            document.getElementById(`stream-${ev.streams[0].id}`).remove();
+            delete app.viewStreams[ev.streams[0].id];
         }
-    })
-    app.nego_handlers['stream.end'] = (data) => {
-        document.getElementById(`stream-${data.stream}`).remove();
+
+        for (let cid2 of Object.keys(app.clients)) {
+            if (cid == cid2) {
+                continue;
+            }
+            app.clients[cid2].pc.addTrack(ev.track, ev.streams[0]);
+        }
+    });
+    for (let streamType of Object.keys(app.streams)) {
+        app.streams[streamType].getTracks().forEach(function(track) {
+            app.clients[cid].pc.addTrack(track, app.streams[streamType]);
+        })
     }
 }
 
@@ -33,38 +55,46 @@ const setupLocalStream = async (changed) => {
         app.streams[changed].getTracks().forEach(function(track) {
             track.stop();
             track.dispatchEvent(new Event("ended"));
-            app.nego_dc.send(JSON.stringify({
-                type: "stream.end",
-                stream: app.streams[changed].id,
-            }))
+            for (var client of Object.values(app.clients)) {
+                client.nego_dc.send(JSON.stringify({
+                    type: "stream.end",
+                    stream: app.streams[changed].id,
+                }))
+            }
         });
     }
     let stream;
     if (changed === 'audio') {
         if (app.config.audio) {
             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            if (app.pc) {
-                stream.getTracks().forEach((track) => {
-                    app.pc.addTrack(track, stream);
-                });
+            for (var client of Object.values(app.clients)) {
+                if (client.pc) {
+                    stream.getTracks().forEach((track) => {
+                        client.pc.addTrack(track, stream);
+                    });
+                }
             }
         }
     } else if (changed === 'video') {
         if (app.config.video) {
             stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            if (app.pc) {
-                stream.getTracks().forEach((track) => {
-                    app.pc.addTrack(track, stream);
-                });
+            for (var client of Object.values(app.clients)) {
+                if (client.pc) {
+                    stream.getTracks().forEach((track) => {
+                        client.pc.addTrack(track, stream);
+                    });
+                }
             }
         }
     } else {
         if (app.config.screen) {
             stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: {cursor: "always"}});
-            if (app.pc) {
-                stream.getTracks().forEach((track) => {
-                    app.pc.addTrack(track, stream);
-                });
+            for (var client of Object.values(app.clients)) {
+                if (client.pc) {
+                    stream.getTracks().forEach((track) => {
+                        client.pc.addTrack(track, stream);
+                    });
+                }
             }
         }
     }
