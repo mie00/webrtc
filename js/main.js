@@ -338,7 +338,7 @@ var socket = io('wss://dealer.mie00.com', {
 WAIT = 1000;
 const debounceEmit = () => {
     let timer;
-    return function(...args) {
+    return function (...args) {
         clearTimeout(timer);
         timer = setTimeout(() => {
             console.log("emitting");
@@ -371,7 +371,9 @@ const windowLoader = async () => {
         socket.on('subscribed', async (sid) => {
             // debounce
             const emit = debounceEmit();
+            const now = Date.now();
             const cid = await getOffer(async (sdp) => {
+                if (Date.now() - now > 5 * 1000) { return }
                 emit('offer', sid, sdp);
             })
             app.sids ||= {}
@@ -388,7 +390,9 @@ const windowLoader = async () => {
         const id = urlParams.get('r');
         socket.on('offer', async (sid, sdp) => {
             const emit = debounceEmit();
+            const now = Date.now();
             const cid = await getAnswer(sdp, async (sdp) => {
+                if (Date.now() - now > 5 * 1000) { return }
                 emit('answer', sid, sdp);
             })
         });
