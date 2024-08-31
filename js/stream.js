@@ -4,6 +4,7 @@ function streamInit(app) {
     app.viewStreams = {}
     app.nego_handlers['stream.end'] = (data, cid) => {
         document.getElementById(`stream-${data.stream}`)?.remove();
+        delete app.viewStreams[data.stream];
 
         for (let cid2 of Object.keys(app.clients)) {
             if (cid == cid2) {
@@ -25,7 +26,8 @@ function setupTrackHandler(app, cid) {
         mediaElement.classList.add('w-full')
         app.viewStreams[ev.streams[0].id] = ev.streams[0];
         ev.track.onended = (ev) => {
-            document.getElementById(`stream-${ev.streams[0].id}`).remove();
+            console.log(ev)
+            document.getElementById(`stream-${ev.streams[0].id}`)?.remove();
             delete app.viewStreams[ev.streams[0].id];
         }
 

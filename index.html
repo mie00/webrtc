@@ -4,7 +4,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; img-src 'self' https: data:; connect-src 'self' https: http:;">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; img-src 'self' https: data:; connect-src 'self' https: http: ws: wss:;">
 	<title>Styled Page</title>
 	<link href="thridparty/css/tailwind.min.css" rel="stylesheet">
 </head>
@@ -90,7 +90,8 @@
 				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2 hidden">Accept</button>
 		</div>
 	</div>
-	<script src="js/emojis.js"></script>
+		<script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
+		<script src="js/emojis.js"></script>
 	<script src="js/chat.js"></script>
 	<script src="js/file.js"></script>
 	<script src="js/stream.js"></script>

@@ -31,6 +31,7 @@ const destroy = () => {
     app.cleanups = {};
     document.getElementById('media').innerHTML = '';
     document.getElementById('output').innerHTML = '';
+    history.replaceState(null, '', window.location.origin + window.location.pathname);
     windowLoader();
 }
 
@@ -181,7 +182,7 @@ async function genEmojis(digest) {
     let val = 0;
     let ind = 0;
     while (val < limit && ind < hashArray.length) {
-        val += Math.pow(hashArray[i], ind + 1);
+        val += Math.pow(hashArray[ind], ind + 1);
         ind += 1
     }
     return (EMOJIS[val % EMOJIS.length]) +
@@ -212,7 +213,9 @@ async function handleChange(cid) {
         }
         app.clients[cid].connected = true;
         document.getElementById("copy-overlay").classList.add('hidden');
-        history.pushState('', '', window.location.origin + window.location.pathname);
+        if (!new URLSearchParams(window.location.search).has('r')) {
+            history.replaceState('', '', window.location.origin + window.location.pathname);
+        }
     }
 }
 // handleChange();
@@ -241,7 +244,7 @@ const acceptHandler = async (cid) => {
     });
 }
 
-const windowLoader = async () => {
+const clientWindowLoader = async () => {
     console.log("coming here")
     const urlParams = new URLSearchParams(window.location.search);
     window.removeEventListener("load", windowLoader);
@@ -305,6 +308,62 @@ const windowLoader = async () => {
             link.value = compressed;
             btn.innerHTML = "Copy";
         })
+    }
+}
+
+var socket = io('wss://dealer.mie00.com', {
+    transports: ['websocket']
+});
+
+WAIT = 1000;
+const debounceEmit = () => {
+    let timer;
+    return function(...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            console.log("emitting");
+            socket.emit.apply(socket, args)
+        }, WAIT);
+    };
+};
+
+const windowLoader = async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    window.removeEventListener("load", windowLoader);
+    if (!urlParams.has('r')) {
+        socket.on('init', async (id) => {
+            console.log("init", id);
+            urlParams.set('r', id);
+            history.replaceState(null, '', '?' + urlParams.toString());
+            const link = document.getElementById('copy-text');
+            document.getElementById('copy-overlay').classList.remove('hidden');
+            link.value = window.location.toString();
+        });
+        socket.on('subscribed', async (sid) => {
+            // debounce
+            const emit = debounceEmit();
+            const cid = await getOffer(async (sdp) => {
+                emit('offer', sid, sdp);
+            })
+            app.sids ||= {}
+            app.sids[sid] = cid;
+        });
+        socket.on('answer', async (sid, sdp) => {
+            app.clients[app.sids[sid]].pc.setRemoteDescription({
+                type: "answer",
+                sdp: sdp.trim() + '\n'
+            });
+        });
+        socket.emit('init');
+    } else {
+        const id = urlParams.get('r');
+        socket.on('offer', async (sid, sdp) => {
+            const emit = debounceEmit();
+            const cid = await getAnswer(sdp, async (sdp) => {
+                emit('answer', sid, sdp);
+            })
+        });
+        socket.emit('subscribe', id);
     }
 }
 console.log('coming here 2')
