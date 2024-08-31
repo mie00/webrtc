@@ -38,9 +38,9 @@ function setupTrackHandler(app, cid) {
             app.clients[cid2].pc.addTrack(ev.track, ev.streams[0]);
         }
     });
-    for (let streamType of Object.keys(app.streams)) {
-        app.streams[streamType].getTracks().forEach(function(track) {
-            app.clients[cid].pc.addTrack(track, app.streams[streamType]);
+    for (let stream of Object.values(app.viewStreams)) {
+        stream.getTracks().forEach(function(track) {
+            app.clients[cid].pc.addTrack(track, stream);
         })
     }
 }
