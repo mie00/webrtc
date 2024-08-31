@@ -9,11 +9,6 @@ const destroyClient = (cid) => {
         for (var cleanup of Object.values(app.cleanups)) {
             cleanup(cid);
         }
-        try {
-            app.clients[cid].nego_dc.send(JSON.stringify({
-                type: "hangup",
-            }))
-        } catch { }
         app.clients[cid].pc.close();
         app.clients[cid].pc = null;
         Object.keys(app.clients[cid]).forEach(key => delete app.clients[cid][key]);
@@ -32,12 +27,16 @@ const destroy = () => {
     }
     app.cleanups = {};
     for (var cid of Object.keys(app.clients)) {
+        try {
+            app.clients[cid].nego_dc.send(JSON.stringify({
+                type: "hangup",
+            }))
+        } catch { }
         destroyClient(cid);
     }
     document.getElementById('media').innerHTML = '';
     document.getElementById('output').innerHTML = '';
-    history.replaceState(null, '', window.location.origin + window.location.pathname);
-    windowLoader();
+    window.location = window.location.origin + window.location.pathname;
 }
 
 document.getElementById('hangup').addEventListener('click', destroy)
