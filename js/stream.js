@@ -13,6 +13,17 @@ function streamInit(app) {
             app.clients[cid2].nego_dc.send(JSON.stringify(data));
         }
     }
+
+    app.cleanups['stream'] = (cid) => {
+        if (!cid) {
+            Object.keys(app.streams).forEach((streamId) => {
+                const stream = app.streams[streamId];
+                Object.values(app.clients).forEach((client) => client.nego_dc.send(JSON.stringify({ type: 'stream.end', stream: stream.id })));
+                stream.getTracks().map((track) => track.stop());
+                delete app.streams[streamId];
+            });
+        }
+    };
 }
 
 function setupTrackHandler(app, cid) {
@@ -27,6 +38,7 @@ function setupTrackHandler(app, cid) {
         app.viewStreams[ev.streams[0].id] = ev.streams[0];
         ev.track.onended = (ev) => {
             console.log(ev)
+            Object.values(app.clients).forEach((client) => client.nego_dc.send(JSON.stringify({ type: 'stream.end', stream: ev.target.id })));
             document.getElementById(`stream-${ev.target.id}`)?.remove();
             delete app.viewStreams[ev.target.id];
         }

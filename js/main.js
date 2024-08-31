@@ -23,12 +23,17 @@ const destroyClient = (cid) => {
 
 const destroy = () => {
     for (var cid of Object.keys(app.clients)) {
-        destroyClient(cid);
+        for (var cleanup of Object.values(app.cleanups)) {
+            cleanup(cid);
+        }
     }
     for (var cleanup of Object.values(app.cleanups)) {
         cleanup();
     }
     app.cleanups = {};
+    for (var cid of Object.keys(app.clients)) {
+        destroyClient(cid);
+    }
     document.getElementById('media').innerHTML = '';
     document.getElementById('output').innerHTML = '';
     history.replaceState(null, '', window.location.origin + window.location.pathname);
@@ -53,7 +58,7 @@ async function init() {
     app.nego_handlers = {
         "answer": (data, cid) => app.clients[cid].pc.setRemoteDescription(data),
         "offer": async (data, cid) => {
-            app.clients[cid].pc.setRemoteDescription(data);
+            await app.clients[cid].pc.setRemoteDescription(data);
             await app.clients[cid].pc.setLocalDescription();
             app.clients[cid].nego_dc.send(JSON.stringify(app.clients[cid].pc.localDescription));
         },
