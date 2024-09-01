@@ -1,6 +1,8 @@
 
 const app = {};
 
+const isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1;
+
 const destroyClient = (cid) => {
     if (app.clients[cid].nego_dc) {
         app.clients[cid].nego_dc.onclose = null;
@@ -55,8 +57,11 @@ async function init() {
     app.clients = {}
     app.inited = true;
     app.nego_handlers = {
-        "answer": (data, cid) => app.clients[cid].pc.setRemoteDescription(data),
+        "answer": (data, cid) => {
+            app.clients[cid].pc.setRemoteDescription(data);
+        },
         "offer": async (data, cid) => {
+            if (isSafari && !app.clients[cid].polite) return;
             await app.clients[cid].pc.setRemoteDescription(data);
             await app.clients[cid].pc.setLocalDescription();
             app.clients[cid].nego_dc.send(JSON.stringify(app.clients[cid].pc.localDescription));
@@ -142,10 +147,6 @@ async function getOffer(cb) {
     return cid;
 }
 
-function maninpulateAnswer(sdp) {
-    return sdp.replaceAll('a=setup:actpass', 'a=setup:passive');
-}
-
 async function getAnswer(offer, cb) {
     const cid = await initClient();
     if (app.clients[cid].polite === undefined) {
@@ -156,24 +157,21 @@ async function getAnswer(offer, cb) {
         sdp: offer.trim() + '\n'
     });
     let answer = await app.clients[cid].pc.createAnswer();
-    answer.sdp = maninpulateAnswer(answer.sdp);
     await app.clients[cid].pc.setLocalDescription(answer);
     await cb(app.clients[cid].pc.localDescription.sdp)
 
-    app.clients[cid].pc.onnegotiationneeded = async function () {
-        const offer = await app.clients[cid].pc.createOffer()
-        await app.clients[cid].pc.setLocalDescription(offer);
-        app.clients[cid].nego_dc.send(JSON.stringify(offer));
-    };
+    if (!isSafari) {
+        app.clients[cid].pc.onnegotiationneeded = async function () {
+            const offer = await app.clients[cid].pc.createOffer()
+            await app.clients[cid].pc.setLocalDescription(offer);
+            app.clients[cid].nego_dc.send(JSON.stringify(offer));
+        };
+    }
     app.clients[cid].pc.onicecandidate = async ({
         candidate
     }) => {
         console.log('Candidate found (answer)', candidate)
-        if (app.clients[cid].pc.localDescription.type == 'answer') {
-            await cb(maninpulateAnswer(app.clients[cid].pc.localDescription.sdp));
-        } else {
-            await cb(app.clients[cid].pc.localDescription.sdp);
-        }
+        await cb(app.clients[cid].pc.localDescription.sdp);
     };
     return cid;
 }
