@@ -142,11 +142,8 @@ async function getOffer(cb) {
     return cid;
 }
 
-function maninpulateAnswer(answer) {
-    return {
-        type: answer.type,
-        sdp: answer.sdp.replaceAll('a=setup:actpass', 'a=setup:passive'),
-    };
+function maninpulateAnswer(sdp) {
+    return sdp.replaceAll('a=setup:actpass', 'a=setup:passive');
 }
 
 async function getAnswer(offer, cb) {
@@ -159,7 +156,7 @@ async function getAnswer(offer, cb) {
         sdp: offer.trim() + '\n'
     });
     let answer = await app.clients[cid].pc.createAnswer();
-    answer = maninpulateAnswer(answer);
+    answer.sdp = maninpulateAnswer(answer.sdp);
     await app.clients[cid].pc.setLocalDescription(answer);
     await cb(app.clients[cid].pc.localDescription.sdp)
 
@@ -172,7 +169,11 @@ async function getAnswer(offer, cb) {
         candidate
     }) => {
         console.log('Candidate found (answer)', candidate)
-        await cb(app.clients[cid].pc.localDescription.sdp)
+        if (app.clients[cid].pc.localDescription.type == 'answer') {
+            await cb(maninpulateAnswer(app.clients[cid].pc.localDescription.sdp));
+        } else {
+            await cb(app.clients[cid].pc.localDescription.sdp);
+        }
     };
     return cid;
 }
