@@ -125,7 +125,8 @@ async function getOffer(cb) {
     if (app.clients[cid].polite === undefined) {
         app.clients[cid].polite = false;
     }
-    await app.clients[cid].pc.setLocalDescription(await app.clients[cid].pc.createOffer());
+    const offer = await app.clients[cid].pc.createOffer();
+    await app.clients[cid].pc.setLocalDescription(offer);
 
     app.clients[cid].pc.onnegotiationneeded = async function () {
         const offer = await app.clients[cid].pc.createOffer()
@@ -141,6 +142,10 @@ async function getOffer(cb) {
     return cid;
 }
 
+function maninpulateAnswer(answer) {
+    return answer.replaceAll('a=setup:actpass', 'a=setup:passive');
+}
+
 async function getAnswer(offer, cb) {
     const cid = await initClient();
     if (app.clients[cid].polite === undefined) {
@@ -150,7 +155,10 @@ async function getAnswer(offer, cb) {
         type: "offer",
         sdp: offer.trim() + '\n'
     });
-    await app.clients[cid].pc.setLocalDescription(await app.clients[cid].pc.createAnswer());
+    let answer = await app.clients[cid].pc.createAnswer();
+    answer = maninpulateAnswer(answer);
+    await app.clients[cid].pc.setLocalDescription(answer);
+    await cb(app.clients[cid].pc.localDescription.sdp)
 
     app.clients[cid].pc.onnegotiationneeded = async function () {
         const offer = await app.clients[cid].pc.createOffer()
