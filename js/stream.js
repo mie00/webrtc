@@ -34,6 +34,8 @@ function setupTrackHandler(app, cid) {
         mediaElement.srcObject = ev.streams[0];
         mediaElement.muted = false;
         mediaElement.autoplay = true;
+        mediaElement.controls = false;
+        mediaElement.disablePictureInPicture = true;
         mediaElement.classList.add('w-full')
         app.viewStreams[ev.streams[0].id] = ev.streams[0];
         ev.track.onended = (ev) => {
@@ -121,6 +123,8 @@ const setupLocalStream = async (changed) => {
             mediaElement.srcObject = stream;
             mediaElement.muted = true;
             mediaElement.autoplay = true;
+            mediaElement.controls = false;
+            mediaElement.disablePictureInPicture = true;
             mediaElement.classList.add('w-full')
         }
         app.viewStreams[stream.id] = stream;
