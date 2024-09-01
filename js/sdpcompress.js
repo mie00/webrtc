@@ -1,5 +1,5 @@
 
-list = `
+const list = `
 {str}
 v=0
 o={str} {uint64} {uint8} IN IP4 {ip}
@@ -84,8 +84,8 @@ const lengths = {
     'sha256': (f) =>  32,
 }
 
-regexes = list.map(x => new RegExp('^' + x.replace(/\{[^}]+}/g, `(.+)`) + '$'));
-variables = list.map(x => Array.from(x.matchAll(/\{[^}]+}/g)).map(x => x[0].slice(1, -1)));
+const regexes = list.map(x => new RegExp('^' + x.replace(/\{[^}]+}/g, `(.+)`) + '$'));
+const variables = list.map(x => Array.from(x.matchAll(/\{[^}]+}/g)).map(x => x[0].slice(1, -1)));
 
 
 function compress(inp) {

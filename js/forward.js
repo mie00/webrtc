@@ -50,7 +50,7 @@ async function sendData(reader, id, cid) {
     cb();
 }
 
-function forwardInit() {
+function forwardInit(app) {
     app.cleanups['forward'] = (cid) => {
         if (cid) {
             return;

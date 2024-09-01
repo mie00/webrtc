@@ -11,7 +11,7 @@ function setupChatChannel(app, cid) {
     dc.onmessage = e => log(`> ${e.data}`);
 }
 
-chat.onkeypress = function (e) {
+chat.onkeydown = function (e) {
     if (e.keyCode != 13) return;
     for (var client of Object.values(app.clients)) {
         client.dc.send(chat.value);

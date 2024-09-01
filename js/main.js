@@ -257,7 +257,7 @@ document.getElementById("copy-button").addEventListener("click", copyHandler);
 
 const acceptHandler = async (cid) => {
     let data = document.getElementById('paste-text').value;
-    const answer = await decompress(data.trim(), "gzip");
+    const answer = await decompress(data.trim());
     app.clients[cid].pc.setRemoteDescription({
         type: "answer",
         sdp: answer.trim() + '\n'
@@ -281,7 +281,7 @@ const clientWindowLoader = async () => {
         link2.classList.remove('hidden');
         const cid = await getOffer(async (sdp) => {
             if (Date.now() - now > 10 * 1000) { return }
-            const compressed = await compress(sdp, "gzip");
+            const compressed = await compress(sdp);
             urlParams.set('offer', compressed);
             qrElem.innerHTML = '';
             try {
@@ -296,7 +296,7 @@ const clientWindowLoader = async () => {
         app.bc = bc;
         bc.onmessage = async (event) => {
             let data = event.data;
-            const answer = await decompress(data.trim(), "gzip");
+            const answer = await decompress(data.trim());
             app.clients[cid].pc.setRemoteDescription({
                 type: "answer",
                 sdp: answer.trim() + '\n'
@@ -311,13 +311,13 @@ const clientWindowLoader = async () => {
         document.getElementById('copy-overlay').innerHTML = '<p class="bg-white p-4 rounded-md shadow-md text-center">call started on another tab, please close this one</p>';
     } else {
         const now = Date.now();
-        const offer = await decompress(urlParams.get('offer'), "gzip");
+        const offer = await decompress(urlParams.get('offer'));
         const link = document.getElementById('copy-text');
         document.getElementById('copy-overlay').classList.remove('hidden');
         const btn = document.getElementById("copy-button");
         const cid = await getAnswer(offer, async (sdp) => {
             if (Date.now() - now > 10 * 1000) { return }
-            const compressed = await compress(sdp, "gzip");
+            const compressed = await compress(sdp);
             urlParams.set('answer', compressed);
             qrElem.innerHTML = '';
             try {
@@ -335,7 +335,7 @@ var socket = io('wss://dealer.mie00.com', {
     transports: ['websocket']
 });
 
-WAIT = 1000;
+const WAIT = 1000;
 const debounceEmit = () => {
     let timer;
     return function (...args) {
