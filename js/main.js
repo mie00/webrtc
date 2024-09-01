@@ -143,7 +143,10 @@ async function getOffer(cb) {
 }
 
 function maninpulateAnswer(answer) {
-    return answer.replaceAll('a=setup:actpass', 'a=setup:passive');
+    return {
+        type: answer.type,
+        sdp: answer.sdp.replaceAll('a=setup:actpass', 'a=setup:passive'),
+    };
 }
 
 async function getAnswer(offer, cb) {
