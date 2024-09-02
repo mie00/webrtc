@@ -1,6 +1,6 @@
 function streamInit(app) {
     app.streams = {}
-    app.config = {}
+    app.streamConfig = {}
     app.viewStreams = {}
     app.nego_handlers['stream.end'] = (data, cid) => {
         document.getElementById(`stream-${data.stream}`)?.remove();
@@ -18,9 +18,11 @@ function streamInit(app) {
         if (!cid) {
             Object.keys(app.streams).forEach((streamId) => {
                 const stream = app.streams[streamId];
-                Object.values(app.clients).forEach((client) => client.nego_dc.send(JSON.stringify({ type: 'stream.end', stream: stream.id })));
-                stream.getTracks().map((track) => track.stop());
                 delete app.streams[streamId];
+                try {
+                    Object.values(app.clients).forEach((client) => client.nego_dc.send(JSON.stringify({ type: 'stream.end', stream: stream.id })));
+                } catch { }
+                stream.getTracks().map((track) => track.stop());
             });
         }
     };
@@ -60,7 +62,6 @@ function setupTrackHandler(app, cid) {
     }
 }
 
-
 const setupLocalStream = async (changed) => {
     if (app.streams[changed]) {
         const elem = document.getElementById(`stream-${app.streams[changed].id}`);
@@ -79,10 +80,11 @@ const setupLocalStream = async (changed) => {
                 }))
             }
         });
+        delete app.streams[changed];
     }
     let stream;
     if (changed === 'audio') {
-        if (app.config.audio) {
+        if (app.streamConfig.audio) {
             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             for (var client of Object.values(app.clients)) {
                 if (client.pc) {
@@ -93,7 +95,7 @@ const setupLocalStream = async (changed) => {
             }
         }
     } else if (changed === 'video') {
-        if (app.config.video) {
+        if (app.streamConfig.video) {
             stream = await navigator.mediaDevices.getUserMedia({ video: true });
             for (var client of Object.values(app.clients)) {
                 if (client.pc) {
@@ -104,7 +106,7 @@ const setupLocalStream = async (changed) => {
             }
         }
     } else {
-        if (app.config.screen) {
+        if (app.streamConfig.screen) {
             stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: {cursor: "always"}});
             for (var client of Object.values(app.clients)) {
                 if (client.pc) {
@@ -117,7 +119,7 @@ const setupLocalStream = async (changed) => {
     }
     if (stream) {
         app.streams[changed] = stream;
-        if ((changed === 'video' && app.config.video) || (changed === 'screen' && app.config.screen)) {
+        if ((changed === 'video' && app.streamConfig.video) || (changed === 'screen' && app.streamConfig.screen)) {
             let mediaElement = document.createElement('video');
             document.getElementById('media').appendChild(mediaElement);
             mediaElement.id = `stream-${stream.id}`
@@ -134,27 +136,27 @@ const setupLocalStream = async (changed) => {
 }
 
 document.getElementById('toggle-audio').addEventListener('click', async (ev) => {
-    app.config.audio = !app.config.audio;
-    const to_remove = app.config.audio?'bg-blue-500':'bg-gray-500';
-    const to_add = app.config.audio?'bg-gray-500':'bg-blue-500';
+    app.streamConfig.audio = !app.streamConfig.audio;
+    const to_remove = app.streamConfig.audio?'bg-blue-500':'bg-gray-500';
+    const to_add = app.streamConfig.audio?'bg-gray-500':'bg-blue-500';
     ev.target.classList.remove(to_remove);
     ev.target.classList.add(to_add);
     await setupLocalStream('audio');
 });
 
 document.getElementById('toggle-video').addEventListener('click', async (ev) => {
-    app.config.video = !app.config.video;
-    const to_remove = app.config.video?'bg-blue-500':'bg-gray-500';
-    const to_add = app.config.video?'bg-gray-500':'bg-blue-500';
+    app.streamConfig.video = !app.streamConfig.video;
+    const to_remove = app.streamConfig.video?'bg-blue-500':'bg-gray-500';
+    const to_add = app.streamConfig.video?'bg-gray-500':'bg-blue-500';
     ev.target.classList.remove(to_remove);
     ev.target.classList.add(to_add);
     await setupLocalStream('video');
 });
 
 document.getElementById('toggle-screen').addEventListener('click', async (ev) => {
-    app.config.screen = !app.config.screen;
-    const to_remove = app.config.screen?'bg-blue-500':'bg-gray-500';
-    const to_add = app.config.screen?'bg-gray-500':'bg-blue-500';
+    app.streamConfig.screen = !app.streamConfig.screen;
+    const to_remove = app.streamConfig.screen?'bg-blue-500':'bg-gray-500';
+    const to_add = app.streamConfig.screen?'bg-gray-500':'bg-blue-500';
     ev.target.classList.remove(to_remove);
     ev.target.classList.add(to_add);
     await setupLocalStream('screen');

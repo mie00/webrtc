@@ -1,5 +1,10 @@
+document.getElementById('open-config').addEventListener('click', () => {
+    document.getElementById('config-overlay').classList.remove('hidden');
+})
 
-const app = {};
+const app = {
+    config: getConfig(),
+};
 
 const isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1;
 
@@ -82,7 +87,13 @@ async function init() {
 async function initClient() {
     init();
     const config = {
-        iceServers: document.getElementById("stun-servers").value.split(',').filter(link => link).map(link => ({ urls: "stun:" + link })),
+        iceServers: app.config["stun-servers"].split(',').filter(link => link).map(link => ({ urls: "stun:" + link })).concat(
+            app.config["turn-server"] && app.config["turn-username"] && app.config["turn-password"]?[{
+                url: "turn:" + app.config["turn-server"],
+                username: app.config["turn-username"],
+                credential: app.config["turn-password"],
+            }]:[]
+        ),
     };
 
     const cid = uuidv4();
@@ -335,6 +346,59 @@ var socket = io('wss://dealer.mie00.com', {
     transports: ['websocket']
 });
 
+const onId = () => {
+    const link = document.getElementById('copy-text');
+    document.getElementById('copy-overlay').classList.remove('hidden');
+    link.value = window.location.toString();
+    const btn = document.getElementById("copy-button");
+    btn.innerHTML = "Copy";
+    const qrElem = document.getElementById("qrcode");
+    const urlParams = new URLSearchParams(window.location.search);
+    qrElem.innerHTML = '';
+    try {
+        new QRCode(qrElem, window.location.origin + window.location.pathname + '?' + urlParams.toString());
+    } catch (e) {
+        console.log("qr code generation error", e)
+    }
+}
+socket.on('init', async (id) => {
+    console.log("init", id);
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('r', id);
+    history.replaceState(null, '', '?' + urlParams.toString());
+    onId();
+});
+socket.on('subscribed', async (sid) => {
+    // debounce
+    const emit = debounceEmit();
+    const now = Date.now();
+    const cid = await getOffer(async (sdp) => {
+        if (Date.now() - now > 5 * 1000) { return }
+        emit('offer', sid, sdp);
+    })
+    app.sids ||= {}
+    app.sids[sid] = cid;
+});
+socket.on('answer', async (sid, sdp) => {
+    app.clients[app.sids[sid]].pc.setRemoteDescription({
+        type: "answer",
+        sdp: sdp.trim() + '\n'
+    });
+});
+
+socket.on('offer', async (sid, sdp) => {
+    const emit = debounceEmit();
+    const now = Date.now();
+    const cid = await getAnswer(sdp, async (sdp) => {
+        if (Date.now() - now > 5 * 1000) { return }
+        emit('answer', sid, sdp);
+    })
+});
+socket.on('error', async () => {
+    history.replaceState(null, '', window.location.origin + window.location.pathname);
+    windowLoader();
+});
+
 const WAIT = 1000;
 const debounceEmit = () => {
     let timer;
@@ -350,57 +414,12 @@ const debounceEmit = () => {
 const windowLoader = async () => {
     const urlParams = new URLSearchParams(window.location.search);
     window.removeEventListener("load", windowLoader);
-    const qrElem = document.getElementById("qrcode");
     if (!urlParams.has('r')) {
-        socket.on('init', async (id) => {
-            console.log("init", id);
-            urlParams.set('r', id);
-            history.replaceState(null, '', '?' + urlParams.toString());
-            const link = document.getElementById('copy-text');
-            document.getElementById('copy-overlay').classList.remove('hidden');
-            link.value = window.location.toString();
-            const btn = document.getElementById("copy-button");
-            btn.innerHTML = "Copy";
-            qrElem.innerHTML = '';
-            try {
-                new QRCode(qrElem, window.location.origin + window.location.pathname + '?' + urlParams.toString());
-            } catch (e) {
-                console.log("qr code generation error", e)
-            }
-        });
-        socket.on('subscribed', async (sid) => {
-            // debounce
-            const emit = debounceEmit();
-            const now = Date.now();
-            const cid = await getOffer(async (sdp) => {
-                if (Date.now() - now > 5 * 1000) { return }
-                emit('offer', sid, sdp);
-            })
-            app.sids ||= {}
-            app.sids[sid] = cid;
-        });
-        socket.on('answer', async (sid, sdp) => {
-            app.clients[app.sids[sid]].pc.setRemoteDescription({
-                type: "answer",
-                sdp: sdp.trim() + '\n'
-            });
-        });
         socket.emit('init');
     } else {
         const id = urlParams.get('r');
-        socket.on('offer', async (sid, sdp) => {
-            const emit = debounceEmit();
-            const now = Date.now();
-            const cid = await getAnswer(sdp, async (sdp) => {
-                if (Date.now() - now > 5 * 1000) { return }
-                emit('answer', sid, sdp);
-            })
-        });
-        socket.on('error', async () => {
-            history.replaceState(null, '', window.location.origin + window.location.pathname);
-            windowLoader();
-        });
         socket.emit('subscribe', id);
+        onId();
     }
 }
 console.log('coming here 2')

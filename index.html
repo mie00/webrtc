@@ -40,10 +40,6 @@
 				</p>
 			</div>
 
-			<div class="flex flex-col space-y-2">
-				Stun server <input id="stun-servers" type="text" placeholder="Stun servers"
-					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="stun.l.google.com:19302">
-			</div>
 			<!-- On/Off Buttons -->
 			<div class="flex flex-col space-y-2">
 				<button id="toggle-video" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Toggle
@@ -85,8 +81,9 @@
 	</main>
 
 	<!-- Overlay for Copying String -->
-	<div id="copy-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 hidden">
+	<div id="copy-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-40 hidden">
 		<div class="bg-white p-4 rounded-md shadow-md text-center">
+			<button id="open-config" class="right">⚙</button>
 			<div id="qrcode"></div>
 			<p class="text-lg font-semibold mb-2">Copy this:</p>
 			<textarea readonly id="copy-text" class="bg-gray-200 px-4 py-2 rounded-md break-all block"></textarea>
@@ -97,17 +94,41 @@
 				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2 hidden">Accept</button>
 		</div>
 	</div>
+	<!-- Overlay for Copying String -->
+	<div id="config-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 hidden">
+		<div class="bg-white p-4 rounded-md shadow-md text-center">
+			<div class="flex flex-col space-y-2">
+				Stun servers <input id="stun-servers" type="text" placeholder="Stun servers"
+					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="dealer.mie00.com:3478">
+			</div>
+			<div class="flex flex-col space-y-2">
+				Turn server <input id="turn-server" type="text" placeholder="Stun servers"
+					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="dealer.mie00.com">
+			</div>
+			<div class="flex flex-col space-y-2">
+				Turn username <input id="turn-username" type="text" placeholder="Stun servers"
+					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="mie">
+			</div>
+			<div class="flex flex-col space-y-2">
+				Turn password <input id="turn-password" type="text" placeholder="Stun servers"
+					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="">
+			</div>
+			<button id="save-button"
+				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Save</button>
+		</div>
+	</div>
 		<script src="thirdparty/js/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
 		<script src="js/emojis.js"></script>
+	<script src="thirdparty/js/qrcode.min.js"
+	integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA=="
+	crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script src="js/config.js"></script>
 	<script src="js/chat.js"></script>
 	<script src="js/file.js"></script>
 	<script src="js/stream.js"></script>
 	<script src="js/forward.js"></script>
 	<script src="js/main.js"></script>
 	<script src="js/sdpcompress.js"></script>
-	<script src="thirdparty/js/qrcode.min.js"
-		integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA=="
-		crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </body>
 
 </html>
