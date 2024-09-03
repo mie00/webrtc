@@ -1,6 +1,6 @@
 const initialConfig = JSON.parse(window.localStorage.getItem('dealer-config') || '{}');
 
-Array.from(document.getElementById('config-overlay').querySelectorAll('input')).forEach(x => {
+Array.from(document.getElementById('config-overlay').querySelectorAll('input, select')).forEach(x => {
     if (x.id in initialConfig) {
         x.value = initialConfig[x.id];
     }
@@ -8,7 +8,7 @@ Array.from(document.getElementById('config-overlay').querySelectorAll('input')).
 
 function getConfig() {
     const cfg = {};
-    Array.from(document.getElementById('config-overlay').querySelectorAll('input')).forEach(element => {
+    Array.from(document.getElementById('config-overlay').querySelectorAll('input, select')).forEach(element => {
         cfg[element.id] = element.value;
     });
     return cfg
@@ -19,4 +19,5 @@ document.getElementById('save-button').addEventListener('click', () => {
     window.localStorage.setItem('dealer-config', JSON.stringify(newConfig));
     app.config = newConfig;
     document.getElementById('config-overlay').classList.add('hidden');
+    reset();
 })

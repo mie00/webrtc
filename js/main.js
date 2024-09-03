@@ -34,6 +34,7 @@ const destroyClient = (cid) => {
         app.clients[cid].nego_dc.onmessage = null;
         app.clients[cid].nego_dc.onclose = null;
     }
+    clearInterval(app.clients[cid]._transceiver_interval);
     if (app.clients[cid].pc) {
         for (var cleanup of Object.values(app.cleanups)) {
             cleanup(cid);
@@ -87,6 +88,10 @@ async function init() {
         },
         "offer": async (data, cid) => {
             if (isSafari && !app.clients[cid].polite) return;
+            if (!app.clients[cid].polite) {
+                if (app.clients[cid].pc.makingOffer) return;
+                if (app.clients[cid].pc.signalingState != "stable") return;
+            }
             await app.clients[cid].pc.setRemoteDescription(data);
             await app.clients[cid].pc.setLocalDescription();
             sendNego(app.clients[cid], app.clients[cid].pc.localDescription);
@@ -112,15 +117,15 @@ function sendNego(client, data) {
     }
 }
 
-async function initClient() {
+async function initClient(polite, cb) {
     init();
     const config = {
         iceServers: app.config["stun-servers"].split(',').filter(link => link).map(link => ({ urls: "stun:" + link })).concat(
-            app.config["turn-server-v2"] && app.config["turn-username"] && app.config["turn-password"]?[{
+            app.config["turn-server-v2"] && app.config["turn-username"] && app.config["turn-password"] ? [{
                 url: "turn:" + app.config["turn-server-v2"],
                 username: app.config["turn-username"],
                 credential: app.config["turn-password"],
-            }]:[]
+            }] : []
         ),
     };
 
@@ -133,6 +138,15 @@ async function initClient() {
     app.clients[cid].pc.onconnectionstatechange = () => handleChange(cid);
     app.clients[cid].pc.oniceconnectionstatechange = () => handleChange(cid);
 
+
+    app.clients[cid].pc.oniceconnectionstatechange = () => {
+        if (app.clients[cid].pc.iceConnectionState === "failed") {
+            app.clients[cid].pc.restartIce();
+        }
+    };
+
+    app.clients[cid].polite = polite;
+
     const nego_dc = pc.createDataChannel("nego", {
         negotiated: true,
         id: 0
@@ -143,7 +157,7 @@ async function initClient() {
         destroyClient(cid);
     }
 
-    nego_dc.onerror = function(error) {
+    nego_dc.onerror = function (error) {
         console.error('Data channel error:', error);
     };
 
@@ -159,28 +173,36 @@ async function initClient() {
     };
 
     setupTrackHandler(app, cid);
-    if (true) {
-        setupChatChannel(app, cid);
-        setupFileChannel(app, cid);
-        setupForwardChannel(app, cid);
-    }
+    setupChatChannel(app, cid);
+    setupFileChannel(app, cid);
+    setupForwardChannel(app, cid);
+
+    app.clients[cid]._transceiver_interval = setInterval(() => {
+        app.clients[cid].pc.addTransceiver('audio', {direction: "recvonly"});
+        app.clients[cid].pc.addTransceiver('video', {direction: "recvonly"});
+    }, 10000);
+
     return cid;
 }
 
 const log = msg => output.innerHTML += `<br>${msg}`;
 
 async function getOffer(cb) {
-    const cid = await initClient();
-    if (app.clients[cid].polite === undefined) {
-        app.clients[cid].polite = false;
-    }
+    const cid = await initClient(false, cb);
     const offer = await app.clients[cid].pc.createOffer();
     await app.clients[cid].pc.setLocalDescription(offer);
 
+
     app.clients[cid].pc.onnegotiationneeded = async function () {
-        const offer = await app.clients[cid].pc.createOffer()
-        await app.clients[cid].pc.setLocalDescription(offer);
-        sendNego(app.clients[cid], offer);
+        app.clients[cid].pc.makingOffer = true;
+        try {
+            await app.clients[cid].pc.setLocalDescription();
+            sendNego(app.clients[cid], app.clients[cid].pc.localDescription);
+        } catch (e) {
+            console.log("renegotiation error", e)
+        } finally {
+            app.clients[cid].pc.makingOffer = false;
+        }
     };
     app.clients[cid].pc.onicecandidate = async ({
         candidate
@@ -188,29 +210,38 @@ async function getOffer(cb) {
         console.log('Candidate found (offer)', candidate)
         await cb(app.clients[cid].pc.localDescription.sdp);
     };
+
+    setTimeout(() => {
+        if (app.clients[cid].pc.signalingState === 'have-local-offer') {
+            destroyClient(cid);
+        }
+    }, 60*1000);
     return cid;
 }
 
 async function getAnswer(offer, cb) {
-    const cid = await initClient();
-    if (app.clients[cid].polite === undefined) {
-        app.clients[cid].polite = true;
-    }
+    const cid = await initClient(true, cb);
     await app.clients[cid].pc.setRemoteDescription({
         type: "offer",
         sdp: offer.trim() + '\n'
     });
     let answer = await app.clients[cid].pc.createAnswer();
     await app.clients[cid].pc.setLocalDescription(answer);
-    await cb(app.clients[cid].pc.localDescription.sdp)
 
-    if (!isSafari) {
-        app.clients[cid].pc.onnegotiationneeded = async function () {
-            const offer = await app.clients[cid].pc.createOffer()
-            await app.clients[cid].pc.setLocalDescription(offer);
-            sendNego(app.clients[cid], offer);
-        };
-    }
+    await cb(app.clients[cid].pc.localDescription.sdp);
+
+
+    app.clients[cid].pc.onnegotiationneeded = async function () {
+        app.clients[cid].pc.makingOffer = true;
+        try {
+            await app.clients[cid].pc.setLocalDescription();
+            sendNego(app.clients[cid], app.clients[cid].pc.localDescription);
+        } catch (e) {
+            console.log("renegotiation error", e)
+        } finally {
+            app.clients[cid].pc.makingOffer = false;
+        }
+    };
     app.clients[cid].pc.onicecandidate = async ({
         candidate
     }) => {
@@ -308,6 +339,8 @@ const acceptHandler = async (cid) => {
     });
 }
 
+let windowLoader;
+
 const clientWindowLoader = async () => {
     console.log("coming here")
     const urlParams = new URLSearchParams(window.location.search);
@@ -376,9 +409,7 @@ const clientWindowLoader = async () => {
     }
 }
 
-var socket = io('wss://dealer.mie00.com', {
-    transports: ['websocket']
-});
+var socket = io('wss://dealer.mie00.com');
 
 const onId = () => {
     const link = document.getElementById('copy-text');
@@ -431,6 +462,9 @@ socket.on('offer', async (sid, sdp) => {
 });
 socket.on('error', async () => {
     history.replaceState(null, '', window.location.origin + window.location.pathname);
+    if (app.config['config-loader'] === 'client') {
+        windowLoader = clientWindowLoader;
+    }
     windowLoader();
 });
 
@@ -446,7 +480,7 @@ const debounceEmit = () => {
     };
 };
 
-const windowLoader = async () => {
+const serverWindowLoader = async () => {
     const urlParams = new URLSearchParams(window.location.search);
     window.removeEventListener("load", windowLoader);
     if (!urlParams.has('r')) {
@@ -457,5 +491,17 @@ const windowLoader = async () => {
         onId();
     }
 }
+
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.has('r')) {
+    windowLoader = serverWindowLoader;
+} else if (urlParams.has('offer')) {
+    windowLoader = clientWindowLoader;
+} else if (app.config['config-loader'] === 'client') {
+    windowLoader = clientWindowLoader;
+} else {
+    windowLoader = serverWindowLoader;
+}
+
 console.log('coming here 2')
 window.addEventListener("load", windowLoader);
