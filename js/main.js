@@ -88,8 +88,8 @@ async function initClient() {
     init();
     const config = {
         iceServers: app.config["stun-servers"].split(',').filter(link => link).map(link => ({ urls: "stun:" + link })).concat(
-            app.config["turn-server"] && app.config["turn-username"] && app.config["turn-password"]?[{
-                url: "turn:" + app.config["turn-server"],
+            app.config["turn-server-v2"] && app.config["turn-username"] && app.config["turn-password"]?[{
+                url: "turn:" + app.config["turn-server-v2"],
                 username: app.config["turn-username"],
                 credential: app.config["turn-password"],
             }]:[]
