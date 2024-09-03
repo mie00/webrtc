@@ -1,5 +1,25 @@
+const configOverlay = document.getElementById('config-overlay');
+const copyOverlay = document.getElementById('copy-overlay');
+
+const reset = () => {
+    window.location.href = window.location.origin + window.location.pathname;
+}
+document.getElementById('reset').addEventListener('click', reset)
 document.getElementById('open-config').addEventListener('click', () => {
-    document.getElementById('config-overlay').classList.remove('hidden');
+    configOverlay.classList.remove('hidden');
+})
+document.getElementById('open-qr').addEventListener('click', () => {
+    copyOverlay.classList.remove('hidden');
+})
+copyOverlay.addEventListener('click', (ev) => {
+    if (ev.target === copyOverlay) {
+        ev.target.classList.add('hidden');
+    }
+})
+configOverlay.addEventListener('click', (ev) => {
+    if (ev.target === configOverlay) {
+        ev.target.classList.add('hidden');
+    }
 })
 
 const app = {
@@ -10,6 +30,8 @@ const isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1;
 
 const destroyClient = (cid) => {
     if (app.clients[cid].nego_dc) {
+        app.clients[cid].nego_dc.onclose = null;
+        app.clients[cid].nego_dc.onmessage = null;
         app.clients[cid].nego_dc.onclose = null;
     }
     if (app.clients[cid].pc) {
@@ -34,16 +56,14 @@ const destroy = () => {
     }
     app.cleanups = {};
     for (var cid of Object.keys(app.clients)) {
-        try {
-            app.clients[cid].nego_dc.send(JSON.stringify({
-                type: "hangup",
-            }))
-        } catch { }
+        sendNego(app.clients[cid], {
+            type: "hangup",
+        });
         destroyClient(cid);
     }
     document.getElementById('media').innerHTML = '';
     document.getElementById('output').innerHTML = '';
-    window.location = window.location.origin + window.location.pathname;
+    reset();
 }
 
 document.getElementById('hangup').addEventListener('click', destroy)
@@ -69,7 +89,7 @@ async function init() {
             if (isSafari && !app.clients[cid].polite) return;
             await app.clients[cid].pc.setRemoteDescription(data);
             await app.clients[cid].pc.setLocalDescription();
-            app.clients[cid].nego_dc.send(JSON.stringify(app.clients[cid].pc.localDescription));
+            sendNego(app.clients[cid], app.clients[cid].pc.localDescription);
         },
         "hangup": (data, cid) => {
             if (!app.clients[cid].polite) {
@@ -82,6 +102,14 @@ async function init() {
 
     streamInit(app);
     forwardInit(app);
+}
+
+function sendNego(client, data) {
+    try {
+        client.nego_dc.send(JSON.stringify(data));
+    } catch (e) {
+        console.log("error sending data", data, "to", client, "erro", e);
+    }
 }
 
 async function initClient() {
@@ -111,8 +139,13 @@ async function initClient() {
     });
     app.clients[cid].nego_dc = nego_dc;
     nego_dc.onclose = async e => {
+        console.log(e)
         destroyClient(cid);
     }
+
+    nego_dc.onerror = function(error) {
+        console.error('Data channel error:', error);
+    };
 
     nego_dc.onmessage = async e => {
         const data = JSON.parse(e.data);
@@ -147,7 +180,7 @@ async function getOffer(cb) {
     app.clients[cid].pc.onnegotiationneeded = async function () {
         const offer = await app.clients[cid].pc.createOffer()
         await app.clients[cid].pc.setLocalDescription(offer);
-        app.clients[cid].nego_dc.send(JSON.stringify(offer));
+        sendNego(app.clients[cid], offer);
     };
     app.clients[cid].pc.onicecandidate = async ({
         candidate
@@ -175,7 +208,7 @@ async function getAnswer(offer, cb) {
         app.clients[cid].pc.onnegotiationneeded = async function () {
             const offer = await app.clients[cid].pc.createOffer()
             await app.clients[cid].pc.setLocalDescription(offer);
-            app.clients[cid].nego_dc.send(JSON.stringify(offer));
+            sendNego(app.clients[cid], offer);
         };
     }
     app.clients[cid].pc.onicecandidate = async ({
@@ -283,7 +316,7 @@ const clientWindowLoader = async () => {
     if (!urlParams.get('offer')) {
         const now = Date.now();
         const link = document.getElementById('copy-text');
-        document.getElementById('copy-overlay').classList.remove('hidden');
+        copyOverlay.classList.remove('hidden');
         const btn = document.getElementById("copy-button");
         const btn2 = document.getElementById("accept-button");
         const link2 = document.getElementById('paste-text');
@@ -295,12 +328,13 @@ const clientWindowLoader = async () => {
             const compressed = await compress(sdp);
             urlParams.set('offer', compressed);
             qrElem.innerHTML = '';
+            const newUrl = (app.config['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
             try {
-                new QRCode(qrElem, window.location.origin + window.location.pathname + '?' + urlParams.toString());
+                new QRCode(qrElem, newUrl);
             } catch (e) {
                 console.log("qr code generation error", e)
             }
-            link.value = window.location.origin + window.location.pathname + '?' + urlParams.toString();
+            link.value = newUrl;
             btn.innerHTML = "Copy";
         })
         const bc = new BroadcastChannel("manual_rtc");
@@ -318,13 +352,13 @@ const clientWindowLoader = async () => {
         const bc = new BroadcastChannel("manual_rtc");
         await bc.postMessage(urlParams.get('answer'));
         bc.close();
-        document.getElementById('copy-overlay').classList.remove('hidden');
-        document.getElementById('copy-overlay').innerHTML = '<p class="bg-white p-4 rounded-md shadow-md text-center">call started on another tab, please close this one</p>';
+        copyOverlay.classList.remove('hidden');
+        copyOverlay.innerHTML = '<p class="bg-white p-4 rounded-md shadow-md text-center">call started on another tab, please close this one</p>';
     } else {
         const now = Date.now();
         const offer = await decompress(urlParams.get('offer'));
         const link = document.getElementById('copy-text');
-        document.getElementById('copy-overlay').classList.remove('hidden');
+        copyOverlay.classList.remove('hidden');
         const btn = document.getElementById("copy-button");
         const cid = await getAnswer(offer, async (sdp) => {
             if (Date.now() - now > 10 * 1000) { return }
@@ -332,7 +366,7 @@ const clientWindowLoader = async () => {
             urlParams.set('answer', compressed);
             qrElem.innerHTML = '';
             try {
-                new QRCode(qrElem, window.location.origin + window.location.pathname + '?' + urlParams.toString());
+                new QRCode(qrElem, (app.config['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString());
             } catch (e) {
                 console.log("qr code generation error", e)
             }
@@ -348,15 +382,16 @@ var socket = io('wss://dealer.mie00.com', {
 
 const onId = () => {
     const link = document.getElementById('copy-text');
-    document.getElementById('copy-overlay').classList.remove('hidden');
-    link.value = window.location.toString();
+    copyOverlay.classList.remove('hidden');
+    const urlParams = new URLSearchParams(window.location.search);
+    const newUrl = (app.config['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
+    link.value = newUrl;
     const btn = document.getElementById("copy-button");
     btn.innerHTML = "Copy";
     const qrElem = document.getElementById("qrcode");
-    const urlParams = new URLSearchParams(window.location.search);
     qrElem.innerHTML = '';
     try {
-        new QRCode(qrElem, window.location.origin + window.location.pathname + '?' + urlParams.toString());
+        new QRCode(qrElem, newUrl);
     } catch (e) {
         console.log("qr code generation error", e)
     }

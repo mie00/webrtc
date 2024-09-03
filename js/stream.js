@@ -10,7 +10,7 @@ function streamInit(app) {
             if (cid == cid2) {
                 continue;
             }
-            app.clients[cid2].nego_dc.send(JSON.stringify(data));
+            sendNego(app.clients[cid2], data);
         }
     }
 
@@ -20,7 +20,7 @@ function streamInit(app) {
                 const stream = app.streams[streamId];
                 delete app.streams[streamId];
                 try {
-                    Object.values(app.clients).forEach((client) => client.nego_dc.send(JSON.stringify({ type: 'stream.end', stream: stream.id })));
+                    Object.values(app.clients).forEach((client) => sendNego(client, { type: 'stream.end', stream: stream.id }));
                 } catch { }
                 stream.getTracks().map((track) => track.stop());
             });
@@ -43,7 +43,7 @@ function setupTrackHandler(app, cid) {
         app.viewStreams[ev.streams[0].id] = ev.streams[0];
         ev.track.onended = (ev) => {
             console.log(ev)
-            Object.values(app.clients).forEach((client) => client.nego_dc.send(JSON.stringify({ type: 'stream.end', stream: ev.target.id })));
+            Object.values(app.clients).forEach((client) => sendNego(client, { type: 'stream.end', stream: ev.target.id }));
             document.getElementById(`stream-${ev.target.id}`)?.remove();
             delete app.viewStreams[ev.target.id];
         }
@@ -74,10 +74,10 @@ const setupLocalStream = async (changed) => {
             track.stop();
             track.dispatchEvent(new Event("ended"));
             for (var client of Object.values(app.clients)) {
-                client.nego_dc.send(JSON.stringify({
+                sendNego(client, {
                     type: "stream.end",
                     stream: app.streams[changed].id,
-                }))
+                });
             }
         });
         delete app.streams[changed];
