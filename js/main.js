@@ -178,8 +178,8 @@ async function initClient(polite, cb) {
     setupForwardChannel(app, cid);
 
     app.clients[cid]._transceiver_interval = setInterval(() => {
-        app.clients[cid].pc.addTransceiver('audio', {direction: "recvonly"});
-        app.clients[cid].pc.addTransceiver('video', {direction: "recvonly"});
+        // app.clients[cid].pc.addTransceiver('audio', {direction: "recvonly"});
+        // app.clients[cid].pc.addTransceiver('video', {direction: "recvonly"});
     }, 10000);
 
     return cid;
@@ -435,17 +435,21 @@ socket.on('init', async (id) => {
     onId();
 });
 socket.on('subscribed', async (sid) => {
+    console.log('got subscribed', sid);
     // debounce
     const emit = debounceEmit();
     const now = Date.now();
     const cid = await getOffer(async (sdp) => {
+        console.log('generated an offer', sdp);
         if (Date.now() - now > 5 * 1000) { return }
+        console.log("sending an offer", sid, sdp);
         emit('offer', sid, sdp);
     })
     app.sids ||= {}
     app.sids[sid] = cid;
 });
 socket.on('answer', async (sid, sdp) => {
+    console.log('got an answer', sid, sdp);
     app.clients[app.sids[sid]].pc.setRemoteDescription({
         type: "answer",
         sdp: sdp.trim() + '\n'
@@ -453,10 +457,13 @@ socket.on('answer', async (sid, sdp) => {
 });
 
 socket.on('offer', async (sid, sdp) => {
+    console.log('got an offer', sid, sdp);
     const emit = debounceEmit();
     const now = Date.now();
     const cid = await getAnswer(sdp, async (sdp) => {
+        console.log('generated an answer', sdp);
         if (Date.now() - now > 5 * 1000) { return }
+        console.log("sending an answer", sid, sdp);
         emit('answer', sid, sdp);
     })
 });
