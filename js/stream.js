@@ -39,7 +39,9 @@ function setupTrackHandler(app, cid) {
         mediaElement.controls = false;
         mediaElement.disablePictureInPicture = true;
         mediaElement.playsInline = true;
-        mediaElement.classList.add('w-full')
+        mediaElement.classList.add('w-full');
+        // TODO: user has to interact otherwise it fails
+        // mediaElement.play();
         app.viewStreams[ev.streams[0].id] = ev.streams[0];
         ev.track.onended = (ev) => {
             console.log(ev)

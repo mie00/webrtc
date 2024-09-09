@@ -87,14 +87,15 @@ async function init() {
             app.clients[cid].pc.setRemoteDescription(data);
         },
         "offer": async (data, cid) => {
-            if (isSafari && !app.clients[cid].polite) return;
-            if (!app.clients[cid].polite) {
-                if (app.clients[cid].pc.makingOffer) return;
-                if (app.clients[cid].pc.signalingState != "stable") return;
+            const client = app.clients[cid];
+            if (isSafari && !client.polite) return;
+            if (!client.polite) {
+                if (client.pc.makingOffer) return;
+                if (client.pc.signalingState != "stable") return;
             }
-            await app.clients[cid].pc.setRemoteDescription(data);
-            await app.clients[cid].pc.setLocalDescription();
-            sendNego(app.clients[cid], app.clients[cid].pc.localDescription);
+            await client.pc.setRemoteDescription(data);
+            await client.pc.setLocalDescription();
+            sendNego(client, client.pc.localDescription);
         },
         "hangup": (data, cid) => {
             if (!app.clients[cid].polite) {
@@ -117,7 +118,7 @@ function sendNego(client, data) {
     }
 }
 
-async function initClient(polite, cb) {
+async function initClient(polite) {
     init();
     const config = {
         iceServers: app.config["stun-servers"].split(',').filter(link => link).map(link => ({ urls: "stun:" + link })).concat(
@@ -188,7 +189,7 @@ async function initClient(polite, cb) {
 const log = msg => output.innerHTML += `<br>${msg}`;
 
 async function getOffer(cb) {
-    const cid = await initClient(false, cb);
+    const cid = await initClient(false);
     const offer = await app.clients[cid].pc.createOffer();
     await app.clients[cid].pc.setLocalDescription(offer);
 
@@ -208,7 +209,7 @@ async function getOffer(cb) {
         candidate
     }) => {
         console.log('Candidate found (offer)', candidate)
-        await cb(app.clients[cid].pc.localDescription.sdp);
+        await cb(candidate);
     };
 
     setTimeout(() => {
@@ -220,16 +221,13 @@ async function getOffer(cb) {
 }
 
 async function getAnswer(offer, cb) {
-    const cid = await initClient(true, cb);
+    const cid = await initClient(true);
     await app.clients[cid].pc.setRemoteDescription({
         type: "offer",
         sdp: offer.trim() + '\n'
     });
     let answer = await app.clients[cid].pc.createAnswer();
     await app.clients[cid].pc.setLocalDescription(answer);
-
-    await cb(app.clients[cid].pc.localDescription.sdp);
-
 
     app.clients[cid].pc.onnegotiationneeded = async function () {
         app.clients[cid].pc.makingOffer = true;
@@ -246,7 +244,7 @@ async function getAnswer(offer, cb) {
         candidate
     }) => {
         console.log('Candidate found (answer)', candidate)
-        await cb(app.clients[cid].pc.localDescription.sdp);
+        await cb(candidate);
     };
     return cid;
 }
@@ -356,8 +354,10 @@ const clientWindowLoader = async () => {
         link2.value = '';
         btn2.classList.remove('hidden');
         link2.classList.remove('hidden');
-        const cid = await getOffer(async (sdp) => {
+        let cid;
+        cid = await getOffer(async (candidate) => {
             if (Date.now() - now > 10 * 1000) { return }
+            const sdp = app.clients[cid].pc.localDescription.sdp;
             const compressed = await compress(sdp);
             urlParams.set('offer', compressed);
             qrElem.innerHTML = '';
@@ -393,8 +393,10 @@ const clientWindowLoader = async () => {
         const link = document.getElementById('copy-text');
         copyOverlay.classList.remove('hidden');
         const btn = document.getElementById("copy-button");
-        const cid = await getAnswer(offer, async (sdp) => {
+        let cid;
+        cid = await getAnswer(offer, async (candidate) => {
             if (Date.now() - now > 10 * 1000) { return }
+            const sdp = app.clients[cid].pc.localDescription.sdp;
             const compressed = await compress(sdp);
             urlParams.set('answer', compressed);
             qrElem.innerHTML = '';
@@ -437,17 +439,19 @@ socket.on('init', async (id) => {
 socket.on('subscribed', async (sid) => {
     console.log('got subscribed', sid);
     // debounce
-    const emit = debounceEmit();
     const now = Date.now();
-    const cid = await getOffer(async (sdp) => {
-        console.log('generated an offer', sdp);
-        if (Date.now() - now > 5 * 1000) { return }
-        console.log("sending an offer", sid, sdp);
-        emit('offer', sid, sdp);
+    const cid = await getOffer(async (candidate) => {
+        if (!candidate) return;
+        console.log("got a candidate", sid, candidate);
+        socket.emit('candidate', sid, JSON.stringify(candidate));
     })
     app.sids ||= {}
     app.sids[sid] = cid;
+    const sdp = app.clients[cid].pc.localDescription.sdp;
+    console.log("sending an offer", sid, sdp);
+    socket.emit('offer', sid, sdp);
 });
+
 socket.on('answer', async (sid, sdp) => {
     console.log('got an answer', sid, sdp);
     app.clients[app.sids[sid]].pc.setRemoteDescription({
@@ -458,15 +462,19 @@ socket.on('answer', async (sid, sdp) => {
 
 socket.on('offer', async (sid, sdp) => {
     console.log('got an offer', sid, sdp);
-    const emit = debounceEmit();
     const now = Date.now();
-    const cid = await getAnswer(sdp, async (sdp) => {
-        console.log('generated an answer', sdp);
-        if (Date.now() - now > 5 * 1000) { return }
-        console.log("sending an answer", sid, sdp);
-        emit('answer', sid, sdp);
+    const cid = await getAnswer(sdp, async (candidate) => {
+        if (!candidate) return;
+        console.log("got a candidate", sid, candidate);
+        socket.emit('candidate', sid, JSON.stringify(candidate));
     })
+    app.sids ||= {}
+    app.sids[sid] = cid;
+    const asdp = app.clients[cid].pc.localDescription.sdp;
+    console.log("sending an answer", sid, asdp);
+    socket.emit('answer', sid, asdp);
 });
+
 socket.on('error', async () => {
     history.replaceState(null, '', window.location.origin + window.location.pathname);
     if (app.config['config-loader'] === 'client') {
@@ -475,17 +483,10 @@ socket.on('error', async () => {
     windowLoader();
 });
 
-const WAIT = 1000;
-const debounceEmit = () => {
-    let timer;
-    return function (...args) {
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-            console.log("emitting");
-            socket.emit.apply(socket, args)
-        }, WAIT);
-    };
-};
+socket.on('candidate', async (sid, candidate) => {
+    console.log('got a candidate from peer', sid, candidate);
+    app.clients[app.sids[sid]].pc.addIceCandidate(JSON.parse(candidate));
+});
 
 const serverWindowLoader = async () => {
     const urlParams = new URLSearchParams(window.location.search);
