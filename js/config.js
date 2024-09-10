@@ -14,6 +14,13 @@ function getConfig() {
     return cfg
 }
 
+function setConfig(k, v) {
+    Array.from(document.getElementById('config-overlay').querySelectorAll(`#${k}`)).forEach(element => {
+        element.value = v;
+    });
+    window.localStorage.setItem('dealer-config', JSON.stringify({ ...getConfig(), [k]: v }));
+}
+
 document.getElementById('save-button').addEventListener('click', () => {
     const newConfig = getConfig();
     window.localStorage.setItem('dealer-config', JSON.stringify(newConfig));

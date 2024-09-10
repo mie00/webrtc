@@ -134,9 +134,21 @@
 				Turn password <input id="turn-password" type="text" placeholder="Turn password"
 					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="">
 			</div>
+			<div class="flex flex-col space-y-2 hidden">
+				Audio device <input id="audio-device" type="text" placeholder="Audio device"
+					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="default|default">
+			</div>
+			<div class="flex flex-col space-y-2 hidden">
+				Video device <input id="video-device" type="text" placeholder="Video device"
+					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="default|default">
+			</div>
 			<button id="save-button"
 				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Save</button>
 		</div>
+	</div>
+	<div id="contextMenu" class="hidden absolute">
+		<ul id="ul-contextMenu" class="menu flex flex-col rounded-md shadow-xl overflow-hidden">
+		</ul>
 	</div>
 		<script src="thirdparty/js/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
 		<script src="js/emojis.js"></script>

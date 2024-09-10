@@ -60,7 +60,7 @@ function setupTrackHandler(app, cid) {
         }
     });
     for (let stream of Object.values(app.viewStreams)) {
-        stream.getTracks().forEach(function(track) {
+        stream.getTracks().forEach(function (track) {
             app.clients[cid].pc.addTrack(track, stream);
         })
     }
@@ -74,7 +74,7 @@ const setupLocalStream = async (changed) => {
             elem.remove();
         }
         delete app.viewStreams[app.streams[changed].id];
-        app.streams[changed].getTracks().forEach(function(track) {
+        app.streams[changed].getTracks().forEach(function (track) {
             track.stop();
             track.dispatchEvent(new Event("ended"));
             for (var client of Object.values(app.clients)) {
@@ -90,18 +90,24 @@ const setupLocalStream = async (changed) => {
     if (changed === 'audio') {
         const button = document.getElementById('toggle-audio');
         if (app.streamConfig.audio) {
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream = await navigator.mediaDevices.getUserMedia({ audio: {groupId: getConfig()['audio-device'].split('|')[0], deviceId: getConfig()['audio-device'].split('|')[1]} });
             for (var client of Object.values(app.clients)) {
                 if (client.pc) {
-                    stream.getTracks().forEach((track) => {
-                        client.pc.addTrack(track, stream);
+                    stream.getTracks().forEach(async (track) => {
+                        let sender = client.pc.addTrack(track, stream);
+                        parameters = await sender.getParameters();
+                        parameters.encodings[0].priority = "high";
+                        sender.setParameters(parameters);
                     });
                 }
             }
 
             app.context = new AudioContext();
             app.script = app.context.createScriptProcessor(2048, 1, 1);
-            app.script.onaudioprocess = function(event) {
+            app.script.onaudioprocess = function (event) {
+                if (!app.streamConfig.audio) {
+                    return;
+                }
                 const input = event.inputBuffer.getChannelData(0);
                 let i;
                 let sum = 0.0;
@@ -109,7 +115,7 @@ const setupLocalStream = async (changed) => {
                 for (i = 0; i < input.length; ++i) {
                     sum += input[i] * input[i];
                     if (Math.abs(input[i]) > 0.99) {
-                    clipcount += 1;
+                        clipcount += 1;
                     }
                 }
                 const instant = Math.sqrt(Math.sqrt(sum / input.length)) * 100;
@@ -128,22 +134,36 @@ const setupLocalStream = async (changed) => {
         }
     } else if (changed === 'video') {
         if (app.streamConfig.video) {
-            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            stream = await navigator.mediaDevices.getUserMedia({ video: {groupId: getConfig()['video-device'].split('|')[0], deviceId: getConfig()['video-device'].split('|')[1]} });
             for (var client of Object.values(app.clients)) {
                 if (client.pc) {
-                    stream.getTracks().forEach((track) => {
-                        client.pc.addTrack(track, stream);
+                    stream.getTracks().forEach(async (track) => {
+                        if ('contentHint' in track) {
+                            // TODO: make configurable
+                            track.contentHint = 'motion';
+                        }
+                        let sender = client.pc.addTrack(track, stream);
+                        parameters = await sender.getParameters();
+                        parameters.encodings[0].priority = "low";
+                        sender.setParameters(parameters);
                     });
                 }
             }
         }
     } else {
         if (app.streamConfig.screen) {
-            stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: {cursor: "always"}});
+            stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: { cursor: "always" } });
             for (var client of Object.values(app.clients)) {
                 if (client.pc) {
-                    stream.getTracks().forEach((track) => {
-                        client.pc.addTrack(track, stream);
+                    stream.getTracks().forEach(async (track) => {
+                        if ('contentHint' in track) {
+                            // TODO: make configurable
+                            track.contentHint = 'detail';
+                        }
+                        let sender = client.pc.addTrack(track, stream);
+                        parameters = await sender.getParameters();
+                        parameters.encodings[0].priority = "medium";
+                        sender.setParameters(parameters);
                     });
                 }
             }
@@ -192,3 +212,121 @@ document.getElementById('toggle-screen').addEventListener('click', async (ev) =>
     setButton(ev.target, app.streamConfig.screen);
     await setupLocalStream('screen');
 });
+
+document.getElementById('toggle-audio').addEventListener('contextmenu', async (ev) => {
+    ev.preventDefault();
+    const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === 'audioinput');
+    if (devices.length < 1) {
+        alert("no devices found");
+        return
+    }
+    const menu = document.getElementById('contextMenu');
+    menu.style.display = 'block';
+    const menuWidth = menu.offsetWidth;
+    const menuHeight = menu.offsetHeight;
+    menu.style.display = '';
+
+    // Determine position for the menu
+    let posX = ev.pageX;
+    let posY = ev.pageY;
+
+    // Check if the menu goes beyond the right edge of the window
+    if (posX + menuWidth > window.innerWidth) {
+        posX = window.innerWidth - menuWidth;
+    }
+
+    // Check if the menu goes beyond the bottom edge of the window
+    if (posY + menuHeight > window.innerHeight) {
+        posY = window.innerHeight - menuHeight;
+    }
+
+    // Set the position of the menu
+    menu.style.left = posX + 'px';
+    menu.style.top = posY + 'px';
+
+    menu.classList.remove('hidden');
+    const ul = document.getElementById('ul-contextMenu');
+    while (ul.firstChild) {
+        ul.removeChild(ul.firstChild);
+    }
+
+    devices.forEach((device) => {
+        const li = document.createElement('li');
+        li.classList.add('cursor-pointer', 'bg-white', 'dark:bg-gray-800', 'hover:bg-gray-200', 'transition-all', 'ease-linear', 'dark:hover:bg-gray-800/50', 'p-4', 'w-full', 'h-full', 'text-gray-800', 'dark:text-gray-200');
+        li.appendChild(document.createTextNode(device.label));
+        // Append the new list item to the ul with id ul-contextmenu
+        if (ul) {
+            ul.appendChild(li);
+        }
+        li.addEventListener('click', async () => {
+            menu.classList.add('hidden');
+            app.streamConfig.audio = true;
+            setButton(ev.target, app.streamConfig.audio);
+            setConfig('audio-device', `${device.groupId}|${device.deviceId}`);
+            await setupLocalStream('audio');
+        });
+    })
+});
+
+
+document.getElementById('toggle-video').addEventListener('contextmenu', async (ev) => {
+    ev.preventDefault();
+    const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === 'videoinput');
+    if (devices.length < 1) {
+        alert("no devices found");
+        return
+    }
+    const menu = document.getElementById('contextMenu');
+    menu.style.display = 'block';
+    const menuWidth = menu.offsetWidth;
+    const menuHeight = menu.offsetHeight;
+    menu.style.display = '';
+
+    // Determine position for the menu
+    let posX = ev.pageX;
+    let posY = ev.pageY;
+
+    // Check if the menu goes beyond the right edge of the window
+    if (posX + menuWidth > window.innerWidth) {
+        posX = window.innerWidth - menuWidth;
+    }
+
+    // Check if the menu goes beyond the bottom edge of the window
+    if (posY + menuHeight > window.innerHeight) {
+        posY = window.innerHeight - menuHeight;
+    }
+
+    // Set the position of the menu
+    menu.style.left = posX + 'px';
+    menu.style.top = posY + 'px';
+
+    menu.classList.remove('hidden');
+    const ul = document.getElementById('ul-contextMenu');
+    while (ul.firstChild) {
+        ul.removeChild(ul.firstChild);
+    }
+
+    devices.forEach((device) => {
+        const li = document.createElement('li');
+        li.classList.add('cursor-pointer', 'bg-white', 'dark:bg-gray-800', 'hover:bg-gray-200', 'transition-all', 'ease-linear', 'dark:hover:bg-gray-800/50', 'p-4', 'w-full', 'h-full', 'text-gray-800', 'dark:text-gray-200');
+        li.appendChild(document.createTextNode(device.label));
+        // Append the new list item to the ul with id ul-contextmenu
+        if (ul) {
+            ul.appendChild(li);
+        }
+        li.addEventListener('click', async () => {
+            menu.classList.add('hidden');
+            app.streamConfig.video = true;
+            setButton(ev.target, app.streamConfig.video);
+            setConfig('video-device', `${device.groupId}|${device.deviceId}`);
+            await setupLocalStream('video');
+        });
+    })
+});
+
+document.onclick = function (event) {
+    const menu = document.getElementById('contextMenu');
+    if (!menu.contains(event.target)) {
+        menu.classList.add('hidden');
+    }
+};
