@@ -137,29 +137,28 @@ const setupLocalStream = async (changed) => {
     }
 }
 
+const setButton = (target, on) => {
+    if (on) {
+        target.classList.add('bg-blue-500');
+    } else {
+        target.classList.remove('bg-blue-500');
+    }
+}
+
 document.getElementById('toggle-audio').addEventListener('click', async (ev) => {
     app.streamConfig.audio = !app.streamConfig.audio;
-    const to_remove = app.streamConfig.audio?'bg-blue-500':'bg-gray-500';
-    const to_add = app.streamConfig.audio?'bg-gray-500':'bg-blue-500';
-    ev.target.classList.remove(to_remove);
-    ev.target.classList.add(to_add);
+    setButton(ev.target, app.streamConfig.audio);
     await setupLocalStream('audio');
 });
 
 document.getElementById('toggle-video').addEventListener('click', async (ev) => {
     app.streamConfig.video = !app.streamConfig.video;
-    const to_remove = app.streamConfig.video?'bg-blue-500':'bg-gray-500';
-    const to_add = app.streamConfig.video?'bg-gray-500':'bg-blue-500';
-    ev.target.classList.remove(to_remove);
-    ev.target.classList.add(to_add);
+    setButton(ev.target, app.streamConfig.video);
     await setupLocalStream('video');
 });
 
 document.getElementById('toggle-screen').addEventListener('click', async (ev) => {
     app.streamConfig.screen = !app.streamConfig.screen;
-    const to_remove = app.streamConfig.screen?'bg-blue-500':'bg-gray-500';
-    const to_add = app.streamConfig.screen?'bg-gray-500':'bg-blue-500';
-    ev.target.classList.remove(to_remove);
-    ev.target.classList.add(to_add);
+    setButton(ev.target, app.streamConfig.screen);
     await setupLocalStream('screen');
 });

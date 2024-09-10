@@ -491,12 +491,20 @@ socket.on('candidate', async (sid, candidate) => {
 const serverWindowLoader = async () => {
     const urlParams = new URLSearchParams(window.location.search);
     window.removeEventListener("load", windowLoader);
+    const acceptButton = document.getElementById("accept-button");
+    const copyButton = document.getElementById("copy-button");
     if (!urlParams.has('r')) {
+        copyButton.classList.remove("hidden");
+        acceptButton.classList.add("hidden");
         socket.emit('init');
     } else {
         const id = urlParams.get('r');
-        socket.emit('subscribe', id);
         onId();
+        copyButton.classList.add("hidden");
+        acceptButton.classList.remove("hidden");
+        acceptButton.onclick = () => {
+            socket.emit('subscribe', id);
+        };
     }
 }
 

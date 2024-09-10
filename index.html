@@ -41,22 +41,19 @@
 			</div>
 
 			<!-- On/Off Buttons -->
-			<div class="flex flex-col space-y-2">
-					<button id="open-qr" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
-						▩
-					</button>
-				<button id="toggle-video" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Toggle
-					Video</button>
-				<button id="toggle-audio" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Toggle
-					Audio</button>
-				<button id="toggle-screen" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Share
-					Screen</button>
-				<div class="flex items-center">
-					<input id="forward-host" type="text" placeholder="host to forward"
-						class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="http://127.0.0.1:5000">
-					<button id="start-forward"
-						class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md ml-auto">Forward</button>
-				</div>
+			<div class="fixed bottom-0 left-0 right-0 bg-transparent p-4 flex justify-center space-x-4 pointer-events-none">
+				<button id="open-qr" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+					▩ <!-- QR Code -->
+				</button>
+				<button id="toggle-video" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+					🎥 <!-- Video Camera -->
+				</button>
+				<button id="toggle-audio" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+					🎤 <!-- Microphone -->
+				</button>
+				<button id="toggle-screen" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+					🖥️ <!-- Monitor for Share Screen -->
+				</button>
 			</div>
 			<!-- End On/Off Buttons -->
 
@@ -93,6 +90,8 @@
 			<textarea readonly id="copy-text" class="bg-gray-200 px-4 py-2 rounded-md break-all block"></textarea>
 			<button id="copy-button"
 				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Copy</button>
+			<button id="accept-button"
+				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Accept</button>
 			<textarea id="paste-text" class="bg-gray-200 px-4 py-2 rounded-md break-all block hidden"></textarea>
 			<button id="accept-button"
 				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2 hidden">Accept</button>
