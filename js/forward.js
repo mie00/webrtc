@@ -185,14 +185,11 @@ function setupForwardChannel(app, cid) {
 }
 
 const toggleForwardHandler = async () => {
-    const to_remove = !app.allowed_host?'bg-blue-500':'bg-gray-500';
-    const to_add = !app.allowed_host?'bg-gray-500':'bg-blue-500';
-    const forwardButton = document.getElementById('start-forward');
-    forwardButton.classList.remove(to_remove);
-    forwardButton.classList.add(to_add);
-
     if (!app.allowed_host) {
-        let val = document.getElementById('forward-host').value;
+        // let val = document.getElementById('forward-host').value;
+        let val = prompt("Please enter the url to forward",
+            app._last_forwarded || "http://127.0.0.1:5000");
+        app._last_forwarded = val;
         if (!val) {
             alert("empty value");
             return;
@@ -233,6 +230,7 @@ const toggleForwardHandler = async () => {
         document.getElementById(`log-${app.allowed_host}`).remove()
         app.allowed_host = '';
     }
+    setButton(document.getElementById('start-forward'), app.allowed_host);
 }
 
 document.getElementById('start-forward').addEventListener('click', toggleForwardHandler)
