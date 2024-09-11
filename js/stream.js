@@ -209,6 +209,7 @@ const refreshStreamViews = () => {
         videoElem.style.left = `${elem.x / normalizedWidth * totalWidth}px`;
         videoElem.style.top = `${elem.y / normalizedHeight * totalHeight}px`;
         videoElem.style.position = 'absolute';
+        videoElem.style.display = 'block';
     }
 }
 
