@@ -296,10 +296,19 @@ async function handleChange(cid) {
     document.getElementById('indicator').classList.add(toAdd);
     if (app.clients[cid].pc?.connectionState === 'connected' && app.clients[cid].pc?.iceConnectionState === 'connected') {
         if (!app.clients[cid].connected) {
-            const firstSDP = app.clients[cid].polite ? app.clients[cid].pc.remoteDescription.sdp : app.clients[cid].pc.localDescription.sdp;
-            const secondSDP = !app.clients[cid].polite ? app.clients[cid].pc.remoteDescription.sdp : app.clients[cid].pc.localDescription.sdp;
-            const fingerprints = firstSDP.split(/\r\n|\r|\n/).filter(x => x.match(/^a=fingerprint/)).map(x => 'polite:' + x).concat(
-                secondSDP.split(/\r\n|\r|\n/).filter(x => x.match(/^a=fingerprint/)).map(x => 'impolite:' + x)).join('\r\n');
+            const stats = await app.clients[cid].pc.getStats();
+            let transport;
+            let certificates = {};
+            stats.forEach(stat => {
+                if (stat.type === 'transport') {
+                    transport = stat;      
+                } else if (stat.type === 'certificate') {
+                    certificates[stat.id] = stat;
+                }
+            });
+            const firstCid = app.clients[cid].polite ? transport.remoteCertificateId : transport.localCertificateId;
+            const secondCid = !app.clients[cid].polite ? transport.remoteCertificateId : transport.localCertificateId;
+            const fingerprints = certificates[firstCid].fingerprint + certificates[secondCid].fingerprint;
             const ejs = await genEmojis(fingerprints);
             console.log('ejs', ejs)
             document.getElementById('connection-secret').innerHTML = ejs;

@@ -94,10 +94,9 @@ const setupLocalStream = async (changed) => {
             for (var client of Object.values(app.clients)) {
                 if (client.pc) {
                     stream.getTracks().forEach(async (track) => {
-                        let sender = client.pc.addTrack(track, stream);
-                        parameters = await sender.getParameters();
-                        parameters.encodings[0].priority = "high";
-                        sender.setParameters(parameters);
+                        client.pc.addTransceiver(track, {streams: [stream], sendEncodings: [{
+                            priority: "high",
+                        }]})
                     });
                 }
             }
@@ -142,10 +141,9 @@ const setupLocalStream = async (changed) => {
                             // TODO: make configurable
                             track.contentHint = 'motion';
                         }
-                        let sender = client.pc.addTrack(track, stream);
-                        parameters = await sender.getParameters();
-                        parameters.encodings[0].priority = "low";
-                        sender.setParameters(parameters);
+                        client.pc.addTransceiver(track, {streams: [stream], sendEncodings: [{
+                            priority: "low",
+                        }]})
                     });
                 }
             }
@@ -160,10 +158,9 @@ const setupLocalStream = async (changed) => {
                             // TODO: make configurable
                             track.contentHint = 'detail';
                         }
-                        let sender = client.pc.addTrack(track, stream);
-                        parameters = await sender.getParameters();
-                        parameters.encodings[0].priority = "medium";
-                        sender.setParameters(parameters);
+                        client.pc.addTransceiver(track, {streams: [stream], sendEncodings: [{
+                            priority: "medium",
+                        }]})
                     });
                 }
             }
