@@ -33,7 +33,7 @@ function streamInit(app) {
 function setupTrackHandler(app, cid) {
     app.clients[cid].pc.addEventListener("track", (ev) => {
         app.viewStreams[ev.streams[0].id] = ev.streams[0];
-        createStreamElement(ev.streams[0], ev.track.kind, false);
+        createStreamElement(ev.streams[0], ev.track.kind, {muted: false});
         // TODO: user has to interact otherwise it fails
         // mediaElement.play();
         ev.track.onended = (ev) => {
@@ -139,6 +139,21 @@ const setupLocalStream = async (changed) => {
                 }
             }
         }
+    } else if (changed === 'local') {
+        if (app.streamConfig.local) {
+            stream = app.streamConfig.videoNode.captureStream();
+            for (var client of Object.values(app.clients)) {
+                if (client.pc) {
+                    console.log("stream tracks", stream, stream.getTracks())
+                    stream.getTracks().forEach(async (track) => {
+                        console.log("local track", track)
+                        client.pc.addTransceiver(track, {streams: [stream], sendEncodings: [{
+                            priority: "medium",
+                        }]})
+                    });
+                }
+            }
+        }
     } else {
         if (app.streamConfig.screen) {
             stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: { cursor: "always" } });
@@ -159,8 +174,8 @@ const setupLocalStream = async (changed) => {
     }
     if (stream) {
         app.streams[changed] = stream;
-        if ((changed === 'video' && app.streamConfig.video) || (changed === 'screen' && app.streamConfig.screen)) {
-            createStreamElement(stream, 'video', true);
+        if ((changed === 'video' && app.streamConfig.video) || (changed === 'screen' && app.streamConfig.screen) || (changed === 'local' && app.streamConfig.local)) {
+            createStreamElement(stream, 'video', {muted: true, controls: false});
         }
         app.viewStreams[stream.id] = stream;
     }
@@ -168,6 +183,7 @@ const setupLocalStream = async (changed) => {
 
 const refreshStreamViews = () => {
     let elems = [];
+    if (!app.viewStreams) return;
     for (let [key, value] of Object.entries(app.viewStreams)) {
         if (value.getVideoTracks().length === 0) {
             continue;
@@ -179,6 +195,9 @@ const refreshStreamViews = () => {
             continue;
         }
         elems.push({key, ow: width, oh: height, width: Math.sqrt(width/height), height: Math.sqrt(height/width)});
+    }
+    if (elems.length === 0) {
+        return;
     }
     const media = document.getElementById('media');
     const totalWidth = media.clientWidth;
@@ -213,17 +232,21 @@ const refreshStreamViews = () => {
     }
 }
 
+setInterval(() => {
+    refreshStreamViews();
+}, 1000);
+
 window.addEventListener('resize', function(event) {
     refreshStreamViews();
 }, true);
 
-const createStreamElement = (stream, tag, muted) => {
+const createStreamElement = (stream, tag, {muted=false, controls=false}) => {
     let mediaElement = document.createElement(tag);
     mediaElement.id = `stream-${stream.id}`
     mediaElement.srcObject = stream;
     mediaElement.muted = muted;
     mediaElement.autoplay = true;
-    mediaElement.controls = false;
+    mediaElement.controls = controls;
     mediaElement.disablePictureInPicture = true;
     mediaElement.playsInline = true;
     // mediaElement.classList.add('w-full')
@@ -378,3 +401,31 @@ document.onclick = function (event) {
         menu.classList.add('hidden');
     }
 };
+
+document.getElementById('share-video').addEventListener('click', async (ev) => {
+    if (app.streamConfig.local) {
+        app.streamConfig.videoNode.src = '';
+        app.streamConfig.videoNode = null;
+        app.streamConfig.local = false;
+        setButton(ev.target, app.streamConfig.local);
+        await setupLocalStream('local');
+        document.getElementById('upload-video').value = null;
+    } else {
+        document.getElementById('upload-video').click();
+    }
+});
+
+document.getElementById('upload-video').addEventListener('change', async (ev) => {
+    const file = ev.target.files[0];
+    const fileURL = URL.createObjectURL(file);
+    const videoNode = document.createElement('video');
+    videoNode.src = fileURL;
+    videoNode.autoplay = true;
+    videoNode.controls = false;
+    app.streamConfig.videoNode = videoNode;
+    app.streamConfig.local = !app.streamConfig.local;
+    setButton(document.getElementById('share-video'), app.streamConfig.local);
+    videoNode.captureStream().onaddtrack = async (ev) => {
+        await setupLocalStream('local');
+    }
+})
