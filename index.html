@@ -33,11 +33,7 @@
 
 		<!-- Controls Panel -->
 		<div class="w-1/4 bg-gray-200 p-4 flex flex-col space-y-4">
-			<div class="flex items-center space-x-2">
-				<div id="indicator" class="bg-gray-400 rounded-full h-4 w-4"></div> <!-- Participant indicator -->
-				<p class="text-sm font-medium text-gray-700">
-					ConnectionState: <strong id="connection-stat"></strong> IceConnectionState: <strong id="ice-connection-stat"></strong>
-				</p>
+			<div id="participants" class="">
 			</div>
 
 			<!-- On/Off Buttons -->
@@ -96,8 +92,8 @@
 			<button id="accept-button"
 				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Accept</button>
 			<textarea id="paste-text" class="bg-gray-200 px-4 py-2 rounded-md break-all block hidden"></textarea>
-			<button id="accept-button"
-				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2 hidden">Accept</button>
+			<button id="join-button"
+				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2 hidden">Join</button>
 		</div>
 	</div>
 	<!-- Overlay for Copying String -->

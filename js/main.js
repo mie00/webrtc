@@ -29,6 +29,9 @@ const app = {
 const isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1;
 
 const destroyClient = (cid) => {
+    Object.keys(app.clients).filter((key) => key !== cid).forEach((key) => {
+        sendNego(app.clients[key], {type: 'participant.end', cid: cid});
+    });
     if (app.clients[cid].nego_dc) {
         app.clients[cid].nego_dc.onclose = null;
         app.clients[cid].nego_dc.onmessage = null;
@@ -79,6 +82,7 @@ async function init() {
     if (app.inited) {
         return;
     }
+    app.participants = {};
     app.cleanups = {}
     app.clients = {}
     app.inited = true;
@@ -103,6 +107,14 @@ async function init() {
             } else {
                 destroy();
             }
+        },
+        "participant": (data, cid) => {
+            app.participants[data.cid] = { relay: cid };
+            handleChange(cid);
+        },
+        "participant.end": (data, cid) => {
+            delete app.participants[data.cid];
+            handleChange(cid);
         },
     };
 
@@ -160,6 +172,9 @@ async function initClient(polite) {
 
     nego_dc.onerror = function (error) {
         console.error('Data channel error:', error);
+        if (app.clients[cid].polite) {
+            windowLoader();
+        }
     };
 
     nego_dc.onmessage = async e => {
@@ -171,6 +186,19 @@ async function initClient(polite) {
             return;
         };
         handler(data, cid);
+    };
+
+    nego_dc.onopen = () => {
+        Object.keys(app.clients).forEach(ncid => {
+            if (ncid !== cid) {
+                sendNego(app.clients[ncid], {type: "participant", cid: cid});
+            }
+        });
+        Object.keys(app.clients).forEach(ncid => {
+            if (ncid !== cid) {
+                nego_dc.send(JSON.stringify({ type: "participant", cid: ncid }));
+            }
+        });
     };
 
     setupTrackHandler(app, cid);
@@ -216,7 +244,7 @@ async function getOffer(cb) {
         if (app.clients[cid].pc.signalingState === 'have-local-offer') {
             destroyClient(cid);
         }
-    }, 60*1000);
+    }, 60 * 1000);
     return cid;
 }
 
@@ -285,40 +313,82 @@ async function genEmojis(digest) {
 }
 
 async function handleChange(cid) {
-    document.getElementById('connection-stat').innerHTML = app.clients[cid].pc?.connectionState;
-    document.getElementById('ice-connection-stat').innerHTML = app.clients[cid].pc?.iceConnectionState;
-    console.log('%c' + new Date().toISOString() + ': ConnectionState: %c' + app.clients[cid].pc?.connectionState + ' %cIceConnectionState: %c' + app.clients[cid].pc?.iceConnectionState,
-        'color:yellow', 'color:orange', 'color:yellow', 'color:orange');
-    const toRemove = ['bg-gray-400', 'bg-red-400', 'bg-green-400'];
-    const toAdd = app.clients[cid].pc?.connectionState === 'connected' && app.clients[cid].pc?.iceConnectionState === 'connected' ? 'bg-green-400' :
-        app.clients[cid].pc?.connectionState === 'failed' || app.clients[cid].pc?.iceConnectionState === 'failed' ? 'bg-red-400' : 'bg-gray=400';
-    document.getElementById('indicator').classList.remove.apply(document.getElementById('indicator').classList, toRemove);
-    document.getElementById('indicator').classList.add(toAdd);
-    if (app.clients[cid].pc?.connectionState === 'connected' && app.clients[cid].pc?.iceConnectionState === 'connected') {
-        if (!app.clients[cid].connected) {
-            const stats = await app.clients[cid].pc.getStats();
+    const participants = document.getElementById('participants');
+    const parent = document.createElement('div')
+
+    for (const [cid, client] of Object.entries(app.clients)) {
+        const indicator = document.createElement('div');
+        const toAdd = client.pc?.connectionState === 'connected' && client.pc?.iceConnectionState === 'connected' ? 'bg-green-400' :
+            client.pc?.connectionState === 'failed' || client.pc?.iceConnectionState === 'failed' ? 'bg-red-400' : 'bg-gray=400';
+        indicator.classList.add(toAdd, 'rounded-full', 'h-4', 'w-4');
+
+
+        const textContainer = document.createElement('p');
+        textContainer.classList.add('text-sm', 'font-medium', 'text-gray-700');
+        textContainer.appendChild(document.createTextNode(cid));
+        textContainer.title = `Connection State: ${client.pc?.connectionState} Ice Connection State: ${client.pc?.iceConnectionState}`;
+
+        const container = document.createElement('div');
+        container.classList.add('flex', 'items-center', 'space-x-2');
+
+        container.appendChild(indicator);
+        container.appendChild(textContainer);
+        parent.appendChild(container);
+
+        console.log('%c' + new Date().toISOString() + ': ConnectionState: %c' + client.pc?.connectionState + ' %cIceConnectionState: %c' + client.pc?.iceConnectionState,
+            'color:yellow', 'color:orange', 'color:yellow', 'color:orange');
+        if (client.pc?.connectionState === 'connected' && client.pc?.iceConnectionState === 'connected') {
+            const stats = await client.pc.getStats();
             let transport;
             let certificates = {};
             stats.forEach(stat => {
                 if (stat.type === 'transport') {
-                    transport = stat;      
+                    transport = stat;
                 } else if (stat.type === 'certificate') {
                     certificates[stat.id] = stat;
                 }
             });
-            const firstCid = app.clients[cid].polite ? transport.remoteCertificateId : transport.localCertificateId;
-            const secondCid = !app.clients[cid].polite ? transport.remoteCertificateId : transport.localCertificateId;
+            const firstCid = client.polite ? transport.remoteCertificateId : transport.localCertificateId;
+            const secondCid = !client.polite ? transport.remoteCertificateId : transport.localCertificateId;
             const fingerprints = certificates[firstCid].fingerprint + certificates[secondCid].fingerprint;
             const ejs = await genEmojis(fingerprints);
             console.log('ejs', ejs)
             document.getElementById('connection-secret').innerHTML = ejs;
-        }
-        app.clients[cid].connected = true;
-        document.getElementById("copy-overlay").classList.add('hidden');
-        if (!new URLSearchParams(window.location.search).has('r')) {
-            history.replaceState('', '', window.location.origin + window.location.pathname);
+            textContainer.appendChild(document.createTextNode(ejs));
+            document.getElementById("copy-overlay").classList.add('hidden');
+            if (!new URLSearchParams(window.location.search).has('r')) {
+                history.replaceState('', '', window.location.origin + window.location.pathname);
+            }
         }
     }
+    for (const [key, value] of Object.entries(app.participants || {})) {
+        const indicator = document.createElement('div');
+        indicator.classList.add('rounded-full', 'h-4', 'w-4');
+
+
+        const textContainer = document.createElement('p');
+        textContainer.classList.add('text-sm', 'font-medium', 'text-gray-700');
+        textContainer.appendChild(document.createTextNode(key));
+
+        const container = document.createElement('div');
+        container.classList.add('flex', 'items-center', 'space-x-2');
+
+        container.appendChild(indicator);
+        container.appendChild(textContainer);
+        parent.appendChild(container);
+        if (value.relay in app.clients) {
+            const client = app.clients[value.relay];
+            const toAdd = client.pc?.connectionState === 'connected' && client.pc?.iceConnectionState === 'connected' ? 'bg-green-400' :
+                client.pc?.connectionState === 'failed' || client.pc?.iceConnectionState === 'failed' ? 'bg-red-400' : 'bg-gray=400';
+            indicator.classList.add(toAdd);
+            textContainer.title = `Relay: ${value.relay} Connection State: ${client.pc?.connectionState} Ice Connection State: ${client.pc?.iceConnectionState}`;
+        } else {
+            indicator.classList.add('bg-red-400');
+            textContainer.title = `Relay: ${value.relay} Connection State: relay not found`;
+        }
+    }
+    participants.firstChild?.remove();
+    participants.appendChild(parent);
 }
 // handleChange();
 
@@ -501,17 +571,20 @@ const serverWindowLoader = async () => {
     const urlParams = new URLSearchParams(window.location.search);
     window.removeEventListener("load", windowLoader);
     const acceptButton = document.getElementById("accept-button");
+    const joinButton = document.getElementById("join-button");
     const copyButton = document.getElementById("copy-button");
     if (!urlParams.has('r')) {
         copyButton.classList.remove("hidden");
         acceptButton.classList.add("hidden");
+        joinButton.classList.add("hidden");
         socket.emit('init');
     } else {
         const id = urlParams.get('r');
         onId();
         copyButton.classList.add("hidden");
-        acceptButton.classList.remove("hidden");
-        acceptButton.onclick = () => {
+        acceptButton.classList.add("hidden");
+        joinButton.classList.remove("hidden");
+        joinButton.onclick = () => {
             socket.emit('subscribe', id);
         };
     }
