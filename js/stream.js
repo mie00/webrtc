@@ -32,19 +32,10 @@ function streamInit(app) {
 
 function setupTrackHandler(app, cid) {
     app.clients[cid].pc.addEventListener("track", (ev) => {
-        let mediaElement = document.createElement(ev.track.kind);
-        document.getElementById('media').appendChild(mediaElement);
-        mediaElement.id = `stream-${ev.streams[0].id}`;
-        mediaElement.srcObject = ev.streams[0];
-        mediaElement.muted = false;
-        mediaElement.autoplay = true;
-        mediaElement.controls = false;
-        mediaElement.disablePictureInPicture = true;
-        mediaElement.playsInline = true;
-        mediaElement.classList.add('w-full');
+        app.viewStreams[ev.streams[0].id] = ev.streams[0];
+        createStreamElement(ev.streams[0], ev.track.kind, false);
         // TODO: user has to interact otherwise it fails
         // mediaElement.play();
-        app.viewStreams[ev.streams[0].id] = ev.streams[0];
         ev.track.onended = (ev) => {
             console.log(ev)
             Object.values(app.clients).forEach((client) => sendNego(client, { type: 'stream.end', stream: ev.target.id }));
@@ -169,18 +160,77 @@ const setupLocalStream = async (changed) => {
     if (stream) {
         app.streams[changed] = stream;
         if ((changed === 'video' && app.streamConfig.video) || (changed === 'screen' && app.streamConfig.screen)) {
-            let mediaElement = document.createElement('video');
-            document.getElementById('media').appendChild(mediaElement);
-            mediaElement.id = `stream-${stream.id}`
-            mediaElement.srcObject = stream;
-            mediaElement.muted = true;
-            mediaElement.autoplay = true;
-            mediaElement.controls = false;
-            mediaElement.disablePictureInPicture = true;
-            mediaElement.playsInline = true;
-            mediaElement.classList.add('w-full')
+            createStreamElement(stream, 'video', true);
         }
         app.viewStreams[stream.id] = stream;
+    }
+}
+
+const refreshStreamViews = () => {
+    let elems = [];
+    for (let [key, value] of Object.entries(app.viewStreams)) {
+        if (value.getVideoTracks().length === 0) {
+            continue;
+        }
+        const {width, height} = value.getVideoTracks()[0].getSettings();
+        if (!width || !height) {
+            const videoElem = document.getElementById(`stream-${key}`);
+            videoElem.style.display = 'none';
+            continue;
+        }
+        elems.push({key, ow: width, oh: height, width: Math.sqrt(width/height), height: Math.sqrt(height/width)});
+    }
+    const media = document.getElementById('media');
+    const totalWidth = media.clientWidth;
+    const totalHeight = media.clientHeight;
+    let normalizedWidth = Math.sqrt(totalWidth/totalHeight) * Math.sqrt(elems.length);
+    const origWidth = normalizedWidth;
+    let normalizedHeight = Math.sqrt(totalHeight/totalWidth) * Math.sqrt(elems.length);
+    let packer;
+    while (true) {
+        packer = BinPack();
+        packer.binWidth(normalizedWidth);
+        packer.binHeight(normalizedHeight);
+        packer.addAll(elems);
+        console.log(packer.positioned, packer.unpositioned, totalWidth, origWidth, normalizedWidth);
+        if (packer.unpositioned.length !== 0 && normalizedWidth > 10 * origWidth) {
+            throw new Error('Could not fit streams');
+        } else if (packer.unpositioned.length === 0) {
+            break;
+        }
+        normalizedWidth *= 1.1;
+        normalizedHeight *= 1.1;
+    }
+    const scaleFactor = origWidth / normalizedWidth;
+    for (let elem of packer.positioned) {
+        const videoElem = document.getElementById(`stream-${elem.datum.key}`);
+        videoElem.style.width = `${elem.datum.width / normalizedWidth * totalWidth}px`;
+        videoElem.style.height = `${elem.datum.height / normalizedHeight * totalHeight}px`;
+        videoElem.style.left = `${elem.x / normalizedWidth * totalWidth}px`;
+        videoElem.style.top = `${elem.y / normalizedHeight * totalHeight}px`;
+        videoElem.style.position = 'absolute';
+    }
+}
+
+window.addEventListener('resize', function(event) {
+    refreshStreamViews();
+}, true);
+
+const createStreamElement = (stream, tag, muted) => {
+    let mediaElement = document.createElement(tag);
+    mediaElement.id = `stream-${stream.id}`
+    mediaElement.srcObject = stream;
+    mediaElement.muted = muted;
+    mediaElement.autoplay = true;
+    mediaElement.controls = false;
+    mediaElement.disablePictureInPicture = true;
+    mediaElement.playsInline = true;
+    // mediaElement.classList.add('w-full')
+    document.getElementById('media').appendChild(mediaElement);
+    if (tag === 'video') {
+        setTimeout(() => {
+            refreshStreamViews();
+        }, 1000)
     }
 }
 
