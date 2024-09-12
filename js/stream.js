@@ -270,6 +270,27 @@ const createStreamElement = (stream, tag, { muted = false, controls = false, pas
             refreshStreamViews();
         }, 1000)
     }
+    try {
+        mediaElement.play();
+    } catch (e) {
+        console.log('error playing', e)
+        let playButton = document.getElementById('play-button');
+        if (!playButton) {
+            playButton = document.createElement('button');
+            playButton.id = 'play-button';
+            playButton.classList.add('fixed', 'inset-0', 'bg-black', 'bg-opacity-50', 'flex', 'justify-center', 'items-center', 'z-50', 'text-9xl');
+            playButton.appendChild(document.createTextNode('▶'));
+            document.body.appendChild(playButton);
+            playButton.addEventListener('click', (ev) => {
+                mediaElement.play();
+                playButton.remove();
+            });
+        } else {
+            playButton.addEventListener('click', (ev) => {
+                mediaElement.play();
+            });
+        }
+    }
 }
 
 const setButton = (target, on) => {
