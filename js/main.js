@@ -92,7 +92,7 @@ async function init() {
         },
         "offer": async (data, cid) => {
             const client = app.clients[cid];
-            if (isSafari && !client.polite) return;
+            // if (isSafari && !client.polite) return;
             if (!client.polite) {
                 if (client.makingOffer) return;
                 if (client.pc.signalingState != "stable") return;

@@ -220,7 +220,6 @@ const refreshStreamViews = () => {
         packer.binWidth(normalizedWidth);
         packer.binHeight(normalizedHeight);
         packer.addAll(elems);
-        console.log(packer.positioned, packer.unpositioned, totalWidth, origWidth, normalizedWidth);
         if (packer.unpositioned.length !== 0 && normalizedWidth > 10 * origWidth) {
             throw new Error('Could not fit streams');
         } else if (packer.unpositioned.length === 0) {
@@ -229,7 +228,6 @@ const refreshStreamViews = () => {
         normalizedWidth *= 1.1;
         normalizedHeight *= 1.1;
     }
-    const scaleFactor = origWidth / normalizedWidth;
     for (let elem of packer.positioned) {
         const videoElem = document.getElementById(`stream-${elem.datum.key}`);
         videoElem.style.width = `${elem.datum.width / normalizedWidth * totalWidth}px`;
