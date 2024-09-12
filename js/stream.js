@@ -31,11 +31,9 @@ function streamInit(app) {
 }
 
 function setupTrackHandler(app, cid) {
-    app.clients[cid].pc.addEventListener("track", (ev) => {
+    app.clients[cid].pc.addEventListener("track", async (ev) => {
         app.viewStreams[ev.streams[0].id] = ev.streams[0];
-        createStreamElement(ev.streams[0], ev.track.kind, { muted: false });
-        // TODO: user has to interact otherwise it fails
-        // mediaElement.play();
+        await createStreamElement(ev.streams[0], ev.track.kind, { muted: false });
         ev.track.onended = (ev) => {
             console.log(ev)
             Object.values(app.clients).forEach((client) => sendNego(client, { type: 'stream.end', stream: ev.target.id }));
@@ -182,9 +180,9 @@ const setupLocalStream = async (changed) => {
     if (stream) {
         app.streams[changed] = stream;
         if ((changed === 'video' && app.streamConfig.video) || (changed === 'screen' && app.streamConfig.screen)) {
-            createStreamElement(stream, 'video', { muted: true, controls: false });
+            await createStreamElement(stream, 'video', { muted: true, controls: false });
         } else if (changed === 'local' && app.streamConfig.local) {
-            createStreamElement(stream, 'video', { muted: false, controls: true, passedElement: app.streamConfig.videoNode });
+            await createStreamElement(stream, 'video', { muted: false, controls: true, passedElement: app.streamConfig.videoNode });
         }
         app.viewStreams[stream.id] = stream;
     }
@@ -247,7 +245,7 @@ window.addEventListener('resize', function (event) {
     refreshStreamViews();
 }, true);
 
-const createStreamElement = (stream, tag, { muted = false, controls = false, passedElement = null }) => {
+const createStreamElement = async (stream, tag, { muted = false, controls = false, passedElement = null }) => {
     let mediaElement;
     if (passedElement) {
         mediaElement = passedElement;
@@ -269,7 +267,7 @@ const createStreamElement = (stream, tag, { muted = false, controls = false, pas
         }, 1000)
     }
     try {
-        mediaElement.play();
+        await mediaElement.play();
     } catch (e) {
         console.log('error playing', e)
         let playButton = document.getElementById('play-button');
