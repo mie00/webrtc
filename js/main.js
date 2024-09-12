@@ -130,12 +130,12 @@ function sendNego(client, data) {
     }
 }
 
-async function initClient(polite) {
+async function initClient(polite, {sid}) {
     init();
     const config = {
         iceServers: app.config["stun-servers"].split(',').filter(link => link).map(link => ({ urls: "stun:" + link })).concat(
             app.config["turn-server-v2"] && app.config["turn-username"] && app.config["turn-password"] ? [{
-                url: "turn:" + app.config["turn-server-v2"],
+                urls: "turn:" + app.config["turn-server-v2"],
                 username: app.config["turn-username"],
                 credential: app.config["turn-password"],
             }] : []
@@ -143,6 +143,8 @@ async function initClient(polite) {
     };
 
     const cid = uuidv4();
+    app.sids ||= {}
+    app.sids[sid] = cid;
     app.clients[cid] = {};
 
     const pc = new RTCPeerConnection(config);
@@ -216,8 +218,8 @@ async function initClient(polite) {
 
 const log = msg => output.innerHTML += `<br>${msg}`;
 
-async function getOffer(cb) {
-    const cid = await initClient(false);
+async function getOffer(cb, {sid}) {
+    const cid = await initClient(false, {sid});
     const offer = await app.clients[cid].pc.createOffer();
     await app.clients[cid].pc.setLocalDescription(offer);
 
@@ -248,8 +250,8 @@ async function getOffer(cb) {
     return cid;
 }
 
-async function getAnswer(offer, cb) {
-    const cid = await initClient(true);
+async function getAnswer(offer, cb, {sid}) {
+    const cid = await initClient(true, {sid});
     await app.clients[cid].pc.setRemoteDescription({
         type: "offer",
         sdp: offer.trim() + '\n'
@@ -523,9 +525,7 @@ socket.on('subscribed', async (sid) => {
         if (!candidate) return;
         console.log("got a candidate", sid, candidate);
         socket.emit('candidate', sid, JSON.stringify(candidate));
-    })
-    app.sids ||= {}
-    app.sids[sid] = cid;
+    }, {sid})
     const sdp = app.clients[cid].pc.localDescription.sdp;
     console.log("sending an offer", sid, sdp);
     socket.emit('offer', sid, sdp);
@@ -546,9 +546,7 @@ socket.on('offer', async (sid, sdp) => {
         if (!candidate) return;
         console.log("got a candidate", sid, candidate);
         socket.emit('candidate', sid, JSON.stringify(candidate));
-    })
-    app.sids ||= {}
-    app.sids[sid] = cid;
+    }, {sid})
     const asdp = app.clients[cid].pc.localDescription.sdp;
     console.log("sending an answer", sid, asdp);
     socket.emit('answer', sid, asdp);
