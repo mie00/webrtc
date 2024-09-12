@@ -33,7 +33,7 @@ function streamInit(app) {
 function setupTrackHandler(app, cid) {
     app.clients[cid].pc.addEventListener("track", (ev) => {
         app.viewStreams[ev.streams[0].id] = ev.streams[0];
-        createStreamElement(ev.streams[0], ev.track.kind, {muted: false});
+        createStreamElement(ev.streams[0], ev.track.kind, { muted: false });
         // TODO: user has to interact otherwise it fails
         // mediaElement.play();
         ev.track.onended = (ev) => {
@@ -81,13 +81,15 @@ const setupLocalStream = async (changed) => {
     if (changed === 'audio') {
         const button = document.getElementById('toggle-audio');
         if (app.streamConfig.audio) {
-            stream = await navigator.mediaDevices.getUserMedia({ audio: {groupId: getConfig()['audio-device'].split('|')[0], deviceId: getConfig()['audio-device'].split('|')[1]} });
+            stream = await navigator.mediaDevices.getUserMedia({ audio: { groupId: getConfig()['audio-device'].split('|')[0], deviceId: getConfig()['audio-device'].split('|')[1] } });
             for (var client of Object.values(app.clients)) {
                 if (client.pc) {
                     stream.getTracks().forEach(async (track) => {
-                        client.pc.addTransceiver(track, {streams: [stream], sendEncodings: [{
-                            priority: "high",
-                        }]})
+                        client.pc.addTransceiver(track, {
+                            streams: [stream], sendEncodings: [{
+                                priority: "high",
+                            }]
+                        })
                     });
                 }
             }
@@ -124,7 +126,7 @@ const setupLocalStream = async (changed) => {
         }
     } else if (changed === 'video') {
         if (app.streamConfig.video) {
-            stream = await navigator.mediaDevices.getUserMedia({ video: {groupId: getConfig()['video-device'].split('|')[0], deviceId: getConfig()['video-device'].split('|')[1]} });
+            stream = await navigator.mediaDevices.getUserMedia({ video: { groupId: getConfig()['video-device'].split('|')[0], deviceId: getConfig()['video-device'].split('|')[1] } });
             for (var client of Object.values(app.clients)) {
                 if (client.pc) {
                     stream.getTracks().forEach(async (track) => {
@@ -132,25 +134,28 @@ const setupLocalStream = async (changed) => {
                             // TODO: make configurable
                             track.contentHint = 'motion';
                         }
-                        client.pc.addTransceiver(track, {streams: [stream], sendEncodings: [{
-                            priority: "low",
-                        }]})
+                        client.pc.addTransceiver(track, {
+                            streams: [stream], sendEncodings: [{
+                                priority: "low",
+                            }]
+                        })
                     });
                 }
             }
         }
     } else if (changed === 'local') {
         if (app.streamConfig.local) {
-            stream = app.streamConfig.videoNode.captureStream();
-            for (var client of Object.values(app.clients)) {
-                if (client.pc) {
-                    console.log("stream tracks", stream, stream.getTracks())
-                    stream.getTracks().forEach(async (track) => {
-                        console.log("local track", track)
-                        client.pc.addTransceiver(track, {streams: [stream], sendEncodings: [{
-                            priority: "medium",
-                        }]})
-                    });
+            stream = app.streamConfig.videoStream;
+            stream.onaddtrack = async (ev) => {
+                console.log(ev)
+                for (var client of Object.values(app.clients)) {
+                    if (client.pc) {
+                        client.pc.addTransceiver(ev.track, {
+                            streams: [stream], sendEncodings: [{
+                                priority: "medium",
+                            }]
+                        })
+                    }
                 }
             }
         }
@@ -164,9 +169,11 @@ const setupLocalStream = async (changed) => {
                             // TODO: make configurable
                             track.contentHint = 'detail';
                         }
-                        client.pc.addTransceiver(track, {streams: [stream], sendEncodings: [{
-                            priority: "medium",
-                        }]})
+                        client.pc.addTransceiver(track, {
+                            streams: [stream], sendEncodings: [{
+                                priority: "medium",
+                            }]
+                        })
                     });
                 }
             }
@@ -174,8 +181,10 @@ const setupLocalStream = async (changed) => {
     }
     if (stream) {
         app.streams[changed] = stream;
-        if ((changed === 'video' && app.streamConfig.video) || (changed === 'screen' && app.streamConfig.screen) || (changed === 'local' && app.streamConfig.local)) {
-            createStreamElement(stream, 'video', {muted: true, controls: false});
+        if ((changed === 'video' && app.streamConfig.video) || (changed === 'screen' && app.streamConfig.screen)) {
+            createStreamElement(stream, 'video', { muted: true, controls: false });
+        } else if (changed === 'local' && app.streamConfig.local) {
+            createStreamElement(stream, 'video', { muted: false, controls: true, passedElement: app.streamConfig.videoNode });
         }
         app.viewStreams[stream.id] = stream;
     }
@@ -188,13 +197,13 @@ const refreshStreamViews = () => {
         if (value.getVideoTracks().length === 0) {
             continue;
         }
-        const {width, height} = value.getVideoTracks()[0].getSettings();
+        const { width, height } = value.getVideoTracks()[0].getSettings();
         if (!width || !height) {
             const videoElem = document.getElementById(`stream-${key}`);
             videoElem.style.display = 'none';
             continue;
         }
-        elems.push({key, ow: width, oh: height, width: Math.sqrt(width/height), height: Math.sqrt(height/width)});
+        elems.push({ key, ow: width, oh: height, width: Math.sqrt(width / height), height: Math.sqrt(height / width) });
     }
     if (elems.length === 0) {
         return;
@@ -202,9 +211,9 @@ const refreshStreamViews = () => {
     const media = document.getElementById('media');
     const totalWidth = media.clientWidth;
     const totalHeight = media.clientHeight;
-    let normalizedWidth = Math.sqrt(totalWidth/totalHeight) * Math.sqrt(elems.length);
+    let normalizedWidth = Math.sqrt(totalWidth / totalHeight) * Math.sqrt(elems.length);
     const origWidth = normalizedWidth;
-    let normalizedHeight = Math.sqrt(totalHeight/totalWidth) * Math.sqrt(elems.length);
+    let normalizedHeight = Math.sqrt(totalHeight / totalWidth) * Math.sqrt(elems.length);
     let packer;
     while (true) {
         packer = BinPack();
@@ -236,14 +245,19 @@ setInterval(() => {
     refreshStreamViews();
 }, 1000);
 
-window.addEventListener('resize', function(event) {
+window.addEventListener('resize', function (event) {
     refreshStreamViews();
 }, true);
 
-const createStreamElement = (stream, tag, {muted=false, controls=false}) => {
-    let mediaElement = document.createElement(tag);
+const createStreamElement = (stream, tag, { muted = false, controls = false, passedElement = null }) => {
+    let mediaElement;
+    if (passedElement) {
+        mediaElement = passedElement;
+    } else {
+        mediaElement = document.createElement(tag);
+        mediaElement.srcObject = stream;
+    }
     mediaElement.id = `stream-${stream.id}`
-    mediaElement.srcObject = stream;
     mediaElement.muted = muted;
     mediaElement.autoplay = true;
     mediaElement.controls = controls;
@@ -423,9 +437,8 @@ document.getElementById('upload-video').addEventListener('change', async (ev) =>
     videoNode.autoplay = true;
     videoNode.controls = false;
     app.streamConfig.videoNode = videoNode;
+    app.streamConfig.videoStream = videoNode.captureStream();
     app.streamConfig.local = !app.streamConfig.local;
     setButton(document.getElementById('share-video'), app.streamConfig.local);
-    videoNode.captureStream().onaddtrack = async (ev) => {
-        await setupLocalStream('local');
-    }
+    await setupLocalStream('local');
 })

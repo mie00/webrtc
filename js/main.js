@@ -94,7 +94,7 @@ async function init() {
             const client = app.clients[cid];
             if (isSafari && !client.polite) return;
             if (!client.polite) {
-                if (client.pc.makingOffer) return;
+                if (client.makingOffer) return;
                 if (client.pc.signalingState != "stable") return;
             }
             await client.pc.setRemoteDescription(data);
@@ -225,14 +225,14 @@ async function getOffer(cb, {sid}) {
 
 
     app.clients[cid].pc.onnegotiationneeded = async function () {
-        app.clients[cid].pc.makingOffer = true;
+        app.clients[cid].makingOffer = true;
         try {
             await app.clients[cid].pc.setLocalDescription();
             sendNego(app.clients[cid], app.clients[cid].pc.localDescription);
         } catch (e) {
             console.log("renegotiation error", e)
         } finally {
-            app.clients[cid].pc.makingOffer = false;
+            app.clients[cid].makingOffer = false;
         }
     };
     app.clients[cid].pc.onicecandidate = async ({
@@ -260,14 +260,14 @@ async function getAnswer(offer, cb, {sid}) {
     await app.clients[cid].pc.setLocalDescription(answer);
 
     app.clients[cid].pc.onnegotiationneeded = async function () {
-        app.clients[cid].pc.makingOffer = true;
+        app.clients[cid].makingOffer = true;
         try {
             await app.clients[cid].pc.setLocalDescription();
             sendNego(app.clients[cid], app.clients[cid].pc.localDescription);
         } catch (e) {
             console.log("renegotiation error", e)
         } finally {
-            app.clients[cid].pc.makingOffer = false;
+            app.clients[cid].makingOffer = false;
         }
     };
     app.clients[cid].pc.onicecandidate = async ({
