@@ -84,9 +84,9 @@ const setupLocalStream = async (changed) => {
                 if (client.pc) {
                     stream.getTracks().forEach(async (track) => {
                         client.pc.addTransceiver(track, {
-                            streams: [stream], sendEncodings: [{
-                                priority: "high",
-                            }]
+                            streams: [stream], sendEncodings: [
+                                { priority: "high" },
+                            ]
                         })
                     });
                 }
@@ -133,9 +133,12 @@ const setupLocalStream = async (changed) => {
                             track.contentHint = 'motion';
                         }
                         client.pc.addTransceiver(track, {
-                            streams: [stream], sendEncodings: [{
-                                priority: "low",
-                            }]
+                            streams: [stream], sendEncodings: [
+                                { priority: "low", rid: "o" },
+                                { priority: "low", rid: "h", maxBitrate: 1200 * 1024 },
+                                { priority: "low", rid: "m", maxBitrate:  600 * 1024, scaleResolutionDownBy: 2 },
+                                { priority: "low", rid: "l", maxBitrate:  300 * 1024, scaleResolutionDownBy: 4 },
+                            ]
                         })
                     });
                 }
@@ -149,9 +152,12 @@ const setupLocalStream = async (changed) => {
                 for (var client of Object.values(app.clients)) {
                     if (client.pc) {
                         client.pc.addTransceiver(ev.track, {
-                            streams: [stream], sendEncodings: [{
-                                priority: "medium",
-                            }]
+                            streams: [stream], sendEncodings: [
+                                { priority: "medium", rid: "o" },
+                                // { priority: "medium", rid: "h", maxBitrate: 1200 * 1024 },
+                                // { priority: "medium", rid: "m", maxBitrate:  600 * 1024, scaleResolutionDownBy: 2 },
+                                // { priority: "medium", rid: "l", maxBitrate:  300 * 1024, scaleResolutionDownBy: 4 },
+                            ]
                         })
                     }
                 }
@@ -168,9 +174,12 @@ const setupLocalStream = async (changed) => {
                             track.contentHint = 'detail';
                         }
                         client.pc.addTransceiver(track, {
-                            streams: [stream], sendEncodings: [{
-                                priority: "medium",
-                            }]
+                            streams: [stream], sendEncodings: [
+                                { priority: "medium", rid: "o" },
+                                { priority: "medium", rid: "h", maxBitrate: 1200 * 1024 },
+                                { priority: "medium", rid: "m", maxBitrate:  600 * 1024, scaleResolutionDownBy: 2 },
+                                { priority: "medium", rid: "l", maxBitrate:  300 * 1024, scaleResolutionDownBy: 4 },
+                            ]
                         })
                     });
                 }
@@ -188,16 +197,38 @@ const setupLocalStream = async (changed) => {
     }
 }
 
-const refreshStreamViews = () => {
+const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
+
+const refreshStreamViews = async () => {
     let elems = [];
     if (!app.viewStreams) return;
+    let statsDict = {};
+    if (isFirefox) {
+        for (const client of Object.values(app.clients)) {
+            const stats = await client.pc.getStats();
+            stats.forEach(stat => {
+                if (stat.type === 'inbound-rtp' && stat.kind === 'video') {
+                    statsDict[stat.trackIdentifier] = {width: stat.frameWidth, height: stat.frameHeight}
+                }
+            })
+        }
+    }
     for (let [key, value] of Object.entries(app.viewStreams)) {
         if (value.getVideoTracks().length === 0) {
             continue;
         }
-        const { width, height } = value.getVideoTracks()[0].getSettings();
+        var width, height;
+        console.log(isFirefox, value.getVideoTracks()[0].label != 'remote video')
+        if (!isFirefox || value.getVideoTracks()[0].label != 'remote video') {
+            var { width, height } = value.getVideoTracks()[0].getSettings();
+        } else {
+            if (value.getVideoTracks()[0].id in statsDict) {
+                var { width, height } = statsDict[value.getVideoTracks()[0].id];
+            }
+        }
         if (!width || !height) {
             const videoElem = document.getElementById(`stream-${key}`);
+            if (!videoElem) continue;
             videoElem.style.display = 'none';
             continue;
         }
@@ -261,11 +292,6 @@ const createStreamElement = async (stream, tag, { muted = false, controls = fals
     mediaElement.playsInline = true;
     // mediaElement.classList.add('w-full')
     document.getElementById('media').appendChild(mediaElement);
-    if (tag === 'video') {
-        setTimeout(() => {
-            refreshStreamViews();
-        }, 1000)
-    }
     try {
         await mediaElement.play();
     } catch (e) {
@@ -453,8 +479,9 @@ document.getElementById('upload-video').addEventListener('change', async (ev) =>
     videoNode.src = fileURL;
     videoNode.autoplay = true;
     videoNode.controls = false;
+    videoNode.loop = true;
     app.streamConfig.videoNode = videoNode;
-    app.streamConfig.videoStream = videoNode.captureStream();
+    app.streamConfig.videoStream = videoNode.captureStream?videoNode.captureStream():videoNode.mozCaptureStream();
     app.streamConfig.local = !app.streamConfig.local;
     setButton(document.getElementById('share-video'), app.streamConfig.local);
     await setupLocalStream('local');

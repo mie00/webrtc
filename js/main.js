@@ -350,13 +350,15 @@ async function handleChange(cid) {
                     certificates[stat.id] = stat;
                 }
             });
-            const firstCid = client.polite ? transport.remoteCertificateId : transport.localCertificateId;
-            const secondCid = !client.polite ? transport.remoteCertificateId : transport.localCertificateId;
-            const fingerprints = certificates[firstCid].fingerprint + certificates[secondCid].fingerprint;
-            const ejs = await genEmojis(fingerprints);
-            console.log('ejs', ejs)
-            document.getElementById('connection-secret').innerHTML = ejs;
-            textContainer.appendChild(document.createTextNode(ejs));
+            if (transport) {
+                const firstCid = client.polite ? transport.remoteCertificateId : transport.localCertificateId;
+                const secondCid = !client.polite ? transport.remoteCertificateId : transport.localCertificateId;
+                const fingerprints = certificates[firstCid].fingerprint + certificates[secondCid].fingerprint;
+                const ejs = await genEmojis(fingerprints);
+                console.log('ejs', ejs)
+                document.getElementById('connection-secret').innerHTML = ejs;
+                textContainer.appendChild(document.createTextNode(ejs));
+            }
             document.getElementById("copy-overlay").classList.add('hidden');
             if (!new URLSearchParams(window.location.search).has('r')) {
                 history.replaceState('', '', window.location.origin + window.location.pathname);
