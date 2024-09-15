@@ -1,14 +1,22 @@
 const recordButton = document.getElementById('record');
 
-async function startRecording() {
-    app.recorder = true;
-    var merger = new VideoStreamMerger()
-    app.merger = merger;
-    const FW = 1920;
-    const FH = 1080;
-    merger.setOutputSize(FW, FH);
+let lastStreams = [];
+
+const FW = 1920;
+const FH = 1080;
+
+async function setupStreams(merger) {
 
     const streams = (await getStreamsDims()).filter(({ width, height }) => width && height);
+    const streamKeys = streams.map(({ key }) => key);
+    if (lastStreams.length === streamKeys.length && lastStreams.every(stream => streamKeys.includes(stream))) {
+        return;
+    }
+    lastStreams.forEach(streamKey => {
+        merger.removeStream(streamKey);
+    });
+    lastStreams = streamKeys;
+
     const rcs = Math.ceil(Math.sqrt(streams.length));
     const cols = rcs;
     const rows = cols * (cols - 1) >= streams.length ? cols - 1 : cols;
@@ -31,6 +39,15 @@ async function startRecording() {
             mute: false,
         })
     }
+}
+
+async function startRecording() {
+    var merger = new VideoStreamMerger()
+    app.recorder = setInterval(setupStreams.bind(null, merger), 1000);
+    app.merger = merger;
+    merger.setOutputSize(FW, FH);
+
+    await setupStreams(merger);
 
     merger.start();
 
@@ -77,9 +94,9 @@ async function startRecording() {
 function stopRecording() {
     app.mediaRecorder.stop();
     app.mediaRecorder = null;
-    app.merger.stop();
+    app.merger.destroy();
     app.merger = null;
-    // clearInterval(app.recorder)
+    clearInterval(app.recorder)
     app.recorder = null;
     recordButton.classList.remove('bg-red');
 }

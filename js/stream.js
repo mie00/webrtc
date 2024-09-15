@@ -90,7 +90,6 @@ const setupLocalStream = async (changed) => {
                             ],
                             direction: "sendrecv",
                         })
-                        // client.pc.addTrack(track, stream);
                     });
                 }
             }
@@ -135,16 +134,15 @@ const setupLocalStream = async (changed) => {
                             // TODO: make configurable
                             track.contentHint = 'motion';
                         }
-                        // client.pc.addTransceiver(track, {
-                        //     streams: [stream], sendEncodings: [
-                        //         { priority: "low", rid: "o" },
-                        //         { priority: "low", rid: "h", maxBitrate: 1200 * 1024 },
-                        //         { priority: "low", rid: "m", maxBitrate:  600 * 1024, scaleResolutionDownBy: 2 },
-                        //         { priority: "low", rid: "l", maxBitrate:  300 * 1024, scaleResolutionDownBy: 4 },
-                        //     ],
-                        //     direction: "sendrecv",
-                        // })
-                        client.pc.addTrack(track, stream);
+                        client.pc.addTransceiver(track, {
+                            streams: [stream], sendEncodings: [
+                                { priority: "low", rid: "o" },
+                                { priority: "low", rid: "h", maxBitrate: 1200 * 1024 },
+                                { priority: "low", rid: "m", maxBitrate:  600 * 1024, scaleResolutionDownBy: 2 },
+                                { priority: "low", rid: "l", maxBitrate:  300 * 1024, scaleResolutionDownBy: 4 },
+                            ],
+                            direction: "sendrecv",
+                        })
                     });
                 }
             }
@@ -165,7 +163,6 @@ const setupLocalStream = async (changed) => {
                             ],
                             direction: "sendrecv",
                         })
-                        client.pc.addTrack(ev.track, stream);
                     }
                 }
             }
@@ -189,7 +186,6 @@ const setupLocalStream = async (changed) => {
                             ],
                             direction: "sendrecv",
                         })
-                        client.pc.addTrack(track, stream);
                     });
                 }
             }
