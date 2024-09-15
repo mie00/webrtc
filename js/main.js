@@ -125,6 +125,7 @@ async function init() {
 
 function sendNego(client, data) {
     if (!data.id) {
+        data = JSON.parse(JSON.stringify(data))
         data.id = uuidv4()
         app.nego_messages[data.id] = {}
     }
