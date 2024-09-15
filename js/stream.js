@@ -1,11 +1,19 @@
 window.AudioContext = window.AudioContext || window.webkitAudioContext;
 
+function normalizeStreamId(id) {
+    return id.replace('{', '').replace('}', '')
+}
+
+function getStreamElemId(id) {
+    return `stream-${normalizeStreamId(id)}`;
+}
+
 function streamInit(app) {
     app.streams = {}
     app.streamConfig = {}
     app.viewStreams = {}
     app.nego_handlers['stream.end'] = (data, cid) => {
-        document.getElementById(`stream-${data.stream}`)?.remove();
+        document.querySelectorAll(`.${getStreamElemId(data.stream)}`).forEach(elem => elem.remove());
         delete app.viewStreams[data.stream];
 
         for (let cid2 of Object.keys(app.clients)) {
@@ -22,7 +30,7 @@ function streamInit(app) {
                 const stream = app.streams[streamId];
                 delete app.streams[streamId];
                 try {
-                    Object.values(app.clients).forEach((client) => sendNego(client, { type: 'stream.end', stream: stream.id }));
+                    Object.values(app.clients).forEach((client) => sendNego(client, { type: 'stream.end', stream: normalizeStreamId(stream.id) }));
                 } catch { }
                 stream.getTracks().map((track) => track.stop());
             });
@@ -33,13 +41,13 @@ function streamInit(app) {
 function setupTrackHandler(app, cid) {
     app.clients[cid].pc.addEventListener("track", async (ev) => {
         console.log("got track event", ev);
-        app.viewStreams[ev.streams[0].id] = ev.streams[0];
+        app.viewStreams[normalizeStreamId(ev.streams[0].id)] = ev.streams[0];
         await createStreamElement(ev.streams[0], ev.track.kind, { muted: false });
         ev.track.onended = (ev) => {
             console.log(ev)
-            Object.values(app.clients).forEach((client) => sendNego(client, { type: 'stream.end', stream: ev.target.id }));
-            document.getElementById(`stream-${ev.target.id}`)?.remove();
-            delete app.viewStreams[ev.target.id];
+            Object.values(app.clients).forEach((client) => sendNego(client, { type: 'stream.end', stream: normalizeStreamId(ev.target.id) }));
+            document.querySelectorAll(`.${getStreamElemId(ev.target.id)}`).forEach(elem => elem.remove());
+            delete app.viewStreams[normalizeStreamId(ev.target.id)];
         }
 
         for (let cid2 of Object.keys(app.clients)) {
@@ -56,21 +64,54 @@ function setupTrackHandler(app, cid) {
     }
 }
 
+function processAudio(app, stream, cb) {
+    app.context = new AudioContext();
+    app.script = app.context.createScriptProcessor(2048, 1, 1);
+    app.script.onaudioprocess = function (event) {
+        if (app.streamConfig && !app.streamConfig.audio) {
+            return;
+        }
+        const input = event.inputBuffer.getChannelData(0);
+        let i;
+        let sum = 0.0;
+        let clipcount = 0;
+        for (i = 0; i < input.length; ++i) {
+            sum += input[i] * input[i];
+            if (Math.abs(input[i]) > 0.99) {
+                clipcount += 1;
+            }
+        }
+        const instant = Math.sqrt(Math.sqrt(sum / input.length)) * 100;
+        cb(instant);
+    };
+    app.mic = app.context.createMediaStreamSource(stream);
+    app.mic.connect(app.script);
+    app.script.connect(app.context.destination);
+}
+
+function stopProcessingAudio(app) {
+    app.mic.disconnect();
+    app.script.disconnect();
+    app.mic = null;
+    app.script = null;
+    app.context = null;
+}
+
 const setupLocalStream = async (changed) => {
     if (app.streams[changed]) {
-        const elem = document.getElementById(`stream-${app.streams[changed].id}`);
-        if (elem) {
+        const elems = document.querySelectorAll(`.${getStreamElemId(app.streams[changed].id)}`);
+        for (const elem of elems) {
             elem.srcObject = null;
             elem.remove();
         }
-        delete app.viewStreams[app.streams[changed].id];
+        delete app.viewStreams[normalizeStreamId(app.streams[changed].id)];
         app.streams[changed].getTracks().forEach(function (track) {
             track.stop();
             track.dispatchEvent(new Event("ended"));
             for (var client of Object.values(app.clients)) {
                 sendNego(client, {
                     type: "stream.end",
-                    stream: app.streams[changed].id,
+                    stream: normalizeStreamId(app.streams[changed].id),
                 });
             }
         });
@@ -94,34 +135,11 @@ const setupLocalStream = async (changed) => {
                 }
             }
 
-            app.context = new AudioContext();
-            app.script = app.context.createScriptProcessor(2048, 1, 1);
-            app.script.onaudioprocess = function (event) {
-                if (!app.streamConfig.audio) {
-                    return;
-                }
-                const input = event.inputBuffer.getChannelData(0);
-                let i;
-                let sum = 0.0;
-                let clipcount = 0;
-                for (i = 0; i < input.length; ++i) {
-                    sum += input[i] * input[i];
-                    if (Math.abs(input[i]) > 0.99) {
-                        clipcount += 1;
-                    }
-                }
-                const instant = Math.sqrt(Math.sqrt(sum / input.length)) * 100;
+            processAudio(app, stream, (instant) => {
                 button.style.background = `linear-gradient(0deg, rgb(59 130 246) ${instant}%, white ${instant}%)`;
-            };
-            app.mic = app.context.createMediaStreamSource(stream);
-            app.mic.connect(app.script);
-            app.script.connect(app.context.destination);
+            });
         } else {
-            app.mic.disconnect();
-            app.script.disconnect();
-            app.mic = null;
-            app.script = null;
-            app.context = null;
+            stopProcessingAudio(app);
             button.style.background = ``;
         }
     } else if (changed === 'video') {
@@ -138,8 +156,8 @@ const setupLocalStream = async (changed) => {
                             streams: [stream], sendEncodings: [
                                 { priority: "low", rid: "o" },
                                 { priority: "low", rid: "h", maxBitrate: 1200 * 1024 },
-                                { priority: "low", rid: "m", maxBitrate:  600 * 1024, scaleResolutionDownBy: 2 },
-                                { priority: "low", rid: "l", maxBitrate:  300 * 1024, scaleResolutionDownBy: 4 },
+                                { priority: "low", rid: "m", maxBitrate: 600 * 1024, scaleResolutionDownBy: 2 },
+                                { priority: "low", rid: "l", maxBitrate: 300 * 1024, scaleResolutionDownBy: 4 },
                             ],
                             direction: "sendrecv",
                         })
@@ -198,25 +216,24 @@ const setupLocalStream = async (changed) => {
         } else if (changed === 'local' && app.streamConfig.local) {
             await createStreamElement(stream, 'video', { muted: false, controls: true, passedElement: app.streamConfig.videoNode });
         }
-        app.viewStreams[stream.id] = stream;
+        app.viewStreams[normalizeStreamId(stream.id)] = stream;
     }
 }
 
 const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
 
 const getStreamsDims = async () => {
+    // TODO: use videoHeight and width from element
     let elems = [];
     if (!app.viewStreams) return elems;
     let statsDict = {};
-    if (isFirefox) {
-        for (const client of Object.values(app.clients)) {
-            const stats = await client.pc.getStats();
-            stats.forEach(stat => {
-                if (stat.type === 'inbound-rtp' && stat.kind === 'video') {
-                    statsDict[stat.trackIdentifier] = {width: stat.frameWidth, height: stat.frameHeight}
-                }
-            })
-        }
+    for (const client of Object.values(app.clients)) {
+        const stats = await client.pc.getStats();
+        stats.forEach(stat => {
+            if (stat.type === 'inbound-rtp' && stat.kind === 'video') {
+                statsDict[normalizeStreamId(stat.trackIdentifier)] = { width: stat.frameWidth, height: stat.frameHeight }
+            }
+        })
     }
     for (let [key, value] of Object.entries(app.viewStreams)) {
         if (value.getVideoTracks().length === 0) {
@@ -224,11 +241,17 @@ const getStreamsDims = async () => {
         }
         var width, height;
         console.log(isFirefox, value.getVideoTracks()[0].label != 'remote video')
-        if (!isFirefox || value.getVideoTracks()[0].label != 'remote video') {
-            var { width, height } = value.getVideoTracks()[0].getSettings();
-        } else {
-            if (value.getVideoTracks()[0].id in statsDict) {
-                var { width, height } = statsDict[value.getVideoTracks()[0].id];
+        var { width, height } = value.getVideoTracks()[0].getSettings();
+        if (!width || !height) {
+            if (normalizeStreamId(value.getVideoTracks()[0].id) in statsDict) {
+                var { width, height } = statsDict[normalizeStreamId(value.getVideoTracks()[0].id)];
+            }
+        }
+        if (!width || !height) {
+            const videoElem = document.querySelector(`video.${getStreamElemId(key)}`);
+            if (videoElem) {
+                height = videoElem.videoHeight;
+                width = videoElem.videoWidth;
             }
         }
         elems.push({ key, ow: width, oh: height, width: Math.sqrt(width / height), height: Math.sqrt(height / width) });
@@ -242,12 +265,12 @@ const refreshStreamViews = async () => {
     }
     for (const k of allElems) {
         if (!k.width || !k.height) {
-            const videoElem = document.getElementById(`stream-${k.key}`);
+            const videoElem = document.querySelector(`video.${getStreamElemId(k.key)}`);
             if (!videoElem) continue;
             videoElem.style.display = 'none';
         }
     }
-    const elems = allElems.filter(({width, height}) => width && height);
+    const elems = allElems.filter(({ width, height }) => width && height);
 
     const media = document.getElementById('media');
     const totalWidth = media.clientWidth;
@@ -270,7 +293,7 @@ const refreshStreamViews = async () => {
         normalizedHeight *= 1.1;
     }
     for (let elem of packer.positioned) {
-        const videoElem = document.getElementById(`stream-${elem.datum.key}`);
+        const videoElem = document.querySelector(`video.${getStreamElemId(elem.datum.key)}`);
         videoElem.style.width = `${elem.datum.width / normalizedWidth * totalWidth}px`;
         videoElem.style.height = `${elem.datum.height / normalizedHeight * totalHeight}px`;
         videoElem.style.left = `${elem.x / normalizedWidth * totalWidth}px`;
@@ -296,7 +319,7 @@ const createStreamElement = async (stream, tag, { muted = false, controls = fals
         mediaElement = document.createElement(tag);
         mediaElement.srcObject = stream;
     }
-    mediaElement.id = `stream-${stream.id}`
+    mediaElement.classList.add(getStreamElemId(stream.id));
     mediaElement.muted = muted;
     mediaElement.autoplay = true;
     mediaElement.controls = controls;
@@ -487,13 +510,14 @@ document.getElementById('share-video').addEventListener('click', async (ev) => {
 document.getElementById('upload-video').addEventListener('change', async (ev) => {
     const file = ev.target.files[0];
     const fileURL = URL.createObjectURL(file);
+    
     const videoNode = document.createElement('video');
     videoNode.src = fileURL;
     videoNode.autoplay = true;
     videoNode.controls = false;
     videoNode.loop = true;
     app.streamConfig.videoNode = videoNode;
-    app.streamConfig.videoStream = videoNode.captureStream?videoNode.captureStream():videoNode.mozCaptureStream();
+    app.streamConfig.videoStream = videoNode.captureStream ? videoNode.captureStream() : videoNode.mozCaptureStream();
     app.streamConfig.local = !app.streamConfig.local;
     setButton(document.getElementById('share-video'), app.streamConfig.local);
     await setupLocalStream('local');
