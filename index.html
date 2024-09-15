@@ -4,7 +4,8 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; style-src 'self' 'unsafe-inline' https:; frame-src * data: blob:; img-src 'self' https: data:; connect-src 'self' https: http: ws: wss:; media-src 'self' https: blob:">
+	<meta http-equiv="Content-Security-Policy"
+		content="default-src 'self' https:; style-src 'self' 'unsafe-inline' https:; frame-src * data: blob:; img-src 'self' https: data:; connect-src 'self' https: http: ws: wss:; media-src 'self' https: blob:">
 	<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
 	<link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
@@ -17,67 +18,72 @@
 </head>
 
 <body class="bg-gray-100 h-screen flex flex-col">
-	<!-- Header -->
-	<header class="bg-white shadow-md py-4 px-6 flex justify-between items-center">
-		<h1 class="text-xl font-semibold text-gray-800">Video Call App</h1><strong id="connection-secret"></strong>
-		<button id='hangup' class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md">Hang Up</button>
-	</header>
-
 	<!-- Main Content - Video Call Area and Controls -->
 	<main class="flex-1 flex">
 		<!-- Video Call Area -->
-		<div id="media" class="w-full overflow-clip relative bg-black">
+		<div id="media" class="w-full w-svw h-svh relative bg-black" style="width: 100svw; height: 100svh;">
 			<!-- Placeholder for video streams -->
 			<!-- You would typically use a library like Twilio Video SDK or similar to manage video streams -->
 		</div>
 
-		<!-- Controls Panel -->
-		<div class="w-1/4 bg-gray-200 p-4 flex flex-col space-y-4">
-			<div id="participants" class="">
-			</div>
+		<div class="fixed bottom-0 left-0 right-0 bg-transparent p-4 flex justify-center space-x-4 pointer-events-none">
+			<button id="open-qr" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+				▩ <!-- QR Code -->
+			</button>
+			<button id="toggle-audio" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+				🎤 <!-- Microphone -->
+			</button>
+			<button id="toggle-video" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+				🎥 <!-- Video Camera -->
+			</button>
+			<button id="toggle-screen" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+				🖥️ <!-- Monitor for Share Screen -->
+			</button>
+			<button id="start-forward" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+				⏩ <!-- Forward -->
+			</button>
+			<button id="share-video" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+				📹 <!-- Share Video -->
+			</button>
+			<button id="record" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+				⏺
+			</button>
+			<button id="hangup" class="hover:bg-red-600 bg-red-500 text-white p-3 rounded-full pointer-events-auto">
+				📞
+			</button>
+			<input type="file" id="upload-video" accept="video/*" class="hidden">
+		</div>
 
-			<!-- On/Off Buttons -->
-			<div class="fixed bottom-0 left-0 right-0 bg-transparent p-4 flex justify-center space-x-4 pointer-events-none">
-				<button id="open-qr" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-					▩ <!-- QR Code -->
-				</button>
-				<button id="toggle-audio" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-					🎤 <!-- Microphone -->
-				</button>
-				<button id="toggle-video" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-					🎥 <!-- Video Camera -->
-				</button>
-				<button id="toggle-screen" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-					🖥️ <!-- Monitor for Share Screen -->
-				</button>
-				<button id="start-forward" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-					⏩ <!-- Forward -->
-				</button>
-				<button id="share-video" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-					📹 <!-- Share Video -->
-				</button>
-				<button id="record" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-					⏺
-				</button>
-				<input type="file" id="upload-video" accept="video/*" class="hidden">
-			</div>
-			<!-- End On/Off Buttons -->
 
-			<!-- Chat Panel -->
-			<div class="flex-1 flex flex-col border-t border-gray-300 pt-4">
-				<!-- Messages Area -->
-				<div id="output" class="flex-1 overflow-y-auto px-4">
+		<div id="control" class="w-1/4 flex flex-col fixed bottom-0 top-0 left-full">
+			<div id="cc" class="absolute top-1/4">
+				<button id="toggle-controls" class="hover:bg-blue-600 w-5 h-16 bg-gray-300 text-black p-0 absolute border-solid rounded-l" style="left: -20px;">
+					&lt; <!-- Toggle Controls -->
+				</button>
+			</div>
+			<div class="bg-gray-200 p-4 flex flex-col space-y-4 w-full h-full">
+				<div id="participants" class="">
 				</div>
 
-				<!-- Message Input and Upload Button -->
-				<div class="flex items-center space-x-2 p-2">
-					<input id="chat" type="text" placeholder="Type your message..."
-						class="flex-1 border border-gray-300 px-3 py-2 rounded-md">
-					<!-- <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Send</button> -->
-					<div class="p-2">
-						<label for="file-upload"
-							class="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">📎</label>
-						<input id="file-upload" type="file" class="hidden">
+				<!-- On/Off Buttons -->
+				<!-- End On/Off Buttons -->
+
+				<!-- Chat Panel -->
+				<div class="flex-1 flex flex-col border-t border-gray-300 pt-4">
+					<!-- Messages Area -->
+					<div id="output" class="flex-1 overflow-y-auto px-4">
+					</div>
+
+					<!-- Message Input and Upload Button -->
+					<div class="flex items-center space-x-2 p-2">
+						<input id="chat" type="text" placeholder="Type your message..."
+							class="flex-1 border border-gray-300 px-3 py-2 rounded-md">
+						<!-- <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Send</button> -->
+						<div class="p-2">
+							<label for="file-upload"
+								class="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">📎</label>
+							<input id="file-upload" type="file" class="hidden">
+						</div>
 					</div>
 				</div>
 			</div>
@@ -154,12 +160,14 @@
 		</ul>
 	</div>
 	<div id="diffs" class="whitespace-pre-line hidden"></div>
-		<script src="thirdparty/js/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
-		<script src="thirdparty/js/bin-pack.js"></script>
-		<script src="js/emojis.js"></script>
+	<script src="thirdparty/js/socket.io.min.js"
+		integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO"
+		crossorigin="anonymous"></script>
+	<script src="thirdparty/js/bin-pack.js"></script>
+	<script src="js/emojis.js"></script>
 	<script src="thirdparty/js/qrcode.min.js"
-	integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA=="
-	crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+		integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA=="
+		crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 	<script src="thirdparty/js/video-stream-merger.js"></script>
 	<script src="thirdparty/js/diff.js"></script>
 	<script src="js/config.js"></script>
