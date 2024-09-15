@@ -86,6 +86,7 @@ async function init() {
     app.cleanups = {}
     app.clients = {}
     app.inited = true;
+    app.nego_messages = {}
     app.nego_handlers = {
         "answer": (data, cid) => {
             app.clients[cid].pc.setRemoteDescription(data);
@@ -123,6 +124,10 @@ async function init() {
 }
 
 function sendNego(client, data) {
+    if (!data.id) {
+        data.id = uuidv4()
+        app.nego_messages[data.id] = {}
+    }
     try {
         client.nego_dc.send(JSON.stringify(data));
     } catch (e) {
@@ -144,6 +149,10 @@ async function initClient(polite, {sid}) {
 
     const cid = uuidv4();
     app.sids ||= {}
+    if (sid in app.sids) {
+        app.clients[app.sids[sid]].pc.restartIce();
+        return;
+    }
     app.sids[sid] = cid;
     app.clients[cid] = {};
 
@@ -181,6 +190,10 @@ async function initClient(polite, {sid}) {
 
     nego_dc.onmessage = async e => {
         const data = JSON.parse(e.data);
+        if (data.id in app.nego_messages) {
+            return;
+        }
+        app.nego_messages[data.id] = {};
         console.log("got negotiation message", data);
         const handler = app.nego_handlers[data.type];
         if (!handler) {
@@ -198,7 +211,7 @@ async function initClient(polite, {sid}) {
         });
         Object.keys(app.clients).forEach(ncid => {
             if (ncid !== cid) {
-                nego_dc.send(JSON.stringify({ type: "participant", cid: ncid }));
+                sendNego(app.clients[ncid], { type: "participant", cid: ncid });
             }
         });
     };
