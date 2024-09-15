@@ -32,6 +32,7 @@ function streamInit(app) {
 
 function setupTrackHandler(app, cid) {
     app.clients[cid].pc.addEventListener("track", async (ev) => {
+        console.log("got track event", ev);
         app.viewStreams[ev.streams[0].id] = ev.streams[0];
         await createStreamElement(ev.streams[0], ev.track.kind, { muted: false });
         ev.track.onended = (ev) => {
@@ -86,8 +87,10 @@ const setupLocalStream = async (changed) => {
                         client.pc.addTransceiver(track, {
                             streams: [stream], sendEncodings: [
                                 { priority: "high" },
-                            ]
+                            ],
+                            direction: "sendrecv",
                         })
+                        // client.pc.addTrack(track, stream);
                     });
                 }
             }
@@ -132,14 +135,16 @@ const setupLocalStream = async (changed) => {
                             // TODO: make configurable
                             track.contentHint = 'motion';
                         }
-                        client.pc.addTransceiver(track, {
-                            streams: [stream], sendEncodings: [
-                                { priority: "low", rid: "o" },
-                                { priority: "low", rid: "h", maxBitrate: 1200 * 1024 },
-                                { priority: "low", rid: "m", maxBitrate:  600 * 1024, scaleResolutionDownBy: 2 },
-                                { priority: "low", rid: "l", maxBitrate:  300 * 1024, scaleResolutionDownBy: 4 },
-                            ]
-                        })
+                        // client.pc.addTransceiver(track, {
+                        //     streams: [stream], sendEncodings: [
+                        //         { priority: "low", rid: "o" },
+                        //         { priority: "low", rid: "h", maxBitrate: 1200 * 1024 },
+                        //         { priority: "low", rid: "m", maxBitrate:  600 * 1024, scaleResolutionDownBy: 2 },
+                        //         { priority: "low", rid: "l", maxBitrate:  300 * 1024, scaleResolutionDownBy: 4 },
+                        //     ],
+                        //     direction: "sendrecv",
+                        // })
+                        client.pc.addTrack(track, stream);
                     });
                 }
             }
@@ -157,8 +162,10 @@ const setupLocalStream = async (changed) => {
                                 // { priority: "medium", rid: "h", maxBitrate: 1200 * 1024 },
                                 // { priority: "medium", rid: "m", maxBitrate:  600 * 1024, scaleResolutionDownBy: 2 },
                                 // { priority: "medium", rid: "l", maxBitrate:  300 * 1024, scaleResolutionDownBy: 4 },
-                            ]
+                            ],
+                            direction: "sendrecv",
                         })
+                        client.pc.addTrack(ev.track, stream);
                     }
                 }
             }
@@ -176,11 +183,13 @@ const setupLocalStream = async (changed) => {
                         client.pc.addTransceiver(track, {
                             streams: [stream], sendEncodings: [
                                 { priority: "medium", rid: "o" },
-                                { priority: "medium", rid: "h", maxBitrate: 1200 * 1024 },
-                                { priority: "medium", rid: "m", maxBitrate:  600 * 1024, scaleResolutionDownBy: 2 },
-                                { priority: "medium", rid: "l", maxBitrate:  300 * 1024, scaleResolutionDownBy: 4 },
-                            ]
+                                // { priority: "medium", rid: "h", maxBitrate: 1200 * 1024 },
+                                // { priority: "medium", rid: "m", maxBitrate:  600 * 1024, scaleResolutionDownBy: 2 },
+                                // { priority: "medium", rid: "l", maxBitrate:  300 * 1024, scaleResolutionDownBy: 4 },
+                            ],
+                            direction: "sendrecv",
                         })
+                        client.pc.addTrack(track, stream);
                     });
                 }
             }
@@ -199,9 +208,9 @@ const setupLocalStream = async (changed) => {
 
 const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
 
-const refreshStreamViews = async () => {
+const getStreamsDims = async () => {
     let elems = [];
-    if (!app.viewStreams) return;
+    if (!app.viewStreams) return elems;
     let statsDict = {};
     if (isFirefox) {
         for (const client of Object.values(app.clients)) {
@@ -226,17 +235,24 @@ const refreshStreamViews = async () => {
                 var { width, height } = statsDict[value.getVideoTracks()[0].id];
             }
         }
-        if (!width || !height) {
-            const videoElem = document.getElementById(`stream-${key}`);
-            if (!videoElem) continue;
-            videoElem.style.display = 'none';
-            continue;
-        }
         elems.push({ key, ow: width, oh: height, width: Math.sqrt(width / height), height: Math.sqrt(height / width) });
     }
-    if (elems.length === 0) {
+    return elems;
+}
+const refreshStreamViews = async () => {
+    const allElems = await getStreamsDims();
+    if (allElems.length == 0) {
         return;
     }
+    for (const k of allElems) {
+        if (!k.width || !k.height) {
+            const videoElem = document.getElementById(`stream-${k.key}`);
+            if (!videoElem) continue;
+            videoElem.style.display = 'none';
+        }
+    }
+    const elems = allElems.filter(({width, height}) => width && height);
+
     const media = document.getElementById('media');
     const totalWidth = media.clientWidth;
     const totalHeight = media.clientHeight;

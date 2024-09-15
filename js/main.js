@@ -136,7 +136,27 @@ function sendNego(client, data) {
     }
 }
 
-async function initClient(polite, {sid}) {
+function logDiff(d1, d2) {
+    let span = null;
+
+    const diff = Diff.diffChars(d1, d2),
+        fragment = document.createDocumentFragment();
+
+    diff.forEach((part) => {
+    // green for additions, red for deletions
+    // grey for common parts
+    const color = part.added ? 'green' :
+        part.removed ? 'red' : 'grey';
+        span = document.createElement('span');
+        span.style.color = color;
+        span.appendChild(document
+            .createTextNode(part.value));
+        fragment.appendChild(span);
+    });
+    document.getElementById('diffs').appendChild(fragment);
+}
+
+async function initClient(polite, {sid, offer}) {
     init();
     const config = {
         iceServers: app.config["stun-servers"].split(',').filter(link => link).map(link => ({ urls: "stun:" + link })).concat(
@@ -150,7 +170,7 @@ async function initClient(polite, {sid}) {
 
     const cid = uuidv4();
     app.sids ||= {}
-    if (sid in app.sids) {
+    if (sid in app.sids && app.sids[sid] in app.clients) {
         app.clients[app.sids[sid]].pc.restartIce();
         return;
     }
@@ -184,9 +204,10 @@ async function initClient(polite, {sid}) {
 
     nego_dc.onerror = function (error) {
         console.error('Data channel error:', error);
-        if (app.clients[cid].polite) {
-            windowLoader();
-        }
+        app.clients[cid].pc.restartIce();
+        // if (app.clients[cid].polite) {
+        //     windowLoader();
+        // }
     };
 
     nego_dc.onmessage = async e => {
@@ -227,6 +248,37 @@ async function initClient(polite, {sid}) {
         // app.clients[cid].pc.addTransceiver('video', {direction: "recvonly"});
     }, 10000);
 
+    if (offer) {
+        await app.clients[cid].pc.setRemoteDescription({
+            type: "offer",
+            sdp: offer.trim() + '\n'
+        });
+        let answer = await app.clients[cid].pc.createAnswer();
+        await app.clients[cid].pc.setLocalDescription(answer);
+    } else {
+        const offer = await app.clients[cid].pc.createOffer();
+        await app.clients[cid].pc.setLocalDescription(offer);
+    }
+    app.clients[cid].pc.onnegotiationneeded = async function () {
+        app.clients[cid].makingOffer = true;
+        try {
+            await app.clients[cid].pc.setLocalDescription();
+            logDiff(app.clients[cid].pc.currentLocalDescription.sdp, app.clients[cid].pc.localDescription.sdp)
+            sendNego(app.clients[cid], app.clients[cid].pc.localDescription);
+        } catch (e) {
+            console.log("renegotiation error", e)
+        } finally {
+            app.clients[cid].makingOffer = false;
+        }
+    };
+
+    if (!offer) {
+        setTimeout(() => {
+            if (app.clients[cid].pc.signalingState === 'have-local-offer') {
+                destroyClient(cid);
+            }
+        }, 60 * 1000);
+    }
     return cid;
 }
 
@@ -234,56 +286,17 @@ const log = msg => output.innerHTML += `<br>${msg}`;
 
 async function getOffer(cb, {sid}) {
     const cid = await initClient(false, {sid});
-    const offer = await app.clients[cid].pc.createOffer();
-    await app.clients[cid].pc.setLocalDescription(offer);
-
-
-    app.clients[cid].pc.onnegotiationneeded = async function () {
-        app.clients[cid].makingOffer = true;
-        try {
-            await app.clients[cid].pc.setLocalDescription();
-            sendNego(app.clients[cid], app.clients[cid].pc.localDescription);
-        } catch (e) {
-            console.log("renegotiation error", e)
-        } finally {
-            app.clients[cid].makingOffer = false;
-        }
-    };
     app.clients[cid].pc.onicecandidate = async ({
         candidate
     }) => {
         console.log('Candidate found (offer)', candidate)
         await cb(candidate);
     };
-
-    setTimeout(() => {
-        if (app.clients[cid].pc.signalingState === 'have-local-offer') {
-            destroyClient(cid);
-        }
-    }, 60 * 1000);
     return cid;
 }
 
 async function getAnswer(offer, cb, {sid}) {
-    const cid = await initClient(true, {sid});
-    await app.clients[cid].pc.setRemoteDescription({
-        type: "offer",
-        sdp: offer.trim() + '\n'
-    });
-    let answer = await app.clients[cid].pc.createAnswer();
-    await app.clients[cid].pc.setLocalDescription(answer);
-
-    app.clients[cid].pc.onnegotiationneeded = async function () {
-        app.clients[cid].makingOffer = true;
-        try {
-            await app.clients[cid].pc.setLocalDescription();
-            sendNego(app.clients[cid], app.clients[cid].pc.localDescription);
-        } catch (e) {
-            console.log("renegotiation error", e)
-        } finally {
-            app.clients[cid].makingOffer = false;
-        }
-    };
+    const cid = await initClient(true, {sid, offer});
     app.clients[cid].pc.onicecandidate = async ({
         candidate
     }) => {

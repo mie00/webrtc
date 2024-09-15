@@ -53,8 +53,29 @@ function objectToArrayBuffer(data) {
     return buffer;
 }
 
+// const downloadRecord = (event) => {
+//     const stream = new ReadableStream({
+//         start(controller) {
+//             self.recordingHandler = (data) => {
+//                 if (data) {
+//                     controller.enqueue(data);
+//                 } else {
+//                     controller.close();
+//                     self.recordingHandler = null;
+//                 }
+//             }
+//         }
+//     });
+//     const response = new Response(stream)
+//     event.respondWith(response)
+// }
+
 self.addEventListener('fetch', (event) => {
     console.log("got a new fetch", "ref", event.request.referrer, "url", event.request.url, event, Object.fromEntries(event.request.headers))
+    // if (event.request.url.endsWith('/mie-webrtc-video.mp4')) {
+    //     downloadRecord(event);
+    //     return;
+    // }
     const url = event.request.referrer?new URL(event.request.referrer):undefined;
     let host = url?.searchParams.get('host');
     let homepage = false;
@@ -141,6 +162,16 @@ self.addEventListener('message', function (event) {
         case 'error':
             if (self.handlers[event.data.id]) {
                 self.handlers[event.data.id](null, event.data);
+            }
+            break;
+        case 'recording':
+            if (self.recordingHandler) {
+                self.recordingHandler(event.data);
+            }
+            break;
+        case 'recording.end':
+            if (self.recordingHandler) {
+                self.recordingHandler(null);
             }
             break;
         default:
