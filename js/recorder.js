@@ -8,6 +8,12 @@ const FH = 1080;
 async function setupStreams(merger) {
 
     const streams = (await getStreamsDims()).filter(({ width, height }) => width && height);
+    const videoStreamsLength = streams.length;
+    for (let [key, value] of Object.entries(app.viewStreams)) {
+        if (value.getVideoTracks().length === 0) {
+            streams.push({key});
+        }
+    }
     const streamKeys = streams.map(({ key }) => key);
     if (lastStreams.length === streamKeys.length && lastStreams.every(stream => streamKeys.includes(stream))) {
         return;
@@ -20,24 +26,25 @@ async function setupStreams(merger) {
     const rcs = Math.ceil(Math.sqrt(streams.length));
     const cols = rcs;
     const rows = cols * (cols - 1) >= streams.length ? cols - 1 : cols;
-    console.log(`${streams.length} streams will be displayed in ${rows}x${cols}`);
+    console.log(`${videoStreamsLength} streams will be displayed in ${rows}x${cols}`);
+    const videoStreamIndex = 0;
     for (var i = 0; i < streams.length; i++) {
-        const nw = streams[i].width * FH / cols / streams[i].height;
-        const scale = nw <= FW / rows ? FH / cols / streams[i].height : FW / rows / streams[i].width;
-        console.log({
-            x: (i % cols) * FW / cols,
-            y: Math.floor(i / cols) * FH / rows,
-            width: scale * streams[i].width,
-            height: scale * streams[i].height,
-            mute: false,
-        })
-        merger.addStream(app.viewStreams[streams[i].key], {
-            x: (i % cols) * FW / cols,
-            y: Math.floor(i / cols) * FH / rows,
-            width: scale * streams[i].width,
-            height: scale * streams[i].height,
-            mute: false,
-        })
+        if (!streams[i].width) {
+            merger.addStream(app.viewStreams[streams[i].key], {
+                mute: false,
+            })
+        } else {
+            const nw = streams[i].width * FH / cols / streams[i].height;
+            const scale = nw <= FW / rows ? FH / cols / streams[i].height : FW / rows / streams[i].width;
+            merger.addStream(app.viewStreams[streams[i].key], {
+                x: (videoStreamIndex % cols) * FW / cols,
+                y: Math.floor(videoStreamIndex / cols) * FH / rows,
+                width: scale * streams[i].width,
+                height: scale * streams[i].height,
+                mute: false,
+            });
+            videoStreamsLength++;
+        }
     }
 }
 

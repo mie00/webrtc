@@ -513,7 +513,7 @@ const clientWindowLoader = async () => {
             }
             link.value = newUrl;
             btn.innerHTML = "Copy";
-        })
+        }, {})
         const bc = new BroadcastChannel("manual_rtc");
         app.bc = bc;
         bc.onmessage = async (event) => {
@@ -551,7 +551,7 @@ const clientWindowLoader = async () => {
             }
             link.value = compressed;
             btn.innerHTML = "Copy";
-        })
+        }, {})
     }
 }
 
