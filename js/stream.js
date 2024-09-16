@@ -211,7 +211,9 @@ const setupLocalStream = async (changed) => {
     }
     if (stream) {
         app.streams[changed] = stream;
-        if ((changed === 'video' && app.streamConfig.video) || (changed === 'screen' && app.streamConfig.screen)) {
+        if (changed === 'video' && app.streamConfig.video) {
+            await createStreamElement(stream, 'video', { muted: true, controls: false, mirrored: true });
+        } else if (changed === 'screen' && app.streamConfig.screen) {
             await createStreamElement(stream, 'video', { muted: true, controls: false });
         } else if (changed === 'local' && app.streamConfig.local) {
             await createStreamElement(stream, 'video', { muted: false, controls: true, passedElement: app.streamConfig.videoNode });
@@ -311,7 +313,7 @@ window.addEventListener('resize', function (event) {
     refreshStreamViews();
 }, true);
 
-const createStreamElement = async (stream, tag, { muted = false, controls = false, passedElement = null }) => {
+const createStreamElement = async (stream, tag, { muted = false, controls = false, mirrored = false, passedElement = null }) => {
     let mediaElement;
     if (passedElement) {
         mediaElement = passedElement;
@@ -320,6 +322,9 @@ const createStreamElement = async (stream, tag, { muted = false, controls = fals
         mediaElement.srcObject = stream;
     }
     mediaElement.classList.add(getStreamElemId(stream.id));
+    if (mirrored) {
+        mediaElement.style.transform = 'scaleX(-1)';
+    }
     mediaElement.muted = muted;
     mediaElement.autoplay = true;
     mediaElement.controls = controls;
