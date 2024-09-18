@@ -5,7 +5,7 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta http-equiv="Content-Security-Policy"
-		content="default-src 'self' https:; style-src 'self' 'unsafe-inline' https:; frame-src * data: blob:; img-src 'self' https: data:; connect-src 'self' https: http: ws: wss:; media-src 'self' https: blob:">
+		content="default-src 'self' https:; script-src 'self' 'unsafe-eval' http:; style-src 'self' 'unsafe-inline' https:; frame-src * data: blob:; img-src 'self' https: data:; connect-src 'self' https: http: ws: wss:; media-src 'self' https: blob:">
 	<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
 	<link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
@@ -151,6 +151,13 @@
 				Video device <input id="video-device" type="text" placeholder="Video device"
 					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="default|default">
 			</div>
+			<div class="flex flex-col space-y-2">
+				Blur Video
+				<select id="blur-video" class="flex-1 border border-gray-300 px-3 py-2 rounded-md">
+					<option value="no">No</option>
+					<option value="yes">Yes</option>
+				</select>
+			</div>
 			<button id="save-button"
 				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Save</button>
 		</div>
@@ -160,6 +167,13 @@
 		</ul>
 	</div>
 	<div id="diffs" class="whitespace-pre-line hidden"></div>
+	<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+	<!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/tf-tflite.min.js"></script> -->
 	<script src="thirdparty/js/socket.io.min.js"
 		integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO"
 		crossorigin="anonymous"></script>
@@ -178,6 +192,7 @@
 	<script src="js/main.js"></script>
 	<script src="js/sdpcompress.js"></script>
 	<script src="js/recorder.js"></script>
+	<script src="js/background.js"></script>
 </body>
 
 </html>

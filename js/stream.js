@@ -1,5 +1,26 @@
 window.AudioContext = window.AudioContext || window.webkitAudioContext;
 
+function addEventListenerAll(target, listener, ...otherArguments) {
+
+    // install listeners for all natively triggered events
+    for (const key in target) {
+        if (/^on/.test(key)) {
+            const eventType = key.substr(2);
+            target.addEventListener(eventType, listener, ...otherArguments);
+        }
+    }
+
+    // dynamically install listeners for all manually triggered events, just-in-time before they're dispatched ;D
+    const dispatchEvent_original = EventTarget.prototype.dispatchEvent;
+    function dispatchEvent(event) {
+        target.addEventListener(event.type, listener, ...otherArguments);  // multiple identical listeners are automatically discarded
+        dispatchEvent_original.apply(this, arguments);
+    }
+    EventTarget.prototype.dispatchEvent = dispatchEvent;
+    if (EventTarget.prototype.dispatchEvent !== dispatchEvent) throw new Error(`Browser is smarter than you think!`);
+
+}
+
 function normalizeStreamId(id) {
     return id.replace('{', '').replace('}', '')
 }
@@ -97,24 +118,67 @@ function stopProcessingAudio(app) {
     app.context = null;
 }
 
+const tearDownStream = async (stream) => {
+    stream.getTracks().forEach(function (track) {
+        track.stop();
+        track.dispatchEvent(new Event("ended"));
+        for (var client of Object.values(app.clients)) {
+            client.pc.getTransceivers().forEach((transceiver) => {
+                if (transceiver.sender.track?.id === track.id) {
+                    transceiver.stop();
+                }
+            });
+            sendNego(client, {
+                type: "stream.end",
+                stream: normalizeStreamId(stream.id),
+            });
+        }
+    });
+}
+
+const setupTrack = (track, stream, priority, contentHint, simulcast) => {
+    if (contentHint && 'contentHint' in track) {
+        // TODO: make configurable
+        track.contentHint = contentHint;
+    }
+    for (var client of Object.values(app.clients)) {
+        if (client.pc) {
+            client.pc.addTransceiver(track, {
+                streams: [stream], sendEncodings: [
+                    { priority: priority, rid: "o" },
+                    ...(simulcast?[
+                        { priority: priority, rid: "h", maxBitrate: 1200 * 1024 },
+                        { priority: priority, rid: "m", maxBitrate: 600 * 1024, scaleResolutionDownBy: 2 },
+                        { priority: priority, rid: "l", maxBitrate: 300 * 1024, scaleResolutionDownBy: 4 },
+                    ]:[])
+                ],
+                direction: "sendrecv",
+            });
+        }
+    }
+}
+
+const setupStream = (stream, priority, contentHint, simulcast) => {
+    stream.getTracks().forEach((track) => {
+        setupTrack(track, stream, priority, contentHint, simulcast);
+    })
+}
+
 const setupLocalStream = async (changed) => {
     if (app.streams[changed]) {
         const elems = document.querySelectorAll(`.${getStreamElemId(app.streams[changed].id)}`);
         for (const elem of elems) {
+            if (elem.substitueStream) {
+                tearDownStream(elem.substitueStream);
+            }
+            if (elem.substitueElement) {
+                elem.substitueElement.remove();
+            }
             elem.srcObject = null;
             elem.remove();
         }
         delete app.viewStreams[normalizeStreamId(app.streams[changed].id)];
-        app.streams[changed].getTracks().forEach(function (track) {
-            track.stop();
-            track.dispatchEvent(new Event("ended"));
-            for (var client of Object.values(app.clients)) {
-                sendNego(client, {
-                    type: "stream.end",
-                    stream: normalizeStreamId(app.streams[changed].id),
-                });
-            }
-        });
+        tearDownStream(app.streams[changed]);
         delete app.streams[changed];
     }
     let stream;
@@ -122,18 +186,7 @@ const setupLocalStream = async (changed) => {
         const button = document.getElementById('toggle-audio');
         if (app.streamConfig.audio) {
             stream = await navigator.mediaDevices.getUserMedia({ audio: { groupId: getConfig()['audio-device'].split('|')[0], deviceId: getConfig()['audio-device'].split('|')[1] } });
-            for (var client of Object.values(app.clients)) {
-                if (client.pc) {
-                    stream.getTracks().forEach(async (track) => {
-                        client.pc.addTransceiver(track, {
-                            streams: [stream], sendEncodings: [
-                                { priority: "high" },
-                            ],
-                            direction: "sendrecv",
-                        })
-                    });
-                }
-            }
+            setupStream(stream, "high");
 
             processAudio(app, stream, (instant) => {
                 button.style.background = `linear-gradient(0deg, rgb(59 130 246) ${instant}%, white ${instant}%)`;
@@ -145,74 +198,31 @@ const setupLocalStream = async (changed) => {
     } else if (changed === 'video') {
         if (app.streamConfig.video) {
             stream = await navigator.mediaDevices.getUserMedia({ video: { groupId: getConfig()['video-device'].split('|')[0], deviceId: getConfig()['video-device'].split('|')[1] } });
-            for (var client of Object.values(app.clients)) {
-                if (client.pc) {
-                    stream.getTracks().forEach(async (track) => {
-                        if ('contentHint' in track) {
-                            // TODO: make configurable
-                            track.contentHint = 'motion';
-                        }
-                        client.pc.addTransceiver(track, {
-                            streams: [stream], sendEncodings: [
-                                { priority: "low", rid: "o" },
-                                { priority: "low", rid: "h", maxBitrate: 1200 * 1024 },
-                                { priority: "low", rid: "m", maxBitrate: 600 * 1024, scaleResolutionDownBy: 2 },
-                                { priority: "low", rid: "l", maxBitrate: 300 * 1024, scaleResolutionDownBy: 4 },
-                            ],
-                            direction: "sendrecv",
-                        })
-                    });
-                }
+            if (!app.config['config-loader'] === 'yes') {
+                setupStream(stream, "low", "motion", true);
             }
         }
     } else if (changed === 'local') {
         if (app.streamConfig.local) {
             stream = app.streamConfig.videoStream;
             stream.onaddtrack = async (ev) => {
-                console.log(ev)
-                for (var client of Object.values(app.clients)) {
-                    if (client.pc) {
-                        client.pc.addTransceiver(ev.track, {
-                            streams: [stream], sendEncodings: [
-                                { priority: "medium", rid: "o" },
-                                // { priority: "medium", rid: "h", maxBitrate: 1200 * 1024 },
-                                // { priority: "medium", rid: "m", maxBitrate:  600 * 1024, scaleResolutionDownBy: 2 },
-                                // { priority: "medium", rid: "l", maxBitrate:  300 * 1024, scaleResolutionDownBy: 4 },
-                            ],
-                            direction: "sendrecv",
-                        })
-                    }
-                }
+                setupTrack(ev.track, "medium", undefined, false);
             }
         }
     } else {
         if (app.streamConfig.screen) {
             stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: { cursor: "always" } });
-            for (var client of Object.values(app.clients)) {
-                if (client.pc) {
-                    stream.getTracks().forEach(async (track) => {
-                        if ('contentHint' in track) {
-                            // TODO: make configurable
-                            track.contentHint = 'detail';
-                        }
-                        client.pc.addTransceiver(track, {
-                            streams: [stream], sendEncodings: [
-                                { priority: "medium", rid: "o" },
-                                // { priority: "medium", rid: "h", maxBitrate: 1200 * 1024 },
-                                // { priority: "medium", rid: "m", maxBitrate:  600 * 1024, scaleResolutionDownBy: 2 },
-                                // { priority: "medium", rid: "l", maxBitrate:  300 * 1024, scaleResolutionDownBy: 4 },
-                            ],
-                            direction: "sendrecv",
-                        })
-                    });
-                }
-            }
+            setupStream(stream, "medium", 'detail', false);
         }
     }
     if (stream) {
         app.streams[changed] = stream;
         if (changed === 'video' && app.streamConfig.video) {
-            await createStreamElement(stream, 'video', { muted: true, controls: false, mirrored: true });
+            const elem = await createStreamElement(stream, 'video', { muted: true, controls: false, mirrored: true });
+            if (app.config['config-loader'] === 'yes') {
+                const substituteStream = await backgroundChange(elem);
+                setupStream(substituteStream, "low", "motion", true);
+            }
         } else if (changed === 'screen' && app.streamConfig.screen) {
             await createStreamElement(stream, 'video', { muted: true, controls: false });
         } else if (changed === 'local' && app.streamConfig.local) {
@@ -266,9 +276,11 @@ const refreshStreamViews = async () => {
         return;
     }
     for (const k of allElems) {
+        const videoElem = document.querySelector(`video.${getStreamElemId(k.key)}`);
         if (!k.width || !k.height) {
-            const videoElem = document.querySelector(`video.${getStreamElemId(k.key)}`);
             if (!videoElem) continue;
+            videoElem.style.display = 'none';
+        } else if (videoElem && videoElem.substitueElement) {
             videoElem.style.display = 'none';
         }
     }
@@ -295,7 +307,10 @@ const refreshStreamViews = async () => {
         normalizedHeight *= 1.1;
     }
     for (let elem of packer.positioned) {
-        const videoElem = document.querySelector(`video.${getStreamElemId(elem.datum.key)}`);
+        let videoElem = document.querySelector(`video.${getStreamElemId(elem.datum.key)}`);
+        if (videoElem.substitueElement) {
+            videoElem = videoElem.substitueElement;
+        }
         videoElem.style.width = `${elem.datum.width / normalizedWidth * totalWidth}px`;
         videoElem.style.height = `${elem.datum.height / normalizedHeight * totalHeight}px`;
         videoElem.style.left = `${elem.x / normalizedWidth * totalWidth}px`;
@@ -353,6 +368,7 @@ const createStreamElement = async (stream, tag, { muted = false, controls = fals
             });
         }
     }
+    return mediaElement;
 }
 
 const setButton = (target, on) => {
@@ -515,7 +531,7 @@ document.getElementById('share-video').addEventListener('click', async (ev) => {
 document.getElementById('upload-video').addEventListener('change', async (ev) => {
     const file = ev.target.files[0];
     const fileURL = URL.createObjectURL(file);
-    
+
     const videoNode = document.createElement('video');
     videoNode.src = fileURL;
     videoNode.autoplay = true;

@@ -27,7 +27,7 @@ async function setupStreams(merger) {
     const cols = rcs;
     const rows = cols * (cols - 1) >= streams.length ? cols - 1 : cols;
     console.log(`${videoStreamsLength} streams will be displayed in ${rows}x${cols}`);
-    const videoStreamIndex = 0;
+    let videoStreamIndex = 0;
     for (var i = 0; i < streams.length; i++) {
         if (!streams[i].width) {
             merger.addStream(app.viewStreams[streams[i].key], {
@@ -43,7 +43,7 @@ async function setupStreams(merger) {
                 height: scale * streams[i].height,
                 mute: false,
             });
-            videoStreamsLength++;
+            videoStreamIndex++;
         }
     }
 }

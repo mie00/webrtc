@@ -82,9 +82,10 @@ const destroyClient = (cid) => {
         Object.keys(app.clients[cid]).forEach(key => delete app.clients[cid][key]);
     }
     delete app.clients[cid]
+    handleChange();
 }
 
-const destroy = () => {
+const cleanup = () => {
     for (var cid of Object.keys(app.clients)) {
         for (var cleanup of Object.values(app.cleanups)) {
             cleanup(cid);
@@ -100,8 +101,15 @@ const destroy = () => {
         });
         destroyClient(cid);
     }
+}
+
+window.addEventListener("beforeunload", cleanup);
+
+const destroy = () => {
+    cleanup();
     document.getElementById('media').innerHTML = '';
     document.getElementById('output').innerHTML = '';
+    handleChange();
     reset();
 }
 
@@ -146,11 +154,11 @@ async function init() {
         },
         "participant": (data, cid) => {
             app.participants[data.cid] = { relay: cid };
-            handleChange(cid);
+            handleChange();
         },
         "participant.end": (data, cid) => {
             delete app.participants[data.cid];
-            handleChange(cid);
+            handleChange();
         },
     };
 
@@ -172,6 +180,10 @@ function sendNego(client, data) {
 }
 
 function logDiff(d1, d2) {
+    const diffs = document.getElementById('diffs');
+    if (app.debug) {
+        diffs.classList.remove('hidden')
+    }
     let span = null;
 
     const diff = Diff.diffChars(d1, d2),
@@ -188,7 +200,7 @@ function logDiff(d1, d2) {
             .createTextNode(part.value));
         fragment.appendChild(span);
     });
-    document.getElementById('diffs').appendChild(fragment);
+    diffs.appendChild(fragment);
 }
 
 async function initClient(polite, {sid, offer}) {
@@ -376,7 +388,7 @@ async function genEmojis(digest) {
         (EMOJIS[Math.floor(val / EMOJIS.length / EMOJIS.length / EMOJIS.length) % EMOJIS.length])
 }
 
-async function handleChange(cid) {
+async function handleChange() {
     const participants = document.getElementById('participants');
     const parent = document.createElement('div')
 
