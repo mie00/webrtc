@@ -198,7 +198,7 @@ const setupLocalStream = async (changed) => {
     } else if (changed === 'video') {
         if (app.streamConfig.video) {
             stream = await navigator.mediaDevices.getUserMedia({ video: { groupId: getConfig()['video-device'].split('|')[0], deviceId: getConfig()['video-device'].split('|')[1] } });
-            if (!app.config['config-loader'] === 'yes') {
+            if (!app.config['blur-video'] === 'yes') {
                 setupStream(stream, "low", "motion", true);
             }
         }
@@ -219,7 +219,7 @@ const setupLocalStream = async (changed) => {
         app.streams[changed] = stream;
         if (changed === 'video' && app.streamConfig.video) {
             const elem = await createStreamElement(stream, 'video', { muted: true, controls: false, mirrored: true });
-            if (app.config['config-loader'] === 'yes') {
+            if (app.config['blur-video'] === 'yes') {
                 const substituteStream = await backgroundChange(elem);
                 setupStream(substituteStream, "low", "motion", true);
             }
