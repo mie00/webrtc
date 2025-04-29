@@ -52,17 +52,13 @@ describe('Stream Management', () => {
       };
     }),
     createTextNode: jest.fn(),
-    querySelectorAll: jest.fn(),
-    querySelector: jest.fn(),
+    querySelectorAll: jest.fn().mockReturnValue([]),
+    querySelector: jest.fn().mockReturnValue(null),
     body: {
       appendChild: jest.fn()
     },
     onclick: null
   };
-  
-  // Set up mockReturnValueOnce for querySelectorAll
-  document.querySelectorAll.mockReturnValue([]);
-  document.querySelector.mockReturnValue(null);
 
   global.app = {
     clients: {
@@ -207,7 +203,7 @@ describe('Stream Management', () => {
           { remove: jest.fn() }
         ];
         document.querySelectorAll.mockImplementationOnce(() => mockElements);
-        
+
         // Call the handler
         app.nego_handlers['stream.end']({ stream: 'test-stream-id' }, 'test-client-id');
         
