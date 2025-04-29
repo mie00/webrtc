@@ -416,36 +416,36 @@ if (toggleAudioContextMenu) {
             return
         }
         const menu = document.getElementById('contextMenu');
-    menu.style.display = 'block';
-    const menuWidth = menu.offsetWidth;
-    const menuHeight = menu.offsetHeight;
-    menu.style.display = '';
+        menu.style.display = 'block';
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+        menu.style.display = '';
 
-    // Determine position for the menu
-    let posX = ev.pageX;
-    let posY = ev.pageY;
+        // Determine position for the menu
+        let posX = ev.pageX;
+        let posY = ev.pageY;
 
-    // Check if the menu goes beyond the right edge of the window
-    if (posX + menuWidth > window.innerWidth) {
-        posX = window.innerWidth - menuWidth;
-    }
+        // Check if the menu goes beyond the right edge of the window
+        if (posX + menuWidth > window.innerWidth) {
+            posX = window.innerWidth - menuWidth;
+        }
 
-    // Check if the menu goes beyond the bottom edge of the window
-    if (posY + menuHeight > window.innerHeight) {
-        posY = window.innerHeight - menuHeight;
-    }
+        // Check if the menu goes beyond the bottom edge of the window
+        if (posY + menuHeight > window.innerHeight) {
+            posY = window.innerHeight - menuHeight;
+        }
 
-    // Set the position of the menu
-    menu.style.left = posX + 'px';
-    menu.style.top = posY + 'px';
+        // Set the position of the menu
+        menu.style.left = posX + 'px';
+        menu.style.top = posY + 'px';
 
-    menu.classList.remove('hidden');
-    const ul = document.getElementById('ul-contextMenu');
-    while (ul.firstChild) {
-        ul.removeChild(ul.firstChild);
-    }
+        menu.classList.remove('hidden');
+        const ul = document.getElementById('ul-contextMenu');
+        while (ul.firstChild) {
+            ul.removeChild(ul.firstChild);
+        }
 
-    devices.forEach((device) => {
+        devices.forEach((device) => {
         const li = document.createElement('li');
         li.classList.add('cursor-pointer', 'bg-white', 'dark:bg-gray-800', 'hover:bg-gray-200', 'transition-all', 'ease-linear', 'dark:hover:bg-gray-800/50', 'p-4', 'w-full', 'h-full', 'text-gray-800', 'dark:text-gray-200');
         li.appendChild(document.createTextNode(device.label));
@@ -474,36 +474,36 @@ if (toggleVideoContextMenu) {
             return
         }
         const menu = document.getElementById('contextMenu');
-    menu.style.display = 'block';
-    const menuWidth = menu.offsetWidth;
-    const menuHeight = menu.offsetHeight;
-    menu.style.display = '';
+        menu.style.display = 'block';
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+        menu.style.display = '';
 
-    // Determine position for the menu
-    let posX = ev.pageX;
-    let posY = ev.pageY;
+        // Determine position for the menu
+        let posX = ev.pageX;
+        let posY = ev.pageY;
 
-    // Check if the menu goes beyond the right edge of the window
-    if (posX + menuWidth > window.innerWidth) {
-        posX = window.innerWidth - menuWidth;
-    }
+        // Check if the menu goes beyond the right edge of the window
+        if (posX + menuWidth > window.innerWidth) {
+            posX = window.innerWidth - menuWidth;
+        }
 
-    // Check if the menu goes beyond the bottom edge of the window
-    if (posY + menuHeight > window.innerHeight) {
-        posY = window.innerHeight - menuHeight;
-    }
+        // Check if the menu goes beyond the bottom edge of the window
+        if (posY + menuHeight > window.innerHeight) {
+            posY = window.innerHeight - menuHeight;
+        }
 
-    // Set the position of the menu
-    menu.style.left = posX + 'px';
-    menu.style.top = posY + 'px';
+        // Set the position of the menu
+        menu.style.left = posX + 'px';
+        menu.style.top = posY + 'px';
 
-    menu.classList.remove('hidden');
-    const ul = document.getElementById('ul-contextMenu');
-    while (ul.firstChild) {
-        ul.removeChild(ul.firstChild);
-    }
+        menu.classList.remove('hidden');
+        const ul = document.getElementById('ul-contextMenu');
+        while (ul.firstChild) {
+            ul.removeChild(ul.firstChild);
+        }
 
-    devices.forEach((device) => {
+        devices.forEach((device) => {
         const li = document.createElement('li');
         li.classList.add('cursor-pointer', 'bg-white', 'dark:bg-gray-800', 'hover:bg-gray-200', 'transition-all', 'ease-linear', 'dark:hover:bg-gray-800/50', 'p-4', 'w-full', 'h-full', 'text-gray-800', 'dark:text-gray-200');
         li.appendChild(document.createTextNode(device.label));
