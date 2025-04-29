@@ -29,3 +29,33 @@
     "dist"
   ]
 }
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "strict": false,
+    "strictNullChecks": false,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": ".",
+    "declaration": true,
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "allowJs": true,
+    "checkJs": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "js/**/*",
+    "types/**/*",
+    "__tests__/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "js/thirdparty/**/*"
+  ]
+}

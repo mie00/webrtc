@@ -32,3 +32,51 @@ global.HTMLCanvasElement.prototype.getContext = jest.fn().mockReturnValue({
   globalCompositeOperation: '',
   restore: jest.fn(),
 });
+
+// Mock TextEncoder and TextDecoder
+global.TextEncoder = class {
+  encode(str) {
+    return new Uint8Array([...str].map(c => c.charCodeAt(0)));
+  }
+};
+
+global.TextDecoder = class {
+  decode(arr) {
+    return String.fromCharCode.apply(null, new Uint8Array(arr));
+  }
+};
+
+// Global app object for tests
+global.app = {
+  clients: {},
+  streams: {},
+  streamConfig: {},
+  viewStreams: {},
+  nego_handlers: {},
+  cleanups: {}
+};
+
+// Global DOM elements
+document.body.innerHTML = `
+  <div id="media"></div>
+  <div id="output"></div>
+  <div id="participants"></div>
+  <div id="config-overlay">
+    <input id="stun-servers" value="stun:stun.l.google.com:19302">
+    <input id="turn-server-v2" value="">
+    <input id="turn-username" value="">
+    <input id="turn-password" value="">
+  </div>
+`;
+
+global.chat = document.createElement('input');
+global.output = document.getElementById('output');
+global.media = document.getElementById('media');
+global.participants = document.getElementById('participants');
+
+// Global utility functions
+global.uuidv4 = () => {
+  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+    (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
+  );
+};
