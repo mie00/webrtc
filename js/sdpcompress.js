@@ -89,6 +89,9 @@ const variables = list.map(x => Array.from(x.matchAll(/\{[^}]+}/g)).map(x => x[0
 
 
 function compress(inp) {
+    if (!inp || inp.trim() === '') {
+        return '';
+    }
     const sep = inp.indexOf('\r\n') != -1?'\r\n':'\n';
     const inp_list = inp.trim().split(sep);
     const arr = concatTypedArraysMulti(...inp_list.map(compress_line));
@@ -120,16 +123,20 @@ function encodeField([match, field]) {
 }
 
 function lastMatch(arr) {
-    for (i = arr.length - 1; i >= 0; i--) {
+    for (let i = arr.length - 1; i >= 0; i--) {
         if (arr[i]) {
             return i;
         }
     }
+    return -1; // Return -1 if no match is found
 }
 
 function compress_line(line) {
     const matches = regexes.map(regex => line.match(regex))
     const match = lastMatch(matches);
+    if (match === -1) {
+        return new Uint8Array(0);
+    }
     const arr = concatTypedArraysMulti(new Uint8Array([match]), ...(zip(matches[match].slice(1), variables[match]).map(encodeField)));
     return arr
 }
