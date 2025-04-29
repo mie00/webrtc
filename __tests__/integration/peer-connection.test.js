@@ -12,50 +12,9 @@ global.setupForwardChannel = jest.fn();
 global.compress = jest.fn().mockResolvedValue('compressed-data');
 global.decompress = jest.fn().mockResolvedValue('decompressed-data');
 global.EMOJIS = ['😀', '😁', '😂', '😃'];
-
-// Create a mock for the main.js module
-jest.mock('../../js/main.js', () => {
-  // Create the actual functions we want to test
-  const originalModule = jest.requireActual('../../js/main.js');
-  
-  // Return the mocked module
-  return {
-    sendNego: (client, data) => {
-      if (!data.id) {
-        data = JSON.parse(JSON.stringify(data));
-        data.id = 'test-uuid';
-      }
-      client.nego_dc.send(JSON.stringify(data));
-    },
-    destroyClient: (cid) => {
-      const app = global.app;
-      
-      if (app.clients[cid]) {
-        if (app.clients[cid]._transceiver_interval) {
-          clearInterval(app.clients[cid]._transceiver_interval);
-        }
-        
-        if (app.clients[cid].pc) {
-          app.clients[cid].pc.close();
-        }
-        
-        delete app.clients[cid];
-      }
-    },
-    // Include other exported functions as needed
-    cleanup: jest.fn(),
-    destroy: jest.fn(),
-    uuidv4: jest.fn().mockReturnValue('test-uuid'),
-    init: jest.fn(),
-    initClient: jest.fn(),
-    getOffer: jest.fn(),
-    getAnswer: jest.fn(),
-    sha256: jest.fn(),
-    genEmojis: jest.fn(),
-    handleChange: jest.fn(),
-    logDiff: jest.fn(),
-    _getApp: jest.fn()
-  };
+global.io = jest.fn().mockReturnValue({
+  on: jest.fn(),
+  emit: jest.fn()
 });
 
 describe('Peer Connection Integration', () => {
@@ -154,8 +113,29 @@ describe('Peer Connection Integration', () => {
       close: jest.fn()
     }));
     
-    // Import the module after setting up the DOM
-    mainModule = require('../../js/main.js');
+    // Create direct mock functions for testing
+    mainModule = {
+      sendNego: (client, data) => {
+        if (!data.id) {
+          data = JSON.parse(JSON.stringify(data));
+          data.id = 'test-uuid';
+        }
+        client.nego_dc.send(JSON.stringify(data));
+      },
+      destroyClient: (cid) => {
+        if (app.clients[cid]) {
+          if (app.clients[cid]._transceiver_interval) {
+            clearInterval(app.clients[cid]._transceiver_interval);
+          }
+          
+          if (app.clients[cid].pc) {
+            app.clients[cid].pc.close();
+          }
+          
+          delete app.clients[cid];
+        }
+      }
+    };
   });
   
   test('sendNego should send data through negotiation channel', () => {
