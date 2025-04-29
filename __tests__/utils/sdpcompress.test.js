@@ -6,6 +6,11 @@ describe('SDP Compression', () => {
   beforeEach(() => {
     // Import the module for each test to ensure clean state
     jest.resetModules();
+    
+    // Add TextEncoder polyfill if it doesn't exist
+    if (typeof global.TextEncoder === 'undefined') {
+      global.TextEncoder = require('util').TextEncoder;
+    }
   });
 
   test('compress and decompress should be reversible', () => {
