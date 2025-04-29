@@ -169,7 +169,6 @@ describe('Stream Management', () => {
   });
 
   test('normalizeStreamId should remove curly braces', () => {
-    // Import the module in each test to ensure clean state
     const streamModule = require('../../js/stream.js');
 
     // Test with curly braces
