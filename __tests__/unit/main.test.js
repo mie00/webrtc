@@ -318,51 +318,35 @@ describe('Main Application', () => {
   });
 
   test('uuidv4 should generate a valid UUID', () => {
-    try {
-      const mainModule = require('../../js/main.js');
-      
-      if (typeof mainModule.uuidv4 === 'function') {
-        // Call the function
-        const uuid = mainModule.uuidv4();
-        
-        // Verify it's a valid UUID
-        expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
-      } else {
-        console.warn('uuidv4 function not found, skipping test');
-      }
-    } catch (e) {
-      console.warn('Could not import main.js, skipping test:', e.message);
-    }
+    const mainModule = require('../../js/main.js');
+    
+    // Call the function
+    const uuid = mainModule.uuidv4();
+    
+    // Verify it's a valid UUID
+    expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
   });
 
   test('init should set up the application state', async () => {
-    try {
-      const mainModule = require('../../js/main.js');
-      
-      if (typeof mainModule.init === 'function') {
-        // Mock the streamInit and forwardInit functions
-        global.streamInit = jest.fn();
-        global.forwardInit = jest.fn();
-        
-        // Call the function
-        await mainModule.init();
-        
-        // Verify the app state was initialized
-        expect(app.participants).toEqual({});
-        expect(app.cleanups).toEqual({});
-        expect(app.clients).toEqual({});
-        expect(app.inited).toBe(true);
-        expect(app.nego_messages).toEqual({});
-        expect(app.nego_handlers).toBeDefined();
-        
-        // Verify the init functions were called
-        expect(global.streamInit).toHaveBeenCalledWith(app);
-        expect(global.forwardInit).toHaveBeenCalledWith(app);
-      } else {
-        console.warn('init function not found, skipping test');
-      }
-    } catch (e) {
-      console.warn('Could not import main.js, skipping test:', e.message);
-    }
+    const mainModule = require('../../js/main.js');
+    
+    // Mock the streamInit and forwardInit functions
+    global.streamInit = jest.fn();
+    global.forwardInit = jest.fn();
+    
+    // Call the function
+    await mainModule.init();
+    
+    // Verify the app state was initialized
+    expect(app.participants).toEqual({});
+    expect(app.cleanups).toEqual({});
+    expect(app.clients).toEqual({});
+    expect(app.inited).toBe(true);
+    expect(app.nego_messages).toEqual({});
+    expect(app.nego_handlers).toBeDefined();
+    
+    // Verify the init functions were called
+    expect(global.streamInit).toHaveBeenCalledWith(app);
+    expect(global.forwardInit).toHaveBeenCalledWith(app);
   });
 });

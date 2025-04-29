@@ -91,65 +91,41 @@ describe('Forward Channel', () => {
 
   test('forwardInit should set up cleanups and initial state', () => {
     // Import the module
-    try {
-      const forwardModule = require('../../js/forward.js');
-      
-      if (typeof forwardModule.forwardInit === 'function') {
-        // Call the function
-        forwardModule.forwardInit(app);
-        
-        // Verify the cleanups were set up
-        expect(app.cleanups['forward']).toBeDefined();
-        expect(app.allowed_host).toBeNull();
-      } else {
-        console.warn('forwardInit function not found, skipping test');
-      }
-    } catch (e) {
-      console.warn('Could not import forward.js, skipping test:', e.message);
-    }
+    const forwardModule = require('../../js/forward.js');
+    
+    // Call the function
+    forwardModule.forwardInit(app);
+    
+    // Verify the cleanups were set up
+    expect(app.cleanups['forward']).toBeDefined();
+    expect(app.allowed_host).toBeNull();
   });
 
   test('setupForwardChannel should create a data channel', () => {
-    try {
-      const forwardModule = require('../../js/forward.js');
-      
-      if (typeof forwardModule.setupForwardChannel === 'function') {
-        // Call the function
-        forwardModule.setupForwardChannel(app, 'test-client-id');
-        
-        // Verify the data channel was created
-        expect(app.clients['test-client-id'].pc.createDataChannel).toHaveBeenCalledWith(
-          'forward',
-          { negotiated: true, id: 3 }
-        );
-      } else {
-        console.warn('setupForwardChannel function not found, skipping test');
-      }
-    } catch (e) {
-      console.warn('Could not import forward.js, skipping test:', e.message);
-    }
+    const forwardModule = require('../../js/forward.js');
+    
+    // Call the function
+    forwardModule.setupForwardChannel(app, 'test-client-id');
+    
+    // Verify the data channel was created
+    expect(app.clients['test-client-id'].pc.createDataChannel).toHaveBeenCalledWith(
+      'forward',
+      { negotiated: true, id: 3 }
+    );
   });
 
   test('concatUint8Arrays should correctly concatenate arrays', () => {
-    try {
-      const forwardModule = require('../../js/forward.js');
-      
-      if (typeof forwardModule.concatUint8Arrays === 'function') {
-        // Create test arrays
-        const array1 = new Uint8Array([1, 2, 3]);
-        const array2 = new Uint8Array([4, 5]);
-        const array3 = new Uint8Array([6, 7, 8, 9]);
-        
-        // Call the function
-        const result = forwardModule.concatUint8Arrays([array1, array2, array3]);
-        
-        // Verify the result
-        expect(result).toEqual(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9]));
-      } else {
-        console.warn('concatUint8Arrays function not found, skipping test');
-      }
-    } catch (e) {
-      console.warn('Could not import forward.js, skipping test:', e.message);
-    }
+    const forwardModule = require('../../js/forward.js');
+    
+    // Create test arrays
+    const array1 = new Uint8Array([1, 2, 3]);
+    const array2 = new Uint8Array([4, 5]);
+    const array3 = new Uint8Array([6, 7, 8, 9]);
+    
+    // Call the function
+    const result = forwardModule.concatUint8Arrays([array1, array2, array3]);
+    
+    // Verify the result
+    expect(result).toEqual(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9]));
   });
 });
