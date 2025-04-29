@@ -43,23 +43,40 @@ const copyOverlay = document.getElementById('copy-overlay');
 const reset = () => {
     window.location.href = window.location.origin + window.location.pathname;
 }
-document.getElementById('reset').addEventListener('click', reset)
-document.getElementById('open-config').addEventListener('click', () => {
-    configOverlay.classList.remove('hidden');
-})
-document.getElementById('open-qr').addEventListener('click', () => {
-    copyOverlay.classList.remove('hidden');
-})
-copyOverlay.addEventListener('click', (ev) => {
-    if (ev.target === copyOverlay) {
-        ev.target.classList.add('hidden');
-    }
-})
-configOverlay.addEventListener('click', (ev) => {
-    if (ev.target === configOverlay) {
-        ev.target.classList.add('hidden');
-    }
-})
+// Only attach event listeners if elements exist (for testing compatibility)
+const resetButton = document.getElementById('reset');
+if (resetButton) {
+    resetButton.addEventListener('click', reset);
+}
+
+const openConfigButton = document.getElementById('open-config');
+if (openConfigButton) {
+    openConfigButton.addEventListener('click', () => {
+        configOverlay.classList.remove('hidden');
+    });
+}
+
+const openQrButton = document.getElementById('open-qr');
+if (openQrButton) {
+    openQrButton.addEventListener('click', () => {
+        copyOverlay.classList.remove('hidden');
+    });
+}
+if (copyOverlay) {
+    copyOverlay.addEventListener('click', (ev) => {
+        if (ev.target === copyOverlay) {
+            ev.target.classList.add('hidden');
+        }
+    });
+}
+
+if (configOverlay) {
+    configOverlay.addEventListener('click', (ev) => {
+        if (ev.target === configOverlay) {
+            ev.target.classList.add('hidden');
+        }
+    });
+}
 
 const app = {
     config: getConfig(),

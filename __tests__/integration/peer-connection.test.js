@@ -6,7 +6,7 @@ describe('Peer Connection Integration', () => {
   let app;
   
   beforeEach(() => {
-    // Reset DOM
+    // Reset DOM with all required elements
     document.body.innerHTML = `
       <div id="media"></div>
       <div id="output"></div>
@@ -19,6 +19,12 @@ describe('Peer Connection Integration', () => {
       </div>
       <div id="toggle-controls"></div>
       <div id="control" class="left-full"></div>
+      <div id="reset"></div>
+      <div id="open-config"></div>
+      <div id="open-qr"></div>
+      <div id="hangup"></div>
+      <div id="diffs" class="hidden"></div>
+      <div id="copy-overlay"></div>
     `;
     
     // Create mock app object
@@ -91,8 +97,17 @@ describe('Peer Connection Integration', () => {
   });
   
   test('sendNego should send data through negotiation channel', () => {
-    // Import the module - use require directly to avoid hoisting issues
-    const { sendNego } = require('../../js/main');
+    // Mock the DOM elements that main.js tries to access
+    document.body.innerHTML += `
+      <div id="reset"></div>
+      <div id="open-config"></div>
+      <div id="open-qr"></div>
+      <div id="hangup"></div>
+      <div id="diffs"></div>
+    `;
+    
+    // Import the module after setting up the DOM
+    const mainModule = require('../../js/main');
     
     // Create mock client with negotiation channel
     const client = {
@@ -102,7 +117,7 @@ describe('Peer Connection Integration', () => {
     };
     
     // Call sendNego
-    sendNego(client, { type: 'test' });
+    mainModule.sendNego(client, { type: 'test' });
     
     // Check if send was called with correct data
     expect(client.nego_dc.send).toHaveBeenCalledWith(
