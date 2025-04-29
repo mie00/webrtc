@@ -532,24 +532,25 @@ const setupTrack = (track, stream, priority, contentHint, simulcast) => {
         }
     }
 
-    // Export functions for testing
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = {
-            normalizeStreamId,
-            getStreamElemId,
-            streamInit,
-            setupTrackHandler,
-            processAudio,
-            stopProcessingAudio,
-            tearDownStream,
-            setupTrack,
-            setupStream,
-            setupLocalStream,
-            getStreamsDims,
-            refreshStreamViews,
-            createStreamElement
-        };
-    }
+}
+
+// Export functions for testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        normalizeStreamId,
+        getStreamElemId,
+        streamInit,
+        setupTrackHandler,
+        processAudio,
+        stopProcessingAudio,
+        tearDownStream,
+        setupTrack,
+        setupLocalStream,
+        getStreamsDims,
+        refreshStreamViews,
+        createStreamElement
+    };
+}
 
     const shareVideoButton = document.getElementById('share-video');
     if (shareVideoButton) {
