@@ -1,9 +1,6 @@
 module.exports = {
   preset: 'ts-jest/presets/js-with-babel',
-  testEnvironment: 'jsdom',
-  testEnvironmentOptions: {
-    url: "http://localhost/"
-  },
+  testEnvironment: 'jest-environment-jsdom-sixteen',
   moduleFileExtensions: ['ts', 'js'],
   transform: {
     '^.+\\.js$': 'babel-jest',
