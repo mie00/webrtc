@@ -379,27 +379,38 @@ const setButton = (target, on) => {
     }
 }
 
-document.getElementById('toggle-audio').addEventListener('click', async (ev) => {
-    app.streamConfig.audio = !app.streamConfig.audio;
-    setButton(ev.target, app.streamConfig.audio);
-    await setupLocalStream('audio');
-});
+const toggleAudioButton = document.getElementById('toggle-audio');
+if (toggleAudioButton) {
+    toggleAudioButton.addEventListener('click', async (ev) => {
+        app.streamConfig.audio = !app.streamConfig.audio;
+        setButton(ev.target, app.streamConfig.audio);
+        await setupLocalStream('audio');
+    });
+}
 
-document.getElementById('toggle-video').addEventListener('click', async (ev) => {
-    app.streamConfig.video = !app.streamConfig.video;
-    setButton(ev.target, app.streamConfig.video);
-    await setupLocalStream('video');
-});
+const toggleVideoButton = document.getElementById('toggle-video');
+if (toggleVideoButton) {
+    toggleVideoButton.addEventListener('click', async (ev) => {
+        app.streamConfig.video = !app.streamConfig.video;
+        setButton(ev.target, app.streamConfig.video);
+        await setupLocalStream('video');
+    });
+}
 
-document.getElementById('toggle-screen').addEventListener('click', async (ev) => {
-    app.streamConfig.screen = !app.streamConfig.screen;
-    setButton(ev.target, app.streamConfig.screen);
-    await setupLocalStream('screen');
-});
+const toggleScreenButton = document.getElementById('toggle-screen');
+if (toggleScreenButton) {
+    toggleScreenButton.addEventListener('click', async (ev) => {
+        app.streamConfig.screen = !app.streamConfig.screen;
+        setButton(ev.target, app.streamConfig.screen);
+        await setupLocalStream('screen');
+    });
+}
 
-document.getElementById('toggle-audio').addEventListener('contextmenu', async (ev) => {
-    ev.preventDefault();
-    const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === 'audioinput');
+const toggleAudioContextMenu = document.getElementById('toggle-audio');
+if (toggleAudioContextMenu) {
+    toggleAudioContextMenu.addEventListener('contextmenu', async (ev) => {
+        ev.preventDefault();
+        const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === 'audioinput');
     if (devices.length < 1) {
         alert("no devices found");
         return
@@ -453,9 +464,11 @@ document.getElementById('toggle-audio').addEventListener('contextmenu', async (e
 });
 
 
-document.getElementById('toggle-video').addEventListener('contextmenu', async (ev) => {
-    ev.preventDefault();
-    const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === 'videoinput');
+const toggleVideoContextMenu = document.getElementById('toggle-video');
+if (toggleVideoContextMenu) {
+    toggleVideoContextMenu.addEventListener('contextmenu', async (ev) => {
+        ev.preventDefault();
+        const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === 'videoinput');
     if (devices.length < 1) {
         alert("no devices found");
         return
@@ -508,12 +521,14 @@ document.getElementById('toggle-video').addEventListener('contextmenu', async (e
     })
 });
 
-document.onclick = function (event) {
-    const menu = document.getElementById('contextMenu');
-    if (!menu.contains(event.target)) {
-        menu.classList.add('hidden');
-    }
-};
+if (typeof document !== 'undefined') {
+    document.onclick = function (event) {
+        const menu = document.getElementById('contextMenu');
+        if (menu && !menu.contains(event.target)) {
+            menu.classList.add('hidden');
+        }
+    };
+}
 
 // Export functions for testing
 if (typeof module !== 'undefined' && module.exports) {
@@ -534,31 +549,47 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 }
 
-document.getElementById('share-video').addEventListener('click', async (ev) => {
-    if (app.streamConfig.local) {
-        app.streamConfig.videoNode.src = '';
-        app.streamConfig.videoNode = null;
-        app.streamConfig.local = false;
-        setButton(ev.target, app.streamConfig.local);
+const shareVideoButton = document.getElementById('share-video');
+if (shareVideoButton) {
+    shareVideoButton.addEventListener('click', async (ev) => {
+        if (app.streamConfig.local) {
+            app.streamConfig.videoNode.src = '';
+            app.streamConfig.videoNode = null;
+            app.streamConfig.local = false;
+            setButton(ev.target, app.streamConfig.local);
+            await setupLocalStream('local');
+            const uploadVideo = document.getElementById('upload-video');
+            if (uploadVideo) {
+                uploadVideo.value = null;
+            }
+        } else {
+            const uploadVideo = document.getElementById('upload-video');
+            if (uploadVideo) {
+                uploadVideo.click();
+            }
+        }
+    });
+}
+
+const uploadVideoInput = document.getElementById('upload-video');
+if (uploadVideoInput) {
+    uploadVideoInput.addEventListener('change', async (ev) => {
+        const file = ev.target.files[0];
+        const fileURL = URL.createObjectURL(file);
+
+        const videoNode = document.createElement('video');
+        videoNode.src = fileURL;
+        videoNode.autoplay = true;
+        videoNode.controls = false;
+        videoNode.loop = true;
+        app.streamConfig.videoNode = videoNode;
+        app.streamConfig.videoStream = videoNode.captureStream ? videoNode.captureStream() : videoNode.mozCaptureStream();
+        app.streamConfig.local = !app.streamConfig.local;
+        
+        const shareVideoBtn = document.getElementById('share-video');
+        if (shareVideoBtn) {
+            setButton(shareVideoBtn, app.streamConfig.local);
+        }
         await setupLocalStream('local');
-        document.getElementById('upload-video').value = null;
-    } else {
-        document.getElementById('upload-video').click();
-    }
-});
-
-document.getElementById('upload-video').addEventListener('change', async (ev) => {
-    const file = ev.target.files[0];
-    const fileURL = URL.createObjectURL(file);
-
-    const videoNode = document.createElement('video');
-    videoNode.src = fileURL;
-    videoNode.autoplay = true;
-    videoNode.controls = false;
-    videoNode.loop = true;
-    app.streamConfig.videoNode = videoNode;
-    app.streamConfig.videoStream = videoNode.captureStream ? videoNode.captureStream() : videoNode.mozCaptureStream();
-    app.streamConfig.local = !app.streamConfig.local;
-    setButton(document.getElementById('share-video'), app.streamConfig.local);
-    await setupLocalStream('local');
-})
+    });
+}

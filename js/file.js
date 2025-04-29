@@ -44,7 +44,10 @@ function setupFileChannel(app, cid) {
     };
 }
 
-document.getElementById('file-upload').addEventListener('change', handleFileSelect);
+const fileUploadElement = document.getElementById('file-upload');
+if (fileUploadElement) {
+  fileUploadElement.addEventListener('change', handleFileSelect);
+}
 
 // Export functions for testing
 if (typeof module !== 'undefined' && module.exports) {
