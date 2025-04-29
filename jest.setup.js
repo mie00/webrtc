@@ -34,16 +34,25 @@ global.HTMLCanvasElement.prototype.getContext = jest.fn().mockReturnValue({
 });
 
 // Mock TextEncoder and TextDecoder
-global.TextEncoder = class {
-  encode(str) {
+global.TextEncoder = function() {
+  this.encode = function(str) {
     return new Uint8Array([...str].map(c => c.charCodeAt(0)));
-  }
+  };
+  this.encodeInto = function(str, uint8Array) {
+    const encoded = this.encode(str);
+    uint8Array.set(encoded);
+    return { read: str.length, written: encoded.length };
+  };
+  Object.defineProperty(this, 'encoding', { value: 'utf-8' });
 };
 
-global.TextDecoder = class {
-  decode(arr) {
+global.TextDecoder = function(encoding = 'utf-8') {
+  this.decode = function(arr) {
     return String.fromCharCode.apply(null, new Uint8Array(arr));
-  }
+  };
+  Object.defineProperty(this, 'encoding', { value: encoding });
+  Object.defineProperty(this, 'fatal', { value: false });
+  Object.defineProperty(this, 'ignoreBOM', { value: false });
 };
 
 // Global app object for tests
