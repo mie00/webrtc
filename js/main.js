@@ -64,24 +64,40 @@ const app = {
 const isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1;
 
 const destroyClient = (cid) => {
+    if (!app.clients) {
+        app.clients = {};
+        return;
+    }
+    
     Object.keys(app.clients).filter((key) => key !== cid).forEach((key) => {
         sendNego(app.clients[key], {type: 'participant.end', cid: cid});
     });
-    if (app.clients[cid].nego_dc) {
-        app.clients[cid].nego_dc.onclose = null;
-        app.clients[cid].nego_dc.onmessage = null;
-        app.clients[cid].nego_dc.onclose = null;
-    }
-    clearInterval(app.clients[cid]._transceiver_interval);
-    if (app.clients[cid].pc) {
-        for (var cleanup of Object.values(app.cleanups)) {
-            cleanup(cid);
+    
+    if (app.clients[cid]) {
+        if (app.clients[cid].nego_dc) {
+            app.clients[cid].nego_dc.onclose = null;
+            app.clients[cid].nego_dc.onmessage = null;
+            app.clients[cid].nego_dc.onclose = null;
         }
-        app.clients[cid].pc.close();
-        app.clients[cid].pc = null;
-        Object.keys(app.clients[cid]).forEach(key => delete app.clients[cid][key]);
+        
+        if (app.clients[cid]._transceiver_interval) {
+            clearInterval(app.clients[cid]._transceiver_interval);
+        }
+        
+        if (app.clients[cid].pc) {
+            if (app.cleanups) {
+                for (var cleanup of Object.values(app.cleanups)) {
+                    cleanup(cid);
+                }
+            }
+            app.clients[cid].pc.close();
+            app.clients[cid].pc = null;
+            Object.keys(app.clients[cid]).forEach(key => delete app.clients[cid][key]);
+        }
+        
+        delete app.clients[cid];
     }
-    delete app.clients[cid]
+    
     handleChange();
 }
 
@@ -170,6 +186,9 @@ function sendNego(client, data) {
     if (!data.id) {
         data = JSON.parse(JSON.stringify(data))
         data.id = uuidv4()
+        if (!app.nego_messages) {
+            app.nego_messages = {};
+        }
         app.nego_messages[data.id] = {}
     }
     try {

@@ -238,6 +238,9 @@ describe('Main Application', () => {
   });
 
   test('sendNego should send data through negotiation channel', () => {
+    // Clear the module cache to ensure a fresh require
+    jest.resetModules();
+    
     // Set up the global app object before requiring the module
     global.app = {
       config: getConfig(),
@@ -271,6 +274,9 @@ describe('Main Application', () => {
   });
 
   test('destroyClient should clean up client resources', () => {
+    // Clear the module cache to ensure a fresh require
+    jest.resetModules();
+    
     // Set up the global app object before requiring the module
     global.app = {
       config: getConfig(),
@@ -299,8 +305,8 @@ describe('Main Application', () => {
       }
     };
     
-    // Mock the sendNego function to avoid dependency issues
-    global.sendNego = jest.fn();
+    // Mock handleChange to avoid DOM manipulation
+    global.handleChange = jest.fn();
     
     const mainModule = require('../../js/main.js');
     
@@ -325,16 +331,19 @@ describe('Main Application', () => {
   });
 
   test('init should set up the application state', async () => {
+    // Clear the module cache to ensure a fresh require
+    jest.resetModules();
+    
     // Set up the global app object before requiring the module
     global.app = {
       config: getConfig()
     };
     
-    const mainModule = require('../../js/main.js');
-    
     // Mock the streamInit and forwardInit functions
     global.streamInit = jest.fn();
     global.forwardInit = jest.fn();
+    
+    const mainModule = require('../../js/main.js');
     
     // Call the function
     await mainModule.init();
