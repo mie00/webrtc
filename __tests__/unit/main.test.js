@@ -235,6 +235,9 @@ describe('Main Application', () => {
     jest.clearAllMocks();
     // Reset the app object for each test
     global.app = undefined;
+    
+    // Mock clearInterval
+    global.clearInterval = jest.fn();
   });
 
   test('sendNego should send data through negotiation channel', () => {
@@ -308,13 +311,16 @@ describe('Main Application', () => {
     // Mock handleChange to avoid DOM manipulation
     global.handleChange = jest.fn();
     
+    // Mock sendNego to avoid dependency issues
+    global.sendNego = jest.fn();
+    
     const mainModule = require('../../js/main.js');
     
     // Call the function
     mainModule.destroyClient('test-cid');
     
     // Verify the client was cleaned up
-    expect(clearInterval).toHaveBeenCalledWith(123);
+    expect(global.clearInterval).toHaveBeenCalledWith(123);
     expect(app.clients['test-cid'].pc.close).toHaveBeenCalled();
     expect(app.clients['test-cid']).toBeUndefined();
     expect(app.cleanups.test).toHaveBeenCalledWith('test-cid');
@@ -348,16 +354,19 @@ describe('Main Application', () => {
     // Call the function
     await mainModule.init();
     
+    // Get the app object after initialization
+    const appAfterInit = mainModule._getApp();
+    
     // Verify the app state was initialized
-    expect(app.participants).toEqual({});
-    expect(app.cleanups).toEqual({});
-    expect(app.clients).toEqual({});
-    expect(app.inited).toBe(true);
-    expect(app.nego_messages).toEqual({});
-    expect(app.nego_handlers).toBeDefined();
+    expect(appAfterInit.participants).toEqual({});
+    expect(appAfterInit.cleanups).toEqual({});
+    expect(appAfterInit.clients).toEqual({});
+    expect(appAfterInit.inited).toBe(true);
+    expect(appAfterInit.nego_messages).toEqual({});
+    expect(appAfterInit.nego_handlers).toBeDefined();
     
     // Verify the init functions were called
-    expect(global.streamInit).toHaveBeenCalledWith(app);
-    expect(global.forwardInit).toHaveBeenCalledWith(app);
+    expect(global.streamInit).toHaveBeenCalledWith(appAfterInit);
+    expect(global.forwardInit).toHaveBeenCalledWith(appAfterInit);
   });
 });
