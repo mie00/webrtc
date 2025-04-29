@@ -50,7 +50,8 @@ describe('Main Application', () => {
             add: jest.fn(),
             remove: jest.fn()
           },
-          onclick: null
+          onclick: null,
+          addEventListener: jest.fn()
         };
       } else if (id === 'qrcode') {
         return {
