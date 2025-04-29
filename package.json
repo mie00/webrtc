@@ -4,9 +4,9 @@
   "description": "WebRTC-based project with TypeScript migration preparation",
   "main": "index.js",
   "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test": "node ./node_modules/.bin/jest",
+    "test:watch": "node ./node_modules/.bin/jest --watch",
+    "test:coverage": "node ./node_modules/.bin/jest --coverage"
   },
   "keywords": [
     "webrtc",
