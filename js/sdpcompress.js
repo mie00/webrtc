@@ -136,7 +136,7 @@ function compress_line(line) {
 
 function decompress(str) {
     let inp = Uint8Array.from(atob(str), c => c.charCodeAt(0));
-    les = [];
+    let les = [];
     while (inp.length) {
         let match = inp[0];
         inp = inp.slice(1)
@@ -151,4 +151,15 @@ function decompress(str) {
         les.push(le);
     }
     return les.join('\r\n');
+}
+
+// Export functions for testing
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    compress,
+    decompress,
+    concatTypedArrays,
+    concatTypedArraysMulti,
+    to_array_buffer
+  };
 }
