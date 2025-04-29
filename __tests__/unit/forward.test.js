@@ -1,7 +1,11 @@
+/**
+ * @jest-environment jsdom
+ */
+
 describe('Forward Channel', () => {
-  // Mock the document and app objects
-  global.document = {
-    getElementById: jest.fn().mockImplementation((id) => {
+  beforeEach(() => {
+    // Setup DOM mocks
+    document.getElementById = jest.fn().mockImplementation((id) => {
       if (id === 'start-forward') {
         return {
           addEventListener: jest.fn()
@@ -17,8 +21,9 @@ describe('Forward Channel', () => {
         };
       }
       return null;
-    }),
-    createElement: jest.fn().mockImplementation((tag) => {
+    });
+    
+    document.createElement = jest.fn().mockImplementation((tag) => {
       return {
         id: '',
         src: '',
@@ -28,8 +33,7 @@ describe('Forward Channel', () => {
         appendChild: jest.fn(),
         innerHTML: ''
       };
-    })
-  };
+    });
 
   global.app = {
     clients: {

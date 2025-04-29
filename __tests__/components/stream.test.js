@@ -1,3 +1,7 @@
+/**
+ * @jest-environment jsdom
+ */
+
 describe('Stream Management', () => {
   let app;
   

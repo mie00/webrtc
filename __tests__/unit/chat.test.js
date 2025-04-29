@@ -1,12 +1,15 @@
+/**
+ * @jest-environment jsdom
+ */
+
 describe('Chat Functionality', () => {
-  // Mock the document and app objects
-  global.document = {
-    getElementById: jest.fn().mockReturnValue({
+  beforeEach(() => {
+    // Setup DOM mocks
+    document.getElementById = jest.fn().mockReturnValue({
       value: 'test message',
       onkeydown: null,
       select: jest.fn()
-    })
-  };
+    });
 
   global.app = {
     clients: {

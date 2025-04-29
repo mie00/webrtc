@@ -1,3 +1,7 @@
+/**
+ * @jest-environment jsdom
+ */
+
 describe('Chat Functionality', () => {
   let app;
   
@@ -9,8 +13,8 @@ describe('Chat Functionality', () => {
     `;
     
     // Create mock elements
-    global.chat = document.getElementById('chat');
-    global.output = document.getElementById('output');
+    window.chat = document.getElementById('chat');
+    window.output = document.getElementById('output');
     
     // Create mock app object
     app = {

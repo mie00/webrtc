@@ -1,7 +1,11 @@
+/**
+ * @jest-environment jsdom
+ */
+
 describe('Main Application', () => {
-  // Mock the document and app objects
-  global.document = {
-    getElementById: jest.fn().mockImplementation((id) => {
+  beforeEach(() => {
+    // Setup DOM mocks
+    document.getElementById = jest.fn().mockImplementation((id) => {
       if (id === 'toggle-controls') {
         return {
           addEventListener: jest.fn(),
@@ -62,8 +66,9 @@ describe('Main Application', () => {
         };
       }
       return null;
-    }),
-    createElement: jest.fn().mockImplementation((tag) => {
+    });
+    
+    document.createElement = jest.fn().mockImplementation((tag) => {
       return {
         style: {},
         classList: {
@@ -71,16 +76,23 @@ describe('Main Application', () => {
         },
         appendChild: jest.fn()
       };
-    }),
-    createDocumentFragment: jest.fn().mockReturnValue({
+    });
+    
+    document.createDocumentFragment = jest.fn().mockReturnValue({
       appendChild: jest.fn()
-    }),
-    createTextNode: jest.fn(),
-    querySelector: jest.fn().mockReturnValue(null),
-    body: {
-      appendChild: jest.fn()
+    });
+    
+    document.createTextNode = jest.fn();
+    document.querySelector = jest.fn().mockReturnValue(null);
+    
+    if (!document.body) {
+      Object.defineProperty(document, 'body', {
+        value: { appendChild: jest.fn() },
+        writable: true
+      });
+    } else {
+      document.body.appendChild = jest.fn();
     }
-  };
 
   global.window = {
     location: {

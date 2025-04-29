@@ -1,22 +1,27 @@
+/**
+ * @jest-environment jsdom
+ */
+
 const file = require('../../js/file.js');
 
 describe('File Utilities', () => {
-  // Mock the document and app objects
-  global.document = {
-    getElementById: jest.fn().mockReturnValue({
+  beforeEach(() => {
+    // Setup DOM mocks
+    document.getElementById = jest.fn().mockReturnValue({
       addEventListener: jest.fn(),
       disabled: false
-    }),
-    createElement: jest.fn().mockReturnValue({
+    });
+    
+    document.createElement = jest.fn().mockReturnValue({
       href: '',
       download: '',
       classList: {
         add: jest.fn()
       },
       appendChild: jest.fn()
-    }),
-    createTextNode: jest.fn()
-  };
+    });
+    
+    document.createTextNode = jest.fn();
 
   global.app = {
     clients: {

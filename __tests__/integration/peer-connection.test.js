@@ -1,3 +1,7 @@
+/**
+ * @jest-environment jsdom
+ */
+
 describe('Peer Connection Integration', () => {
   let app;
   
@@ -98,10 +102,14 @@ describe('Peer Connection Integration', () => {
     }
   });
 });
+/**
+ * @jest-environment jsdom
+ */
+
 describe('Peer Connection Integration', () => {
-  // Mock the document and app objects
-  global.document = {
-    getElementById: jest.fn().mockImplementation((id) => {
+  beforeEach(() => {
+    // Setup DOM mocks
+    document.getElementById = jest.fn().mockImplementation((id) => {
       if (id === 'media' || id === 'output' || id === 'participants') {
         return {
           innerHTML: '',
@@ -110,19 +118,21 @@ describe('Peer Connection Integration', () => {
         };
       }
       return null;
-    }),
-    createElement: jest.fn().mockImplementation(() => ({
+    });
+    
+    document.createElement = jest.fn().mockImplementation(() => ({
       style: {},
       classList: {
         add: jest.fn()
       },
       appendChild: jest.fn()
-    })),
-    createDocumentFragment: jest.fn().mockReturnValue({
+    }));
+    
+    document.createDocumentFragment = jest.fn().mockReturnValue({
       appendChild: jest.fn()
-    }),
-    createTextNode: jest.fn()
-  };
+    });
+    
+    document.createTextNode = jest.fn();
 
   global.window = {
     location: {

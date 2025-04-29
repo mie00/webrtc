@@ -1,3 +1,7 @@
+/**
+ * @jest-environment jsdom
+ */
+
 describe('SDP Compression', () => {
   beforeEach(() => {
     // Import the module for each test to ensure clean state
