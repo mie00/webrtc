@@ -312,3 +312,14 @@ if ('serviceWorker' in navigator) {
 10. client gets response from peer and sends it to service worker
 11. service worker sends response to page
 */
+
+// Export functions for testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        forwardInit,
+        setupForwardChannel,
+        sendData,
+        concatUint8Arrays,
+        toggleForwardHandler
+    };
+}

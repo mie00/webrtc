@@ -19,3 +19,10 @@ chat.onkeydown = function (e) {
     log(chat.value);
     chat.value = "";
 };
+
+// Export functions for testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        setupChatChannel
+    };
+}

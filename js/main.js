@@ -676,3 +676,22 @@ if (urlParams.has('r')) {
 
 console.log('coming here 2')
 window.addEventListener("load", windowLoader);
+
+// Export functions for testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        sendNego,
+        destroyClient,
+        cleanup,
+        destroy,
+        uuidv4,
+        init,
+        initClient,
+        getOffer,
+        getAnswer,
+        sha256,
+        genEmojis,
+        handleChange,
+        logDiff
+    };
+}

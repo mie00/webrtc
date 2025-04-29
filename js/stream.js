@@ -515,6 +515,25 @@ document.onclick = function (event) {
     }
 };
 
+// Export functions for testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        normalizeStreamId,
+        getStreamElemId,
+        streamInit,
+        setupTrackHandler,
+        processAudio,
+        stopProcessingAudio,
+        tearDownStream,
+        setupTrack,
+        setupStream,
+        setupLocalStream,
+        getStreamsDims,
+        refreshStreamViews,
+        createStreamElement
+    };
+}
+
 document.getElementById('share-video').addEventListener('click', async (ev) => {
     if (app.streamConfig.local) {
         app.streamConfig.videoNode.src = '';

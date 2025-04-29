@@ -46,6 +46,16 @@ function setupFileChannel(app, cid) {
 
 document.getElementById('file-upload').addEventListener('change', handleFileSelect);
 
+// Export functions for testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        updateProgressBar,
+        setupFileChannel,
+        readFile,
+        splitArrayBuffer
+    };
+}
+
 function handleFileSelect(event) {
     const file = event.target.files[0];
     for (var cid of Object.keys(app.clients)) {
