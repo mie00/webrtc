@@ -7,9 +7,12 @@ describe('SDP Compression', () => {
     // Import the module for each test to ensure clean state
     jest.resetModules();
     
-    // Add TextEncoder polyfill if it doesn't exist
+    // Add TextEncoder and TextDecoder polyfills if they don't exist
     if (typeof global.TextEncoder === 'undefined') {
       global.TextEncoder = require('util').TextEncoder;
+    }
+    if (typeof global.TextDecoder === 'undefined') {
+      global.TextDecoder = require('util').TextDecoder;
     }
   });
 
