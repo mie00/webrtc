@@ -156,7 +156,6 @@ const setupTrack = (track, stream, priority, contentHint, simulcast) => {
             });
         }
     }
-}
 
 const setupStream = (stream, priority, contentHint, simulcast) => {
     stream.getTracks().forEach((track) => {
@@ -552,7 +551,7 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 }
 
-        const shareVideoButton = document.getElementById('share-video');
+const shareVideoButton = document.getElementById('share-video');
         if (shareVideoButton) {
             shareVideoButton.addEventListener('click', async (ev) => {
                 if (app.streamConfig.local) {
