@@ -62,7 +62,8 @@ describe('File Utilities', () => {
       value: 0,
       innerHTML: ''
     };
-    document.getElementById.mockReturnValueOnce(mockProgressElement);
+    // Use jest.spyOn to mock getElementById
+    const getElementByIdSpy = jest.spyOn(document, 'getElementById').mockReturnValue(mockProgressElement);
     
     // Call the function with test values
     file.updateProgressBar('test-id', 100, () => 25);
@@ -70,6 +71,9 @@ describe('File Utilities', () => {
     // Verify the progress was updated correctly
     expect(mockProgressElement.value).toBe(75); // (100-25)/100*100
     expect(mockProgressElement.innerHTML).toBe('75%');
+    
+    // Restore the original implementation
+    getElementByIdSpy.mockRestore();
   });
 
   test('readFile should process file correctly', () => {
