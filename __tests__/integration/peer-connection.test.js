@@ -10,12 +10,15 @@ describe('Peer Connection Integration', () => {
     document.body.innerHTML = `
       <div id="media"></div>
       <div id="output"></div>
+      <div id="participants"></div>
       <div id="config-overlay">
         <input id="stun-servers" value="stun:stun.l.google.com:19302">
         <input id="turn-server-v2" value="">
         <input id="turn-username" value="">
         <input id="turn-password" value="">
       </div>
+      <div id="toggle-controls"></div>
+      <div id="control" class="left-full"></div>
     `;
     
     // Create mock app object
@@ -40,11 +43,56 @@ describe('Peer Connection Integration', () => {
     
     // Mock log function
     global.log = jest.fn();
+    
+    // Mock getConfig function
+    global.getConfig = jest.fn().mockReturnValue({
+      'stun-servers': 'stun.l.google.com:19302',
+      'turn-server-v2': '',
+      'turn-username': '',
+      'turn-password': ''
+    });
+    
+    // Mock window
+    global.window = {
+      location: {
+        href: 'https://example.com',
+        origin: 'https://example.com',
+        pathname: '/',
+        host: 'example.com'
+      },
+      addEventListener: jest.fn()
+    };
+    
+    // Mock crypto
+    global.crypto = {
+      getRandomValues: jest.fn().mockReturnValue(new Uint8Array([1, 2, 3, 4])),
+      subtle: {
+        digest: jest.fn().mockResolvedValue(new ArrayBuffer(32))
+      }
+    };
+    
+    // Mock console
+    global.console = {
+      log: jest.fn(),
+      error: jest.fn()
+    };
+    
+    // Mock RTCPeerConnection
+    global.RTCPeerConnection = jest.fn().mockImplementation(() => ({
+      createDataChannel: jest.fn().mockReturnValue({
+        onopen: null,
+        onclose: null,
+        onerror: null,
+        onmessage: null,
+        send: jest.fn()
+      }),
+      close: jest.fn()
+    }));
   });
   
   test('sendNego should send data through negotiation channel', () => {
-    // Import the module
-    const main = require('../../js/main');
+    // Import the module - use require directly to avoid hoisting issues
+    const { sendNego } = require('../../js/main');
     
     // Create mock client with negotiation channel
     const client = {
@@ -54,7 +102,7 @@ describe('Peer Connection Integration', () => {
     };
     
     // Call sendNego
-    main.sendNego(client, { type: 'test' });
+    sendNego(client, { type: 'test' });
     
     // Check if send was called with correct data
     expect(client.nego_dc.send).toHaveBeenCalledWith(
@@ -63,8 +111,8 @@ describe('Peer Connection Integration', () => {
   });
   
   test('destroyClient should clean up client resources', () => {
-    // Import the module
-    const main = require('../../js/main');
+    // Import the module - use require directly to avoid hoisting issues
+    const { destroyClient } = require('../../js/main');
     
     // Create a mock client
     const mockInterval = setInterval(() => {}, 1000);
@@ -80,163 +128,15 @@ describe('Peer Connection Integration', () => {
     };
     
     // Call destroyClient
-    main.destroyClient('test-cid');
+    destroyClient('test-cid');
     
     // Check cleanup
     expect(app.clients['test-cid'].pc.close).toHaveBeenCalled();
   });
 });
-/**
- * @jest-environment jsdom
- */
+// This duplicate describe block has been removed
 
-describe('Peer Connection Integration', () => {
-  beforeEach(() => {
-    // Setup DOM mocks
-    document.getElementById = jest.fn().mockImplementation((id) => {
-      if (id === 'media' || id === 'output' || id === 'participants') {
-        return {
-          innerHTML: '',
-          appendChild: jest.fn(),
-          firstChild: { remove: jest.fn() }
-        };
-      }
-      return null;
-    });
-    
-    document.createElement = jest.fn().mockImplementation(() => ({
-      style: {},
-      classList: {
-        add: jest.fn()
-      },
-      appendChild: jest.fn()
-    }));
-    
-    document.createDocumentFragment = jest.fn().mockReturnValue({
-      appendChild: jest.fn()
-    });
-    
-    document.createTextNode = jest.fn();
-  });
+// This duplicate test has been removed
 
-  global.window = {
-    location: {
-      href: 'https://example.com',
-      origin: 'https://example.com',
-      pathname: '/',
-      host: 'example.com'
-    },
-    addEventListener: jest.fn()
-  };
-
-  global.RTCPeerConnection = jest.fn().mockImplementation(() => ({
-    createDataChannel: jest.fn().mockReturnValue({
-      onopen: null,
-      onclose: null,
-      onerror: null,
-      onmessage: null,
-      send: jest.fn()
-    }),
-    createOffer: jest.fn().mockResolvedValue({}),
-    createAnswer: jest.fn().mockResolvedValue({}),
-    setLocalDescription: jest.fn().mockResolvedValue(undefined),
-    setRemoteDescription: jest.fn().mockResolvedValue(undefined),
-    addIceCandidate: jest.fn().mockResolvedValue(undefined),
-    onicecandidate: null,
-    onconnectionstatechange: null,
-    oniceconnectionstatechange: null,
-    onnegotiationneeded: null,
-    close: jest.fn(),
-    getStats: jest.fn().mockResolvedValue(new Map()),
-    addTrack: jest.fn(),
-    addTransceiver: jest.fn(),
-    getTransceivers: jest.fn().mockReturnValue([]),
-    restartIce: jest.fn(),
-    signalingState: 'stable',
-    connectionState: 'new',
-    iceConnectionState: 'new'
-  }));
-
-  global.crypto = {
-    getRandomValues: jest.fn().mockReturnValue(new Uint8Array([1, 2, 3, 4])),
-    subtle: {
-      digest: jest.fn().mockResolvedValue(new ArrayBuffer(32))
-    }
-  };
-
-  global.console = {
-    log: jest.fn(),
-    error: jest.fn()
-  };
-
-  global.getConfig = jest.fn().mockReturnValue({
-    'stun-servers': 'stun.l.google.com:19302',
-    'turn-server-v2': '',
-    'turn-username': '',
-    'turn-password': ''
-  });
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    global.app = {
-      config: getConfig(),
-      clients: {},
-      cleanups: {},
-      nego_handlers: {},
-      nego_messages: {}
-    };
-  });
-
-  test('sendNego should send data through negotiation channel', () => {
-    // Import the main module
-    const mainModule = require('../../js/main.js');
-    
-    // Create a mock client
-    const mockClient = {
-      nego_dc: {
-        send: jest.fn()
-      }
-    };
-    
-    // Create test data
-    const testData = { type: 'test', value: 'test-value' };
-    
-    // Call the function
-    mainModule.sendNego(mockClient, testData);
-    
-    // Verify the data was sent
-    expect(mockClient.nego_dc.send).toHaveBeenCalledWith(expect.stringContaining('test-value'));
-    
-    // Verify the message ID was added
-    expect(JSON.parse(mockClient.nego_dc.send.mock.calls[0][0]).id).toBeDefined();
-  });
-
-  test('destroyClient should clean up client resources', () => {
-    // Import the main module
-    const mainModule = require('../../js/main.js');
-    
-    // Set up a test client
-    app.clients = {
-      'test-cid': {
-        pc: {
-          close: jest.fn()
-        },
-        nego_dc: {
-          onclose: null,
-          onmessage: null
-        },
-        _transceiver_interval: 123
-      }
-    };
-    
-    app.cleanups = {
-      test: jest.fn()
-    };
-    
-    // Call the function
-    mainModule.destroyClient('test-cid');
-    
-    // Verify the client was cleaned up
-    expect(app.clients['test-cid'].pc.close).toHaveBeenCalled();
-  });
+// This duplicate test has been removed
 });

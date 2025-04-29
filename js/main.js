@@ -1,16 +1,20 @@
-document.getElementById('toggle-controls').addEventListener('click', function () {
-    const controlsPanel = document.querySelector('#control');
-    const tc = document.getElementById('toggle-controls')
-    if (controlsPanel.classList.contains('left-full')) {
-        controlsPanel.classList.add('right-0');
-        controlsPanel.classList.remove('left-full');
-        tc.innerHTML = '&gt;';
-    } else {
-        controlsPanel.classList.remove('right-0');
-        controlsPanel.classList.add('left-full');
-        tc.innerHTML = '&lt;';
-    }
-});
+// Only attach event listener if element exists (for testing compatibility)
+const toggleControls = document.getElementById('toggle-controls');
+if (toggleControls) {
+    toggleControls.addEventListener('click', function () {
+        const controlsPanel = document.querySelector('#control');
+        const tc = document.getElementById('toggle-controls')
+        if (controlsPanel.classList.contains('left-full')) {
+            controlsPanel.classList.add('right-0');
+            controlsPanel.classList.remove('left-full');
+            tc.innerHTML = '&gt;';
+        } else {
+            controlsPanel.classList.remove('right-0');
+            controlsPanel.classList.add('left-full');
+            tc.innerHTML = '&lt;';
+        }
+    });
+}
 
 const vvals = ['static', 'relative', 'absolute', 'fixed', 'sticky'];
 let indda = 0;
