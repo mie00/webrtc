@@ -126,7 +126,7 @@ describe('Peer Connection Integration', () => {
         close: jest.fn()
       }
     };
-    
+
     // Call destroyClient
     destroyClient('test-cid');
     
