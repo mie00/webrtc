@@ -52,13 +52,17 @@ describe('Stream Management', () => {
       };
     }),
     createTextNode: jest.fn(),
-    querySelectorAll: jest.fn().mockReturnValue([]),
-    querySelector: jest.fn().mockReturnValue(null),
+    querySelectorAll: jest.fn(),
+    querySelector: jest.fn(),
     body: {
       appendChild: jest.fn()
     },
     onclick: null
   };
+  
+  // Set up mockReturnValueOnce for querySelectorAll
+  document.querySelectorAll.mockReturnValue([]);
+  document.querySelector.mockReturnValue(null);
 
   global.app = {
     clients: {
@@ -202,7 +206,7 @@ describe('Stream Management', () => {
           { remove: jest.fn() },
           { remove: jest.fn() }
         ];
-        document.querySelectorAll.mockReturnValueOnce(mockElements);
+        document.querySelectorAll.mockImplementationOnce(() => mockElements);
         
         // Call the handler
         app.nego_handlers['stream.end']({ stream: 'test-stream-id' }, 'test-client-id');
@@ -255,6 +259,11 @@ describe('Stream Management', () => {
         
         // Verify a media element was created
         expect(document.createElement).toHaveBeenCalledWith('video');
+        
+        // Mock the media element for the second error
+        document.getElementById.mockImplementationOnce(() => ({
+          appendChild: jest.fn()
+        }));
       } else {
         console.warn('setupTrackHandler function not found, skipping test');
       }
