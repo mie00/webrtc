@@ -126,8 +126,17 @@ describe('Peer Connection Integration', () => {
   });
   
   test('destroyClient should clean up client resources', () => {
-    // Import the module - use require directly to avoid hoisting issues
-    const { destroyClient } = require('../../js/main');
+    // Mock the DOM elements that main.js tries to access
+    document.body.innerHTML += `
+      <div id="reset"></div>
+      <div id="open-config"></div>
+      <div id="open-qr"></div>
+      <div id="hangup"></div>
+      <div id="diffs"></div>
+    `;
+    
+    // Import the module after setting up the DOM
+    const mainModule = require('../../js/main');
     
     // Create a mock client
     const mockInterval = setInterval(() => {}, 1000);
@@ -141,9 +150,9 @@ describe('Peer Connection Integration', () => {
         close: jest.fn()
       }
     };
-
+    
     // Call destroyClient
-    destroyClient('test-cid');
+    mainModule.destroyClient('test-cid');
     
     // Check cleanup
     expect(app.clients['test-cid'].pc.close).toHaveBeenCalled();
