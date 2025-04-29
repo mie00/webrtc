@@ -522,10 +522,17 @@ const copyHandler = async (ev) => {
         ev.target.innerHTML = "Clipboard unavailable, please copy manually";
     }
 }
-document.getElementById("copy-button").addEventListener("click", copyHandler);
+// Only attach event listener if element exists (for testing compatibility)
+const copyButton = document.getElementById("copy-button");
+if (copyButton) {
+    copyButton.addEventListener("click", copyHandler);
+}
 
 const acceptHandler = async (cid) => {
-    let data = document.getElementById('paste-text').value;
+    const pasteText = document.getElementById('paste-text');
+    if (!pasteText) return;
+    
+    let data = pasteText.value;
     const answer = await decompress(data.trim());
     app.clients[cid].pc.setRemoteDescription({
         type: "answer",
