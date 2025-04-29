@@ -1,6 +1,6 @@
 interface SelfieSegmentationOptions {
   modelSelection: number;
-  locateFile: (file: string) => string;
+  locateFile?: (file: string) => string;
 }
 
 declare class SelfieSegmentation {
@@ -20,16 +20,6 @@ declare class QRCode {
 
 // Add EMOJIS global variable used in main.js
 declare const EMOJIS: string[];
-interface SelfieSegmentationOptions {
-  modelSelection: number;
-}
-
-declare class SelfieSegmentation {
-  constructor(options: SelfieSegmentationOptions);
-  setOptions(options: { modelSelection: number }): void;
-  onResults(callback: (results: any) => void): void;
-  send(data: { image: HTMLVideoElement }): Promise<void>;
-}
 
 interface Client {
   pc: RTCPeerConnection;
