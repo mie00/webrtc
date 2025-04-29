@@ -93,6 +93,7 @@ describe('Main Application', () => {
     } else {
       document.body.appendChild = jest.fn();
     }
+  });
 
   global.window = {
     location: {

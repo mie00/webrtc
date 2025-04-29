@@ -40,7 +40,7 @@ describe('Stream Management', () => {
       }
       return null;
     });
-    
+
     document.createElement = jest.fn().mockImplementation((tag) => {
       return {
         srcObject: null,
@@ -57,11 +57,11 @@ describe('Stream Management', () => {
         appendChild: jest.fn()
       };
     });
-    
+
     document.createTextNode = jest.fn();
     document.querySelectorAll = jest.fn().mockReturnValue([]);
     document.querySelector = jest.fn().mockReturnValue(null);
-    
+
     if (!document.body) {
       Object.defineProperty(document, 'body', {
         value: { appendChild: jest.fn() },
@@ -70,7 +70,7 @@ describe('Stream Management', () => {
     } else {
       document.body.appendChild = jest.fn();
     }
-    
+
     document.onclick = null;
 
     // Setup global mocks
@@ -161,6 +161,7 @@ describe('Stream Management', () => {
       unpositioned: [],
       positioned: []
     });
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -170,30 +171,30 @@ describe('Stream Management', () => {
   test('normalizeStreamId should remove curly braces', () => {
     // Import the module in each test to ensure clean state
     const streamModule = require('../../js/stream.js');
-    
+
     // Test with curly braces
     expect(streamModule.normalizeStreamId('{test-id}')).toBe('test-id');
-    
+
     // Test without curly braces
     expect(streamModule.normalizeStreamId('test-id')).toBe('test-id');
   });
 
   test('getStreamElemId should return correct element ID', () => {
     const streamModule = require('../../js/stream.js');
-    
+
     // Test with a stream ID
     expect(streamModule.getStreamElemId('test-id')).toBe('stream-test-id');
-    
+
     // Test with curly braces
     expect(streamModule.getStreamElemId('{test-id}')).toBe('stream-test-id');
   });
 
   test('stream.end handler should remove elements and clean up', () => {
     const streamModule = require('../../js/stream.js');
-    
+
     // Initialize the stream module
     streamModule.streamInit(app);
-    
+
     // Mock document.querySelectorAll to return elements
     const mockElements = [
       { remove: jest.fn() },
@@ -203,19 +204,19 @@ describe('Stream Management', () => {
 
     // Call the handler
     app.nego_handlers['stream.end']({ stream: 'test-stream-id' }, 'test-client-id');
-    
+
     // Verify elements were removed
     expect(document.querySelectorAll).toHaveBeenCalledWith('.stream-test-stream-id');
     expect(mockElements[0].remove).toHaveBeenCalled();
     expect(mockElements[1].remove).toHaveBeenCalled();
-    
+
     // Verify the stream was removed from viewStreams
     expect(app.viewStreams['test-stream-id']).toBeUndefined();
   });
 
   test('setupTrackHandler should handle incoming tracks', async () => {
     const streamModule = require('../../js/stream.js');
-    
+
     // Create a mock media element
     const mockMediaElement = {
       srcObject: null,
@@ -228,40 +229,40 @@ describe('Stream Management', () => {
       playsInline: false,
       play: jest.fn().mockResolvedValue(undefined)
     };
-    
+
     // Ensure media container exists
     document.getElementById.mockReturnValueOnce({
       appendChild: jest.fn()
     });
-    
+
     document.createElement.mockReturnValueOnce(mockMediaElement);
-    
+
     // Call the function
     streamModule.setupTrackHandler(app, 'test-client-id');
-    
+
     // Get the event listener
     const trackListener = app.clients['test-client-id'].pc.addEventListener.mock.calls.find(
       call => call[0] === 'track'
     )[1];
-    
+
     // Create a mock track event
     const mockTrack = {
       kind: 'video',
       id: 'track-id',
       onended: null
     };
-    
+
     const mockStream = {
       id: '{test-stream-id}',
       getTracks: jest.fn().mockReturnValue([mockTrack])
     };
-    
+
     // Call the listener
     await trackListener({ streams: [mockStream], track: mockTrack });
-    
+
     // Verify the stream was added to viewStreams
     expect(app.viewStreams['test-stream-id']).toBe(mockStream);
-    
+
     // Verify a media element was created
     expect(document.createElement).toHaveBeenCalledWith('video');
   });

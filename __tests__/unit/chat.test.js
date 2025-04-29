@@ -10,6 +10,7 @@ describe('Chat Functionality', () => {
       onkeydown: null,
       select: jest.fn()
     });
+  });
 
   global.app = {
     clients: {

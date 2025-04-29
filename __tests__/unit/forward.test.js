@@ -34,6 +34,7 @@ describe('Forward Channel', () => {
         innerHTML: ''
       };
     });
+  });
 
   global.app = {
     clients: {

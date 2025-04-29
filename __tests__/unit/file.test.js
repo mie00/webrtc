@@ -22,6 +22,7 @@ describe('File Utilities', () => {
     });
     
     document.createTextNode = jest.fn();
+  });
 
   global.app = {
     clients: {
