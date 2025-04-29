@@ -146,11 +146,11 @@ const setupTrack = (track, stream, priority, contentHint, simulcast) => {
             client.pc.addTransceiver(track, {
                 streams: [stream], sendEncodings: [
                     { priority: priority, rid: "o" },
-                    ...(simulcast?[
+                    ...(simulcast ? [
                         { priority: priority, rid: "h", maxBitrate: 1200 * 1024 },
                         { priority: priority, rid: "m", maxBitrate: 600 * 1024, scaleResolutionDownBy: 2 },
                         { priority: priority, rid: "l", maxBitrate: 300 * 1024, scaleResolutionDownBy: 4 },
-                    ]:[])
+                    ] : [])
                 ],
                 direction: "sendrecv",
             });
@@ -446,150 +446,152 @@ if (toggleAudioContextMenu) {
         }
 
         devices.forEach((device) => {
-        const li = document.createElement('li');
-        li.classList.add('cursor-pointer', 'bg-white', 'dark:bg-gray-800', 'hover:bg-gray-200', 'transition-all', 'ease-linear', 'dark:hover:bg-gray-800/50', 'p-4', 'w-full', 'h-full', 'text-gray-800', 'dark:text-gray-200');
-        li.appendChild(document.createTextNode(device.label));
-        // Append the new list item to the ul with id ul-contextmenu
-        if (ul) {
-            ul.appendChild(li);
-        }
-        li.addEventListener('click', async () => {
-            menu.classList.add('hidden');
-            app.streamConfig.audio = true;
-            setButton(ev.target, app.streamConfig.audio);
-            setConfig('audio-device', `${device.groupId}|${device.deviceId}`);
-            await setupLocalStream('audio');
-        });
-    })
-});
-
-
-const toggleVideoContextMenu = document.getElementById('toggle-video');
-if (toggleVideoContextMenu) {
-    toggleVideoContextMenu.addEventListener('contextmenu', async (ev) => {
-        ev.preventDefault();
-        const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === 'videoinput');
-        if (devices.length < 1) {
-            alert("no devices found");
-            return
-        }
-        const menu = document.getElementById('contextMenu');
-        menu.style.display = 'block';
-        const menuWidth = menu.offsetWidth;
-        const menuHeight = menu.offsetHeight;
-        menu.style.display = '';
-
-        // Determine position for the menu
-        let posX = ev.pageX;
-        let posY = ev.pageY;
-
-        // Check if the menu goes beyond the right edge of the window
-        if (posX + menuWidth > window.innerWidth) {
-            posX = window.innerWidth - menuWidth;
-        }
-
-        // Check if the menu goes beyond the bottom edge of the window
-        if (posY + menuHeight > window.innerHeight) {
-            posY = window.innerHeight - menuHeight;
-        }
-
-        // Set the position of the menu
-        menu.style.left = posX + 'px';
-        menu.style.top = posY + 'px';
-
-        menu.classList.remove('hidden');
-        const ul = document.getElementById('ul-contextMenu');
-        while (ul.firstChild) {
-            ul.removeChild(ul.firstChild);
-        }
-
-        devices.forEach((device) => {
-        const li = document.createElement('li');
-        li.classList.add('cursor-pointer', 'bg-white', 'dark:bg-gray-800', 'hover:bg-gray-200', 'transition-all', 'ease-linear', 'dark:hover:bg-gray-800/50', 'p-4', 'w-full', 'h-full', 'text-gray-800', 'dark:text-gray-200');
-        li.appendChild(document.createTextNode(device.label));
-        // Append the new list item to the ul with id ul-contextmenu
-        if (ul) {
-            ul.appendChild(li);
-        }
-        li.addEventListener('click', async () => {
-            menu.classList.add('hidden');
-            app.streamConfig.video = true;
-            setButton(ev.target, app.streamConfig.video);
-            setConfig('video-device', `${device.groupId}|${device.deviceId}`);
-            await setupLocalStream('video');
-        });
-    })
-});
-
-if (typeof document !== 'undefined') {
-    document.onclick = function (event) {
-        const menu = document.getElementById('contextMenu');
-        if (menu && !menu.contains(event.target)) {
-            menu.classList.add('hidden');
-        }
-    };
-}
-
-// Export functions for testing
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        normalizeStreamId,
-        getStreamElemId,
-        streamInit,
-        setupTrackHandler,
-        processAudio,
-        stopProcessingAudio,
-        tearDownStream,
-        setupTrack,
-        setupStream,
-        setupLocalStream,
-        getStreamsDims,
-        refreshStreamViews,
-        createStreamElement
-    };
-}
-
-const shareVideoButton = document.getElementById('share-video');
-if (shareVideoButton) {
-    shareVideoButton.addEventListener('click', async (ev) => {
-        if (app.streamConfig.local) {
-            app.streamConfig.videoNode.src = '';
-            app.streamConfig.videoNode = null;
-            app.streamConfig.local = false;
-            setButton(ev.target, app.streamConfig.local);
-            await setupLocalStream('local');
-            const uploadVideo = document.getElementById('upload-video');
-            if (uploadVideo) {
-                uploadVideo.value = null;
+            const li = document.createElement('li');
+            li.classList.add('cursor-pointer', 'bg-white', 'dark:bg-gray-800', 'hover:bg-gray-200', 'transition-all', 'ease-linear', 'dark:hover:bg-gray-800/50', 'p-4', 'w-full', 'h-full', 'text-gray-800', 'dark:text-gray-200');
+            li.appendChild(document.createTextNode(device.label));
+            // Append the new list item to the ul with id ul-contextmenu
+            if (ul) {
+                ul.appendChild(li);
             }
-        } else {
-            const uploadVideo = document.getElementById('upload-video');
-            if (uploadVideo) {
-                uploadVideo.click();
+            li.addEventListener('click', async () => {
+                menu.classList.add('hidden');
+                app.streamConfig.audio = true;
+                setButton(ev.target, app.streamConfig.audio);
+                setConfig('audio-device', `${device.groupId}|${device.deviceId}`);
+                await setupLocalStream('audio');
+            });
+        })
+    });
+
+
+    const toggleVideoContextMenu = document.getElementById('toggle-video');
+    if (toggleVideoContextMenu) {
+        toggleVideoContextMenu.addEventListener('contextmenu', async (ev) => {
+            ev.preventDefault();
+            const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === 'videoinput');
+            if (devices.length < 1) {
+                alert("no devices found");
+                return
             }
-        }
-    });
-}
+            const menu = document.getElementById('contextMenu');
+            menu.style.display = 'block';
+            const menuWidth = menu.offsetWidth;
+            const menuHeight = menu.offsetHeight;
+            menu.style.display = '';
 
-const uploadVideoInput = document.getElementById('upload-video');
-if (uploadVideoInput) {
-    uploadVideoInput.addEventListener('change', async (ev) => {
-        const file = ev.target.files[0];
-        const fileURL = URL.createObjectURL(file);
+            // Determine position for the menu
+            let posX = ev.pageX;
+            let posY = ev.pageY;
 
-        const videoNode = document.createElement('video');
-        videoNode.src = fileURL;
-        videoNode.autoplay = true;
-        videoNode.controls = false;
-        videoNode.loop = true;
-        app.streamConfig.videoNode = videoNode;
-        app.streamConfig.videoStream = videoNode.captureStream ? videoNode.captureStream() : videoNode.mozCaptureStream();
-        app.streamConfig.local = !app.streamConfig.local;
-        
-        const shareVideoBtn = document.getElementById('share-video');
-        if (shareVideoBtn) {
-            setButton(shareVideoBtn, app.streamConfig.local);
+            // Check if the menu goes beyond the right edge of the window
+            if (posX + menuWidth > window.innerWidth) {
+                posX = window.innerWidth - menuWidth;
+            }
+
+            // Check if the menu goes beyond the bottom edge of the window
+            if (posY + menuHeight > window.innerHeight) {
+                posY = window.innerHeight - menuHeight;
+            }
+
+            // Set the position of the menu
+            menu.style.left = posX + 'px';
+            menu.style.top = posY + 'px';
+
+            menu.classList.remove('hidden');
+            const ul = document.getElementById('ul-contextMenu');
+            while (ul.firstChild) {
+                ul.removeChild(ul.firstChild);
+            }
+
+            devices.forEach((device) => {
+                const li = document.createElement('li');
+                li.classList.add('cursor-pointer', 'bg-white', 'dark:bg-gray-800', 'hover:bg-gray-200', 'transition-all', 'ease-linear', 'dark:hover:bg-gray-800/50', 'p-4', 'w-full', 'h-full', 'text-gray-800', 'dark:text-gray-200');
+                li.appendChild(document.createTextNode(device.label));
+                // Append the new list item to the ul with id ul-contextmenu
+                if (ul) {
+                    ul.appendChild(li);
+                }
+                li.addEventListener('click', async () => {
+                    menu.classList.add('hidden');
+                    app.streamConfig.video = true;
+                    setButton(ev.target, app.streamConfig.video);
+                    setConfig('video-device', `${device.groupId}|${device.deviceId}`);
+                    await setupLocalStream('video');
+                });
+            })
+        });
+
+        if (typeof document !== 'undefined') {
+            document.onclick = function (event) {
+                const menu = document.getElementById('contextMenu');
+                if (menu && !menu.contains(event.target)) {
+                    menu.classList.add('hidden');
+                }
+            };
         }
-        await setupLocalStream('local');
-    });
+
+        // Export functions for testing
+        if (typeof module !== 'undefined' && module.exports) {
+            module.exports = {
+                normalizeStreamId,
+                getStreamElemId,
+                streamInit,
+                setupTrackHandler,
+                processAudio,
+                stopProcessingAudio,
+                tearDownStream,
+                setupTrack,
+                setupStream,
+                setupLocalStream,
+                getStreamsDims,
+                refreshStreamViews,
+                createStreamElement
+            };
+        }
+
+        const shareVideoButton = document.getElementById('share-video');
+        if (shareVideoButton) {
+            shareVideoButton.addEventListener('click', async (ev) => {
+                if (app.streamConfig.local) {
+                    app.streamConfig.videoNode.src = '';
+                    app.streamConfig.videoNode = null;
+                    app.streamConfig.local = false;
+                    setButton(ev.target, app.streamConfig.local);
+                    await setupLocalStream('local');
+                    const uploadVideo = document.getElementById('upload-video');
+                    if (uploadVideo) {
+                        uploadVideo.value = null;
+                    }
+                } else {
+                    const uploadVideo = document.getElementById('upload-video');
+                    if (uploadVideo) {
+                        uploadVideo.click();
+                    }
+                }
+            });
+        }
+
+        const uploadVideoInput = document.getElementById('upload-video');
+        if (uploadVideoInput) {
+            uploadVideoInput.addEventListener('change', async (ev) => {
+                const file = ev.target.files[0];
+                const fileURL = URL.createObjectURL(file);
+
+                const videoNode = document.createElement('video');
+                videoNode.src = fileURL;
+                videoNode.autoplay = true;
+                videoNode.controls = false;
+                videoNode.loop = true;
+                app.streamConfig.videoNode = videoNode;
+                app.streamConfig.videoStream = videoNode.captureStream ? videoNode.captureStream() : videoNode.mozCaptureStream();
+                app.streamConfig.local = !app.streamConfig.local;
+
+                const shareVideoBtn = document.getElementById('share-video');
+                if (shareVideoBtn) {
+                    setButton(shareVideoBtn, app.streamConfig.local);
+                }
+                await setupLocalStream('local');
+            });
+        }
+    }
 }
