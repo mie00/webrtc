@@ -43,63 +43,47 @@ describe('Peer Connection Integration', () => {
   });
   
   test('sendNego should send data through negotiation channel', () => {
-    // Import the module if possible
-    try {
-      const main = require('../../js/main');
-      
-      if (main.sendNego) {
-        // Create mock client with negotiation channel
-        const client = {
-          nego_dc: {
-            send: jest.fn()
-          }
-        };
-        
-        // Call sendNego
-        main.sendNego(client, { type: 'test' });
-        
-        // Check if send was called with correct data
-        expect(client.nego_dc.send).toHaveBeenCalledWith(
-          expect.stringContaining('"type":"test"')
-        );
-      } else {
-        console.warn('sendNego function not found, skipping test');
+    // Import the module
+    const main = require('../../js/main');
+    
+    // Create mock client with negotiation channel
+    const client = {
+      nego_dc: {
+        send: jest.fn()
       }
-    } catch (e) {
-      console.warn('Could not import main.js, skipping test:', e.message);
-    }
+    };
+    
+    // Call sendNego
+    main.sendNego(client, { type: 'test' });
+    
+    // Check if send was called with correct data
+    expect(client.nego_dc.send).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"test"')
+    );
   });
   
   test('destroyClient should clean up client resources', () => {
-    // Import the module if possible
-    try {
-      const main = require('../../js/main');
-      
-      if (main.destroyClient) {
-        // Create a mock client
-        const mockInterval = setInterval(() => {}, 1000);
-        app.clients['test-cid'] = {
-          nego_dc: {
-            onclose: null,
-            onmessage: null
-          },
-          _transceiver_interval: mockInterval,
-          pc: {
-            close: jest.fn()
-          }
-        };
-        
-        // Call destroyClient
-        main.destroyClient('test-cid');
-        
-        // Check cleanup
-        expect(app.clients['test-cid'].pc.close).toHaveBeenCalled();
-      } else {
-        console.warn('destroyClient function not found, skipping test');
+    // Import the module
+    const main = require('../../js/main');
+    
+    // Create a mock client
+    const mockInterval = setInterval(() => {}, 1000);
+    app.clients['test-cid'] = {
+      nego_dc: {
+        onclose: null,
+        onmessage: null
+      },
+      _transceiver_interval: mockInterval,
+      pc: {
+        close: jest.fn()
       }
-    } catch (e) {
-      console.warn('Could not import main.js, skipping test:', e.message);
-    }
+    };
+    
+    // Call destroyClient
+    main.destroyClient('test-cid');
+    
+    // Check cleanup
+    expect(app.clients['test-cid'].pc.close).toHaveBeenCalled();
   });
 });
 /**
@@ -204,71 +188,55 @@ describe('Peer Connection Integration', () => {
   });
 
   test('sendNego should send data through negotiation channel', () => {
-    try {
-      // Import the main module
-      const mainModule = require('../../js/main.js');
-      
-      if (typeof mainModule.sendNego === 'function') {
-        // Create a mock client
-        const mockClient = {
-          nego_dc: {
-            send: jest.fn()
-          }
-        };
-        
-        // Create test data
-        const testData = { type: 'test', value: 'test-value' };
-        
-        // Call the function
-        mainModule.sendNego(mockClient, testData);
-        
-        // Verify the data was sent
-        expect(mockClient.nego_dc.send).toHaveBeenCalledWith(expect.stringContaining('test-value'));
-        
-        // Verify the message ID was added
-        expect(JSON.parse(mockClient.nego_dc.send.mock.calls[0][0]).id).toBeDefined();
-      } else {
-        console.warn('Could not import main.js, skipping test:', 'sendNego function not found');
+    // Import the main module
+    const mainModule = require('../../js/main.js');
+    
+    // Create a mock client
+    const mockClient = {
+      nego_dc: {
+        send: jest.fn()
       }
-    } catch (e) {
-      console.warn('Could not import main.js, skipping test:', e.message);
-    }
+    };
+    
+    // Create test data
+    const testData = { type: 'test', value: 'test-value' };
+    
+    // Call the function
+    mainModule.sendNego(mockClient, testData);
+    
+    // Verify the data was sent
+    expect(mockClient.nego_dc.send).toHaveBeenCalledWith(expect.stringContaining('test-value'));
+    
+    // Verify the message ID was added
+    expect(JSON.parse(mockClient.nego_dc.send.mock.calls[0][0]).id).toBeDefined();
   });
 
   test('destroyClient should clean up client resources', () => {
-    try {
-      // Import the main module
-      const mainModule = require('../../js/main.js');
-      
-      if (typeof mainModule.destroyClient === 'function') {
-        // Set up a test client
-        app.clients = {
-          'test-cid': {
-            pc: {
-              close: jest.fn()
-            },
-            nego_dc: {
-              onclose: null,
-              onmessage: null
-            },
-            _transceiver_interval: 123
-          }
-        };
-        
-        app.cleanups = {
-          test: jest.fn()
-        };
-        
-        // Call the function
-        mainModule.destroyClient('test-cid');
-        
-        // Verify the client was cleaned up
-        expect(app.clients['test-cid'].pc.close).toHaveBeenCalled();
-      } else {
-        console.warn('destroyClient function not found, skipping test');
+    // Import the main module
+    const mainModule = require('../../js/main.js');
+    
+    // Set up a test client
+    app.clients = {
+      'test-cid': {
+        pc: {
+          close: jest.fn()
+        },
+        nego_dc: {
+          onclose: null,
+          onmessage: null
+        },
+        _transceiver_interval: 123
       }
-    } catch (e) {
-      console.warn('Could not import main.js, skipping test:', e.message);
-    }
+    };
+    
+    app.cleanups = {
+      test: jest.fn()
+    };
+    
+    // Call the function
+    mainModule.destroyClient('test-cid');
+    
+    // Verify the client was cleaned up
+    expect(app.clients['test-cid'].pc.close).toHaveBeenCalled();
   });
 });
