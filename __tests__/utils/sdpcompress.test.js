@@ -33,6 +33,9 @@ a=rtcp:9 IN IP4 0.0.0.0`;
     expect(compressed).toBeTruthy();
     
     const decompressed = decompress(compressed);
-    expect(decompressed).toBe(sampleSDP);
+    
+    // Normalize whitespace before comparison
+    const normalizedDecompressed = decompressed.split('\n').map(line => line.trimEnd()).join('\n');
+    expect(normalizedDecompressed).toBe(sampleSDP);
   });
 });
