@@ -411,11 +411,11 @@ if (toggleAudioContextMenu) {
     toggleAudioContextMenu.addEventListener('contextmenu', async (ev) => {
         ev.preventDefault();
         const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === 'audioinput');
-    if (devices.length < 1) {
-        alert("no devices found");
-        return
-    }
-    const menu = document.getElementById('contextMenu');
+        if (devices.length < 1) {
+            alert("no devices found");
+            return
+        }
+        const menu = document.getElementById('contextMenu');
     menu.style.display = 'block';
     const menuWidth = menu.offsetWidth;
     const menuHeight = menu.offsetHeight;
@@ -469,11 +469,11 @@ if (toggleVideoContextMenu) {
     toggleVideoContextMenu.addEventListener('contextmenu', async (ev) => {
         ev.preventDefault();
         const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === 'videoinput');
-    if (devices.length < 1) {
-        alert("no devices found");
-        return
-    }
-    const menu = document.getElementById('contextMenu');
+        if (devices.length < 1) {
+            alert("no devices found");
+            return
+        }
+        const menu = document.getElementById('contextMenu');
     menu.style.display = 'block';
     const menuWidth = menu.offsetWidth;
     const menuHeight = menu.offsetHeight;
