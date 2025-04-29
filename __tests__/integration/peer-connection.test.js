@@ -133,6 +133,7 @@ describe('Peer Connection Integration', () => {
     });
     
     document.createTextNode = jest.fn();
+  });
 
   global.window = {
     location: {
