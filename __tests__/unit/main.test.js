@@ -233,6 +233,12 @@ describe('Main Application', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset the app object for each test
+    global.app = undefined;
+  });
+
+  test('sendNego should send data through negotiation channel', () => {
+    // Set up the global app object before requiring the module
     global.app = {
       config: getConfig(),
       clients: {},
@@ -241,9 +247,7 @@ describe('Main Application', () => {
       nego_messages: {},
       sids: {}
     };
-  });
-
-  test('sendNego should send data through negotiation channel', () => {
+    
     const mainModule = require('../../js/main.js');
     
     // Create a mock client
@@ -267,33 +271,38 @@ describe('Main Application', () => {
   });
 
   test('destroyClient should clean up client resources', () => {
-    const mainModule = require('../../js/main.js');
-    
-    // Set up a test client
-    app.clients = {
-      'test-cid': {
-        pc: {
-          close: jest.fn()
+    // Set up the global app object before requiring the module
+    global.app = {
+      config: getConfig(),
+      clients: {
+        'test-cid': {
+          pc: {
+            close: jest.fn()
+          },
+          nego_dc: {
+            onclose: null,
+            onmessage: null
+          },
+          _transceiver_interval: 123
         },
-        nego_dc: {
-          onclose: null,
-          onmessage: null
-        },
-        _transceiver_interval: 123
-      },
-      'other-cid': {
-        pc: {
-          close: jest.fn()
-        },
-        nego_dc: {
-          send: jest.fn()
+        'other-cid': {
+          pc: {
+            close: jest.fn()
+          },
+          nego_dc: {
+            send: jest.fn()
+          }
         }
+      },
+      cleanups: {
+        test: jest.fn()
       }
     };
     
-    app.cleanups = {
-      test: jest.fn()
-    };
+    // Mock the sendNego function to avoid dependency issues
+    global.sendNego = jest.fn();
+    
+    const mainModule = require('../../js/main.js');
     
     // Call the function
     mainModule.destroyClient('test-cid');
@@ -316,6 +325,11 @@ describe('Main Application', () => {
   });
 
   test('init should set up the application state', async () => {
+    // Set up the global app object before requiring the module
+    global.app = {
+      config: getConfig()
+    };
+    
     const mainModule = require('../../js/main.js');
     
     // Mock the streamInit and forwardInit functions

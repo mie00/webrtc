@@ -692,6 +692,8 @@ if (typeof module !== 'undefined' && module.exports) {
         sha256,
         genEmojis,
         handleChange,
-        logDiff
+        logDiff,
+        // Export the app object for testing
+        _getApp: () => app
     };
 }
