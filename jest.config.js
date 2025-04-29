@@ -1,5 +1,5 @@
 module.exports = {
-  preset: 'ts-jest',
+  preset: 'ts-jest/presets/js-with-babel',
   testEnvironment: 'jsdom',
   moduleFileExtensions: ['ts', 'js'],
   transform: {
@@ -8,4 +8,9 @@ module.exports = {
   },
   testMatch: ['**/__tests__/**/*.test.(js|ts)'],
   setupFiles: ['./jest.setup.js'],
+  globals: {
+    'ts-jest': {
+      isolatedModules: true
+    }
+  }
 };
