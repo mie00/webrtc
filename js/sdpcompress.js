@@ -134,9 +134,6 @@ function lastMatch(arr) {
 function compress_line(line) {
     const matches = regexes.map(regex => line.match(regex))
     const match = lastMatch(matches);
-    if (match === -1) {
-        return new Uint8Array(0);
-    }
     const arr = concatTypedArraysMulti(new Uint8Array([match]), ...(zip(matches[match].slice(1), variables[match]).map(encodeField)));
     return arr
 }

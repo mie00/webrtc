@@ -66,7 +66,7 @@ describe('Stream Management', () => {
     app.viewStreams['test-id'] = {};
     
     // Trigger stream.end handler
-    app.nego_handlers['stream.end']({ stream: '{test-id}' }, 'client1');
+    app.nego_handlers['stream.end']({ stream: 'test-id' }, 'client1');
     
     // Check cleanup
     expect(app.viewStreams['test-id']).toBeUndefined();
