@@ -1,3 +1,4 @@
+/// <reference lib="webworker" />
 
 // Define interfaces for the service worker
 interface ServiceWorkerHandlers {
@@ -8,25 +9,23 @@ interface ServiceWorkerClientIds {
   [clientId: string]: string;
 }
 
-// Extend the ServiceWorkerGlobalScope interface instead of redeclaring self
-declare global {
-  interface ServiceWorkerGlobalScope {
-    handlers: ServiceWorkerHandlers;
-    counter: number;
-    host?: string;
-    clientId?: string;
-    client_ids?: ServiceWorkerClientIds;
-    recordingHandler?: ((data: ArrayBuffer | null) => void) | null;
-  }
-}
+// Add properties to ServiceWorkerGlobalScope
+declare var self: ServiceWorkerGlobalScope & {
+  handlers: ServiceWorkerHandlers;
+  counter: number;
+  host?: string;
+  clientId?: string;
+  client_ids?: ServiceWorkerClientIds;
+  recordingHandler?: ((data: ArrayBuffer | null) => void) | null;
+};
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', (event: ExtendableEvent) => {
     console.log('Service Worker installing.');
     // Force the waiting service worker to become the active service worker
     event.waitUntil(self.skipWaiting());
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', (event: ExtendableEvent) => {
     console.log('Service Worker activating.');
     // Claim any clients immediately, so that the service worker takes control
     self.handlers = {};
@@ -161,14 +160,14 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     event.respondWith(resp);
 });
 
-self.addEventListener('message', function (event: ExtendableMessageEvent) {
+self.addEventListener('message', function(event: ExtendableMessageEvent) {
     console.log('got message from window', event);
     if (!event.data || !event.data.type) return;
     
     switch (event.data.type) {
         case 'host':
             self.host = event.data.host;
-            self.clientId = event.source?.id;
+            self.clientId = event.source && 'id' in event.source ? (event.source as Client).id : undefined;
             break;
         case 'response':
             if (self.handlers[event.data.id]) {
