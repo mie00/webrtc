@@ -1,5 +1,11 @@
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import adapter from '@sveltejs/adapter-static';
+import { performance } from 'perf_hooks';
+
+// Add performance polyfill for Node.js environment
+if (typeof global !== 'undefined' && !global.performance) {
+  global.performance = performance;
+}
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
