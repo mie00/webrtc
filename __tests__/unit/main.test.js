@@ -313,7 +313,7 @@ describe('Main Application', () => {
     
     // Verify the client was cleaned up
     expect(global.clearInterval).toHaveBeenCalledWith(123);
-    expect(app.clients['test-cid'].pc.close).toHaveBeenCalled();
+    expect(clientObj.pc.close).toHaveBeenCalled();
     
     // Verify all fields are properly cleaned up
     expect(clientObj.pc).toBeNull();
