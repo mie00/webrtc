@@ -5,11 +5,6 @@ interface NegoMessage {
   [key: string]: any;
 }
 
-interface ClientInitOptions {
-  sid: string;
-  offer?: string;
-}
-
 export class WebRTCApp {
   private app: App = {
     clients: {},
