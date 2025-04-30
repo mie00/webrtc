@@ -14,7 +14,7 @@ interface StreamDimension {
 async function getStreamsDims(): Promise<StreamDimension[]> {
   // This function is called but not defined in the original file
   // Assuming it returns an array of stream dimensions
-  return Object.entries(app.viewStreams || {}).map(([key, stream]) => {
+  return Object.entries(window.app.viewStreams || {}).map(([key, stream]) => {
     const videoTrack = stream.getVideoTracks()[0];
     if (!videoTrack) {
       return { key };
@@ -32,7 +32,7 @@ async function setupStreams(merger: any): Promise<void> {
   const streams = (await getStreamsDims()).filter(({ width, height }) => width && height);
   const videoStreamsLength = streams.length;
   
-  for (let [key, value] of Object.entries(app.viewStreams || {})) {
+  for (let [key, value] of Object.entries(window.app.viewStreams || {})) {
     if (value.getVideoTracks().length === 0) {
       streams.push({ key });
     }
@@ -56,13 +56,13 @@ async function setupStreams(merger: any): Promise<void> {
   let videoStreamIndex = 0;
   for (var i = 0; i < streams.length; i++) {
     if (!streams[i].width) {
-      merger.addStream(app.viewStreams?.[streams[i].key], {
+      merger.addStream(window.app.viewStreams?.[streams[i].key], {
         mute: false,
       });
     } else {
       const nw = streams[i].width! * FH / cols / streams[i].height!;
       const scale = nw <= FW / rows ? FH / cols / streams[i].height! : FW / rows / streams[i].width!;
-      merger.addStream(app.viewStreams?.[streams[i].key], {
+      merger.addStream(window.app.viewStreams?.[streams[i].key], {
         x: (videoStreamIndex % cols) * FW / cols,
         y: Math.floor(videoStreamIndex / cols) * FH / rows,
         width: scale * streams[i].width!,
@@ -76,8 +76,8 @@ async function setupStreams(merger: any): Promise<void> {
 
 async function startRecording(): Promise<void> {
   var merger = new (window as any).VideoStreamMerger();
-  app.recorder = setInterval(setupStreams.bind(null, merger), 1000);
-  app.merger = merger;
+  window.app.recorder = setInterval(setupStreams.bind(null, merger), 1000);
+  window.app.merger = merger;
   merger.setOutputSize(FW, FH);
 
   await setupStreams(merger);
@@ -86,14 +86,14 @@ async function startRecording(): Promise<void> {
 
   const result = merger.result;
   if (false) { // for debugging only
-    app.viewStreams = app.viewStreams || {};
-    app.viewStreams[result.id] = result;
+    window.app.viewStreams = window.app.viewStreams || {};
+    window.app.viewStreams[result.id] = result;
     await createStreamElement(result, 'video', { muted: false, controls: true });
   }
 
   const options = { mimeType: "video/webm; codecs=vp9" };
   const mediaRecorder = new MediaRecorder(result, options);
-  app.mediaRecorder = mediaRecorder;
+  window.app.mediaRecorder = mediaRecorder;
 
   mediaRecorder.ondataavailable = async (ev: BlobEvent) => {
     if (ev.data.size > 0) {
@@ -118,19 +118,19 @@ async function startRecording(): Promise<void> {
 }
 
 function stopRecording(): void {
-  if (app.mediaRecorder) {
-    app.mediaRecorder.stop();
-    app.mediaRecorder = null;
+  if (window.app.mediaRecorder) {
+    window.app.mediaRecorder.stop();
+    window.app.mediaRecorder = null;
   }
   
-  if (app.merger) {
-    app.merger.destroy();
-    app.merger = null;
+  if (window.app.merger) {
+    window.app.merger.destroy();
+    window.app.merger = null;
   }
   
-  if (app.recorder) {
-    clearInterval(app.recorder);
-    app.recorder = null;
+  if (window.app.recorder) {
+    clearInterval(window.app.recorder);
+    window.app.recorder = null;
   }
   
   recordButton.classList.remove('bg-red');
@@ -145,12 +145,12 @@ function setButton(button: HTMLElement, active: boolean): void {
 }
 
 recordButton.addEventListener('click', () => {
-  if (app.recorder) {
+  if (window.app.recorder) {
     stopRecording();
   } else {
     startRecording();
   }
-  setButton(recordButton, !!app.recorder);
+  setButton(recordButton, !!window.app.recorder);
 });
 
 // Declare the createStreamElement function that's used but not defined in the original file
