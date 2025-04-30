@@ -182,6 +182,8 @@ export class WebRTCApp {
     this.app.nego_messages = {};
 
     // Initialize other modules
+    // Import dynamically to avoid circular dependencies
+    const { streamInit } = await import('../src/lib/streamBridge');
     streamInit(this.app);
     forwardInit(this.app);
   }
@@ -266,6 +268,8 @@ export class WebRTCApp {
       });
     };
 
+    // Import dynamically to avoid circular dependencies
+    const { setupTrackHandler } = await import('../src/lib/streamBridge');
     setupTrackHandler(this.app, cid);
     setupChatChannel(this.app, cid);
     setupFileChannel(this.app, cid);

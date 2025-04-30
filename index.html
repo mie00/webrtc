@@ -35,5 +35,17 @@
 	
 	<!-- Main app entry point -->
 	<script type="module" src="/src/main.ts"></script>
+	
+	<!-- Global app object for backward compatibility -->
+	<script>
+		window.app = window.app || {
+			clients: {},
+			nego_handlers: {},
+			cleanups: {},
+			streams: {},
+			viewStreams: {},
+			config: {}
+		};
+	</script>
 </body>
 </html>

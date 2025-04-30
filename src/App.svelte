@@ -6,6 +6,7 @@
   import ConfigOverlay from './components/ConfigOverlay.svelte';
   import ContextMenu from './components/ContextMenu.svelte';
   import { configStore, getAllConfig } from './stores/configStore';
+  import { streamStore } from './stores/streamStore';
   import { compress, decompress } from '../js/sdpcompress.js';
   
   // Props

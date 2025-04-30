@@ -1,42 +1,80 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+  import { streamStore, updateStreamConfig } from '../stores/streamStore';
+  import { setupLocalStream, refreshStreamViews, setButton } from '../lib/streamBridge';
   
   // Props
   export let webRTCApp;
   
   const dispatch = createEventDispatcher();
   
+  // References to DOM elements
+  let mediaContainer: HTMLElement;
+  let refreshInterval: number;
+  
+  onMount(() => {
+    // Set up interval for refreshing stream views
+    refreshInterval = window.setInterval(refreshStreamViews, 1000);
+    
+    // Initialize media area
+    const uploadVideo = document.getElementById('upload-video');
+    if (uploadVideo) {
+      uploadVideo.addEventListener('change', handleVideoUpload);
+    }
+    
+    // Add resize listener
+    window.addEventListener('resize', refreshStreamViews);
+    
+    return () => {
+      // Clean up on component destruction
+      clearInterval(refreshInterval);
+      window.removeEventListener('resize', refreshStreamViews);
+      
+      if (uploadVideo) {
+        uploadVideo.removeEventListener('change', handleVideoUpload);
+      }
+    };
+  });
+  
   // Event handlers
   function handleHangup() {
     dispatch('hangup');
   }
   
-  function handleToggleAudio() {
-    // Toggle audio implementation
-    const app = webRTCApp.getApp();
-    if (app.streams && app.streams['local']) {
-      const audioTracks = app.streams['local'].getAudioTracks();
-      audioTracks.forEach(track => {
-        track.enabled = !track.enabled;
-      });
+  async function handleToggleAudio() {
+    const newValue = !$streamStore.streamConfig.audio;
+    updateStreamConfig({ audio: newValue });
+    
+    const toggleAudioBtn = document.getElementById('toggle-audio');
+    if (toggleAudioBtn) {
+      setButton(toggleAudioBtn, newValue);
     }
+    
+    await setupLocalStream('audio');
   }
   
-  function handleToggleVideo() {
-    // Toggle video implementation
-    const app = webRTCApp.getApp();
-    if (app.streams && app.streams['local']) {
-      const videoTracks = app.streams['local'].getVideoTracks();
-      videoTracks.forEach(track => {
-        track.enabled = !track.enabled;
-      });
+  async function handleToggleVideo() {
+    const newValue = !$streamStore.streamConfig.video;
+    updateStreamConfig({ video: newValue });
+    
+    const toggleVideoBtn = document.getElementById('toggle-video');
+    if (toggleVideoBtn) {
+      setButton(toggleVideoBtn, newValue);
     }
+    
+    await setupLocalStream('video');
   }
   
-  function handleToggleScreen() {
-    // Toggle screen sharing implementation
-    const app = webRTCApp.getApp();
-    // Implementation depends on your existing code
+  async function handleToggleScreen() {
+    const newValue = !$streamStore.streamConfig.screen;
+    updateStreamConfig({ screen: newValue });
+    
+    const toggleScreenBtn = document.getElementById('toggle-screen');
+    if (toggleScreenBtn) {
+      setButton(toggleScreenBtn, newValue);
+    }
+    
+    await setupLocalStream('screen');
   }
   
   function handleStartForward() {
@@ -58,20 +96,36 @@
     dispatch('openQr');
   }
   
-  onMount(() => {
-    // Initialize media area
-    const uploadVideo = document.getElementById('upload-video');
-    if (uploadVideo) {
-      uploadVideo.addEventListener('change', (event) => {
-        // Handle video upload
-        const target = event.target as HTMLInputElement;
-        if (target.files && target.files.length > 0) {
-          const file = target.files[0];
-          // Process the file according to your application logic
-        }
+  async function handleVideoUpload(event) {
+    const target = event.target as HTMLInputElement;
+    if (target.files && target.files.length > 0) {
+      const file = target.files[0];
+      const fileURL = URL.createObjectURL(file);
+      
+      const videoNode = document.createElement('video');
+      videoNode.src = fileURL;
+      videoNode.autoplay = true;
+      videoNode.controls = false;
+      videoNode.loop = true;
+      
+      const videoStream = videoNode.captureStream ? 
+        videoNode.captureStream() : 
+        (videoNode as any).mozCaptureStream();
+      
+      updateStreamConfig({
+        videoNode,
+        videoStream,
+        local: true
       });
+      
+      const shareVideoBtn = document.getElementById('share-video');
+      if (shareVideoBtn) {
+        setButton(shareVideoBtn, true);
+      }
+      
+      await setupLocalStream('local');
     }
-  });
+  }
 </script>
 
 <div id="media" class="w-full w-svw h-svh relative bg-black" style="width: 100svw; height: 100svh;">
