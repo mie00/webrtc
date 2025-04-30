@@ -642,7 +642,24 @@ if (typeof document !== 'undefined') {
     };
 }
 
-// Export functions for testing
+// Export functions for use in other modules
+export {
+    normalizeStreamId,
+    getStreamElemId,
+    streamInit,
+    setupTrackHandler,
+    processAudio,
+    stopProcessingAudio,
+    tearDownStream,
+    setupTrack,
+    setupLocalStream,
+    getStreamsDims,
+    refreshStreamViews,
+    createStreamElement,
+    setButton
+};
+
+// For backward compatibility with CommonJS
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         normalizeStreamId,
@@ -656,7 +673,8 @@ if (typeof module !== 'undefined' && module.exports) {
         setupLocalStream,
         getStreamsDims,
         refreshStreamViews,
-        createStreamElement
+        createStreamElement,
+        setButton
     };
 }
 

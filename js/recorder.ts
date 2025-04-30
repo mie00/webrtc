@@ -11,8 +11,8 @@ interface StreamDimension {
   height?: number;
 }
 
-// Import the function from stream.ts instead of redefining it
-import { getStreamsDims } from './stream';
+// Import the function from stream.ts
+import { getStreamsDims } from './stream.js';
 
 async function setupStreams(merger: any): Promise<void> {
   const streams = (await getStreamsDims()).filter(({ width, height }) => width && height);
@@ -134,5 +134,5 @@ recordButton.addEventListener('click', () => {
   setButton(recordButton, !!window.app.recorder);
 });
 
-// Import the function from stream.ts instead of declaring it
-import { createStreamElement } from './stream';
+// Import the function from stream.ts
+import { createStreamElement } from './stream.js';
