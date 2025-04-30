@@ -1,4 +1,5 @@
-window.AudioContext = window.AudioContext || window.webkitAudioContext;
+// Use type assertion to handle vendor prefixes
+window.AudioContext = window.AudioContext || (window as any).webkitAudioContext;
 
 function addEventListenerAll(target: EventTarget, listener: EventListener, ...otherArguments: any[]): void {
     // install listeners for all natively triggered events
@@ -26,6 +27,12 @@ function normalizeStreamId(id: string): string {
 function getStreamElemId(id: string): string {
     return `stream-${normalizeStreamId(id)}`;
 }
+
+declare const sendNego: (client: Client, data: any) => void;
+declare const getConfig: () => Record<string, string>;
+declare const setConfig: (key: string, value: string) => void;
+declare const BinPack: () => BinPackResult;
+declare const backgroundChange: (videoSource: HTMLVideoElement) => Promise<MediaStream>;
 
 function streamInit(app: App): void {
     app.streams = {};
@@ -61,7 +68,7 @@ function setupTrackHandler(app: App, cid: string): void {
     app.clients[cid].pc.addEventListener("track", async (ev: RTCTrackEvent) => {
         console.log("got track event", ev);
         app.viewStreams![normalizeStreamId(ev.streams[0].id)] = ev.streams[0];
-        await createStreamElement(ev.streams[0], ev.track.kind, { muted: false });
+        await createStreamElement(ev.streams[0], ev.track.kind as 'audio' | 'video', { muted: false });
         ev.track.onended = (ev: Event) => {
             console.log(ev);
             const target = ev.target as MediaStreamTrack;
@@ -78,7 +85,7 @@ function setupTrackHandler(app: App, cid: string): void {
         }
     });
     for (let stream of Object.values(app.viewStreams || {})) {
-        stream.getTracks().forEach(function (track) {
+        (stream as MediaStream).getTracks().forEach(function (track) {
             app.clients[cid].pc.addTrack(track, stream);
         });
     }
@@ -127,7 +134,7 @@ const tearDownStream = async (stream: MediaStream): Promise<void> => {
     stream.getTracks().forEach(function (track) {
         track.stop();
         track.dispatchEvent(new Event("ended"));
-        for (var client of Object.values(app.clients)) {
+        for (var client of Object.values(window.app.clients)) {
             client.pc.getTransceivers().forEach((transceiver) => {
                 if (transceiver.sender.track?.id === track.id) {
                     transceiver.stop();
@@ -152,7 +159,7 @@ const setupTrack = (track: MediaStreamTrack, stream: MediaStream, priority: RTCP
         // TODO: make configurable
         track.contentHint = contentHint as any;
     }
-    for (var client of Object.values(app.clients)) {
+    for (var client of Object.values(window.app.clients)) {
         if (client.pc) {
             client.pc.addTransceiver(track, {
                 streams: [stream], sendEncodings: [
@@ -190,9 +197,9 @@ interface AppWithStreamConfig extends App {
 }
 
 const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local'): Promise<void> => {
-    if (app.streams && app.streams[changed]) {
-        const elems = document.querySelectorAll(`.${getStreamElemId(app.streams[changed].id)}`);
-        for (const elem of elems) {
+    if (window.app.streams && window.app.streams[changed]) {
+        const elems = document.querySelectorAll(`.${getStreamElemId(window.app.streams[changed].id)}`);
+        for (const elem of Array.from(elems)) {
             const videoElem = elem as HTMLVideoElement & { 
                 substitueStream?: MediaStream;
                 substitueElement?: HTMLElement;
@@ -206,12 +213,12 @@ const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local')
             videoElem.srcObject = null;
             elem.remove();
         }
-        delete app.viewStreams![normalizeStreamId(app.streams[changed].id)];
-        tearDownStream(app.streams[changed]);
-        delete app.streams[changed];
+        delete window.app.viewStreams![normalizeStreamId(window.app.streams[changed].id)];
+        tearDownStream(window.app.streams[changed]);
+        delete window.app.streams[changed];
     }
     let stream: MediaStream | undefined;
-    const appWithConfig = app as AppWithStreamConfig;
+    const appWithConfig = window.app as AppWithStreamConfig;
     
     if (changed === 'audio') {
         const button = document.getElementById('toggle-audio') as HTMLElement;
@@ -224,11 +231,11 @@ const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local')
             });
             setupStream(stream, "high");
 
-            processAudio(app as AudioProcessingApp, stream, (instant) => {
+            processAudio(window.app as AudioProcessingApp, stream, (instant) => {
                 button.style.background = `linear-gradient(0deg, rgb(59 130 246) ${instant}%, white ${instant}%)`;
             });
         } else {
-            stopProcessingAudio(app as AudioProcessingApp);
+            stopProcessingAudio(window.app as AudioProcessingApp);
             button.style.background = ``;
         }
     } else if (changed === 'video') {
@@ -254,16 +261,19 @@ const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local')
         }
     } else {
         if (appWithConfig.streamConfig.screen) {
-            stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: { cursor: "always" } });
+            stream = await navigator.mediaDevices.getDisplayMedia({ 
+                audio: true, 
+                video: { cursor: "always" } as any 
+            });
             setupStream(stream, "medium", 'detail', false);
         }
     }
     if (stream) {
-        app.streams![changed] = stream;
+        window.app.streams![changed] = stream;
         if (changed === 'video' && appWithConfig.streamConfig.video) {
             const elem = await createStreamElement(stream, 'video', { muted: true, controls: false, mirrored: true });
             if (appWithConfig.config && appWithConfig.config['blur-video'] === 'yes') {
-                const substituteStream = await backgroundChange(elem);
+                const substituteStream = await backgroundChange(elem as HTMLVideoElement);
                 setupStream(substituteStream, "low", "motion", true);
             }
         } else if (changed === 'screen' && appWithConfig.streamConfig.screen) {
@@ -271,7 +281,7 @@ const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local')
         } else if (changed === 'local' && appWithConfig.streamConfig.local) {
             await createStreamElement(stream, 'video', { muted: false, controls: true, passedElement: appWithConfig.streamConfig.videoNode });
         }
-        app.viewStreams![normalizeStreamId(stream.id)] = stream;
+        window.app.viewStreams![normalizeStreamId(stream.id)] = stream;
     }
 };
 
@@ -288,28 +298,28 @@ interface StreamDimensions {
 const getStreamsDims = async (): Promise<StreamDimensions[]> => {
     // TODO: use videoHeight and width from element
     let elems: StreamDimensions[] = [];
-    if (!app.viewStreams) return elems;
+    if (!window.app.viewStreams) return elems;
     let statsDict: Record<string, { width?: number, height?: number }> = {};
-    for (const client of Object.values(app.clients)) {
-        const stats = await client.pc.getStats();
+    for (const client of Object.values(window.app.clients)) {
+        const stats = await (client as Client).pc.getStats();
         stats.forEach(stat => {
             if (stat.type === 'inbound-rtp' && stat.kind === 'video') {
                 statsDict[normalizeStreamId(stat.trackIdentifier)] = { width: stat.frameWidth, height: stat.frameHeight };
             }
         });
     }
-    for (let [key, value] of Object.entries(app.viewStreams)) {
-        if (value.getVideoTracks().length === 0) {
+    for (let [key, value] of Object.entries(window.app.viewStreams)) {
+        if ((value as MediaStream).getVideoTracks().length === 0) {
             continue;
         }
         let width: number | undefined, height: number | undefined;
-        console.log(isFirefox, value.getVideoTracks()[0].label != 'remote video');
-        const settings = value.getVideoTracks()[0].getSettings();
+        console.log(isFirefox, (value as MediaStream).getVideoTracks()[0].label != 'remote video');
+        const settings = (value as MediaStream).getVideoTracks()[0].getSettings();
         width = settings.width;
         height = settings.height;
         if (!width || !height) {
-            if (normalizeStreamId(value.getVideoTracks()[0].id) in statsDict) {
-                const stats = statsDict[normalizeStreamId(value.getVideoTracks()[0].id)];
+            if (normalizeStreamId((value as MediaStream).getVideoTracks()[0].id) in statsDict) {
+                const stats = statsDict[normalizeStreamId((value as MediaStream).getVideoTracks()[0].id)];
                 width = stats.width;
                 height = stats.height;
             }
@@ -428,8 +438,8 @@ const createStreamElement = async (stream: MediaStream, tag: 'video' | 'audio', 
     mediaElement.muted = muted;
     mediaElement.autoplay = true;
     mediaElement.controls = controls;
-    mediaElement.disablePictureInPicture = true;
-    mediaElement.playsInline = true;
+    (mediaElement as any).disablePictureInPicture = true;
+    (mediaElement as any).playsInline = true;
     // mediaElement.classList.add('w-full')
     const mediaContainer = document.getElementById('media');
     if (mediaContainer) {
@@ -470,7 +480,7 @@ const setButton = (target: HTMLElement, on: boolean): void => {
 const toggleAudioButton = document.getElementById('toggle-audio');
 if (toggleAudioButton) {
     toggleAudioButton.addEventListener('click', async (ev) => {
-        const appWithConfig = app as AppWithStreamConfig;
+        const appWithConfig = window.app as AppWithStreamConfig;
         appWithConfig.streamConfig.audio = !appWithConfig.streamConfig.audio;
         setButton(ev.target as HTMLElement, appWithConfig.streamConfig.audio);
         await setupLocalStream('audio');
@@ -550,7 +560,7 @@ if (toggleAudioContextMenu) {
             }
             li.addEventListener('click', async () => {
                 menu.classList.add('hidden');
-                const appWithConfig = app as AppWithStreamConfig;
+                const appWithConfig = window.app as AppWithStreamConfig;
                 appWithConfig.streamConfig.audio = true;
                 setButton(ev.target as HTMLElement, appWithConfig.streamConfig.audio);
                 setConfig('audio-device', `${device.groupId}|${device.deviceId}`);
@@ -691,7 +701,9 @@ if (uploadVideoInput) {
         
         const appWithConfig = app as AppWithStreamConfig;
         appWithConfig.streamConfig.videoNode = videoNode;
-        appWithConfig.streamConfig.videoStream = videoNode.captureStream ? videoNode.captureStream() : (videoNode as any).mozCaptureStream();
+        appWithConfig.streamConfig.videoStream = (videoNode as any).captureStream ? 
+            (videoNode as any).captureStream() : 
+            (videoNode as any).mozCaptureStream();
         appWithConfig.streamConfig.local = !appWithConfig.streamConfig.local;
 
         const shareVideoBtn = document.getElementById('share-video');
