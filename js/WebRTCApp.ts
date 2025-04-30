@@ -87,14 +87,16 @@ export class WebRTCApp {
     });
     
     if (this.app.clients[cid]) {
+      // Clear interval first to ensure it's stopped before any other cleanup
+      if (this.app.clients[cid]._transceiver_interval) {
+        clearInterval(this.app.clients[cid]._transceiver_interval);
+        this.app.clients[cid]._transceiver_interval = undefined;
+      }
+      
       if (this.app.clients[cid].nego_dc) {
         this.app.clients[cid].nego_dc.onclose = null;
         this.app.clients[cid].nego_dc.onmessage = null;
         this.app.clients[cid].nego_dc.onclose = null;
-      }
-      
-      if (this.app.clients[cid]._transceiver_interval) {
-        clearInterval(this.app.clients[cid]._transceiver_interval);
       }
       
       if (this.app.clients[cid].pc) {
@@ -112,7 +114,6 @@ export class WebRTCApp {
         this.app.clients[cid].forward = undefined;
         this.app.clients[cid].nego_dc = undefined;
         this.app.clients[cid].file_stuff = undefined;
-        this.app.clients[cid]._transceiver_interval = undefined;
         this.app.clients[cid].polite = undefined;
         this.app.clients[cid].makingOffer = undefined;
       }

@@ -25,7 +25,8 @@ describe('Main Application', () => {
             add: jest.fn(),
             remove: jest.fn()
           },
-          addEventListener: jest.fn()
+          addEventListener: jest.fn(),
+          querySelectorAll: jest.fn().mockReturnValue([])
         };
       } else if (id === 'reset' || id === 'open-config' || id === 'open-qr' || id === 'hangup') {
         return {
