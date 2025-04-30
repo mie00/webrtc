@@ -1,34 +1,25 @@
 {
+  "extends": "@tsconfig/svelte/tsconfig.json",
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ESNext",
+    "useDefineForClassFields": true,
     "module": "ESNext",
-    "moduleResolution": "node",
-    "esModuleInterop": true,
-    "strict": true,
-    "strictNullChecks": false,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": true,
+    "isolatedModules": true,
     "sourceMap": true,
-    "outDir": "dist",
-    "rootDir": ".",
-    "declaration": true,
-    "declarationDir": "dist/types",
-    "lib": ["DOM", "DOM.Iterable", "ESNext", "WebWorker"],
-    "noImplicitAny": true,
-    "skipLibCheck": true,
+    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
+    "strictNullChecks": false,
+    "lib": ["DOM", "DOM.Iterable", "ESNext", "WebWorker"],
+    "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "$lib": ["src/lib"],
+      "$lib/*": ["src/lib/*"]
     }
   },
-  "include": [
-    "js/**/*",
-    "service-worker.ts",
-    "types/**/*",
-    "__tests__/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "js/thirdparty/**/*"
-  ]
+  "include": ["src/**/*.d.ts", "src/**/*.ts", "src/**/*.js", "src/**/*.svelte", "service-worker.ts", "types/**/*", "__tests__/**/*"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }

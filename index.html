@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,186 +12,28 @@
 	<link rel="mask-icon" href="/icons/safari-pinned-tab.svg" color="#5bbad5">
 	<meta name="msapplication-TileColor" content="#da532c">
 	<meta name="theme-color" content="#ffffff">
-	<title>Caller</title>
+	<title>WebRTC Project</title>
 	<link href="thirdparty/css/tailwind.min.css" rel="stylesheet">
 </head>
-
-<body class="bg-gray-100 h-screen flex flex-col">
-	<!-- Main Content - Video Call Area and Controls -->
-	<main class="flex-1 flex">
-		<!-- Video Call Area -->
-		<div id="media" class="w-full w-svw h-svh relative bg-black" style="width: 100svw; height: 100svh;">
-			<!-- Placeholder for video streams -->
-			<!-- You would typically use a library like Twilio Video SDK or similar to manage video streams -->
-		</div>
-
-		<div class="fixed bottom-0 left-0 right-0 bg-transparent p-4 flex justify-center space-x-0 lg:space-x-4 pointer-events-none">
-			<button id="open-qr" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-				▩ <!-- QR Code -->
-			</button>
-			<button id="toggle-audio" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-				🎤 <!-- Microphone -->
-			</button>
-			<button id="toggle-video" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-				🎥 <!-- Video Camera -->
-			</button>
-			<button id="toggle-screen" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-				🖥️ <!-- Monitor for Share Screen -->
-			</button>
-			<button id="start-forward" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-				⏩ <!-- Forward -->
-			</button>
-			<button id="share-video" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-				📹 <!-- Share Video -->
-			</button>
-			<button id="record" class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-				⏺
-			</button>
-			<button id="hangup" class="hover:bg-red-600 bg-red-500 text-white p-3 rounded-full pointer-events-auto">
-				📞
-			</button>
-			<input type="file" id="upload-video" accept="video/*" class="hidden">
-		</div>
-
-
-		<div id="control" class="w-11/12 lg:w-1/2 xl:w-1/4 2x:w-1/4 flex flex-col fixed bottom-0 top-0 left-full">
-			<div id="cc" class="absolute top-1/4">
-				<button id="toggle-controls" class="hover:bg-blue-600 w-5 h-16 bg-gray-300 text-black p-0 absolute border-solid rounded-l" style="left: -20px;">
-					&lt; <!-- Toggle Controls -->
-				</button>
-			</div>
-			<div class="bg-gray-200 p-4 flex flex-col space-y-4 w-full h-full">
-				<div id="participants" class="">
-				</div>
-
-				<!-- On/Off Buttons -->
-				<!-- End On/Off Buttons -->
-
-				<!-- Chat Panel -->
-				<div class="flex-1 flex flex-col border-t border-gray-300 pt-4">
-					<!-- Messages Area -->
-					<div id="output" class="flex-1 overflow-y-auto px-4">
-					</div>
-
-					<!-- Message Input and Upload Button -->
-					<div class="flex items-center space-x-2 p-2">
-						<input id="chat" type="text" placeholder="Type your message..."
-							class="flex-1 border border-gray-300 px-3 py-2 rounded-md">
-						<!-- <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Send</button> -->
-						<div class="p-2">
-							<label for="file-upload"
-								class="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">📎</label>
-							<input id="file-upload" type="file" class="hidden">
-						</div>
-					</div>
-				</div>
-			</div>
-			<!-- End Chat Panel -->
-		</div>
-		<!-- End Controls Panel -->
-	</main>
-
-	<!-- Overlay for Copying String -->
-	<div id="copy-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-30 hidden">
-		<div class="bg-white p-4 rounded-md shadow-md text-center">
-			<button id="open-config" class="right">⚙️</button>
-			<button id="reset">↺</button>
-			<div id="qrcode"></div>
-			<p class="text-lg font-semibold mb-2">Copy this:</p>
-			<textarea readonly id="copy-text" class="bg-gray-200 px-4 py-2 rounded-md break-all block"></textarea>
-			<button id="copy-button"
-				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Copy</button>
-			<button id="accept-button"
-				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Accept</button>
-			<textarea id="paste-text" class="bg-gray-200 px-4 py-2 rounded-md break-all block hidden"></textarea>
-			<button id="join-button"
-				class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full mt-2 hidden">📞</button>
-		</div>
-	</div>
-	<!-- Overlay for Copying String -->
-	<div id="config-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-40 hidden">
-		<div class="bg-white p-4 rounded-md shadow-md text-center">
-			<div class="flex flex-col space-y-2">
-				Loader
-				<select id="config-loader" class="flex-1 border border-gray-300 px-3 py-2 rounded-md">
-					<option value="server">Server</option>
-					<option value="client">Client</option>
-				</select>
-			</div>
-			<div class="flex flex-col space-y-2">
-				Username <input id="user-name" type="text" placeholder="Uername"
-					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="">
-			</div>
-			<div class="flex flex-col space-y-2">
-				Host <input id="config-host" type="text" placeholder="Host"
-					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="">
-			</div>
-			<div class="flex flex-col space-y-2">
-				Stun servers <input id="stun-servers" type="text" placeholder="Stun servers"
-					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="dealer.mie00.com:3478">
-			</div>
-			<div class="flex flex-col space-y-2">
-				Turn server <input id="turn-server-v2" type="text" placeholder="Turn server"
-					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="dealer.mie00.com:5349">
-			</div>
-			<div class="flex flex-col space-y-2">
-				Turn username <input id="turn-username" type="text" placeholder="Turn username"
-					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="mie">
-			</div>
-			<div class="flex flex-col space-y-2">
-				Turn password <input id="turn-password" type="text" placeholder="Turn password"
-					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="">
-			</div>
-			<div class="flex flex-col space-y-2 hidden">
-				Audio device <input id="audio-device" type="text" placeholder="Audio device"
-					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="default|default">
-			</div>
-			<div class="flex flex-col space-y-2 hidden">
-				Video device <input id="video-device" type="text" placeholder="Video device"
-					class="flex-1 border border-gray-300 px-3 py-2 rounded-md" value="default|default">
-			</div>
-			<div class="flex flex-col space-y-2">
-				Blur Video
-				<select id="blur-video" class="flex-1 border border-gray-300 px-3 py-2 rounded-md">
-					<option value="no">No</option>
-					<option value="yes">Yes</option>
-				</select>
-			</div>
-			<button id="save-button"
-				class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Save</button>
-		</div>
-	</div>
-	<div id="contextMenu" class="hidden fixed">
-		<ul id="ul-contextMenu" class="menu flex flex-col rounded-md shadow-xl overflow-hidden">
-		</ul>
-	</div>
-	<div id="diffs" class="whitespace-pre-line hidden"></div>
+<body>
+	<div id="app"></div>
+	
+	<!-- External libraries -->
 	<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
-	<!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
-	<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu"></script>
-	<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/tf-tflite.min.js"></script> -->
 	<script src="thirdparty/js/socket.io.min.js"
 		integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO"
 		crossorigin="anonymous"></script>
 	<script src="thirdparty/js/bin-pack.js"></script>
-	<script type="module" src="dist/js/emojis.js"></script>
 	<script src="thirdparty/js/qrcode.min.js"
 		integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA=="
 		crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 	<script src="thirdparty/js/video-stream-merger.js"></script>
 	<script src="thirdparty/js/diff.js"></script>
-	<script type="module" src="dist/js/config.js"></script>
-	<script type="module" src="dist/js/chat.js"></script>
-	<script type="module" src="dist/js/file.js"></script>
-	<script type="module" src="dist/js/stream.js"></script>
-	<script type="module" src="dist/js/forward.js"></script>
-	<script type="module" src="dist/js/main.js"></script>
-	<script type="module" src="dist/js/sdpcompress.js"></script>
-	<script type="module" src="dist/js/recorder.js"></script>
-	<script type="module" src="dist/js/background.js"></script>
+	
+	<!-- Main app entry point -->
+	<script type="module" src="/src/main.ts"></script>
 </body>
-
 </html>

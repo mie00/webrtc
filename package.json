@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "WebRTC-based project with TypeScript migration preparation",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "build": "tsc",
-    "watch": "tsc --watch",
-    "serve": "lite-server",
-    "start": "npm run build && npm run serve",
-    "dev": "concurrently \"npm run watch\" \"npm run serve\"",
+    "build": "vite build",
+    "dev": "vite dev",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "node ./node_modules/.bin/jest",
     "test:watch": "node ./node_modules/.bin/jest --watch",
     "test:coverage": "node ./node_modules/.bin/jest --coverage",
@@ -18,7 +18,8 @@
   "keywords": [
     "webrtc",
     "typescript",
-    "testing"
+    "testing",
+    "svelte"
   ],
   "author": "",
   "license": "ISC",
@@ -26,14 +27,23 @@
     "@babel/core": "^7.21.5",
     "@babel/preset-env": "^7.21.5",
     "@babel/preset-typescript": "^7.21.5",
+    "@sveltejs/vite-plugin-svelte": "^2.4.2",
+    "@sveltejs/adapter-static": "^2.0.2",
+    "@tsconfig/svelte": "^4.0.1",
     "@types/jest": "^26.0.24",
     "@types/webrtc": "^0.0.40",
     "babel-jest": "^26.6.3",
     "concurrently": "^8.0.1",
     "jest": "^26.6.3",
     "jest-environment-jsdom-sixteen": "^1.0.3",
-    "lite-server": "^2.6.1",
+    "svelte": "^4.0.5",
+    "svelte-check": "^3.4.6",
+    "svelte-preprocess": "^5.0.4",
     "ts-jest": "^26.5.6",
-    "typescript": "^4.9.5"
+    "typescript": "^4.9.5",
+    "vite": "^4.4.2"
+  },
+  "dependencies": {
+    "svelte": "^4.0.5"
   }
 }
