@@ -280,13 +280,14 @@ function logDiff(d1: string, d2: string): void {
 async function initClient(polite: boolean, options: ClientInitOptions): Promise<string> {
     await init();
     const config = {
-        iceServers: app.config["stun-servers"].split(',').filter(link => link).map(link => ({ urls: "stun:" + link })).concat(
-            app.config["turn-server-v2"] && app.config["turn-username"] && app.config["turn-password"] ? [{
+        iceServers: [
+            ...app.config["stun-servers"].split(',').filter(link => link).map(link => ({ urls: "stun:" + link })),
+            ...(app.config["turn-server-v2"] && app.config["turn-username"] && app.config["turn-password"] ? [{
                 urls: "turn:" + app.config["turn-server-v2"],
                 username: app.config["turn-username"],
                 credential: app.config["turn-password"],
-            } as RTCIceServer] : []
-        ),
+            } as RTCIceServer] : [])
+        ],
     };
 
     const { sid, offer } = options;
