@@ -235,7 +235,7 @@ async function init(): Promise<void> {
     forwardInit(app);
 }
 
-function sendNego(client: Client, data: NegoMessage): void {
+function sendNego(client: WebRTCClient, data: NegoMessage): void {
     if (!data.id) {
         data = JSON.parse(JSON.stringify(data));
         data.id = uuidv4();

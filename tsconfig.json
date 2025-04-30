@@ -11,7 +11,7 @@
     "rootDir": ".",
     "declaration": true,
     "declarationDir": "dist/types",
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "lib": ["DOM", "DOM.Iterable", "ESNext", "WebWorker"],
     "allowJs": true,
     "checkJs": false,
     "noImplicitAny": false,
@@ -24,6 +24,7 @@
   },
   "include": [
     "js/**/*",
+    "service-worker.ts",
     "types/**/*",
     "__tests__/**/*"
   ],
@@ -31,27 +32,5 @@
     "node_modules",
     "dist",
     "js/thirdparty/**/*"
-  ]
-}
-{
-  "compilerOptions": {
-    "target": "ES2020",
-    "module": "ESNext",
-    "moduleResolution": "node",
-    "esModuleInterop": true,
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "lib": ["DOM", "DOM.Iterable", "ESNext", "WebWorker"],
-    "outDir": "dist",
-    "sourceMap": true
-  },
-  "include": [
-    "js/**/*.ts",
-    "service-worker.ts",
-    "types/**/*.d.ts"
-  ],
-  "exclude": [
-    "node_modules"
   ]
 }

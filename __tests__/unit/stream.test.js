@@ -174,7 +174,7 @@ describe('Stream Management', () => {
   });
 
   test('normalizeStreamId should remove curly braces', () => {
-    const streamModule = require('../../js/stream.js');
+    const streamModule = require('../../js/stream');
 
     // Test with curly braces
     expect(streamModule.normalizeStreamId('{test-id}')).toBe('test-id');
@@ -184,7 +184,7 @@ describe('Stream Management', () => {
   });
 
   test('getStreamElemId should return correct element ID', () => {
-    const streamModule = require('../../js/stream.js');
+    const streamModule = require('../../js/stream');
 
     // Test with a stream ID
     expect(streamModule.getStreamElemId('test-id')).toBe('stream-test-id');
@@ -194,7 +194,7 @@ describe('Stream Management', () => {
   });
 
   test('stream.end handler should remove elements and clean up', () => {
-    const streamModule = require('../../js/stream.js');
+    const streamModule = require('../../js/stream');
 
     // Initialize the stream module
     streamModule.streamInit(app);
@@ -219,7 +219,7 @@ describe('Stream Management', () => {
   });
 
   test('setupTrackHandler should handle incoming tracks', async () => {
-    const streamModule = require('../../js/stream.js');
+    const streamModule = require('../../js/stream');
 
     // Create a mock media element
     const mockMediaElement = {

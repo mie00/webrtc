@@ -4,7 +4,7 @@
 
 describe('File Utilities', () => {
   test('splitArrayBuffer should correctly split buffer into chunks', () => {
-    const { splitArrayBuffer } = require('../../js/file.ts');
+    const { splitArrayBuffer } = require('../../js/file');
     
     // Create a sample ArrayBuffer
     const buffer = new ArrayBuffer(1000);

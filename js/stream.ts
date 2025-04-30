@@ -301,7 +301,7 @@ const getStreamsDims = async (): Promise<StreamDimensions[]> => {
     if (!window.app.viewStreams) return elems;
     let statsDict: Record<string, { width?: number, height?: number }> = {};
     for (const client of Object.values(window.app.clients)) {
-        const stats = await (client as Client).pc.getStats();
+        const stats = await (client as WebRTCClient).pc.getStats();
         stats.forEach(stat => {
             if (stat.type === 'inbound-rtp' && stat.kind === 'video') {
                 statsDict[normalizeStreamId(stat.trackIdentifier)] = { width: stat.frameWidth, height: stat.frameHeight };

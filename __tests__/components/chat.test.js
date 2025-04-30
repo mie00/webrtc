@@ -34,7 +34,7 @@ describe('Chat Functionality', () => {
   
   test('setupChatChannel should create a data channel', () => {
     // Import the module
-    const chat = require('../../js/chat.ts');
+    const chat = require('../../js/chat');
     
     if (chat.setupChatChannel) {
       // Call the function
@@ -55,7 +55,7 @@ describe('Chat Functionality', () => {
   
   test('chat data channel should handle messages', () => {
     // Import the module
-    const chat = require('../../js/chat.ts');
+    const chat = require('../../js/chat');
     
     if (chat.setupChatChannel) {
       // Call the function

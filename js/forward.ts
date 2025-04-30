@@ -11,9 +11,6 @@ interface ForwardApp extends App {
   inflight: Record<string, (data: any) => void>;
 }
 
-// Get the global app instance
-declare const app: App;
-
 interface ForwardResponse {
   response?: {
     status: number;

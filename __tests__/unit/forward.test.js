@@ -122,7 +122,7 @@ describe('Forward Channel', () => {
 
   test('forwardInit should set up cleanups and initial state', () => {
     // Import the module - use the compiled JS file for testing
-    const forwardModule = require('../../js/forward.js');
+    const forwardModule = require('../../js/forward');
     
     // Call the function
     forwardModule.forwardInit(app);
@@ -133,7 +133,7 @@ describe('Forward Channel', () => {
   });
 
   test('setupForwardChannel should create a data channel', () => {
-    const forwardModule = require('../../js/forward.js');
+    const forwardModule = require('../../js/forward');
     
     // Call the function
     forwardModule.setupForwardChannel(app, 'test-client-id');
@@ -146,7 +146,7 @@ describe('Forward Channel', () => {
   });
 
   test('concatUint8Arrays should correctly concatenate arrays', () => {
-    const forwardModule = require('../../js/forward.js');
+    const forwardModule = require('../../js/forward');
     
     // Create test arrays
     const array1 = new Uint8Array([1, 2, 3]);
