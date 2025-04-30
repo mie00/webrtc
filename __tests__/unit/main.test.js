@@ -254,7 +254,7 @@ describe('Main Application', () => {
       sids: {}
     };
     
-    const mainModule = require('../../dist/js/main.js');
+    const mainModule = require('../../js/main');
     
     // Create a mock client
     const mockClient = {
@@ -314,7 +314,7 @@ describe('Main Application', () => {
     // Mock sendNego to avoid dependency issues
     global.sendNego = jest.fn();
     
-    const mainModule = require('../../js/main.js');
+    const mainModule = require('../../js/main');
     
     // Call the function
     mainModule.destroyClient('test-cid');
@@ -328,7 +328,7 @@ describe('Main Application', () => {
   });
 
   test('uuidv4 should generate a valid UUID', () => {
-    const mainModule = require('../../js/main.js');
+    const mainModule = require('../../js/main');
     
     // Call the function
     const uuid = mainModule.uuidv4();
@@ -350,7 +350,7 @@ describe('Main Application', () => {
     global.streamInit = jest.fn();
     global.forwardInit = jest.fn();
     
-    const mainModule = require('../../js/main.js');
+    const mainModule = require('../../js/main');
     
     // Call the function
     await mainModule.init();
