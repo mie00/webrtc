@@ -1,3 +1,7 @@
+/// <reference path="../types/global.d.ts" />
+
+import { WebRTCApp } from './WebRTCApp';
+
 const chat = document.getElementById("chat") as HTMLInputElement;
 
 function setupChatChannel(app: App, cid: string): void {
@@ -11,18 +15,18 @@ function setupChatChannel(app: App, cid: string): void {
             chat.select();
         }
     };
-    dc.onmessage = (e: MessageEvent): void => log(`> ${e.data}`);
+    dc.onmessage = (e: MessageEvent): void => WebRTCApp.log(`> ${e.data}`);
 }
 
 if (chat) {
     chat.onkeydown = function(e: KeyboardEvent): void {
         if (e.keyCode != 13) return;
-        for (const client of Object.values(app.clients)) {
+        for (const client of Object.values(window.app.clients)) {
             if (client.dc) {
                 client.dc.send(chat.value);
             }
         }
-        log(chat.value);
+        WebRTCApp.log(chat.value);
         chat.value = "";
     };
 }

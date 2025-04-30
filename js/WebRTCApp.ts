@@ -147,7 +147,7 @@ export class WebRTCApp {
     if (mediaElement) mediaElement.innerHTML = '';
     if (outputElement) outputElement.innerHTML = '';
     this.handleChange();
-    this.reset();
+    WebRTCApp.reset();
   }
 
   public static reset(): void {

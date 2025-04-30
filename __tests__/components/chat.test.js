@@ -5,6 +5,9 @@
 describe('Chat Functionality', () => {
   let app;
   
+  // Import WebRTCApp and spy on its log method
+  const { WebRTCApp } = require('../../js/WebRTCApp');
+  jest.spyOn(WebRTCApp, 'log').mockImplementation(() => {});
   beforeEach(() => {
     // Reset DOM
     document.body.innerHTML = `
@@ -27,10 +30,6 @@ describe('Chat Functionality', () => {
     
     // Mock global app
     global.app = app;
-    
-    // Import WebRTCApp and spy on its log method
-    const { WebRTCApp } = require('../../js/WebRTCApp');
-    jest.spyOn(WebRTCApp, 'log').mockImplementation(() => {});
   });
   
   test('setupChatChannel should create a data channel', () => {

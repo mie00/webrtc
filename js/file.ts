@@ -1,3 +1,5 @@
+import { WebRTCApp } from './WebRTCApp';
+
 interface FileStuff {
   name: string;
   type: string;
@@ -20,44 +22,44 @@ function updateProgressBar(id: string, file_size: number, get_ready: () => numbe
 }
 
 function setupFileChannel(app: App, cid: string): void {
-    const dc_file = app.clients[cid].pc.createDataChannel("file", {
+    const dc_file = window.app.clients[cid].pc.createDataChannel("file", {
         negotiated: true,
         id: 2
     });
-    app.clients[cid].dc_file = dc_file;
+    window.app.clients[cid].dc_file = dc_file;
 
     dc_file.onmessage = (e: MessageEvent) => {
-        if (!app.clients[cid].file_stuff) {
+        if (!window.app.clients[cid].file_stuff) {
             const id = Math.random().toString(16).slice(2);
-            app.clients[cid].file_stuff = JSON.parse(e.data);
-            app.clients[cid].file_stuff.segments = [];
-            app.clients[cid].file_stuff.remaining_size = app.clients[cid].file_stuff.size;
-            app.clients[cid].file_stuff.id = id;
-            log(`> <label for="file-${id}">${app.clients[cid].file_stuff.name}</label> <span id="f-${id}"><progress id="file-${id}" value="0" max="100"> 0% </progress></span>`);
+            window.app.clients[cid].file_stuff = JSON.parse(e.data);
+            window.app.clients[cid].file_stuff.segments = [];
+            window.app.clients[cid].file_stuff.remaining_size = window.app.clients[cid].file_stuff.size;
+            window.app.clients[cid].file_stuff.id = id;
+            WebRTCApp.log(`> <label for="file-${id}">${window.app.clients[cid].file_stuff.name}</label> <span id="f-${id}"><progress id="file-${id}" value="0" max="100"> 0% </progress></span>`);
             return;
         }
-        app.clients[cid].file_stuff.segments.push(e.data);
-        app.clients[cid].file_stuff.remaining_size -= e.data.byteLength || e.data.size;
-        updateProgressBar(app.clients[cid].file_stuff.id, app.clients[cid].file_stuff.size, () => app.clients[cid].file_stuff.remaining_size);
-        if (app.clients[cid].file_stuff.remaining_size === 0) {
-            const blob = new Blob(app.clients[cid].file_stuff.segments, { type: app.clients[cid].file_stuff.type });
+        window.app.clients[cid].file_stuff.segments.push(e.data);
+        window.app.clients[cid].file_stuff.remaining_size -= e.data.byteLength || e.data.size;
+        updateProgressBar(window.app.clients[cid].file_stuff.id, window.app.clients[cid].file_stuff.size, () => window.app.clients[cid].file_stuff.remaining_size);
+        if (window.app.clients[cid].file_stuff.remaining_size === 0) {
+            const blob = new Blob(window.app.clients[cid].file_stuff.segments, { type: window.app.clients[cid].file_stuff.type });
             const url = URL.createObjectURL(blob);
-            const fileElement = document.getElementById(`f-${app.clients[cid].file_stuff.id}`);
+            const fileElement = document.getElementById(`f-${window.app.clients[cid].file_stuff.id}`);
             if (fileElement) {
                 fileElement.innerHTML = `
-                    <a id="download-${app.clients[cid].file_stuff.id}" class="w-full py-2 px-4 bg-blue-500 text-white rounded shadow hover:bg-blue-700">Download</a>
-                    <a id="view-${app.clients[cid].file_stuff.id}" class="w-full py-2 px-4 bg-blue-500 text-white rounded shadow hover:bg-blue-700" target="_blank">View</a>`;
-                const downloadLink = document.getElementById(`download-${app.clients[cid].file_stuff.id}`) as HTMLAnchorElement;
+                    <a id="download-${window.app.clients[cid].file_stuff.id}" class="w-full py-2 px-4 bg-blue-500 text-white rounded shadow hover:bg-blue-700">Download</a>
+                    <a id="view-${window.app.clients[cid].file_stuff.id}" class="w-full py-2 px-4 bg-blue-500 text-white rounded shadow hover:bg-blue-700" target="_blank">View</a>`;
+                const downloadLink = document.getElementById(`download-${window.app.clients[cid].file_stuff.id}`) as HTMLAnchorElement;
                 if (downloadLink) {
                     downloadLink.href = url;
-                    downloadLink.download = app.clients[cid].file_stuff.name;
+                    downloadLink.download = window.app.clients[cid].file_stuff.name;
                 }
-                const viewLink = document.getElementById(`view-${app.clients[cid].file_stuff.id}`) as HTMLAnchorElement;
+                const viewLink = document.getElementById(`view-${window.app.clients[cid].file_stuff.id}`) as HTMLAnchorElement;
                 if (viewLink) {
                     viewLink.href = url;
                 }
             }
-            app.clients[cid].file_stuff = null;
+            window.app.clients[cid].file_stuff = null;
         }
     };
 }
@@ -72,7 +74,7 @@ function handleFileSelect(event: Event): void {
     const file = target.files?.[0];
     if (!file) return;
     
-    for (const cid of Object.keys(app.clients)) {
+    for (const cid of Object.keys(window.app.clients)) {
         readFile(file, cid);
     }
 }
@@ -93,10 +95,10 @@ function splitArrayBuffer(arrayBuffer: ArrayBuffer, chunkSize: number): ArrayBuf
 
 function readFile(file: File, cid: string): void {
     const id = Math.random().toString(16).slice(2);
-    log(`<label for="file-${id}">${file.name}</label> <span id="f-${id}"><progress id="file-${id}" value="0" max="100"> 0% </progress></span>`);
+    WebRTCApp.log(`<label for="file-${id}">${file.name}</label> <span id="f-${id}"><progress id="file-${id}" value="0" max="100"> 0% </progress></span>`);
     let offset = 0;
     const max_size = 2 * 1024 * 1024;
-    app.clients[cid].dc_file?.send(JSON.stringify({ name: file.name, type: file.type, size: file.size }));
+    window.app.clients[cid].dc_file?.send(JSON.stringify({ name: file.name, type: file.type, size: file.size }));
 
     const reader = new FileReader();
     reader.onload = function(event: ProgressEvent<FileReader>) {
@@ -104,19 +106,19 @@ function readFile(file: File, cid: string): void {
         
         const result = event.target.result as ArrayBuffer;
         for (const chunk of splitArrayBuffer(result, 128 * 1024)) {
-            app.clients[cid].dc_file?.send(chunk);
+            window.app.clients[cid].dc_file?.send(chunk);
         }
-        if (app.file_progress_interval) {
-            clearInterval(app.file_progress_interval);
-            app.file_progress_interval = undefined;
+        if (window.app.file_progress_interval) {
+            clearInterval(window.app.file_progress_interval);
+            window.app.file_progress_interval = undefined;
         }
-        app.file_progress_interval = window.setInterval(() => {
-            const getRemaining = () => ((app.clients[cid].dc_file?.bufferedAmount || 0) + (file.size - Math.min(offset, file.size)));
+        window.app.file_progress_interval = window.setInterval(() => {
+            const getRemaining = () => ((window.app.clients[cid].dc_file?.bufferedAmount || 0) + (file.size - Math.min(offset, file.size)));
             updateProgressBar(id, file.size, getRemaining);
             if (getRemaining() === 0) {
-                if (app.file_progress_interval) {
-                    clearInterval(app.file_progress_interval);
-                    app.file_progress_interval = undefined;
+                if (window.app.file_progress_interval) {
+                    clearInterval(window.app.file_progress_interval);
+                    window.app.file_progress_interval = undefined;
                 }
                 const fileElement = document.getElementById(`f-${id}`);
                 if (fileElement) {
@@ -130,7 +132,7 @@ function readFile(file: File, cid: string): void {
         reader.readAsArrayBuffer(file.slice(offset, offset + max_size));
         offset += max_size;
         if (offset > file.size) {
-            app.clients[cid].dc_file?.removeEventListener("bufferedamountlow", buffer_cb);
+            window.app.clients[cid].dc_file?.removeEventListener("bufferedamountlow", buffer_cb);
             const fileUpload = document.getElementById('file-upload') as HTMLInputElement;
             if (fileUpload) {
                 fileUpload.disabled = false;
@@ -143,7 +145,7 @@ function readFile(file: File, cid: string): void {
         if (fileUpload) {
             fileUpload.disabled = true;
         }
-        app.clients[cid].dc_file?.addEventListener("bufferedamountlow", buffer_cb);
+        window.app.clients[cid].dc_file?.addEventListener("bufferedamountlow", buffer_cb);
     }
     
     reader.readAsArrayBuffer(file.slice(offset, offset + max_size));

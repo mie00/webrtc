@@ -36,7 +36,7 @@ async function sendData(reader: ReadableStreamDefaultReader<Uint8Array>, id: str
 
   // TODO: convert to proper promise
   const cb = async function(): Promise<void> {
-    const client = app.clients[cid] as ForwardClient;
+    const client = window.app.clients[cid] as ForwardClient;
     client.forward.removeEventListener("bufferedamountlow", clearBufferAndCb);
     
     if (!gvalue) {
@@ -233,7 +233,7 @@ function setupForwardChannel(app: ForwardApp, cid: string): void {
 }
 
 const toggleForwardHandler = async (): Promise<void> => {
-  const forwardApp = app as ForwardApp;
+  const forwardApp = window.app as ForwardApp;
   
   if (!forwardApp.allowed_host) {
     let val = prompt("Please enter the url to forward",
@@ -355,7 +355,7 @@ if ('serviceWorker' in navigator) {
     )
     .catch((err) => console.log(err));
 
-  const forwardApp = app as ForwardApp;
+  const forwardApp = window.app as ForwardApp;
   
   const handler = function(event: MessageEvent): void {
     console.log('got event from service worker, sending message to peer', event);

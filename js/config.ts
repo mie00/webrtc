@@ -1,3 +1,5 @@
+import { WebRTCApp } from './WebRTCApp';
+
 const initialConfig = JSON.parse(window.localStorage.getItem('dealer-config') || '{}');
 
 Array.from(document.getElementById('config-overlay').querySelectorAll('input, select')).forEach((x: Element) => {
@@ -27,7 +29,7 @@ function setConfig(k: string, v: string): void {
 document.getElementById('save-button')?.addEventListener('click', () => {
     const newConfig = getConfig();
     window.localStorage.setItem('dealer-config', JSON.stringify(newConfig));
-    (window as any).app.config = newConfig;
+    window.app.config = newConfig;
     document.getElementById('config-overlay')?.classList.add('hidden');
-    (window as any).reset();
+    WebRTCApp.reset();
 });
