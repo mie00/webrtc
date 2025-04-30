@@ -12,7 +12,7 @@ interface Participant {
 const webRTCApp = new WebRTCApp(getConfig());
 
 // Expose it to the window for legacy code that might need it
-window.app = webRTCApp.getApp();
+window.app = window.app || webRTCApp.getApp();
 
 // Only attach event listener if element exists (for testing compatibility)
 const toggleControls = document.getElementById('toggle-controls');
@@ -361,7 +361,6 @@ if (urlParams.has('r')) {
     windowLoader = serverWindowLoader;
 }
 
-console.log('coming here 2');
 window.addEventListener("load", windowLoader);
 
 module.exports = {

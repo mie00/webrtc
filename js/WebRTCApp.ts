@@ -7,7 +7,6 @@ interface NegoMessage {
 
 export class WebRTCApp {
   // Static reference to the app for static methods
-  private static app: App;
   private app: App = {
     clients: {},
     nego_handlers: {},
@@ -18,7 +17,6 @@ export class WebRTCApp {
 
   constructor(config?: Record<string, string>) {
     this.app.config = config || getConfig();
-    WebRTCApp.app = this.app;
     this.setupNegoHandlers();
   }
 

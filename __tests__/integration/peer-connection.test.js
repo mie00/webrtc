@@ -94,13 +94,7 @@ describe('Peer Connection Integration', () => {
         digest: jest.fn().mockResolvedValue(new ArrayBuffer(32))
       }
     };
-    
-    // Mock console
-    global.console = {
-      log: jest.fn(),
-      error: jest.fn()
-    };
-    
+
     // Mock RTCPeerConnection
     global.RTCPeerConnection = jest.fn().mockImplementation(() => ({
       createDataChannel: jest.fn().mockReturnValue({

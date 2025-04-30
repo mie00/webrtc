@@ -167,25 +167,6 @@ describe('Main Application', () => {
     currentLocalDescription: { sdp: 'test-sdp' }
   }));
 
-  global.TextEncoder = jest.fn().mockImplementation(() => ({
-    encode: jest.fn().mockReturnValue(new Uint8Array([1, 2, 3]))
-  }));
-
-  global.TextDecoder = jest.fn().mockImplementation(() => ({
-    decode: jest.fn().mockReturnValue('test-text')
-  }));
-
-  global.Uint8Array = Uint8Array;
-  global.ArrayBuffer = ArrayBuffer;
-  global.Array = Array;
-  global.Object = Object;
-  global.JSON = JSON;
-  global.console = {
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn()
-  };
-
   global.getConfig = jest.fn().mockReturnValue({
     'stun-servers': 'stun.l.google.com:19302',
     'turn-server-v2': 'turn.example.com:3478',
@@ -324,7 +305,9 @@ describe('Main Application', () => {
     global.sendNego = jest.fn();
     
     const mainModule = require('../../js/main');
-    
+
+    mainModule.webRTCApp.app = global.app;
+
     // Call the function
     mainModule.destroyClient('test-cid');
     
