@@ -1,13 +1,18 @@
+/// <reference path="../types/global.d.ts" />
+
 interface ForwardClient extends WebRTCClient {
   forward: RTCDataChannel;
 }
 
 interface ForwardApp extends App {
   forward_peer?: string;
-  _send_host_interval?: number;
+  _send_host_interval?: number | null;
   allowed_host?: string | null;
   inflight: Record<string, (data: any) => void>;
 }
+
+// Get the global app instance
+declare const app: App;
 
 interface ForwardResponse {
   response?: {
@@ -172,7 +177,7 @@ function setupForwardChannel(app: ForwardApp, cid: string): void {
               id: data.id,
               status: response.status,
               statusText: response.statusText,
-              headers: Object.fromEntries(response.headers),
+              headers: Object.fromEntries(Array.from(response.headers.entries())),
             }));
             
             return (async function() {
