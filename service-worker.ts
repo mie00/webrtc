@@ -8,14 +8,17 @@ interface ServiceWorkerClientIds {
   [clientId: string]: string;
 }
 
-declare const self: ServiceWorkerGlobalScope & {
-  handlers: ServiceWorkerHandlers;
-  counter: number;
-  host?: string;
-  clientId?: string;
-  client_ids?: ServiceWorkerClientIds;
-  recordingHandler?: ((data: ArrayBuffer | null) => void) | null;
-};
+// Extend the ServiceWorkerGlobalScope interface instead of redeclaring self
+declare global {
+  interface ServiceWorkerGlobalScope {
+    handlers: ServiceWorkerHandlers;
+    counter: number;
+    host?: string;
+    clientId?: string;
+    client_ids?: ServiceWorkerClientIds;
+    recordingHandler?: ((data: ArrayBuffer | null) => void) | null;
+  }
+}
 
 self.addEventListener('install', (event) => {
     console.log('Service Worker installing.');
