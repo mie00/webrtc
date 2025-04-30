@@ -4,19 +4,24 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js'],
   transform: {
     '^.+\\.js$': 'babel-jest',
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.ts$': ['ts-jest', {
+      useESM: true
+    }]
   },
   testMatch: ['**/__tests__/**/*.test.(js|ts)'],
   setupFiles: ['./jest.setup.js'],
   globals: {
     'ts-jest': {
       isolatedModules: true,
-      tsconfig: 'tsconfig.json'
+      tsconfig: 'tsconfig.json',
+      useESM: true
     }
   },
   moduleNameMapper: {
     // Handle module aliases
-    '^@/(.*)$': '<rootDir>/$1'
+    '^@/(.*)$': '<rootDir>/$1',
+    // Handle .js extension in imports when importing .ts files
+    '^(\\.{1,2}/.*)\\.js$': '$1'
   },
   collectCoverageFrom: [
     'js/**/*.{js,ts}',
@@ -25,5 +30,6 @@ module.exports = {
   ],
   coverageReporters: ['text', 'lcov', 'clover'],
   testPathIgnorePatterns: ['/node_modules/'],
-  verbose: true
+  verbose: true,
+  extensionsToTreatAsEsm: ['.ts']
 };
