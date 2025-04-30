@@ -5,7 +5,7 @@
   import CopyOverlay from './components/CopyOverlay.svelte';
   import ConfigOverlay from './components/ConfigOverlay.svelte';
   import ContextMenu from './components/ContextMenu.svelte';
-  import { getConfig } from '../js/config.js';
+  import { configStore, getAllConfig } from './stores/configStore';
   import { compress, decompress } from '../js/sdpcompress.js';
   
   // Props
@@ -37,11 +37,19 @@
       windowLoader = serverWindowLoader;
     } else if (urlParams.has('offer')) {
       windowLoader = clientWindowLoader;
-    } else if (getConfig()['config-loader'] === 'client') {
+    } else if ($configStore['config-loader'] === 'client') {
       windowLoader = clientWindowLoader;
     } else {
       windowLoader = serverWindowLoader;
     }
+    
+    // Initialize WebRTC app with current config
+    webRTCApp.updateConfig(getAllConfig());
+    
+    // Subscribe to config changes
+    const unsubscribe = configStore.subscribe(newConfig => {
+      webRTCApp.updateConfig(newConfig);
+    });
     
     // Run the appropriate loader
     windowLoader();
@@ -51,6 +59,7 @@
       if (socket) {
         socket.disconnect();
       }
+      unsubscribe();
     };
   });
   
@@ -144,7 +153,7 @@
         if (sdp) {
           const compressed = await compress(sdp);
           urlParams.set('offer', compressed);
-          const newUrl = (app.config['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
+          const newUrl = ($configStore['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
           qrCodeUrl = newUrl;
           copyText = newUrl;
         }
@@ -227,8 +236,7 @@
   const onId = () => {
     showCopyOverlay = true;
     const urlParams = new URLSearchParams(window.location.search);
-    const app = webRTCApp.getApp();
-    const newUrl = (app.config['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
+    const newUrl = ($configStore['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
     copyText = newUrl;
     qrCodeUrl = newUrl;
   };
@@ -286,6 +294,7 @@
 <ConfigOverlay 
   show={showConfigOverlay} 
   on:close={() => showConfigOverlay = false}
+  on:configUpdated={handleReset}
 />
 
 <ContextMenu />

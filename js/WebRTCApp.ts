@@ -16,8 +16,19 @@ export class WebRTCApp {
   };
 
   constructor(config?: Record<string, string>) {
-    this.app.config = config || getConfig();
+    // If config is provided, use it; otherwise it will be set later via updateConfig
+    if (config) {
+      this.app.config = config;
+    }
     this.setupNegoHandlers();
+  }
+  
+  /**
+   * Updates the application configuration
+   * @param config New configuration object
+   */
+  public updateConfig(config: Record<string, string>): void {
+    this.app.config = config;
   }
 
   private setupNegoHandlers(): void {

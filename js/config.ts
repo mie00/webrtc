@@ -1,44 +1,30 @@
-import { WebRTCApp } from './WebRTCApp.js';
+/**
+ * @deprecated Use the Svelte store in src/stores/configStore.ts instead
+ */
 
-const initialConfig = JSON.parse(window.localStorage.getItem('dealer-config') || '{}');
+import { getAllConfig, updateConfig } from '../src/stores/configStore';
 
-const configOverlay = document.getElementById('config-overlay');
-if (configOverlay) {
-    Array.from(configOverlay.querySelectorAll('input, select')).forEach((x: Element) => {
-        const inputElement = x as HTMLInputElement | HTMLSelectElement;
-        if (inputElement.id in initialConfig) {
-            inputElement.value = initialConfig[inputElement.id];
-        }
-    });
-}
-
+/**
+ * Get the current configuration
+ * @returns The current configuration as a Record<string, string>
+ * @deprecated Use the configStore from src/stores/configStore.ts instead
+ */
 function getConfig(): Record<string, string> {
-    const cfg: Record<string, string> = {};
-    const configOverlay = document.getElementById('config-overlay');
-    if (configOverlay) {
-        Array.from(configOverlay.querySelectorAll('input, select')).forEach((x: Element) => {
-            const element = x as HTMLInputElement | HTMLSelectElement;
-            cfg[element.id] = element.value;
-        });
-    }
-    return cfg;
+    return getAllConfig();
 }
 
+/**
+ * Set a configuration value
+ * @param k The key to set
+ * @param v The value to set
+ * @deprecated Use updateConfig from src/stores/configStore.ts instead
+ */
 function setConfig(k: string, v: string): void {
-    Array.from(document.getElementById('config-overlay').querySelectorAll(`#${k}`)).forEach((x: Element) => {
-        const element = x as HTMLInputElement | HTMLSelectElement;
-        element.value = v;
-    });
-    window.localStorage.setItem('dealer-config', JSON.stringify({ ...getConfig(), [k]: v }));
+    updateConfig(k, v);
 }
 
-document.getElementById('save-button')?.addEventListener('click', () => {
-    const newConfig = getConfig();
-    window.localStorage.setItem('dealer-config', JSON.stringify(newConfig));
-    window.app.config = newConfig;
-    document.getElementById('config-overlay')?.classList.add('hidden');
-    WebRTCApp.reset();
-});
+// Remove the event listener as it's now handled by the Svelte component
+// The save button is now handled by the ConfigOverlay component
 
 export {
     getConfig,
