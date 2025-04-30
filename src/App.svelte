@@ -162,28 +162,26 @@
         });
       };
       
-      const acceptButton = document.getElementById("accept-button");
-      if (acceptButton) {
-        acceptButton.addEventListener("click", () => acceptHandler(cid));
-      }
+      // No need for DOM manipulation here since we're using Svelte events
+      // The accept button click is handled by the on:accept event in the CopyOverlay component
     } else if (urlParams.get('answer')) {
       const bc = new BroadcastChannel("manual_rtc");
       const answer = urlParams.get('answer');
       if (answer) await bc.postMessage(answer);
       bc.close();
       showCopyOverlay = true;
-      const copyOverlayElement = document.getElementById('copy-overlay');
-      if (copyOverlayElement) {
-        copyOverlayElement.innerHTML = '<p class="bg-white p-4 rounded-md shadow-md text-center">call started on another tab, please close this one</p>';
-      }
+      // Instead of manipulating the DOM directly, we'll use a variable to control the content
+      copyText = 'Call started on another tab, please close this one';
+      showCopyButton = false;
+      showAcceptButton = false;
+      showPasteText = false;
+      showJoinButton = false;
     } else {
       const now = Date.now();
       const offerParam = urlParams.get('offer');
       if (offerParam) {
         const offer = await decompress(offerParam);
-        const link = document.getElementById('copy-text') as HTMLInputElement;
         showCopyOverlay = true;
-        const btn = document.getElementById("copy-button");
         
         let cid;
         cid = await webRTCApp.getAnswer(offer, async (candidate) => {
