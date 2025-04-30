@@ -1,7 +1,49 @@
 import App from './App.svelte';
+import { WebRTCApp } from '../js/WebRTCApp.js';
+import { getConfig } from '../js/config.js';
 
+// Make WebRTCApp available globally
+window.WebRTCApp = WebRTCApp;
+
+// Create a single instance of the app
+const webRTCApp = new WebRTCApp(getConfig());
+
+// Expose it to the window for legacy code that might need it
+window.app = window.app || webRTCApp.getApp();
+
+// Initialize the Svelte app
 const app = new App({
-  target: document.getElementById('app')
+  target: document.getElementById('app'),
+  props: {
+    webRTCApp
+  }
 });
 
+// Export for testing/debugging
 export default app;
+
+// For backward compatibility
+export const rtcUtils = {
+  webRTCApp,
+  sendNego: (client: WebRTCClient, data: any) => webRTCApp.sendNego(client, data),
+  destroyClient: (cid: string) => webRTCApp.destroyClient(cid),
+  cleanup: () => webRTCApp.cleanup(),
+  destroy: () => webRTCApp.destroy(),
+  uuidv4: () => webRTCApp.uuidv4(),
+  init: () => webRTCApp.init(),
+  initClient: (polite: boolean, options: ClientInitOptions) => webRTCApp.initClient(polite, options),
+  getOffer: (cb: (candidate: RTCIceCandidate | null) => Promise<void>, options: {sid: string}) => webRTCApp.getOffer(cb, options),
+  getAnswer: (offer: string, cb: (candidate: RTCIceCandidate | null) => Promise<void>, options: {sid: string}) => webRTCApp.getAnswer(offer, cb, options),
+  sha256: (message: string) => webRTCApp.sha256(message),
+  genEmojis: (digest: string) => webRTCApp.genEmojis(digest),
+  handleChange: (cid?: string) => webRTCApp.handleChange(cid),
+  logDiff: (d1: string, d2: string) => webRTCApp.logDiff(d1, d2),
+  // Static methods
+  log: (msg: string) => WebRTCApp.log(msg),
+  reset: () => WebRTCApp.reset(),
+  // Export the app object for testing
+  _getApp: () => webRTCApp.getApp()
+};
+
+// Add to window for legacy code
+window.addEventListener("beforeunload", () => webRTCApp.cleanup());
