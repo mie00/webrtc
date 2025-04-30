@@ -1,9 +1,5 @@
-// Declare global app to make TypeScript happy
-declare global {
-  interface Window {
-    app: App;
-  }
-}
+// Import types from global.d.ts
+/// <reference path="../types/global.d.ts" />
 
 // Use type assertion to handle vendor prefixes
 window.AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -13,6 +9,7 @@ declare const sendNego: (client: Client, data: any) => void;
 declare const getConfig: () => Record<string, string>;
 declare const setConfig: (key: string, value: string) => void;
 declare const BinPack: () => BinPackResult;
+declare const backgroundChange: (videoElement: HTMLVideoElement) => Promise<MediaStream>;
 
 function addEventListenerAll(target: EventTarget, listener: EventListener, ...otherArguments: any[]): void {
     // install listeners for all natively triggered events
