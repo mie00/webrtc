@@ -296,7 +296,9 @@ describe('Main Application', () => {
       }
     };
 
+    // Store a reference to the client object and its PC before destroying
     const clientObj = app.clients['test-cid'];
+    const pcCloseSpy = clientObj.pc.close;
     
     // Mock handleChange to avoid DOM manipulation
     global.handleChange = jest.fn();
@@ -313,7 +315,7 @@ describe('Main Application', () => {
     
     // Verify the client was cleaned up
     expect(global.clearInterval).toHaveBeenCalledWith(123);
-    expect(clientObj.pc.close).toHaveBeenCalled();
+    expect(pcCloseSpy).toHaveBeenCalled();
     
     // Verify all fields are properly cleaned up
     expect(clientObj.pc).toBeNull();
