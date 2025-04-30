@@ -108,12 +108,15 @@ interface RTCPeerConnectionIceEvent {
   readonly candidate: RTCIceCandidate | null;
 }
 
+import { WebRTCApp } from '../js/WebRTCApp';
+
 interface Window {                                                                                                                                                                                          
   app: App & {
     recorder?: number;
     merger?: any;
     mediaRecorder?: MediaRecorder;
   };
+  webRTCApp: WebRTCApp;
   uuidv4: () => string;
   VideoStreamMerger: any;
 }
