@@ -108,7 +108,10 @@ interface RTCPeerConnectionIceEvent {
   readonly candidate: RTCIceCandidate | null;
 }
 
-import { WebRTCApp } from '../js/WebRTCApp';
+interface ClientInitOptions {
+  sid: string;
+  offer?: string;
+}
 
 interface Window {                                                                                                                                                                                          
   app: App & {
