@@ -14,7 +14,7 @@ declare class SelfieSegmentation {
 declare const io: (url: string, options?: any) => any;
 
 // External functions used across files
-declare function sendNego(client: Client, data: any): void;
+declare function sendNego(client: WebRTCClient, data: any): void;
 declare function getConfig(): Record<string, string>;
 declare function setConfig(key: string, value: string): void;
 declare function BinPack(): BinPackResult;
@@ -28,7 +28,7 @@ declare class QRCode {
 // Add EMOJIS global variable used in main.js
 declare const EMOJIS: string[];
 
-interface Client {
+interface WebRTCClient {
   pc: RTCPeerConnection;
   dc?: RTCDataChannel;
   dc_file?: RTCDataChannel;
@@ -41,7 +41,7 @@ interface Client {
 }
 
 interface App {
-  clients: Record<string, Client>;
+  clients: Record<string, WebRTCClient>;
   streams?: Record<string, MediaStream>;
   streamConfig?: Record<string, any>;
   viewStreams?: Record<string, MediaStream>;
