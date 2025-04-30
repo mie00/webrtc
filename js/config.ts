@@ -2,19 +2,25 @@ import { WebRTCApp } from './WebRTCApp.js';
 
 const initialConfig = JSON.parse(window.localStorage.getItem('dealer-config') || '{}');
 
-Array.from(document.getElementById('config-overlay').querySelectorAll('input, select')).forEach((x: Element) => {
-    const inputElement = x as HTMLInputElement | HTMLSelectElement;
-    if (inputElement.id in initialConfig) {
-        inputElement.value = initialConfig[inputElement.id];
-    }
-});
+const configOverlay = document.getElementById('config-overlay');
+if (configOverlay) {
+    Array.from(configOverlay.querySelectorAll('input, select')).forEach((x: Element) => {
+        const inputElement = x as HTMLInputElement | HTMLSelectElement;
+        if (inputElement.id in initialConfig) {
+            inputElement.value = initialConfig[inputElement.id];
+        }
+    });
+}
 
 function getConfig(): Record<string, string> {
     const cfg: Record<string, string> = {};
-    Array.from(document.getElementById('config-overlay').querySelectorAll('input, select')).forEach((x: Element) => {
-        const element = x as HTMLInputElement | HTMLSelectElement;
-        cfg[element.id] = element.value;
-    });
+    const configOverlay = document.getElementById('config-overlay');
+    if (configOverlay) {
+        Array.from(configOverlay.querySelectorAll('input, select')).forEach((x: Element) => {
+            const element = x as HTMLInputElement | HTMLSelectElement;
+            cfg[element.id] = element.value;
+        });
+    }
     return cfg;
 }
 
