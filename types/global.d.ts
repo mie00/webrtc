@@ -80,3 +80,7 @@ declare global {
 interface RTCPeerConnectionIceEvent {
   candidate: RTCIceCandidate | null;
 }
+
+interface Window {                                                                                                                                                                                          
+  app: App;                                                                                                                                                                                                 
+}
