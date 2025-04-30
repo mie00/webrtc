@@ -299,16 +299,11 @@ describe('Main Application', () => {
     // Store a reference to the client object and its PC before destroying
     const clientObj = app.clients['test-cid'];
     const pcCloseSpy = clientObj.pc.close;
-    
-    // Mock handleChange to avoid DOM manipulation
-    global.handleChange = jest.fn();
-    
-    // Mock sendNego to avoid dependency issues
-    global.sendNego = jest.fn();
-    
+
     const mainModule = require('../../js/main');
 
     mainModule.webRTCApp.app = global.app;
+    jest.spyOn(mainModule.webRTCApp, 'sendNego')
 
     // Call the function
     mainModule.destroyClient('test-cid');
@@ -335,7 +330,7 @@ describe('Main Application', () => {
     expect(app.cleanups.test).toHaveBeenCalledWith('test-cid');
     
     // Verify sendNego was called for other clients
-    expect(global.sendNego).toHaveBeenCalledWith(
+    expect(mainModule.webRTCApp.sendNego).toHaveBeenCalledWith(
       app.clients['other-cid'], 
       {type: 'participant.end', cid: 'test-cid'}
     );
