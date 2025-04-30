@@ -78,7 +78,7 @@ declare global {
 
 // WebRTC specific types that might be missing
 interface RTCPeerConnectionIceEvent {
-  candidate: RTCIceCandidate | null;
+  readonly candidate: RTCIceCandidate | null;
 }
 
 interface Window {                                                                                                                                                                                          
