@@ -3,5 +3,9 @@
   "files": ["./dist/**/*.{html,htm,css,js}", "./*.html"],
   "server": {
     "baseDir": "./"
-  }
+  },
+  "ghostMode": false,
+  "injectChanges": false,
+  "reloadOnRestart": true,
+  "notify": false
 }
