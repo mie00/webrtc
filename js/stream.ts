@@ -2,7 +2,7 @@
 /// <reference path="../types/global.d.ts" />
 
 // Use type assertion to handle vendor prefixes
-window.AudioContext = window.AudioContext || window.webkitAudioContext;
+window.AudioContext = window.AudioContext || (window as any).webkitAudioContext;
 
 // These functions are defined elsewhere, no need to redeclare them
 // Just reference them in the code
