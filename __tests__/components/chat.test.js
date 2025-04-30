@@ -70,6 +70,7 @@ describe('Chat Functionality', () => {
         dc.onmessage({ data: 'Test message' });
         
         // Check if WebRTCApp.log was called
+        const { WebRTCApp } = require('../../js/WebRTCApp');
         expect(WebRTCApp.log).toHaveBeenCalledWith('> Test message');
       }
     } else {
