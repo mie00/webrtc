@@ -292,7 +292,13 @@ describe('Main Application', () => {
             onclose: null,
             onmessage: null
           },
-          _transceiver_interval: 123
+          dc: {},
+          dc_file: {},
+          forward: {},
+          file_stuff: {},
+          _transceiver_interval: 123,
+          polite: true,
+          makingOffer: false
         },
         'other-cid': {
           pc: {
@@ -320,11 +326,31 @@ describe('Main Application', () => {
     mainModule.destroyClient('test-cid');
     
     // Verify the client was cleaned up
-    // TODO: fix
-    // expect(global.clearInterval).toHaveBeenCalledWith(123);
-    // expect(app.clients['test-cid'].pc.close).toHaveBeenCalled();
-    // expect(app.clients['test-cid']).toBeUndefined();
-    // expect(app.cleanups.test).toHaveBeenCalledWith('test-cid');
+    expect(global.clearInterval).toHaveBeenCalledWith(123);
+    expect(app.clients['test-cid'].pc.close).toHaveBeenCalled();
+    
+    // Verify all fields are properly cleaned up
+    expect(app.clients['test-cid'].pc).toBeNull();
+    expect(app.clients['test-cid'].dc).toBeUndefined();
+    expect(app.clients['test-cid'].dc_file).toBeUndefined();
+    expect(app.clients['test-cid'].forward).toBeUndefined();
+    expect(app.clients['test-cid'].nego_dc).toBeUndefined();
+    expect(app.clients['test-cid'].file_stuff).toBeUndefined();
+    expect(app.clients['test-cid']._transceiver_interval).toBeUndefined();
+    expect(app.clients['test-cid'].polite).toBeUndefined();
+    expect(app.clients['test-cid'].makingOffer).toBeUndefined();
+    
+    // Verify the client is removed from the clients object
+    expect(app.clients['test-cid']).toBeUndefined();
+    
+    // Verify cleanup functions were called
+    expect(app.cleanups.test).toHaveBeenCalledWith('test-cid');
+    
+    // Verify sendNego was called for other clients
+    expect(global.sendNego).toHaveBeenCalledWith(
+      app.clients['other-cid'], 
+      {type: 'participant.end', cid: 'test-cid'}
+    );
   });
 
   test('uuidv4 should generate a valid UUID', () => {

@@ -41,7 +41,7 @@ declare class QRCode {
 declare const EMOJIS: string[];
 
 interface WebRTCClient {
-  pc: RTCPeerConnection;
+  pc: RTCPeerConnection | null;
   dc?: RTCDataChannel;
   dc_file?: RTCDataChannel;
   forward?: RTCDataChannel;
@@ -50,6 +50,9 @@ interface WebRTCClient {
   _transceiver_interval?: number;
   polite?: boolean;
   makingOffer?: boolean;
+  // When adding new properties to this interface, make sure to:
+  // 1. Update the destroyClient function in js/main.ts to clean up the new property
+  // 2. Update the unit tests in __tests__/unit/main.test.js to verify cleanup
 }
 
 interface App {
