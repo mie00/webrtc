@@ -1,4 +1,21 @@
-// service-worker.js
+
+// Define interfaces for the service worker
+interface ServiceWorkerHandlers {
+  [id: string]: (data: any, err?: any) => void;
+}
+
+interface ServiceWorkerClientIds {
+  [clientId: string]: string;
+}
+
+declare const self: ServiceWorkerGlobalScope & {
+  handlers: ServiceWorkerHandlers;
+  counter: number;
+  host?: string;
+  clientId?: string;
+  client_ids?: ServiceWorkerClientIds;
+  recordingHandler?: ((data: ArrayBuffer | null) => void) | null;
+};
 
 self.addEventListener('install', (event) => {
     console.log('Service Worker installing.');
@@ -15,12 +32,12 @@ self.addEventListener('activate', (event) => {
 });
 
 // Convert event.request.body to ArrayBuffer
-async function bodyToArrayBuffer(body) {
+async function bodyToArrayBuffer(body: ReadableStream<Uint8Array> | null): Promise<Uint8Array | null> {
     if (!body) {
         return null;
     }
     const reader = body.getReader();
-    const chunks = [];
+    const chunks: Uint8Array[] = [];
     while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -39,7 +56,7 @@ async function bodyToArrayBuffer(body) {
     return uint8Array;
 }
 
-function objectToArrayBuffer(data) {
+function objectToArrayBuffer(data: Record<string, any>): ArrayBuffer {
     const keys = Object.keys(data);
     const length = keys.length;
 
@@ -53,34 +70,15 @@ function objectToArrayBuffer(data) {
     return buffer;
 }
 
-// const downloadRecord = (event) => {
-//     const stream = new ReadableStream({
-//         start(controller) {
-//             self.recordingHandler = (data) => {
-//                 if (data) {
-//                     controller.enqueue(data);
-//                 } else {
-//                     controller.close();
-//                     self.recordingHandler = null;
-//                 }
-//             }
-//         }
-//     });
-//     const response = new Response(stream)
-//     event.respondWith(response)
-// }
-
-self.addEventListener('fetch', (event) => {
-    console.log("got a new fetch", "ref", event.request.referrer, "url", event.request.url, event, Object.fromEntries(event.request.headers))
-    // if (event.request.url.endsWith('/mie-webrtc-video.mp4')) {
-    //     downloadRecord(event);
-    //     return;
-    // }
-    const url = event.request.referrer?new URL(event.request.referrer):undefined;
+self.addEventListener('fetch', (event: FetchEvent) => {
+    console.log("got a new fetch", "ref", event.request.referrer, "url", event.request.url, event, Object.fromEntries(event.request.headers));
+    
+    const url = event.request.referrer ? new URL(event.request.referrer) : undefined;
     let host = url?.searchParams.get('host');
     let homepage = false;
+    
     if (!host) {
-        const url = new URL(event.request.url)
+        const url = new URL(event.request.url);
         host = url.searchParams.get('host');
         if (!host) {
             if (self.client_ids && self.client_ids[event.clientId]) {
@@ -98,31 +96,43 @@ self.addEventListener('fetch', (event) => {
             homepage = true;
         }
     }
+    
     if (event.resultingClientId) {
         self.client_ids ||= {};
         self.client_ids[event.resultingClientId] = host;
     }
-    console.log("handling fetch for host", event.request.referrer, event.request.url, host)
+    
+    console.log("handling fetch for host", event.request.referrer, event.request.url, host);
+    
     if (isNaN(self.counter)) {
         self.counter = 0;
     }
+    
     const id = self.counter++;
-    self.handlers ||= {};;
+    self.handlers ||= {};
+    
     let rurl = new URL(event.request.url);
     const hurl = new URL(host);
+    
     if (homepage) {
         rurl = hurl;
     } else {
         rurl.host = hurl.host;
         rurl.protocol = hurl.protocol;
     }
+    
     console.log("handling2 fetch for host", homepage, host, hurl, rurl, event.request.referrer, event.request.url, id);
 
-    const postRequest = async function () {
-        console.log(self.clientId)
+    const postRequest = async function (): Promise<void> {
+        console.log(self.clientId);
+        if (!self.clientId) return;
+        
         const client = await self.clients.get(self.clientId);
+        if (!client) return;
+        
         console.log("sending message to window", client.url);
         const body = await bodyToArrayBuffer(event.request.body);
+        
         client.postMessage({
             id: id,
             url: rurl.toString(),
@@ -132,9 +142,9 @@ self.addEventListener('fetch', (event) => {
         });
     };
 
-    const resp = postRequest().then(() => new Promise((resolve, reject) => {
+    const resp = postRequest().then(() => new Promise<Response>((resolve, reject) => {
         self.handlers[id] = (data, err) => {
-            console.log("called callback for fetch", data, err)
+            console.log("called callback for fetch", data, err);
             if (err) {
                 reject(err);
                 return;
@@ -142,18 +152,21 @@ self.addEventListener('fetch', (event) => {
             const arrayBuffer = objectToArrayBuffer(data.body);
             resolve(new Response(arrayBuffer, data));
             delete self.handlers[id];
-        }
+        };
     }));
 
     event.respondWith(resp);
 });
 
-self.addEventListener('message', function (event) {
-    console.log('got message from window', event)
+self.addEventListener('message', function (event: ExtendableMessageEvent) {
+    console.log('got message from window', event);
+    if (!event.data || !event.data.type) return;
+    
     switch (event.data.type) {
         case 'host':
             self.host = event.data.host;
-            self.clientId = event.source.id;
+            self.clientId = event.source?.id;
+            break;
         case 'response':
             if (self.handlers[event.data.id]) {
                 self.handlers[event.data.id](event.data);
@@ -175,7 +188,7 @@ self.addEventListener('message', function (event) {
             }
             break;
         default:
-            console.log(event.data)
+            console.log(event.data);
             console.log('Unknown command "' + event.data.type + '".');
     }
 });
