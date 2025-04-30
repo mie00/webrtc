@@ -72,6 +72,7 @@ interface HTMLVideoElement {
   substitueElement?: HTMLElement;
   captureStream?: () => MediaStream;
   mozCaptureStream?: () => MediaStream;
+  requestVideoFrameCallback: (callback: () => void) => number;
 }
 
 // WebRTC specific types that might be missing
