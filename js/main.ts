@@ -1,5 +1,8 @@
 import { WebRTCApp } from './WebRTCApp';
 
+// Make WebRTCApp available globally
+window.WebRTCApp = WebRTCApp;
+
 interface Participant {
   relay: string;
 }
@@ -57,7 +60,7 @@ const copyOverlay = document.getElementById('copy-overlay');
 // Only attach event listeners if elements exist (for testing compatibility)
 const resetButton = document.getElementById('reset');
 if (resetButton) {
-    resetButton.addEventListener('click', () => webRTCApp.reset());
+    resetButton.addEventListener('click', () => WebRTCApp.reset());
 }
 
 const openConfigButton = document.getElementById('open-config');
@@ -378,6 +381,9 @@ if (typeof module !== 'undefined' && module.exports) {
         genEmojis: (digest: string) => webRTCApp.genEmojis(digest),
         handleChange: (cid?: string) => webRTCApp.handleChange(cid),
         logDiff: (d1: string, d2: string) => webRTCApp.logDiff(d1, d2),
+        // Static methods
+        log: (msg: string) => WebRTCApp.log(msg),
+        reset: () => WebRTCApp.reset(),
         // Export the app object for testing
         _getApp: () => webRTCApp.getApp()
     };

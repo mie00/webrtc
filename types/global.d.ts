@@ -120,6 +120,7 @@ interface Window {
     mediaRecorder?: MediaRecorder;
   };
   webRTCApp: WebRTCApp;
+  WebRTCApp: typeof WebRTCApp;
   uuidv4: () => string;
   VideoStreamMerger: any;
 }

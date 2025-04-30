@@ -6,6 +6,8 @@ interface NegoMessage {
 }
 
 export class WebRTCApp {
+  // Static reference to the app for static methods
+  private static app: App;
   private app: App = {
     clients: {},
     nego_handlers: {},
@@ -15,6 +17,7 @@ export class WebRTCApp {
 
   constructor(config?: Record<string, string>) {
     this.app.config = config || getConfig();
+    WebRTCApp.app = this.app;
     this.setupNegoHandlers();
   }
 
@@ -147,7 +150,7 @@ export class WebRTCApp {
     this.reset();
   }
 
-  public reset(): void {
+  public static reset(): void {
     window.location.href = window.location.origin + window.location.pathname;
   }
 
@@ -378,7 +381,7 @@ export class WebRTCApp {
     }
   }
 
-  public log(msg: string): void {
+  public static log(msg: string): void {
     const output = document.getElementById('output');
     if (output) output.innerHTML += `<br>${msg}`;
   }
