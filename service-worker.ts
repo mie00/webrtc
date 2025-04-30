@@ -19,13 +19,13 @@ const sw = self as unknown as ServiceWorkerGlobalScope & {
   recordingHandler?: ((data: ArrayBuffer | null) => void) | null;
 };
 
-self.addEventListener('install', (event: ExtendableEvent) => {
+(self as unknown as ServiceWorkerGlobalScope).addEventListener('install', (event: ExtendableEvent) => {
     console.log('Service Worker installing.');
     // Force the waiting service worker to become the active service worker
     event.waitUntil(sw.skipWaiting());
 });
 
-self.addEventListener('activate', (event: ExtendableEvent) => {
+(self as unknown as ServiceWorkerGlobalScope).addEventListener('activate', (event: ExtendableEvent) => {
     console.log('Service Worker activating.');
     // Claim any clients immediately, so that the service worker takes control
     sw.handlers = {};
@@ -72,7 +72,7 @@ function objectToArrayBuffer(data: Record<string, any>): ArrayBuffer {
     return buffer;
 }
 
-self.addEventListener('fetch', (event: FetchEvent) => {
+(self as unknown as ServiceWorkerGlobalScope).addEventListener('fetch', (event: FetchEvent) => {
     console.log("got a new fetch", "ref", event.request.referrer, "url", event.request.url, event, Object.fromEntries(event.request.headers));
     
     const url = event.request.referrer ? new URL(event.request.referrer) : undefined;
@@ -160,7 +160,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     event.respondWith(resp);
 });
 
-self.addEventListener('message', function(this: ServiceWorkerGlobalScope, event: ExtendableMessageEvent) {
+(self as unknown as ServiceWorkerGlobalScope).addEventListener('message', function(event: ExtendableMessageEvent) {
     console.log('got message from window', event);
     if (!event.data || !event.data.type) return;
     
