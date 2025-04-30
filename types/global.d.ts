@@ -17,6 +17,18 @@ declare const io: (url: string, options?: any) => any;
 declare function sendNego(client: WebRTCClient, data: any): void;
 declare function getConfig(): Record<string, string>;
 declare function setConfig(key: string, value: string): void;
+interface BinPackResult {
+  positioned: Array<{
+    x: number;
+    y: number;
+    datum: any;
+  }>;
+  unpositioned: any[];
+  binWidth: (width: number) => any;
+  binHeight: (height: number) => any;
+  addAll: (items: any[]) => void;
+}
+
 declare function BinPack(): BinPackResult;
 declare function backgroundChange(videoElement: HTMLVideoElement): Promise<MediaStream>;
 
@@ -77,7 +89,7 @@ interface HTMLVideoElement {
   substitueElement?: HTMLElement;
   captureStream?: () => MediaStream;
   mozCaptureStream?: () => MediaStream;
-  requestVideoFrameCallback: (callback: () => void) => number;
+  requestVideoFrameCallback?: (callback: VideoFrameRequestCallback) => number;
 }
 
 // Stream element options
