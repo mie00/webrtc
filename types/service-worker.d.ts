@@ -43,3 +43,23 @@ interface ExtendableMessageEvent extends ExtendableEvent {
   source: Client | ServiceWorker | MessagePort | null;
   ports: ReadonlyArray<MessagePort>;
 }
+
+// Add service worker event map for proper event listener typing
+interface ServiceWorkerGlobalScopeEventMap {
+  'install': ExtendableEvent;
+  'activate': ExtendableEvent;
+  'fetch': FetchEvent;
+  'message': ExtendableMessageEvent;
+}
+
+// Extend ServiceWorkerGlobalScope with addEventListener
+interface ServiceWorkerGlobalScope {
+  addEventListener<K extends keyof ServiceWorkerGlobalScopeEventMap>(
+    type: K,
+    listener: (this: ServiceWorkerGlobalScope, ev: ServiceWorkerGlobalScopeEventMap[K]) => any,
+    options?: boolean | AddEventListenerOptions
+  ): void;
+}
+
+// Declare self as ServiceWorkerGlobalScope
+declare var self: ServiceWorkerGlobalScope;

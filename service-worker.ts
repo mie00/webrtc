@@ -160,7 +160,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     event.respondWith(resp);
 });
 
-self.addEventListener('message', function(event: ExtendableMessageEvent) {
+self.addEventListener('message', function(this: ServiceWorkerGlobalScope, event: ExtendableMessageEvent) {
     console.log('got message from window', event);
     if (!event.data || !event.data.type) return;
     
