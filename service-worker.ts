@@ -9,8 +9,8 @@ interface ServiceWorkerClientIds {
   [clientId: string]: string;
 }
 
-// Add properties to ServiceWorkerGlobalScope
-declare var self: ServiceWorkerGlobalScope & {
+// We're in a service worker context, so we can safely cast self
+const sw = self as unknown as ServiceWorkerGlobalScope & {
   handlers: ServiceWorkerHandlers;
   counter: number;
   host?: string;
@@ -22,15 +22,15 @@ declare var self: ServiceWorkerGlobalScope & {
 self.addEventListener('install', (event: ExtendableEvent) => {
     console.log('Service Worker installing.');
     // Force the waiting service worker to become the active service worker
-    event.waitUntil(self.skipWaiting());
+    event.waitUntil(sw.skipWaiting());
 });
 
 self.addEventListener('activate', (event: ExtendableEvent) => {
     console.log('Service Worker activating.');
     // Claim any clients immediately, so that the service worker takes control
-    self.handlers = {};
-    self.counter = 0;
-    event.waitUntil(self.clients.claim());
+    sw.handlers = {};
+    sw.counter = 0;
+    event.waitUntil(sw.clients.claim());
 });
 
 // Convert event.request.body to ArrayBuffer
@@ -83,13 +83,13 @@ self.addEventListener('fetch', (event: FetchEvent) => {
         const url = new URL(event.request.url);
         host = url.searchParams.get('host');
         if (!host) {
-            if (self.client_ids && self.client_ids[event.clientId]) {
-                host = self.client_ids[event.clientId];
+            if (sw.client_ids && sw.client_ids[event.clientId]) {
+                host = sw.client_ids[event.clientId];
             } else {
                 if (event.request.destination === "iframe") {
-                    host = self.host;
+                    host = sw.host;
                 } else {
-                    console.log(self.client_ids);
+                    console.log(sw.client_ids);
                     console.log("normal handling", event.request.url);
                     return;
                 }
@@ -100,18 +100,18 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     }
     
     if (event.resultingClientId) {
-        self.client_ids ||= {};
-        self.client_ids[event.resultingClientId] = host;
+        sw.client_ids ||= {};
+        sw.client_ids[event.resultingClientId] = host;
     }
     
     console.log("handling fetch for host", event.request.referrer, event.request.url, host);
     
-    if (isNaN(self.counter)) {
-        self.counter = 0;
+    if (isNaN(sw.counter)) {
+        sw.counter = 0;
     }
     
-    const id = self.counter++;
-    self.handlers ||= {};
+    const id = sw.counter++;
+    sw.handlers ||= {};
     
     let rurl = new URL(event.request.url);
     const hurl = new URL(host);
@@ -126,10 +126,10 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     console.log("handling2 fetch for host", homepage, host, hurl, rurl, event.request.referrer, event.request.url, id);
 
     const postRequest = async function (): Promise<void> {
-        console.log(self.clientId);
-        if (!self.clientId) return;
+        console.log(sw.clientId);
+        if (!sw.clientId) return;
         
-        const client = await self.clients.get(self.clientId);
+        const client = await sw.clients.get(sw.clientId);
         if (!client) return;
         
         console.log("sending message to window", client.url);
@@ -145,7 +145,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     };
 
     const resp = postRequest().then(() => new Promise<Response>((resolve, reject) => {
-        self.handlers[id] = (data, err) => {
+        sw.handlers[id] = (data, err) => {
             console.log("called callback for fetch", data, err);
             if (err) {
                 reject(err);
@@ -153,7 +153,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
             }
             const arrayBuffer = objectToArrayBuffer(data.body);
             resolve(new Response(arrayBuffer, data));
-            delete self.handlers[id];
+            delete sw.handlers[id];
         };
     }));
 
@@ -166,27 +166,27 @@ self.addEventListener('message', function(event: ExtendableMessageEvent) {
     
     switch (event.data.type) {
         case 'host':
-            self.host = event.data.host;
-            self.clientId = event.source && 'id' in event.source ? (event.source as Client).id : undefined;
+            sw.host = event.data.host;
+            sw.clientId = event.source && 'id' in event.source ? (event.source as Client).id : undefined;
             break;
         case 'response':
-            if (self.handlers[event.data.id]) {
-                self.handlers[event.data.id](event.data);
+            if (sw.handlers[event.data.id]) {
+                sw.handlers[event.data.id](event.data);
             }
             break;
         case 'error':
-            if (self.handlers[event.data.id]) {
-                self.handlers[event.data.id](null, event.data);
+            if (sw.handlers[event.data.id]) {
+                sw.handlers[event.data.id](null, event.data);
             }
             break;
         case 'recording':
-            if (self.recordingHandler) {
-                self.recordingHandler(event.data);
+            if (sw.recordingHandler) {
+                sw.recordingHandler(event.data);
             }
             break;
         case 'recording.end':
-            if (self.recordingHandler) {
-                self.recordingHandler(null);
+            if (sw.recordingHandler) {
+                sw.recordingHandler(null);
             }
             break;
         default:
