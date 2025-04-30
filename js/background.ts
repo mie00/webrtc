@@ -17,6 +17,9 @@ async function backgroundChange(videoSource: HTMLVideoElement): Promise<MediaStr
     }
 
     function onResults(results: any): void {
+        if (!ctx) {
+            return;
+        }       
         ctx.save();
         ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
         ctx.drawImage(results.segmentationMask, 0, 0,

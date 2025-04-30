@@ -136,7 +136,7 @@ function setupForwardChannel(app: ForwardApp, cid: string): void {
           clearInterval(app._send_host_interval);
           app._send_host_interval = null;
         }
-        app._send_host_interval = window.setInterval(sendHost, 10000) as unknown as number;
+        app._send_host_interval = window.setInterval(sendHost, 10000);
 
         const mediaElement = document.getElementById('media');
         if (mediaElement) {

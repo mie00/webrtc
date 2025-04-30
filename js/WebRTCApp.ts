@@ -12,7 +12,8 @@ export class WebRTCApp {
     clients: {},
     nego_handlers: {},
     cleanups: {},
-    nego_messages: {}
+    nego_messages: {},
+    config: {},
   };
 
   constructor(config?: Record<string, string>) {
@@ -184,7 +185,7 @@ export class WebRTCApp {
           urls: "turn:" + this.app.config["turn-server-v2"],
           username: this.app.config["turn-username"],
           credential: this.app.config["turn-password"],
-        } as RTCIceServer] : [])
+        }] : [])
       ],
     };
 
@@ -263,7 +264,7 @@ export class WebRTCApp {
     this.app.clients[cid]._transceiver_interval = window.setInterval(() => {
       // app.clients[cid].pc.addTransceiver('audio', {direction: "recvonly"});
       // app.clients[cid].pc.addTransceiver('video', {direction: "recvonly"});
-    }, 10000) as unknown as number;
+    }, 10000);
 
     if (offer) {
       await this.app.clients[cid].pc.setRemoteDescription({

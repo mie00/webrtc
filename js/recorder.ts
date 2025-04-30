@@ -61,8 +61,8 @@ async function setupStreams(merger: any): Promise<void> {
 }
 
 async function startRecording(): Promise<void> {
-  var merger = new (window as any).VideoStreamMerger();
-  window.app.recorder = setInterval(setupStreams.bind(null, merger), 1000) as unknown as number;
+  var merger = new window.VideoStreamMerger();
+  window.app.recorder = window.setInterval(setupStreams.bind(null, merger), 1000);
   window.app.merger = merger;
   merger.setOutputSize(FW, FH);
 

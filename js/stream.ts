@@ -4,28 +4,6 @@
 // Use type assertion to handle vendor prefixes
 window.AudioContext = window.AudioContext || (window as any).webkitAudioContext;
 
-// These functions are defined elsewhere, no need to redeclare them
-// Just reference them in the code
-
-function addEventListenerAll(target: EventTarget, listener: EventListener, ...otherArguments: any[]): void {
-    // install listeners for all natively triggered events
-    for (const key in target) {
-        if (/^on/.test(key)) {
-            const eventType = key.substr(2);
-            target.addEventListener(eventType, listener, ...otherArguments);
-        }
-    }
-
-    // dynamically install listeners for all manually triggered events, just-in-time before they're dispatched
-    const dispatchEvent_original = EventTarget.prototype.dispatchEvent;
-    function dispatchEvent(this: EventTarget, event: Event): boolean {
-        target.addEventListener(event.type, listener, ...otherArguments);  // multiple identical listeners are automatically discarded
-        return dispatchEvent_original.apply(this, arguments as unknown as [Event]);
-    }
-    EventTarget.prototype.dispatchEvent = dispatchEvent;
-    if (EventTarget.prototype.dispatchEvent !== dispatchEvent) throw new Error(`Browser is smarter than you think!`);
-}
-
 function normalizeStreamId(id: string): string {
     return id.replace('{', '').replace('}', '');
 }
@@ -35,28 +13,29 @@ function getStreamElemId(id: string): string {
 }
 
 function streamInit(app: App): void {
-    app.streams = {};
-    app.streamConfig = {};
-    app.viewStreams = {};
-    app.nego_handlers['stream.end'] = (data: { stream: string }, cid: string) => {
+    const appWithConfig = app as AppWithStreamConfig;
+    appWithConfig.streams = {};
+    appWithConfig.streamConfig = {};
+    appWithConfig.viewStreams = {};
+    appWithConfig.nego_handlers['stream.end'] = (data: { stream: string }, cid: string) => {
         document.querySelectorAll(`.${getStreamElemId(data.stream)}`).forEach(elem => elem.remove());
-        delete app.viewStreams[data.stream];
+        delete appWithConfig.viewStreams[data.stream];
 
-        for (let cid2 of Object.keys(app.clients)) {
+        for (let cid2 of Object.keys(appWithConfig.clients)) {
             if (cid == cid2) {
                 continue;
             }
-            sendNego(app.clients[cid2], { type: 'stream.end', stream: data.stream });
+            sendNego(appWithConfig.clients[cid2], { type: 'stream.end', stream: data.stream });
         }
     };
 
-    app.cleanups['stream'] = (cid?: string) => {
+    appWithConfig.cleanups['stream'] = (cid?: string) => {
         if (!cid) {
-            Object.keys(app.streams || {}).forEach((streamId) => {
-                const stream = app.streams![streamId];
-                delete app.streams![streamId];
+            Object.keys(appWithConfig.streams || {}).forEach((streamId) => {
+                const stream = appWithConfig.streams![streamId];
+                delete appWithConfig.streams![streamId];
                 try {
-                    Object.values(app.clients).forEach((client) => sendNego(client, { type: 'stream.end', stream: normalizeStreamId(stream.id) }));
+                    Object.values(appWithConfig.clients).forEach((client) => sendNego(client, { type: 'stream.end', stream: normalizeStreamId(stream.id) }));
                 } catch { }
                 stream.getTracks().map((track) => track.stop());
             });
@@ -85,13 +64,13 @@ function setupTrackHandler(app: App, cid: string): void {
         }
     });
     for (let stream of Object.values(app.viewStreams || {})) {
-        (stream as MediaStream).getTracks().forEach(function (track) {
+        stream.getTracks().forEach(function (track) {
             app.clients[cid].pc.addTrack(track, stream);
         });
     }
 }
 
-interface AudioProcessingApp extends App {
+interface AudioProcessingApp extends AppWithStreamConfig {
     context?: AudioContext;
     script?: ScriptProcessorNode;
     mic?: MediaStreamAudioSourceNode;
@@ -157,7 +136,7 @@ interface SetupTrackOptions {
 const setupTrack = (track: MediaStreamTrack, stream: MediaStream, priority: RTCPriorityType, contentHint?: string, simulcast?: boolean): void => {
     if (contentHint && 'contentHint' in track) {
         // TODO: make configurable
-        track.contentHint = contentHint as any;
+        track.contentHint = contentHint;
     }
     for (var client of Object.values(window.app.clients)) {
         if (client.pc) {
@@ -193,7 +172,6 @@ interface StreamConfig {
 
 interface AppWithStreamConfig extends App {
     streamConfig: StreamConfig;
-    config?: Record<string, string>;
 }
 
 const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local'): Promise<void> => {
@@ -301,7 +279,7 @@ const getStreamsDims = async (): Promise<StreamDimensions[]> => {
     if (!window.app.viewStreams) return elems;
     let statsDict: Record<string, { width?: number, height?: number }> = {};
     for (const client of Object.values(window.app.clients)) {
-        const stats = await (client as WebRTCClient).pc.getStats();
+        const stats = await client.pc.getStats();
         stats.forEach(stat => {
             if (stat.type === 'inbound-rtp' && stat.kind === 'video') {
                 statsDict[normalizeStreamId(stat.trackIdentifier)] = { width: stat.frameWidth, height: stat.frameHeight };
@@ -309,17 +287,17 @@ const getStreamsDims = async (): Promise<StreamDimensions[]> => {
         });
     }
     for (let [key, value] of Object.entries(window.app.viewStreams)) {
-        if ((value as MediaStream).getVideoTracks().length === 0) {
+        if (value.getVideoTracks().length === 0) {
             continue;
         }
         let width: number | undefined, height: number | undefined;
-        console.log(isFirefox, (value as MediaStream).getVideoTracks()[0].label != 'remote video');
-        const settings = (value as MediaStream).getVideoTracks()[0].getSettings();
+        console.log(isFirefox, value.getVideoTracks()[0].label != 'remote video');
+        const settings = value.getVideoTracks()[0].getSettings();
         width = settings.width;
         height = settings.height;
         if (!width || !height) {
-            if (normalizeStreamId((value as MediaStream).getVideoTracks()[0].id) in statsDict) {
-                const stats = statsDict[normalizeStreamId((value as MediaStream).getVideoTracks()[0].id)];
+            if (normalizeStreamId(value.getVideoTracks()[0].id) in statsDict) {
+                const stats = statsDict[normalizeStreamId(value.getVideoTracks()[0].id)];
                 width = stats.width;
                 height = stats.height;
             }
@@ -719,8 +697,8 @@ if (uploadVideoInput) {
         
         const appWithConfig = window.app as AppWithStreamConfig;
         appWithConfig.streamConfig.videoNode = videoNode;
-        appWithConfig.streamConfig.videoStream = (videoNode as any).captureStream ? 
-            (videoNode as any).captureStream() : 
+        appWithConfig.streamConfig.videoStream = videoNode.captureStream ? 
+            videoNode.captureStream() : 
             (videoNode as any).mozCaptureStream();
         appWithConfig.streamConfig.local = !appWithConfig.streamConfig.local;
 
