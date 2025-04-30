@@ -135,7 +135,16 @@ const destroyClient = (cid: string): void => {
             }
             app.clients[cid].pc.close();
             app.clients[cid].pc = null;
-            Object.keys(app.clients[cid]).forEach(key => delete app.clients[cid][key]);
+            
+            // Delete each property individually for type safety
+            app.clients[cid].dc = undefined;
+            app.clients[cid].dc_file = undefined;
+            app.clients[cid].forward = undefined;
+            app.clients[cid].nego_dc = undefined;
+            app.clients[cid].file_stuff = undefined;
+            app.clients[cid]._transceiver_interval = undefined;
+            app.clients[cid].polite = undefined;
+            app.clients[cid].makingOffer = undefined;
         }
         
         delete app.clients[cid];
