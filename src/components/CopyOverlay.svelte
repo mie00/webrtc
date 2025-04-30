@@ -1,10 +1,35 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   
   // Props
   export let show = false;
+  export let copyText = '';
+  export let qrCodeUrl = '';
+  export let showAcceptButton = false;
+  export let showJoinButton = false;
+  export let showCopyButton = true;
+  export let showPasteText = false;
+  
+  let pasteValue = '';
+  let copyButtonText = 'Copy';
+  let qrCodeElement;
   
   const dispatch = createEventDispatcher();
+  
+  $: if (show && qrCodeUrl && qrCodeElement) {
+    renderQRCode();
+  }
+  
+  function renderQRCode() {
+    if (!qrCodeElement || !qrCodeUrl) return;
+    
+    qrCodeElement.innerHTML = '';
+    try {
+      new QRCode(qrCodeElement, qrCodeUrl);
+    } catch (e) {
+      console.log("qr code generation error", e);
+    }
+  }
   
   // Event handlers
   function handleClose(event) {
@@ -21,48 +46,51 @@
     dispatch('reset');
   }
   
-  async function handleCopy(event) {
-    const target = event.target;
-    const link = document.getElementById('copy-text') as HTMLInputElement;
-    
+  async function handleCopy() {
     if (navigator.clipboard) {
       try {
-        await navigator.clipboard.writeText(link.value);
-        target.innerHTML = "Copied successfully";
+        await navigator.clipboard.writeText(copyText);
+        copyButtonText = "Copied successfully";
       } catch {
-        target.innerHTML = "Error copying, please copy manually";
+        copyButtonText = "Error copying, please copy manually";
       }
     } else {
-      target.innerHTML = "Clipboard unavailable, please copy manually";
+      copyButtonText = "Clipboard unavailable, please copy manually";
     }
   }
   
   function handleAccept() {
-    // This will be handled by the parent component
-    // The actual implementation is in App.svelte
+    dispatch('accept', { pasteValue, cid: window.app?.bc ? Object.keys(window.app.clients)[0] : null });
   }
   
   function handleJoin() {
-    // This will be handled by the parent component
-    // The actual implementation is in App.svelte
+    dispatch('join');
   }
 </script>
 
 {#if show}
-<div id="copy-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-30" on:click={handleClose}>
+<div id="copy-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-30" on:click={handleClose} role="dialog" aria-modal="true" tabindex="-1" on:keydown={(e) => e.key === 'Escape' && handleClose(e)}>
   <div class="bg-white p-4 rounded-md shadow-md text-center">
     <button id="open-config" on:click={handleOpenConfig} class="right">⚙️</button>
     <button id="reset" on:click={handleReset}>↺</button>
-    <div id="qrcode"></div>
+    <div bind:this={qrCodeElement}></div>
     <p class="text-lg font-semibold mb-2">Copy this:</p>
-    <textarea readonly id="copy-text" class="bg-gray-200 px-4 py-2 rounded-md break-all block"></textarea>
-    <button id="copy-button" on:click={handleCopy}
-      class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Copy</button>
-    <button id="accept-button" on:click={handleAccept}
-      class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2 hidden">Accept</button>
-    <textarea id="paste-text" class="bg-gray-200 px-4 py-2 rounded-md break-all block hidden"></textarea>
-    <button id="join-button" on:click={handleJoin}
-      class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full mt-2 hidden">📞</button>
+    <textarea readonly value={copyText} class="bg-gray-200 px-4 py-2 rounded-md break-all block"></textarea>
+    {#if showCopyButton}
+      <button on:click={handleCopy}
+        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">{copyButtonText}</button>
+    {/if}
+    {#if showAcceptButton}
+      <button on:click={handleAccept}
+        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Accept</button>
+    {/if}
+    {#if showPasteText}
+      <textarea bind:value={pasteValue} class="bg-gray-200 px-4 py-2 rounded-md break-all block mt-2"></textarea>
+    {/if}
+    {#if showJoinButton}
+      <button on:click={handleJoin}
+        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full mt-2">📞</button>
+    {/if}
   </div>
 </div>
 {/if}

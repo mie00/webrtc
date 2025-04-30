@@ -14,6 +14,12 @@
   // State
   let showCopyOverlay = false;
   let showConfigOverlay = false;
+  let copyText = '';
+  let qrCodeUrl = '';
+  let showAcceptButton = false;
+  let showJoinButton = false;
+  let showCopyButton = true;
+  let showPasteText = false;
   
   // Socket.io connection
   let socket;
@@ -123,18 +129,12 @@
   const clientWindowLoader = async () => {
     console.log("client window loader");
     const urlParams = new URLSearchParams(window.location.search);
-    const qrElem = document.getElementById("qrcode");
     
     if (!urlParams.get('offer')) {
       const now = Date.now();
-      const link = document.getElementById('copy-text') as HTMLInputElement;
       showCopyOverlay = true;
-      const btn = document.getElementById("copy-button");
-      const btn2 = document.getElementById("accept-button");
-      const link2 = document.getElementById('paste-text') as HTMLInputElement;
-      if (link2) link2.value = '';
-      if (btn2) btn2.classList.remove('hidden');
-      if (link2) link2.classList.remove('hidden');
+      showAcceptButton = true;
+      showPasteText = true;
       
       let cid;
       cid = await webRTCApp.getOffer(async (candidate) => {
@@ -144,15 +144,9 @@
         if (sdp) {
           const compressed = await compress(sdp);
           urlParams.set('offer', compressed);
-          if (qrElem) qrElem.innerHTML = '';
           const newUrl = (app.config['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
-          try {
-            new QRCode(qrElem, newUrl);
-          } catch (e) {
-            console.log("qr code generation error", e);
-          }
-          if (link) link.value = newUrl;
-          if (btn) btn.innerHTML = "Copy";
+          qrCodeUrl = newUrl;
+          copyText = newUrl;
         }
       }, {sid: ''});
       
@@ -199,14 +193,9 @@
           if (sdp) {
             const compressed = await compress(sdp);
             urlParams.set('answer', compressed);
-            if (qrElem) qrElem.innerHTML = '';
-            try {
-              new QRCode(qrElem, (app.config['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString());
-            } catch (e) {
-              console.log("qr code generation error", e);
-            }
-            if (link) link.value = compressed;
-            if (btn) btn.innerHTML = "Copy";
+            const newUrl = (app.config['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
+            qrCodeUrl = newUrl;
+            copyText = compressed;
           }
         }, {sid: ''});
       }
@@ -215,55 +204,41 @@
   
   const serverWindowLoader = async () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const acceptButton = document.getElementById("accept-button");
-    const joinButton = document.getElementById("join-button");
-    const copyButton = document.getElementById("copy-button");
     
     if (!urlParams.has('r')) {
-      if (copyButton) copyButton.classList.remove("hidden");
-      if (acceptButton) acceptButton.classList.add("hidden");
-      if (joinButton) joinButton.classList.add("hidden");
+      showCopyButton = true;
+      showAcceptButton = false;
+      showJoinButton = false;
       socket.emit('init');
     } else {
       const id = urlParams.get('r');
       onId();
-      if (copyButton) copyButton.classList.add("hidden");
-      if (acceptButton) acceptButton.classList.add("hidden");
-      if (joinButton) {
-        joinButton.classList.remove("hidden");
-        joinButton.onclick = () => {
-          if (id) socket.emit('subscribe', id);
-        };
-      }
+      showCopyButton = false;
+      showAcceptButton = false;
+      showJoinButton = true;
     }
   };
   
+  function handleJoin() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('r');
+    if (id) socket.emit('subscribe', id);
+  }
+  
   // Helper functions
   const onId = () => {
-    const link = document.getElementById('copy-text') as HTMLInputElement;
     showCopyOverlay = true;
     const urlParams = new URLSearchParams(window.location.search);
     const app = webRTCApp.getApp();
     const newUrl = (app.config['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
-    if (link) link.value = newUrl;
-    const btn = document.getElementById("copy-button");
-    if (btn) btn.innerHTML = "Copy";
-    const qrElem = document.getElementById("qrcode");
-    if (qrElem) {
-      qrElem.innerHTML = '';
-      try {
-        new QRCode(qrElem, newUrl);
-      } catch (e) {
-        console.log("qr code generation error", e);
-      }
-    }
+    copyText = newUrl;
+    qrCodeUrl = newUrl;
   };
   
-  const acceptHandler = async (cid) => {
-    const pasteText = document.getElementById('paste-text') as HTMLInputElement;
-    if (!pasteText) return;
+  const acceptHandler = async (cid, pasteValue) => {
+    if (!pasteValue) return;
     
-    let data = pasteText.value;
+    let data = pasteValue;
     const answer = await decompress(data.trim());
     const app = webRTCApp.getApp();
     app.clients[cid].pc?.setRemoteDescription({
@@ -297,9 +272,17 @@
 
 <CopyOverlay 
   show={showCopyOverlay} 
+  copyText={copyText}
+  qrCodeUrl={qrCodeUrl}
+  {showAcceptButton}
+  {showJoinButton}
+  {showCopyButton}
+  {showPasteText}
   on:close={() => showCopyOverlay = false}
-  on:openConfig={toggleCopyOverlay}
+  on:openConfig={toggleConfigOverlay}
   on:reset={handleReset}
+  on:accept={(e) => acceptHandler(e.detail.cid, e.detail.pasteValue)}
+  on:join={handleJoin}
 />
 
 <ConfigOverlay 
