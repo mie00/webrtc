@@ -78,6 +78,14 @@ interface HTMLVideoElement {
   requestVideoFrameCallback: (callback: () => void) => number;
 }
 
+// Stream element options
+interface StreamElementOptions {
+  muted?: boolean;
+  controls?: boolean;
+  mirrored?: boolean;
+  passedElement?: HTMLVideoElement | HTMLAudioElement | null;
+}
+
 // WebRTC specific types that might be missing
 interface RTCPeerConnectionIceEvent {
   readonly candidate: RTCIceCandidate | null;

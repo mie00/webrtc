@@ -11,22 +11,8 @@ interface StreamDimension {
   height?: number;
 }
 
-async function getStreamsDims(): Promise<StreamDimension[]> {
-  // This function is called but not defined in the original file
-  // Assuming it returns an array of stream dimensions
-  return Object.entries(window.app.viewStreams || {}).map(([key, stream]) => {
-    const videoTrack = stream.getVideoTracks()[0];
-    if (!videoTrack) {
-      return { key };
-    }
-    const settings = videoTrack.getSettings();
-    return {
-      key,
-      width: settings.width,
-      height: settings.height
-    };
-  });
-}
+// Import the function from stream.ts instead of redefining it
+import { getStreamsDims } from './stream';
 
 async function setupStreams(merger: any): Promise<void> {
   const streams = (await getStreamsDims()).filter(({ width, height }) => width && height);
@@ -76,7 +62,7 @@ async function setupStreams(merger: any): Promise<void> {
 
 async function startRecording(): Promise<void> {
   var merger = new (window as any).VideoStreamMerger();
-  window.app.recorder = setInterval(setupStreams.bind(null, merger), 1000);
+  window.app.recorder = setInterval(setupStreams.bind(null, merger), 1000) as unknown as number;
   window.app.merger = merger;
   merger.setOutputSize(FW, FH);
 
@@ -136,13 +122,8 @@ function stopRecording(): void {
   recordButton.classList.remove('bg-red');
 }
 
-function setButton(button: HTMLElement, active: boolean): void {
-  if (active) {
-    button.classList.add('bg-red');
-  } else {
-    button.classList.remove('bg-red');
-  }
-}
+// Import the function from stream.ts instead of redefining it
+import { setButton } from './stream';
 
 recordButton.addEventListener('click', () => {
   if (window.app.recorder) {
@@ -153,9 +134,5 @@ recordButton.addEventListener('click', () => {
   setButton(recordButton, !!window.app.recorder);
 });
 
-// Declare the createStreamElement function that's used but not defined in the original file
-declare function createStreamElement(
-  stream: MediaStream, 
-  type: 'video' | 'audio', 
-  options: { muted?: boolean; controls?: boolean }
-): Promise<void>;
+// Import the function from stream.ts instead of declaring it
+import { createStreamElement } from './stream';
