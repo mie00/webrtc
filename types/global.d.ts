@@ -44,6 +44,11 @@ interface App {
   _send_host_interval?: number;
   _last_forwarded?: string;
   allowed_host?: string;
+  inited?: boolean;
+  participants?: Record<string, { relay: string }>;
+  sids?: Record<string, string>;
+  debug?: boolean;
+  bc?: BroadcastChannel;
 }
 
 declare global {

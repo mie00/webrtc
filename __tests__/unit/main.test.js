@@ -254,7 +254,7 @@ describe('Main Application', () => {
       sids: {}
     };
     
-    const mainModule = require('../../js/main.js');
+    const mainModule = require('../../dist/js/main.js');
     
     // Create a mock client
     const mockClient = {
