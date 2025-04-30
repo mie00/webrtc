@@ -494,7 +494,7 @@ async function handleChange(cid?: string): Promise<void> {
             'color:yellow', 'color:orange', 'color:yellow', 'color:orange');
         if (client.pc?.connectionState === 'connected' && client.pc?.iceConnectionState === 'connected') {
             const stats = await client.pc.getStats();
-            let transport;
+            let transport: RTCTransportStats;
             let certificates: Record<string, any> = {};
             stats.forEach(stat => {
                 if (stat.type === 'transport') {
