@@ -41,5 +41,6 @@ document.getElementById('save-button')?.addEventListener('click', () => {
 });
 
 export {
-    getConfig
+    getConfig,
+    setConfig
 }

@@ -171,8 +171,9 @@ export class WebRTCApp {
     this.app.nego_messages = {};
 
     // Initialize other modules
-    streamInit(this.app);
-    forwardInit(this.app);
+    // TODO:migration
+    // streamInit(this.app);
+    // forwardInit(this.app);
   }
 
   public async initClient(polite: boolean, options: ClientInitOptions): Promise<string> {
