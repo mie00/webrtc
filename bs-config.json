@@ -1,6 +1,6 @@
 {
   "port": 8080,
-  "files": ["./dist/**/*.{html,htm,css,js}"],
+  "files": ["./dist/**/*.{html,htm,css,js}", "./*.html"],
   "server": {
     "baseDir": "./"
   }
