@@ -13,6 +13,13 @@ declare class SelfieSegmentation {
 // Socket.io client types
 declare const io: (url: string, options?: any) => any;
 
+// External functions used across files
+declare function sendNego(client: Client, data: any): void;
+declare function getConfig(): Record<string, string>;
+declare function setConfig(key: string, value: string): void;
+declare function BinPack(): BinPackResult;
+declare function backgroundChange(videoElement: HTMLVideoElement): Promise<MediaStream>;
+
 // QRCode library
 declare class QRCode {
   constructor(element: HTMLElement, text: string);

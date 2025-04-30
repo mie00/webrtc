@@ -4,12 +4,8 @@
 // Use type assertion to handle vendor prefixes
 window.AudioContext = window.AudioContext || (window as any).webkitAudioContext;
 
-// Declare external functions
-declare const sendNego: (client: Client, data: any) => void;
-declare const getConfig: () => Record<string, string>;
-declare const setConfig: (key: string, value: string) => void;
-declare const BinPack: () => BinPackResult;
-declare const backgroundChange: (videoElement: HTMLVideoElement) => Promise<MediaStream>;
+// These functions are defined elsewhere, no need to redeclare them
+// Just reference them in the code
 
 function addEventListenerAll(target: EventTarget, listener: EventListener, ...otherArguments: any[]): void {
     // install listeners for all natively triggered events
@@ -50,7 +46,7 @@ function streamInit(app: App): void {
             if (cid == cid2) {
                 continue;
             }
-            sendNego(app.clients[cid2], data);
+            sendNego(app.clients[cid2], { type: 'stream.end', stream: data.stream });
         }
     };
 
