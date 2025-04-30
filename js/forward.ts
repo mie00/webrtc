@@ -411,7 +411,7 @@ if ('serviceWorker' in navigator) {
 11. service worker sends response to page
 */
 
-module.exports = {
+export {
   forwardInit,
   setupForwardChannel,
   sendData,

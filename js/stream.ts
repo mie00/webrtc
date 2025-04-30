@@ -637,21 +637,6 @@ export {
     setButton
 };
 
-module.exports = {
-    normalizeStreamId,
-    getStreamElemId,
-    streamInit,
-    setupTrackHandler,
-    processAudio,
-    stopProcessingAudio,
-    tearDownStream,
-    setupTrack,
-    setupLocalStream,
-    getStreamsDims,
-    refreshStreamViews,
-    createStreamElement,
-    setButton
-};
 
 const shareVideoButton = document.getElementById('share-video');
 if (shareVideoButton) {
