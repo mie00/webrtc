@@ -313,6 +313,8 @@ describe('Main Application', () => {
         test: jest.fn()
       }
     };
+
+    const clientObj = app.clients['test-cid'];
     
     // Mock handleChange to avoid DOM manipulation
     global.handleChange = jest.fn();
@@ -330,15 +332,15 @@ describe('Main Application', () => {
     expect(app.clients['test-cid'].pc.close).toHaveBeenCalled();
     
     // Verify all fields are properly cleaned up
-    expect(app.clients['test-cid'].pc).toBeNull();
-    expect(app.clients['test-cid'].dc).toBeUndefined();
-    expect(app.clients['test-cid'].dc_file).toBeUndefined();
-    expect(app.clients['test-cid'].forward).toBeUndefined();
-    expect(app.clients['test-cid'].nego_dc).toBeUndefined();
-    expect(app.clients['test-cid'].file_stuff).toBeUndefined();
-    expect(app.clients['test-cid']._transceiver_interval).toBeUndefined();
-    expect(app.clients['test-cid'].polite).toBeUndefined();
-    expect(app.clients['test-cid'].makingOffer).toBeUndefined();
+    expect(clientObj.pc).toBeNull();
+    expect(clientObj.dc).toBeUndefined();
+    expect(clientObj.dc_file).toBeUndefined();
+    expect(clientObj.forward).toBeUndefined();
+    expect(clientObj.nego_dc).toBeUndefined();
+    expect(clientObj.file_stuff).toBeUndefined();
+    expect(clientObj._transceiver_interval).toBeUndefined();
+    expect(clientObj.polite).toBeUndefined();
+    expect(clientObj.makingOffer).toBeUndefined();
     
     // Verify the client is removed from the clients object
     expect(app.clients['test-cid']).toBeUndefined();

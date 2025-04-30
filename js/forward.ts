@@ -177,7 +177,7 @@ function setupForwardChannel(app: ForwardApp, cid: string): void {
               headers: Object.fromEntries(Array.from(response.headers.entries())),
             }));
             
-            return (async function() {
+            return (async function(): Promise<void> {
               if (response.body === null) {
                 (app.clients[cid] as ForwardClient).forward.send(JSON.stringify({
                   type: "end",
