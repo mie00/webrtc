@@ -53,6 +53,20 @@ interface App {
   bc?: BroadcastChannel;
 }
 
+// Extended HTMLMediaElement with substitute properties
+interface HTMLMediaElementWithSubstitute extends HTMLMediaElement {
+  substitueStream?: MediaStream;
+  substitueElement?: HTMLElement;
+}
+
+// Add this to HTMLVideoElement
+interface HTMLVideoElement {
+  substitueStream?: MediaStream;
+  substitueElement?: HTMLElement;
+  captureStream?: () => MediaStream;
+  mozCaptureStream?: () => MediaStream;
+}
+
 declare global {
   var app: App;
   var chat: HTMLElement | null;

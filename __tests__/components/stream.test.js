@@ -2,6 +2,11 @@
  * @jest-environment jsdom
  */
 
+// Mock the backgroundChange function
+global.backgroundChange = jest.fn().mockResolvedValue({
+  getTracks: jest.fn().mockReturnValue([])
+});
+
 describe('Stream Management', () => {
   let app;
   
