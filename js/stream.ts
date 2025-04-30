@@ -1,5 +1,18 @@
+// Declare global app to make TypeScript happy
+declare global {
+  interface Window {
+    app: App;
+  }
+}
+
 // Use type assertion to handle vendor prefixes
 window.AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+
+// Declare external functions
+declare const sendNego: (client: Client, data: any) => void;
+declare const getConfig: () => Record<string, string>;
+declare const setConfig: (key: string, value: string) => void;
+declare const BinPack: () => BinPackResult;
 
 function addEventListenerAll(target: EventTarget, listener: EventListener, ...otherArguments: any[]): void {
     // install listeners for all natively triggered events
@@ -27,12 +40,6 @@ function normalizeStreamId(id: string): string {
 function getStreamElemId(id: string): string {
     return `stream-${normalizeStreamId(id)}`;
 }
-
-declare const sendNego: (client: Client, data: any) => void;
-declare const getConfig: () => Record<string, string>;
-declare const setConfig: (key: string, value: string) => void;
-declare const BinPack: () => BinPackResult;
-declare const backgroundChange: (videoSource: HTMLVideoElement) => Promise<MediaStream>;
 
 function streamInit(app: App): void {
     app.streams = {};
@@ -490,7 +497,7 @@ if (toggleAudioButton) {
 const toggleVideoButton = document.getElementById('toggle-video');
 if (toggleVideoButton) {
     toggleVideoButton.addEventListener('click', async (ev) => {
-        const appWithConfig = app as AppWithStreamConfig;
+        const appWithConfig = window.app as AppWithStreamConfig;
         appWithConfig.streamConfig.video = !appWithConfig.streamConfig.video;
         setButton(ev.target as HTMLElement, appWithConfig.streamConfig.video);
         await setupLocalStream('video');
@@ -500,7 +507,7 @@ if (toggleVideoButton) {
 const toggleScreenButton = document.getElementById('toggle-screen');
 if (toggleScreenButton) {
     toggleScreenButton.addEventListener('click', async (ev) => {
-        const appWithConfig = app as AppWithStreamConfig;
+        const appWithConfig = window.app as AppWithStreamConfig;
         appWithConfig.streamConfig.screen = !appWithConfig.streamConfig.screen;
         setButton(ev.target as HTMLElement, appWithConfig.streamConfig.screen);
         await setupLocalStream('screen');
@@ -623,7 +630,7 @@ if (toggleVideoContextMenu) {
             }
             li.addEventListener('click', async () => {
                 menu.classList.add('hidden');
-                const appWithConfig = app as AppWithStreamConfig;
+                const appWithConfig = window.app as AppWithStreamConfig;
                 appWithConfig.streamConfig.video = true;
                 setButton(ev.target as HTMLElement, appWithConfig.streamConfig.video);
                 setConfig('video-device', `${device.groupId}|${device.deviceId}`);
@@ -663,7 +670,7 @@ if (typeof module !== 'undefined' && module.exports) {
 const shareVideoButton = document.getElementById('share-video');
 if (shareVideoButton) {
     shareVideoButton.addEventListener('click', async (ev) => {
-        const appWithConfig = app as AppWithStreamConfig;
+        const appWithConfig = window.app as AppWithStreamConfig;
         if (appWithConfig.streamConfig.local) {
             if (appWithConfig.streamConfig.videoNode) {
                 appWithConfig.streamConfig.videoNode.src = '';
@@ -699,7 +706,7 @@ if (uploadVideoInput) {
         videoNode.controls = false;
         videoNode.loop = true;
         
-        const appWithConfig = app as AppWithStreamConfig;
+        const appWithConfig = window.app as AppWithStreamConfig;
         appWithConfig.streamConfig.videoNode = videoNode;
         appWithConfig.streamConfig.videoStream = (videoNode as any).captureStream ? 
             (videoNode as any).captureStream() : 
@@ -715,4 +722,4 @@ if (uploadVideoInput) {
 }
 
 // Declare the backgroundChange function to avoid TypeScript errors
-declare function backgroundChange(videoSource: HTMLVideoElement): Promise<MediaStream>;
+// backgroundChange is already declared in the global scope
