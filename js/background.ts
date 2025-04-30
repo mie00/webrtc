@@ -39,12 +39,10 @@ async function backgroundChange(videoSource: HTMLVideoElement): Promise<MediaStr
     }
 
     const selfieSegmentation = new SelfieSegmentation({
+        modelSelection: 1,
         locateFile: (file: string) => {
             return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
         }
-    });
-    selfieSegmentation.setOptions({
-        modelSelection: 1,
     });
     selfieSegmentation.onResults(onResults);
 
