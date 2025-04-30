@@ -67,14 +67,13 @@ interface HTMLVideoElement {
   mozCaptureStream?: () => MediaStream;
 }
 
-declare global {
-  var app: App;
-  var chat: HTMLElement | null;
-  var output: HTMLElement | null;
-  var media: HTMLElement | null;
-  var participants: HTMLElement | null;
-  var uuidv4: () => string;
-}
+// These should be declared at the top level, not in a global block
+var app: App;
+var chat: HTMLElement | null;
+var output: HTMLElement | null;
+var media: HTMLElement | null;
+var participants: HTMLElement | null;
+var uuidv4: () => string;
 
 // WebRTC specific types that might be missing
 interface RTCPeerConnectionIceEvent {
