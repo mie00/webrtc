@@ -123,7 +123,7 @@ function stopRecording(): void {
 }
 
 // Import the function from stream.ts instead of redefining it
-import { setButton } from './stream';
+import { setButton } from './stream.js';
 
 recordButton.addEventListener('click', () => {
   if (window.app.recorder) {
