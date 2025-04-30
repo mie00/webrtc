@@ -29,9 +29,9 @@ describe('Chat Functionality', () => {
     }
   };
 
-  // Mock WebRTCApp.log static method
+  // Import WebRTCApp and spy on its log method
   const { WebRTCApp } = require('../../js/WebRTCApp');
-  WebRTCApp.log = jest.fn();
+  jest.spyOn(WebRTCApp, 'log').mockImplementation(() => {});
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -63,7 +63,7 @@ describe('Chat Functionality', () => {
     // Simulate a message
     dataChannel.onmessage({ data: 'test message from peer' });
     
-    // Verify the message was logged using WebRTCApp.log
+    // Verify the message was logged using the spied WebRTCApp.log
     expect(WebRTCApp.log).toHaveBeenCalledWith('> test message from peer');
   });
 });
