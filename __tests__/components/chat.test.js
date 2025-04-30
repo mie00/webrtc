@@ -28,8 +28,9 @@ describe('Chat Functionality', () => {
     // Mock global app
     global.app = app;
     
-    // Mock log function
-    global.log = jest.fn();
+    // Mock WebRTCApp.log static method
+    const { WebRTCApp } = require('../../js/WebRTCApp');
+    WebRTCApp.log = jest.fn();
   });
   
   test('setupChatChannel should create a data channel', () => {
@@ -68,8 +69,8 @@ describe('Chat Functionality', () => {
       if (dc && dc.onmessage) {
         dc.onmessage({ data: 'Test message' });
         
-        // Check if log was called
-        expect(global.log).toHaveBeenCalledWith('> Test message');
+        // Check if WebRTCApp.log was called
+        expect(WebRTCApp.log).toHaveBeenCalledWith('> Test message');
       }
     } else {
       console.warn('setupChatChannel function not found, skipping test');

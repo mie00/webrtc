@@ -29,7 +29,9 @@ describe('Chat Functionality', () => {
     }
   };
 
-  global.log = jest.fn();
+  // Mock WebRTCApp.log static method
+  const { WebRTCApp } = require('../../js/WebRTCApp');
+  WebRTCApp.log = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -61,7 +63,7 @@ describe('Chat Functionality', () => {
     // Simulate a message
     dataChannel.onmessage({ data: 'test message from peer' });
     
-    // Verify the message was logged
-    expect(log).toHaveBeenCalledWith('> test message from peer');
+    // Verify the message was logged using WebRTCApp.log
+    expect(WebRTCApp.log).toHaveBeenCalledWith('> test message from peer');
   });
 });
