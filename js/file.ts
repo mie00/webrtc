@@ -1,4 +1,4 @@
-import { WebRTCApp } from './WebRTCApp';
+import { WebRTCApp } from './WebRTCApp.js';
 
 interface FileStuff {
   name: string;
@@ -152,12 +152,9 @@ function readFile(file: File, cid: string): void {
     offset += max_size;
 }
 
-// Export functions for module environments
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        updateProgressBar,
-        setupFileChannel,
-        readFile,
-        splitArrayBuffer
-    };
-}
+export {
+    updateProgressBar,
+    setupFileChannel,
+    readFile,
+    splitArrayBuffer
+};

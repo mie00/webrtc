@@ -1,6 +1,6 @@
 /// <reference path="../types/global.d.ts" />
 
-import { WebRTCApp } from './WebRTCApp';
+import { WebRTCApp } from './WebRTCApp.js';
 
 const chat = document.getElementById("chat") as HTMLInputElement;
 
@@ -31,9 +31,6 @@ if (chat) {
     };
 }
 
-// Export functions for testing
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        setupChatChannel
-    };
-}
+export {
+    setupChatChannel
+};

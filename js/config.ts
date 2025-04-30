@@ -1,4 +1,4 @@
-import { WebRTCApp } from './WebRTCApp';
+import { WebRTCApp } from './WebRTCApp.js';
 
 const initialConfig = JSON.parse(window.localStorage.getItem('dealer-config') || '{}');
 
@@ -33,3 +33,7 @@ document.getElementById('save-button')?.addEventListener('click', () => {
     document.getElementById('config-overlay')?.classList.add('hidden');
     WebRTCApp.reset();
 });
+
+export {
+    getConfig
+}

@@ -30,6 +30,5 @@ module.exports = {
   ],
   coverageReporters: ['text', 'lcov', 'clover'],
   testPathIgnorePatterns: ['/node_modules/'],
-  verbose: true,
-  extensionsToTreatAsEsm: ['.ts']
+  verbose: true
 };
