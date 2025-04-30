@@ -411,13 +411,10 @@ if ('serviceWorker' in navigator) {
 11. service worker sends response to page
 */
 
-// Export functions for testing
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    forwardInit,
-    setupForwardChannel,
-    sendData,
-    concatUint8Arrays,
-    toggleForwardHandler
-  };
-}
+module.exports = {
+  forwardInit,
+  setupForwardChannel,
+  sendData,
+  concatUint8Arrays,
+  toggleForwardHandler
+};

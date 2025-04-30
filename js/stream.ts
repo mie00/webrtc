@@ -637,24 +637,21 @@ export {
     setButton
 };
 
-// For backward compatibility with CommonJS
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        normalizeStreamId,
-        getStreamElemId,
-        streamInit,
-        setupTrackHandler,
-        processAudio,
-        stopProcessingAudio,
-        tearDownStream,
-        setupTrack,
-        setupLocalStream,
-        getStreamsDims,
-        refreshStreamViews,
-        createStreamElement,
-        setButton
-    };
-}
+module.exports = {
+    normalizeStreamId,
+    getStreamElemId,
+    streamInit,
+    setupTrackHandler,
+    processAudio,
+    stopProcessingAudio,
+    tearDownStream,
+    setupTrack,
+    setupLocalStream,
+    getStreamsDims,
+    refreshStreamViews,
+    createStreamElement,
+    setButton
+};
 
 const shareVideoButton = document.getElementById('share-video');
 if (shareVideoButton) {
