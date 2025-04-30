@@ -177,7 +177,7 @@ function setupForwardChannel(app: ForwardApp, cid: string): void {
               id: data.id,
               status: response.status,
               statusText: response.statusText,
-              headers: Object.fromEntries([...response.headers].map(([key, value]) => [key, value])),
+              headers: Object.fromEntries(Array.from(response.headers.entries())),
             }));
             
             return (async function() {
