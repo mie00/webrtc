@@ -58,6 +58,9 @@ interface App {
   sids?: Record<string, string>;
   debug?: boolean;
   bc?: BroadcastChannel;
+  recorder?: number;
+  merger?: any;
+  mediaRecorder?: MediaRecorder;
 }
 
 // Extended HTMLMediaElement with substitute properties
@@ -81,6 +84,11 @@ interface RTCPeerConnectionIceEvent {
 }
 
 interface Window {                                                                                                                                                                                          
-  app: App;
+  app: App & {
+    recorder?: number;
+    merger?: any;
+    mediaRecorder?: MediaRecorder;
+  };
   uuidv4: () => string;
+  VideoStreamMerger: any;
 }
