@@ -29,6 +29,8 @@ interface Client {
   nego_dc?: RTCDataChannel;
   file_stuff?: any;
   _transceiver_interval?: number;
+  polite?: boolean;
+  makingOffer?: boolean;
 }
 
 interface App {

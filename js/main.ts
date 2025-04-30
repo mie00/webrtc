@@ -83,7 +83,7 @@ if (openQrButton) {
 if (copyOverlay) {
     copyOverlay.addEventListener('click', (ev) => {
         if (ev.target === copyOverlay) {
-            ev.target.classList.add('hidden');
+            (ev.target as HTMLElement).classList.add('hidden');
         }
     });
 }
@@ -91,7 +91,7 @@ if (copyOverlay) {
 if (configOverlay) {
     configOverlay.addEventListener('click', (ev) => {
         if (ev.target === configOverlay) {
-            ev.target.classList.add('hidden');
+            (ev.target as HTMLElement).classList.add('hidden');
         }
     });
 }
@@ -285,7 +285,7 @@ async function initClient(polite: boolean, options: ClientInitOptions): Promise<
                 urls: "turn:" + app.config["turn-server-v2"],
                 username: app.config["turn-username"],
                 credential: app.config["turn-password"],
-            }] : []
+            } as RTCIceServer] : []
         ),
     };
 
@@ -297,7 +297,9 @@ async function initClient(polite: boolean, options: ClientInitOptions): Promise<
         return app.sids[sid];
     }
     app.sids[sid] = cid;
-    app.clients[cid] = {};
+    app.clients[cid] = {
+        pc: new RTCPeerConnection(config)
+    };
 
     const pc = new RTCPeerConnection(config);
     app.clients[cid].pc = pc;
@@ -362,10 +364,10 @@ async function initClient(polite: boolean, options: ClientInitOptions): Promise<
     setupFileChannel(app, cid);
     setupForwardChannel(app, cid);
 
-    app.clients[cid]._transceiver_interval = setInterval(() => {
+    app.clients[cid]._transceiver_interval = window.setInterval(() => {
         // app.clients[cid].pc.addTransceiver('audio', {direction: "recvonly"});
         // app.clients[cid].pc.addTransceiver('video', {direction: "recvonly"});
-    }, 10000);
+    }, 10000) as unknown as number;
 
     if (offer) {
         await app.clients[cid].pc.setRemoteDescription({
