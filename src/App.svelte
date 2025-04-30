@@ -20,7 +20,7 @@
   
   onMount(() => {
     // Initialize socket connection
-    socket = io('wss://dealer.mie00.com');
+    socket = io('ws://127.0.0.1:5000');
     
     // Setup socket event handlers
     setupSocketHandlers();
@@ -249,11 +249,13 @@
     const btn = document.getElementById("copy-button");
     if (btn) btn.innerHTML = "Copy";
     const qrElem = document.getElementById("qrcode");
-    if (qrElem) qrElem.innerHTML = '';
-    try {
-      new QRCode(qrElem, newUrl);
-    } catch (e) {
-      console.log("qr code generation error", e);
+    if (qrElem) {
+      qrElem.innerHTML = '';
+      try {
+        new QRCode(qrElem, newUrl);
+      } catch (e) {
+        console.log("qr code generation error", e);
+      }
     }
   };
   
@@ -284,7 +286,7 @@
   }
   
   function handleReset() {
-    WebRTCApp.reset();
+    webRTCApp.reset();
   }
 </script>
 
@@ -296,7 +298,7 @@
 <CopyOverlay 
   show={showCopyOverlay} 
   on:close={() => showCopyOverlay = false}
-  on:openConfig={toggleConfigOverlay}
+  on:openConfig={toggleCopyOverlay}
   on:reset={handleReset}
 />
 
