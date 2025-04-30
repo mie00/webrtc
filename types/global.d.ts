@@ -50,9 +50,9 @@ interface App {
   nego_handlers: Record<string, (data: any, cid: string) => void>;
   cleanups: Record<string, (cid?: string) => void>;
   file_progress_interval?: number;
-  _send_host_interval?: number;
+  _send_host_interval?: number | null;
   _last_forwarded?: string;
-  allowed_host?: string;
+  allowed_host?: string | null;
   inited?: boolean;
   participants?: Record<string, { relay: string }>;
   sids?: Record<string, string>;
@@ -61,6 +61,8 @@ interface App {
   recorder?: number;
   merger?: any;
   mediaRecorder?: MediaRecorder;
+  forward_peer?: string;
+  inflight?: Record<string, (data: any) => void>;
 }
 
 // Extended HTMLMediaElement with substitute properties

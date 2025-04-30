@@ -64,7 +64,8 @@ function forwardInit(app) {
     app.inflight = {};
 }
 
-function setupForwardChannel(app, cid) {
+// This is just a reference - the actual implementation is in forward.ts
+function setupForwardChannel(app: App, cid: string) {
     const forward = app.clients[cid].pc.createDataChannel("forward", {
         negotiated: true,
         id: 3

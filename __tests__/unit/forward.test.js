@@ -8,16 +8,26 @@ describe('Forward Channel', () => {
     document.getElementById = jest.fn().mockImplementation((id) => {
       if (id === 'start-forward') {
         return {
-          addEventListener: jest.fn()
+          addEventListener: jest.fn(),
+          textContent: '',
+          classList: {
+            add: jest.fn(),
+            remove: jest.fn()
+          }
         };
       } else if (id === 'media') {
         return {
           appendChild: jest.fn()
         };
+      } else if (id === 'chat') {
+        return {
+          select: jest.fn()
+        };
       } else if (id.startsWith('log-')) {
         return {
           insertBefore: jest.fn(),
-          firstChild: null
+          firstChild: null,
+          remove: jest.fn()
         };
       }
       return null;
@@ -31,7 +41,8 @@ describe('Forward Channel', () => {
           add: jest.fn()
         },
         appendChild: jest.fn(),
-        innerHTML: ''
+        innerHTML: '',
+        setAttribute: jest.fn()
       };
     });
   });
@@ -43,11 +54,15 @@ describe('Forward Channel', () => {
           createDataChannel: jest.fn().mockReturnValue({
             onopen: null,
             onmessage: null,
-            send: jest.fn()
+            send: jest.fn(),
+            addEventListener: jest.fn(),
+            removeEventListener: jest.fn()
           })
         },
         forward: {
-          send: jest.fn()
+          send: jest.fn(),
+          addEventListener: jest.fn(),
+          removeEventListener: jest.fn()
         }
       }
     },
@@ -82,15 +97,31 @@ describe('Forward Channel', () => {
   });
 
   global.alert = jest.fn();
-  global.URL = { searchParams: { set: jest.fn() } };
-  global.history = { pushState: jest.fn() };
+  global.URL = class {
+    constructor() {
+      this.searchParams = {
+        set: jest.fn()
+      };
+    }
+  };
+  global.window = {
+    location: {
+      href: 'http://example.com',
+      host: 'example.com'
+    },
+    history: { 
+      pushState: jest.fn() 
+    },
+    setInterval: jest.fn().mockReturnValue(123)
+  };
+  global.prompt = jest.fn().mockReturnValue('http://127.0.0.1:5000');
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   test('forwardInit should set up cleanups and initial state', () => {
-    // Import the module
+    // Import the module - use the compiled JS file for testing
     const forwardModule = require('../../js/forward.js');
     
     // Call the function
