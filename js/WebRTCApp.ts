@@ -184,6 +184,7 @@ export class WebRTCApp {
     // Initialize other modules
     // Import dynamically to avoid circular dependencies
     const { streamInit } = await import('../src/lib/streamBridge');
+    const { forwardInit } = await import('../src/lib/forwardBridge');
     streamInit(this.app);
     forwardInit(this.app);
   }
@@ -270,6 +271,7 @@ export class WebRTCApp {
 
     // Import dynamically to avoid circular dependencies
     const { setupTrackHandler } = await import('../src/lib/streamBridge');
+    const { setupForwardChannel } = await import('../src/lib/forwardBridge');
     setupTrackHandler(this.app, cid);
     setupChatChannel(this.app, cid);
     setupFileChannel(this.app, cid);

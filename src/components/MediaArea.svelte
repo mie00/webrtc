@@ -77,9 +77,10 @@
     await setupLocalStream('screen');
   }
   
-  function handleStartForward() {
-    // Start forward implementation
-    // Implementation depends on your existing code
+  async function handleStartForward() {
+    // Import the toggleForwardHandler from our bridge
+    const { toggleForwardHandler } = await import('../lib/forwardBridge');
+    await toggleForwardHandler();
   }
   
   function handleShareVideo() {
