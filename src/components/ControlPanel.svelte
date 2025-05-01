@@ -33,45 +33,28 @@
     }
   }
   
-  function sendMessage() {
+  async function sendMessage() {
     const chatInput = document.getElementById('chat') as HTMLInputElement;
     if (!chatInput || !chatInput.value.trim()) return;
     
     const app = webRTCApp.getApp();
     const message = chatInput.value.trim();
     
-    // Send message to all connected clients
-    for (const cid in app.clients) {
-      if (app.clients[cid].dc && app.clients[cid].dc.readyState === 'open') {
-        app.clients[cid].dc.send(JSON.stringify({
-          type: 'chat',
-          message,
-          sender: app.config['user-name'] || 'You'
-        }));
-      }
-    }
-    
-    // Add message to local chat
-    const output = document.getElementById('output');
-    if (output) {
-      const messageElem = document.createElement('div');
-      messageElem.className = 'mb-2';
-      messageElem.innerHTML = `<span class="font-bold">You:</span> ${message}`;
-      output.appendChild(messageElem);
-      output.scrollTop = output.scrollHeight;
-    }
+    // Import the sendChatMessage function from our bridge
+    const { sendChatMessage } = await import('../lib/chatBridge');
+    sendChatMessage(message, app.config['user-name'] || 'You');
     
     // Clear input
     chatInput.value = '';
   }
   
-  function handleFileUpload(event) {
+  async function handleFileUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     
-    // Implementation depends on your existing file sharing code
-    // This is a placeholder for file sharing functionality
-    console.log('File selected:', file.name);
+    // Import the sendFile function from our bridge
+    const { sendFile } = await import('../lib/fileBridge');
+    sendFile(file);
     
     // Reset file input
     event.target.value = '';
