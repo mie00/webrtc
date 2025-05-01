@@ -57,9 +57,8 @@ export function removeInflight(id: string): void {
  * Initialize the forward module with the app object
  * This maintains compatibility with the original forwardInit function
  */
-export function forwardInit(app: ForwardApp): void {
-  // Store a reference to the app in the window for backward compatibility
-  window.app = app;
+export function forwardInit(originalApp: App): void {
+  const app = originalApp as ForwardApp;
   
   // Initialize app properties if they don't exist
   app.allowed_host = app.allowed_host || null;
@@ -101,10 +100,18 @@ export function forwardInit(app: ForwardApp): void {
   });
 }
 
+// Export utility functions from the original forward.ts
+import { 
+  sendData, 
+  concatUint8Arrays,
+  setButton
+} from './webrtc/forward';
+
 /**
  * Set up forward channel for a client
  */
-export function setupForwardChannel(app: ForwardApp, cid: string): void {
+export function setupForwardChannel(originalApp: App, cid: string): void {
+  const app = originalApp as ForwardApp;
   const forward = app.clients[cid].pc.createDataChannel("forward", {
     negotiated: true,
     id: 3
@@ -331,13 +338,6 @@ export const toggleForwardHandler = async (): Promise<void> => {
     setButton(startForwardButton, state.allowedHost);
   }
 };
-
-// Export utility functions from the original forward.ts
-export { 
-  sendData, 
-  concatUint8Arrays,
-  setButton
-} from '../../js/forward';
 
 // Helper function to send negotiation messages
 function sendNego(client: WebRTCClient, data: any): void {

@@ -1,6 +1,6 @@
 import App from './App.svelte';
-import { WebRTCApp } from '../js/WebRTCApp.js';
-import { getConfig } from '../js/config.js';
+import { WebRTCApp } from './lib/webrtc/WebRTCApp.js';
+import { getConfig } from './lib/utils/config.js';
 
 // Make WebRTCApp available globally
 window.WebRTCApp = WebRTCApp;

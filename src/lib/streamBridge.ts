@@ -1,5 +1,6 @@
 import { streamStore, getStreamState, addStream, addViewStream, removeStream, removeViewStream } from '../stores/streamStore';
 import { get } from 'svelte/store';
+import { type AppWithStreamConfig, normalizeStreamId, createStreamElement, getStreamElemId } from './media/stream'
 
 // This module serves as a bridge between the WebRTC app and Svelte components
 
@@ -7,7 +8,8 @@ import { get } from 'svelte/store';
  * Initialize the stream module with the app object
  * This maintains compatibility with the original streamInit function
  */
-export function streamInit(app: App): void {
+export function streamInit(originalApp: App): void {
+  const app = originalApp as AppWithStreamConfig;
   // Store a reference to the app in the window for backward compatibility
   window.app = app;
   
@@ -153,7 +155,7 @@ export {
   refreshStreamViews, 
   createStreamElement, 
   setButton 
-} from '../../js/stream';
+} from './media/stream';
 
 // Helper function to send negotiation messages
 function sendNego(client: WebRTCClient, data: any): void {

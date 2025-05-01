@@ -415,6 +415,7 @@ export {
   forwardInit,
   setupForwardChannel,
   sendData,
+  setButton,
   concatUint8Arrays,
   toggleForwardHandler
 };

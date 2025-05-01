@@ -1,5 +1,5 @@
 // Import types from global.d.ts
-/// <reference path="../types/global.d.ts" />
+/// <reference path="../../../types/global.d.ts" />
 
 // Use type assertion to handle vendor prefixes
 window.AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -634,7 +634,9 @@ export {
     getStreamsDims,
     refreshStreamViews,
     createStreamElement,
-    setButton
+    setButton,
+    setupStream,
+    type AppWithStreamConfig
 };
 
 

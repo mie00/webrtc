@@ -1,6 +1,6 @@
 import { writable, get } from 'svelte/store';
-import { WebRTCApp } from '../../js/WebRTCApp';
-import { updateProgressBar, splitArrayBuffer } from '../../js/file';
+import { WebRTCApp } from './webrtc/WebRTCApp';
+import { updateProgressBar, splitArrayBuffer } from './utils/file';
 
 // File transfer state interface
 export interface FileTransfer {

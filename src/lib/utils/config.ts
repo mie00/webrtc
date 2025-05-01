@@ -2,7 +2,7 @@
  * @deprecated Use the Svelte store in src/stores/configStore.ts instead
  */
 
-import { getAllConfig, updateConfig } from '../src/stores/configStore';
+import { getAllConfig, updateConfig } from '../../stores/configStore';
 
 /**
  * Get the current configuration
