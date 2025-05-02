@@ -1,10 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import { streamStore, updateStreamConfig } from '../stores/streamStore';
+  import { streamStore, updateStreamConfig, setViewLayout, type LayoutType } from '../stores/streamStore';
   import { setupLocalStream, refreshStreamViews } from '../lib/streamBridge';
   import { startRecording, stopRecording } from '../lib/media/recorder';
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig } from '../stores/configStore';
+  import StreamView from './StreamView.svelte';
   
   // Context menu state
   let showMenu = false;
@@ -14,9 +15,6 @@
   let audioButton: HTMLElement;
   let videoButton: HTMLElement;
   let instant = 0
-  
-  // Props
-  // export let webRTCApp;
   
   const dispatch = createEventDispatcher();
   
@@ -31,6 +29,38 @@
   $: isVideoEnabled = $streamStore.streamConfig.video;
   $: isScreenSharing = $streamStore.streamConfig.screen;
   $: isVideoShared = !!$streamStore.streamConfig.videoStream;
+  
+  // Stream layout state
+  $: currentLayout = $streamStore.activeView.layout;
+  $: focusedStream = $streamStore.activeView.focusedStream;
+  
+  // Derived stream collections
+  $: localStreams = Object.entries($streamStore.localStreams);
+  $: remoteStreams = Object.entries($streamStore.remoteStreams).flatMap(([peerId, data]) => 
+    Object.entries(data.streams).map(([streamId, stream]) => ({
+      id: streamId,
+      stream,
+      peerId
+    }))
+  );
+  
+  // All active streams for display
+  $: activeStreams = [
+    ...localStreams.filter(([_, data]) => data.active).map(([id, data]) => ({
+      id,
+      stream: data.stream,
+      type: data.type,
+      isLocal: true,
+      peerId: null
+    })),
+    ...remoteStreams.map(({ id, stream, peerId }) => ({
+      id,
+      stream,
+      type: stream.getVideoTracks().length > 0 ? 'camera' : 'audio',
+      isLocal: false,
+      peerId
+    }))
+  ];
   
   onMount(() => {
     // Set up interval for refreshing stream views
@@ -157,15 +187,117 @@
       await setupLocalStream('local');
     }
   }
+  
+  function handleChangeLayout(layout: LayoutType) {
+    setViewLayout(layout);
+  }
+  
+  function handleFocusStream(event: CustomEvent) {
+    const { streamId } = event.detail;
+    setViewLayout('focus', streamId);
+  }
 </script>
 
 <div id="media" bind:this={mediaContainer} class="w-full w-svw h-svh relative bg-black" style="width: 100svw; height: 100svh;">
-  <!-- Placeholder for video streams -->
-  <!-- Streams will be dynamically added here -->
+  <!-- Hidden video element for file uploads -->
   <video muted bind:this={videoNode} autoplay loop class="hidden" />
+  
+  <!-- Dynamic stream rendering based on layout -->
+  {#if currentLayout === 'grid'}
+    <div class="stream-grid">
+      {#each activeStreams as stream (stream.id)}
+        <div class="stream-container">
+          <StreamView 
+            stream={stream.stream} 
+            type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
+            muted={stream.isLocal} 
+            mirrored={stream.isLocal && stream.type === 'camera'} 
+            peerId={stream.peerId}
+            on:focus={handleFocusStream}
+          />
+        </div>
+      {/each}
+    </div>
+  {:else if currentLayout === 'focus' && focusedStream}
+    <div class="focus-layout">
+      <!-- Main focused stream -->
+      {#each activeStreams.filter(s => s.id === focusedStream) as stream (stream.id)}
+        <div class="main-stream">
+          <StreamView 
+            stream={stream.stream} 
+            type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
+            muted={stream.isLocal} 
+            mirrored={stream.isLocal && stream.type === 'camera'} 
+            peerId={stream.peerId}
+            on:focus={handleFocusStream}
+          />
+        </div>
+      {/each}
+      
+      <!-- Other streams in a row -->
+      <div class="other-streams">
+        {#each activeStreams.filter(s => s.id !== focusedStream) as stream (stream.id)}
+          <div class="small-stream">
+            <StreamView 
+              stream={stream.stream} 
+              type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
+              muted={stream.isLocal} 
+              mirrored={stream.isLocal && stream.type === 'camera'} 
+              peerId={stream.peerId}
+              on:focus={handleFocusStream}
+            />
+          </div>
+        {/each}
+      </div>
+    </div>
+  {:else if currentLayout === 'presentation'}
+    <div class="presentation-layout">
+      <!-- Find screen share stream if any -->
+      {#each activeStreams.filter(s => s.type === 'screen') as stream (stream.id)}
+        <div class="presentation-stream">
+          <StreamView 
+            stream={stream.stream} 
+            type="video" 
+            muted={stream.isLocal} 
+            peerId={stream.peerId}
+            on:focus={handleFocusStream}
+          />
+        </div>
+      {/each}
+      
+      <!-- Other streams in a column -->
+      <div class="presentation-others">
+        {#each activeStreams.filter(s => s.type !== 'screen') as stream (stream.id)}
+          <div class="small-stream">
+            <StreamView 
+              stream={stream.stream} 
+              type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
+              muted={stream.isLocal} 
+              mirrored={stream.isLocal && stream.type === 'camera'} 
+              peerId={stream.peerId}
+              on:focus={handleFocusStream}
+            />
+          </div>
+        {/each}
+      </div>
+    </div>
+  {/if}
 </div>
 
 <div class="fixed bottom-0 left-0 right-0 bg-transparent p-4 flex justify-center space-x-0 lg:space-x-4 pointer-events-none">
+  <!-- Layout controls -->
+  <div class="layout-controls pointer-events-auto flex mr-4">
+    <button on:click={() => handleChangeLayout('grid')} class="p-2 rounded-l-full {currentLayout === 'grid' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
+      Grid
+    </button>
+    <button on:click={() => handleChangeLayout('focus')} class="p-2 {currentLayout === 'focus' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
+      Focus
+    </button>
+    <button on:click={() => handleChangeLayout('presentation')} class="p-2 rounded-r-full {currentLayout === 'presentation' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
+      Present
+    </button>
+  </div>
+
   <button on:click={handleOpenQr} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
     ▩ <!-- QR Code -->
   </button>
@@ -201,3 +333,68 @@
   hide={() => showMenu = false}
 />
 {/if}
+
+<style>
+  .stream-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 8px;
+    width: 100%;
+    height: 100%;
+    padding: 8px;
+  }
+  
+  .focus-layout {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    padding: 8px;
+  }
+  
+  .main-stream {
+    flex: 1;
+    margin-bottom: 8px;
+  }
+  
+  .other-streams {
+    display: flex;
+    height: 150px;
+    gap: 8px;
+    overflow-x: auto;
+  }
+  
+  .small-stream {
+    width: 200px;
+    height: 150px;
+    flex-shrink: 0;
+  }
+  
+  .presentation-layout {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    padding: 8px;
+  }
+  
+  .presentation-stream {
+    flex: 1;
+    margin-right: 8px;
+  }
+  
+  .presentation-others {
+    width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+  }
+  
+  .stream-container {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 8px;
+  }
+</style>

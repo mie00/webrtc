@@ -1,4 +1,16 @@
-import { streamStore, getStreamState, addStream, addViewStream, removeStream, removeViewStream } from '../stores/streamStore';
+import { 
+  streamStore, 
+  getStreamState, 
+  addStream, 
+  addViewStream, 
+  removeStream, 
+  removeViewStream,
+  addLocalStream,
+  removeLocalStream,
+  addRemoteStream,
+  removeRemoteStream,
+  type StreamType
+} from '../stores/streamStore';
 import { get } from 'svelte/store';
 import { type AppWithStreamConfig, normalizeStreamId, createStreamElement, getStreamElemId } from './media/stream'
 
@@ -28,8 +40,11 @@ export function streamInit(originalApp: App): void {
     // Remove from app object
     delete app.viewStreams[streamId];
     
-    // Remove from Svelte store
+    // Remove from Svelte store (legacy)
     removeViewStream(streamId);
+    
+    // Remove from enhanced store structure
+    removeRemoteStream(cid, streamId);
     
     // Forward to other clients
     for (let cid2 of Object.keys(app.clients)) {
@@ -54,9 +69,12 @@ export function streamInit(originalApp: App): void {
         
         stream.getTracks().map((track) => track.stop());
         
-        // Remove from Svelte store
+        // Remove from Svelte store (legacy)
         removeStream(streamId);
         removeViewStream(normalizeStreamId(stream.id));
+        
+        // Remove from enhanced store structure
+        removeLocalStream(streamId);
       });
     }
   };
@@ -68,6 +86,15 @@ export function streamInit(originalApp: App): void {
   Object.entries(app.streams || {}).forEach(([key, stream]) => {
     if (!currentState.streams[key]) {
       addStream(key, stream);
+      
+      // Also add to enhanced structure
+      // Determine stream type based on key
+      let streamType: StreamType = 'custom';
+      if (key === 'audio') streamType = 'audio';
+      else if (key === 'video') streamType = 'camera';
+      else if (key === 'screen') streamType = 'screen';
+      
+      addLocalStream(key, stream, streamType);
     }
   });
   
@@ -75,6 +102,18 @@ export function streamInit(originalApp: App): void {
   Object.entries(app.viewStreams || {}).forEach(([key, stream]) => {
     if (!currentState.viewStreams[key]) {
       addViewStream(key, stream);
+      
+      // For remote streams, we need to determine which peer they belong to
+      // This is a best-effort approach since we don't have peer info in legacy structure
+      const matchingClient = Object.entries(app.clients).find(([_, client]) => {
+        return client.pc?.getReceivers().some(receiver => 
+          receiver.track && normalizeStreamId(receiver.track.id) === key
+        );
+      });
+      
+      if (matchingClient) {
+        addRemoteStream(matchingClient[0], key, stream);
+      }
     }
   });
   
@@ -99,8 +138,11 @@ export function setupTrackHandler(app: App, cid: string): void {
     // Add to app object (for backward compatibility)
     app.viewStreams![streamId] = ev.streams[0];
     
-    // Add to Svelte store
+    // Add to Svelte store (legacy)
     addViewStream(streamId, ev.streams[0]);
+    
+    // Add to enhanced store structure
+    addRemoteStream(cid, streamId, ev.streams[0]);
     
     // Create stream element (will be handled by Svelte component)
     // But also create a DOM element for backward compatibility
@@ -122,8 +164,11 @@ export function setupTrackHandler(app: App, cid: string): void {
       // Remove from app object
       delete app.viewStreams![targetId];
       
-      // Remove from Svelte store
+      // Remove from Svelte store (legacy)
       removeViewStream(targetId);
+      
+      // Remove from enhanced store structure
+      removeRemoteStream(cid, targetId);
     };
     
     // Forward to other clients
@@ -141,6 +186,34 @@ export function setupTrackHandler(app: App, cid: string): void {
   }
 }
 
+/**
+ * Enhanced version of setupLocalStream that uses the new store structure
+ */
+export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (instant: number) => void): Promise<void> => {
+  // Import the original function to maintain compatibility
+  const { setupLocalStream: originalSetupLocalStream } = await import('./media/stream');
+  
+  // Call the original function first to maintain backward compatibility
+  await originalSetupLocalStream(changed, audioCb);
+  
+  // Now update our enhanced store structure
+  const app = window.app as AppWithStreamConfig;
+  
+  if (app.streams && app.streams[changed]) {
+    // Map the stream type
+    let streamType: StreamType = 'custom';
+    if (changed === 'audio') streamType = 'audio';
+    else if (changed === 'video') streamType = 'camera';
+    else if (changed === 'screen') streamType = 'screen';
+    
+    // Add to enhanced store structure
+    addLocalStream(changed, app.streams[changed], streamType);
+  } else {
+    // If the stream was removed, remove it from our enhanced store too
+    removeLocalStream(changed);
+  }
+};
+
 // Export utility functions from the original stream.ts
 export { 
   normalizeStreamId, 
@@ -150,7 +223,6 @@ export {
   tearDownStream, 
   setupTrack, 
   setupStream, 
-  setupLocalStream, 
   getStreamsDims, 
   refreshStreamViews, 
   createStreamElement, 
