@@ -9,13 +9,15 @@
 
   onMount(() => {
     // Expose the showContextMenu function to the window
+    document.addEventListener('click', hide);
     return () => {
       // Cleanup
-    };
+      document.removeEventListener('click', hide);
+  };
   });
 </script>
 
-<div id="contextMenu" class='fixed' style="left: {position.x}px; top: {position.y}px;">
+<div id="contextMenu" class='fixed bg-white' role="button" tabindex=0 style="left: {position.x}px; top: {position.y}px;" on:click|stopPropagation on:keypress|stopPropagation>
   <ul id="ul-contextMenu" class="menu flex flex-col rounded-md shadow-xl overflow-hidden">
     {#each menuItems as item}
       <li>

@@ -68,7 +68,7 @@ export const isServerMode = derived(
 );
 
 export const rtcServers = derived(configStore, $config => {
-  const iceServers = [];
+  const iceServers: RTCIceServer[] = [];
   
   // Add STUN servers
   const stunServers = $config['stun-servers'].split(',').filter(server => server.trim());
@@ -96,6 +96,6 @@ export function getConfigValue(key: keyof Config): string {
 }
 
 // Function to get all config values as a plain object (for compatibility)
-export function getAllConfig(): Record<string, string> {
+export function getAllConfig(): Record<string, string | undefined> {
   return get(configStore);
 }

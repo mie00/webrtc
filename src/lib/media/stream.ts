@@ -174,7 +174,7 @@ interface AppWithStreamConfig extends App {
     streamConfig: StreamConfig;
 }
 
-const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local'): Promise<void> => {
+const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (number) => void): Promise<void> => {
     if (window.app.streams && window.app.streams[changed]) {
         const elems = document.querySelectorAll(`.${getStreamElemId(window.app.streams[changed].id)}`);
         for (const elem of Array.from(elems)) {
@@ -199,7 +199,6 @@ const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local')
     const appWithConfig = window.app as AppWithStreamConfig;
     
     if (changed === 'audio') {
-        const button = document.getElementById('toggle-audio') as HTMLElement;
         if (appWithConfig.streamConfig.audio) {
             stream = await navigator.mediaDevices.getUserMedia({ 
                 audio: { 
@@ -210,11 +209,11 @@ const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local')
             setupStream(stream, "high");
 
             processAudio(window.app as AudioProcessingApp, stream, (instant) => {
-                button.style.background = `linear-gradient(0deg, rgb(59 130 246) ${instant}%, white ${instant}%)`;
+                audioCb?.(instant);
             });
         } else {
             stopProcessingAudio(window.app as AudioProcessingApp);
-            button.style.background = ``;
+            audioCb?.(0);
         }
     } else if (changed === 'video') {
         if (appWithConfig.streamConfig.video) {
