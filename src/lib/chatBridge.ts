@@ -70,35 +70,37 @@ export function chatInit(app: App): void {
  * Set up chat channel for a client
  */
 export function setupChatChannel(app: App, cid: string): void {
-  const dc = app.clients[cid].pc.createDataChannel("chat", {
+  const dc = app.clients[cid].pc?.createDataChannel("chat", {
     negotiated: true,
     id: 1
   });
-  app.clients[cid].dc = dc;
-  
-  dc.onopen = (): void => {
-    const chat = document.getElementById('chat') as HTMLInputElement;
-    if (chat) {
-      chat.select();
-    }
-  };
-  
-  dc.onmessage = (e: MessageEvent): void => {
-    try {
-      // Try to parse as JSON first (for structured messages)
-      const data = JSON.parse(e.data);
-      if (data.type === 'chat') {
-        // Add to store
-        addMessage(data.message, data.sender);
-      } else {
-        // Legacy format or unknown format
+  if (dc) {
+    app.clients[cid].dc = dc;
+    
+    dc.onopen = (): void => {
+      const chat = document.getElementById('chat') as HTMLInputElement;
+      if (chat) {
+        chat.select();
+      }
+    };
+    
+    dc.onmessage = (e: MessageEvent): void => {
+      try {
+        // Try to parse as JSON first (for structured messages)
+        const data = JSON.parse(e.data);
+        if (data.type === 'chat') {
+          // Add to store
+          addMessage(data.message, data.sender);
+        } else {
+          // Legacy format or unknown format
+          addMessage(e.data, 'Peer');
+        }
+      } catch (err) {
+        // Legacy format (plain text)
         addMessage(e.data, 'Peer');
       }
-    } catch (err) {
-      // Legacy format (plain text)
-      addMessage(e.data, 'Peer');
-    }
-  };
+    };
+  }
 }
 
 /**

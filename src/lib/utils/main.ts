@@ -14,46 +14,8 @@ const webRTCApp = new WebRTCApp(getConfig());
 // Expose it to the window for legacy code that might need it
 window.app = window.app || webRTCApp.getApp();
 
-// Only attach event listener if element exists (for testing compatibility)
-const toggleControls = document.getElementById('toggle-controls');
-if (toggleControls) {
-    toggleControls.addEventListener('click', function () {
-        const controlsPanel = document.querySelector('#control');
-        const tc = document.getElementById('toggle-controls');
-        if (controlsPanel && tc) {
-            if (controlsPanel.classList.contains('left-full')) {
-                controlsPanel.classList.add('right-0');
-                controlsPanel.classList.remove('left-full');
-                tc.innerHTML = '&gt;';
-            } else {
-                controlsPanel.classList.remove('right-0');
-                controlsPanel.classList.add('left-full');
-                tc.innerHTML = '&lt;';
-            }
-        }
-    });
-}
-
 const vvals: string[] = ['static', 'relative', 'absolute', 'fixed', 'sticky'];
 let indda: number = 0;
-
-// window.asdasd = setInterval(function() {
-//     const cc = document.getElementById('cc')
-//     const tc = document.getElementById('toggle-controls')
-//     const c = document.getElementById('control');
-//     tc.style.right = '-25px';
-//     if (indda % 2 == 0) {
-//         c.classList.remove('left-full');
-//         c.classList.add('right-0');
-//     } else {
-//         c.classList.add('left-full');
-//         c.classList.remove('right-0');
-//     }
-//     const indd = Math.floor(indda/2);
-//     tc.style.position = vvals[Math.floor(indd / vvals.length) % vvals.length];
-//     cc.style.position = vvals[indd % vvals.length];
-//     indda++;
-// }, 1000);
 
 const configOverlay = document.getElementById('config-overlay');
 const copyOverlay = document.getElementById('copy-overlay');
