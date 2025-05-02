@@ -122,17 +122,4 @@ function stopRecording(): void {
   recordButton.classList.remove('bg-red');
 }
 
-// Import the function from stream.ts instead of redefining it
-import { setButton } from './stream.js';
-
-recordButton.addEventListener('click', () => {
-  if (window.app.recorder) {
-    stopRecording();
-  } else {
-    startRecording();
-  }
-  setButton(recordButton, !!window.app.recorder);
-});
-
-// Import the function from stream.ts
 import { createStreamElement } from './stream.js';

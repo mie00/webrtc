@@ -68,9 +68,15 @@
     uploadVideo?.click();
   }
   
-  function handleRecord() {
-    // Record implementation
-    // Implementation depends on your existing code
+  let isRecording = false;
+  
+  async function handleRecord() {
+    if (window.app.recorder) {
+      stopRecording();
+    } else {
+      await startRecording();
+    }
+    isRecording = !!window.app.recorder;
   }
   
   function handleOpenQr() {
@@ -128,8 +134,8 @@
   <button on:click={handleShareVideo} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoShared}>
     📹 <!-- Share Video -->
   </button>
-  <button on:click={handleRecord} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-    ⏺
+  <button on:click={handleRecord} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-red-600={isRecording}>
+    {isRecording ? '⏹' : '⏺'}
   </button>
   <button on:click={handleHangup} class="hover:bg-red-600 bg-red-500 text-white p-3 rounded-full pointer-events-auto">
     📞
