@@ -60,6 +60,7 @@ async function setupStreams(merger: any): Promise<void> {
   }
 }
 
+import { createStreamElement } from './stream.js';
 async function startRecording(): Promise<void> {
   var merger = new window.VideoStreamMerger();
   window.app.recorder = window.setInterval(setupStreams.bind(null, merger), 1000);
@@ -122,4 +123,4 @@ function stopRecording(): void {
   recordButton.classList.remove('bg-red');
 }
 
-import { createStreamElement } from './stream.js';
+export { startRecording, stopRecording };
