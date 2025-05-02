@@ -69,7 +69,7 @@
 </script>
 
 {#if show}
-<div id="copy-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-30" on:click={handleClose} role="dialog" aria-modal="true" tabindex="-1" on:keydown={(e) => e.key === 'Escape' && handleClose(e)}>
+<button id="copy-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-30 cursor-default" on:click={handleClose} role="dialog" aria-modal="true" tabindex="0" on:keydown={(e) => e.key === 'Escape' && handleClose(e)} aria-label="Close overlay">
   <div class="bg-white p-4 rounded-md shadow-md text-center">
     <button id="open-config" on:click={handleOpenConfig} class="right">⚙️</button>
     <button id="reset" on:click={handleReset}>↺</button>
@@ -91,6 +91,6 @@
       <button on:click={handleJoin}
         class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full mt-2">📞</button>
     {/if}
-  </div>
+  </button>
 </div>
 {/if}
