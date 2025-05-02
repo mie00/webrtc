@@ -1,6 +1,8 @@
 // Import types from global.d.ts
 /// <reference path="../../../types/global.d.ts" />
 
+import { getAllConfig } from '../../stores/configStore';
+
 // Use type assertion to handle vendor prefixes
 window.AudioContext = window.AudioContext || (window as any).webkitAudioContext;
 
@@ -203,8 +205,8 @@ const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local')
         if (appWithConfig.streamConfig.audio) {
             stream = await navigator.mediaDevices.getUserMedia({ 
                 audio: { 
-                    groupId: getConfig()['audio-device']?.split('|')[0], 
-                    deviceId: getConfig()['audio-device']?.split('|')[1] 
+                    groupId: getAllConfig()['audio-device']?.split('|')[0], 
+                    deviceId: getAllConfig()['audio-device']?.split('|')[1] 
                 } 
             });
             setupStream(stream, "high");
@@ -220,8 +222,8 @@ const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local')
         if (appWithConfig.streamConfig.video) {
             stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { 
-                    groupId: getConfig()['video-device']?.split('|')[0], 
-                    deviceId: getConfig()['video-device']?.split('|')[1] 
+                    groupId: getAllConfig()['video-device']?.split('|')[0], 
+                    deviceId: getAllConfig()['video-device']?.split('|')[1] 
                 } 
             });
             if (appWithConfig.config && appWithConfig.config['blur-video'] !== 'yes') {

@@ -160,10 +160,10 @@ export class WebRTCApp {
     if (mediaElement) mediaElement.innerHTML = '';
     if (outputElement) outputElement.innerHTML = '';
     this.handleChange();
-    WebRTCApp.reset();
+    this.reset();
   }
 
-  public static reset(): void {
+  public reset(): void {
     window.location.href = window.location.origin + window.location.pathname;
   }
 

@@ -40,7 +40,7 @@ export const rtcUtils = {
   logDiff: (d1: string, d2: string) => webRTCApp.logDiff(d1, d2),
   // Static methods
   log: (msg: string) => WebRTCApp.log(msg),
-  reset: () => WebRTCApp.reset(),
+  reset: () => webRTCApp.reset(),
   // Export the app object for testing
   _getApp: () => webRTCApp.getApp()
 };
