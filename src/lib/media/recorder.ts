@@ -119,8 +119,6 @@ function stopRecording(): void {
     clearInterval(window.app.recorder);
     window.app.recorder = null;
   }
-  
-  recordButton.classList.remove('bg-red');
 }
 
 export { startRecording, stopRecording };
