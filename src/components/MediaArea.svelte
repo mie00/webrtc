@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import { streamStore, updateStreamConfig } from '../stores/streamStore';
   import { setupLocalStream, refreshStreamViews } from '../lib/streamBridge';
+  import { startRecording, stopRecording } from '../lib/media/recorder';
   
   // Props
   export let webRTCApp;

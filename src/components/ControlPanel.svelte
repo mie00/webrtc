@@ -12,12 +12,10 @@
   let message = '';
   let chatInput: HTMLInputElement;
   let controlsPanel: HTMLDivElement;
-  const panelPosition = tweened(0, { duration: 300 });
   
   // Event handlers
   function togglePanel() {
     isPanelOpen = !isPanelOpen;
-    panelPosition.set(isPanelOpen ? 0 : 100);
   }
   
   function handleKeyPress(event) {
@@ -56,11 +54,10 @@
      bind:this={controlsPanel}
      class="w-11/12 lg:w-1/2 xl:w-1/4 2x:w-1/4 flex flex-col fixed bottom-0 top-0"
      class:left-full={!isPanelOpen}
-     class:right-0={isPanelOpen}
-     style={`transform: translateX(${$panelPosition}%)`}>
+     class:right-0={isPanelOpen}>
   <div id="cc" class="absolute top-1/4">
     <button id="toggle-controls" on:click={togglePanel} class="hover:bg-blue-600 w-5 h-16 bg-gray-300 text-black p-0 absolute border-solid rounded-l" style="left: -20px;">
-      {isPanelOpen ? '&gt;' : '&lt;'}
+      {isPanelOpen ? '>' : '<'}
     </button>
   </div>
   <div class="bg-gray-200 p-4 flex flex-col space-y-4 w-full h-full">
