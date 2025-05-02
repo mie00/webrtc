@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import { streamStore, updateStreamConfig } from '../stores/streamStore';
-  import { setupLocalStream, refreshStreamViews, setButton } from '../lib/streamBridge';
+  import { setupLocalStream, refreshStreamViews } from '../lib/streamBridge';
   
   // Props
   export let webRTCApp;
@@ -10,17 +10,19 @@
   
   // References to DOM elements
   let mediaContainer: HTMLElement;
+  let uploadVideo: HTMLInputElement;
+  let videoNode: HTMLVideoElement;
   let refreshInterval: number;
+  
+  // Reactive button states
+  $: isAudioEnabled = $streamStore.streamConfig.audio;
+  $: isVideoEnabled = $streamStore.streamConfig.video;
+  $: isScreenSharing = $streamStore.streamConfig.screen;
+  $: isVideoShared = !!$streamStore.streamConfig.videoStream;
   
   onMount(() => {
     // Set up interval for refreshing stream views
     refreshInterval = window.setInterval(refreshStreamViews, 1000);
-    
-    // Initialize media area
-    const uploadVideo = document.getElementById('upload-video');
-    if (uploadVideo) {
-      uploadVideo.addEventListener('change', handleVideoUpload);
-    }
     
     // Add resize listener
     window.addEventListener('resize', refreshStreamViews);
@@ -29,10 +31,6 @@
       // Clean up on component destruction
       clearInterval(refreshInterval);
       window.removeEventListener('resize', refreshStreamViews);
-      
-      if (uploadVideo) {
-        uploadVideo.removeEventListener('change', handleVideoUpload);
-      }
     };
   });
   
@@ -44,36 +42,18 @@
   async function handleToggleAudio() {
     const newValue = !$streamStore.streamConfig.audio;
     updateStreamConfig({ audio: newValue });
-    
-    const toggleAudioBtn = document.getElementById('toggle-audio');
-    if (toggleAudioBtn) {
-      setButton(toggleAudioBtn, newValue);
-    }
-    
     await setupLocalStream('audio');
   }
   
   async function handleToggleVideo() {
     const newValue = !$streamStore.streamConfig.video;
     updateStreamConfig({ video: newValue });
-    
-    const toggleVideoBtn = document.getElementById('toggle-video');
-    if (toggleVideoBtn) {
-      setButton(toggleVideoBtn, newValue);
-    }
-    
     await setupLocalStream('video');
   }
   
   async function handleToggleScreen() {
     const newValue = !$streamStore.streamConfig.screen;
     updateStreamConfig({ screen: newValue });
-    
-    const toggleScreenBtn = document.getElementById('toggle-screen');
-    if (toggleScreenBtn) {
-      setButton(toggleScreenBtn, newValue);
-    }
-    
     await setupLocalStream('screen');
   }
   
@@ -85,7 +65,7 @@
   
   function handleShareVideo() {
     // Trigger file upload dialog
-    document.getElementById('upload-video')?.click();
+    uploadVideo?.click();
   }
   
   function handleRecord() {
@@ -97,13 +77,12 @@
     dispatch('openQr');
   }
   
-  async function handleVideoUpload(event) {
-    const target = event.target as HTMLInputElement;
-    if (target.files && target.files.length > 0) {
-      const file = target.files[0];
+  async function handleVideoUpload(event: Event) {
+    const files = (event.target as HTMLInputElement)?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
       const fileURL = URL.createObjectURL(file);
       
-      const videoNode = document.createElement('video');
       videoNode.src = fileURL;
       videoNode.autoplay = true;
       videoNode.controls = false;
@@ -119,45 +98,41 @@
         local: true
       });
       
-      const shareVideoBtn = document.getElementById('share-video');
-      if (shareVideoBtn) {
-        setButton(shareVideoBtn, true);
-      }
-      
       await setupLocalStream('local');
     }
   }
 </script>
 
-<div id="media" class="w-full w-svw h-svh relative bg-black" style="width: 100svw; height: 100svh;">
+<div id="media" bind:this={mediaContainer} class="w-full w-svw h-svh relative bg-black" style="width: 100svw; height: 100svh;">
   <!-- Placeholder for video streams -->
   <!-- Streams will be dynamically added here -->
+  <video bind:this={videoNode} autoplay loop class="hidden" />
 </div>
 
 <div class="fixed bottom-0 left-0 right-0 bg-transparent p-4 flex justify-center space-x-0 lg:space-x-4 pointer-events-none">
-  <button id="open-qr" on:click={handleOpenQr} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+  <button on:click={handleOpenQr} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
     ▩ <!-- QR Code -->
   </button>
-  <button id="toggle-audio" on:click={handleToggleAudio} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-    🎤 <!-- Microphone -->
+  <button on:click={handleToggleAudio} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isAudioEnabled}>
+    {isAudioEnabled ? '🎤' : '🔇'} <!-- Microphone -->
   </button>
-  <button id="toggle-video" on:click={handleToggleVideo} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-    🎥 <!-- Video Camera -->
+  <button on:click={handleToggleVideo} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoEnabled}>
+    {isVideoEnabled ? '🎥' : '📷'} <!-- Video Camera -->
   </button>
-  <button id="toggle-screen" on:click={handleToggleScreen} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+  <button on:click={handleToggleScreen} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isScreenSharing}>
     🖥️ <!-- Monitor for Share Screen -->
   </button>
-  <button id="start-forward" on:click={handleStartForward} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+  <button on:click={handleStartForward} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
     ⏩ <!-- Forward -->
   </button>
-  <button id="share-video" on:click={handleShareVideo} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+  <button on:click={handleShareVideo} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoShared}>
     📹 <!-- Share Video -->
   </button>
-  <button id="record" on:click={handleRecord} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+  <button on:click={handleRecord} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
     ⏺
   </button>
-  <button id="hangup" on:click={handleHangup} class="hover:bg-red-600 bg-red-500 text-white p-3 rounded-full pointer-events-auto">
+  <button on:click={handleHangup} class="hover:bg-red-600 bg-red-500 text-white p-3 rounded-full pointer-events-auto">
     📞
   </button>
-  <input type="file" id="upload-video" accept="video/*" class="hidden">
+  <input bind:this={uploadVideo} type="file" on:change={handleVideoUpload} accept="video/*" class="hidden">
 </div>
