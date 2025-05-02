@@ -15,6 +15,7 @@ export class WebRTCApp {
     cleanups: {},
     nego_messages: {},
     config: {},
+    viewStreams: {},
   };
 
   constructor(config?: Record<string, string>) {
@@ -330,19 +331,23 @@ export class WebRTCApp {
 
   public async getOffer(cb: (candidate: RTCIceCandidate | null) => Promise<void>, options: {sid: string}): Promise<string> {
     const cid = await this.initClient(false, options);
-    this.app.clients[cid].pc.onicecandidate = async ({ candidate }) => {
-      console.log('Candidate found (offer)', candidate);
-      await cb(candidate);
-    };
-    return cid;
+    if (this.app.clients[cid].pc) {
+        this.app.clients[cid].pc.onicecandidate = async ({ candidate }) => {
+        console.log('Candidate found (offer)', candidate);
+        await cb(candidate);
+      };
   }
+  return cid;
+}
 
   public async getAnswer(offer: string, cb: (candidate: RTCIceCandidate | null) => Promise<void>, options: {sid: string}): Promise<string> {
     const cid = await this.initClient(true, {sid: options.sid, offer});
-    this.app.clients[cid].pc.onicecandidate = async ({ candidate }) => {
-      console.log('Candidate found (answer)', candidate);
-      await cb(candidate);
-    };
+    if (this.app.clients[cid].pc) {
+      this.app.clients[cid].pc.onicecandidate = async ({ candidate }) => {
+        console.log('Candidate found (answer)', candidate);
+        await cb(candidate);
+      };
+    }
     return cid;
   }
 
@@ -439,7 +444,7 @@ export class WebRTCApp {
           'color:yellow', 'color:orange', 'color:yellow', 'color:orange');
       if (client.pc?.connectionState === 'connected' && client.pc?.iceConnectionState === 'connected') {
         const stats = await client.pc.getStats();
-        let transport: RTCTransportStats;
+        let transport: RTCTransportStats | null = null;
         let certificates: Record<string, any> = {};
         stats.forEach(stat => {
           if (stat.type === 'transport') {
@@ -449,12 +454,16 @@ export class WebRTCApp {
           }
         });
         if (transport) {
-          const firstCid = client.polite ? transport.remoteCertificateId : transport.localCertificateId;
-          const secondCid = !client.polite ? transport.remoteCertificateId : transport.localCertificateId;
-          const fingerprints = certificates[firstCid].fingerprint + certificates[secondCid].fingerprint;
-          const ejs = await this.genEmojis(fingerprints);
-          console.log('ejs', ejs);
-          textContainer.appendChild(document.createTextNode(ejs));
+          const remote = (transport as RTCTransportStats).remoteCertificateId
+          const local = (transport as RTCTransportStats).localCertificateId
+          if (local && remote) {
+            const firstCid = client.polite ? remote : local;
+            const secondCid = !client.polite ? remote : local;
+            const fingerprints = certificates[firstCid].fingerprint + certificates[secondCid].fingerprint;
+            const ejs = await this.genEmojis(fingerprints);
+            console.log('ejs', ejs);
+            textContainer.appendChild(document.createTextNode(ejs));
+          }
         }
         const copyOverlayElement = document.getElementById("copy-overlay");
         if (copyOverlayElement) copyOverlayElement.classList.add('hidden');

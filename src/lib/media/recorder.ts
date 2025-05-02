@@ -73,7 +73,6 @@ async function startRecording(): Promise<void> {
 
   const result = merger.result;
   if (false) { // for debugging only
-    window.app.viewStreams = window.app.viewStreams || {};
     window.app.viewStreams[result.id] = result;
     await createStreamElement(result, 'video', { muted: false, controls: true });
   }
@@ -107,7 +106,7 @@ async function startRecording(): Promise<void> {
 function stopRecording(): void {
   if (window.app.mediaRecorder) {
     window.app.mediaRecorder.stop();
-    window.app.mediaRecorder = null;
+    window.app.mediaRecorder = undefined;
   }
   
   if (window.app.merger) {
@@ -117,7 +116,7 @@ function stopRecording(): void {
   
   if (window.app.recorder) {
     clearInterval(window.app.recorder);
-    window.app.recorder = null;
+    window.app.recorder = undefined;
   }
 }
 

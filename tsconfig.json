@@ -9,7 +9,7 @@
     "sourceMap": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext", "WebWorker"],
     "skipLibCheck": true,
     "baseUrl": ".",

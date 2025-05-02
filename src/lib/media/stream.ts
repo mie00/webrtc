@@ -46,7 +46,7 @@ function streamInit(app: App): void {
 }
 
 function setupTrackHandler(app: App, cid: string): void {
-    app.clients[cid].pc.addEventListener("track", async (ev: RTCTrackEvent) => {
+    app.clients[cid].pc?.addEventListener("track", async (ev: RTCTrackEvent) => {
         console.log("got track event", ev);
         app.viewStreams![normalizeStreamId(ev.streams[0].id)] = ev.streams[0];
         await createStreamElement(ev.streams[0], ev.track.kind as 'audio' | 'video', { muted: false });
@@ -62,12 +62,12 @@ function setupTrackHandler(app: App, cid: string): void {
             if (cid == cid2) {
                 continue;
             }
-            app.clients[cid2].pc.addTrack(ev.track, ev.streams[0]);
+            app.clients[cid2].pc?.addTrack(ev.track, ev.streams[0]);
         }
     });
     for (let stream of Object.values(app.viewStreams || {})) {
         stream.getTracks().forEach(function (track) {
-            app.clients[cid].pc.addTrack(track, stream);
+            app.clients[cid].pc?.addTrack(track, stream);
         });
     }
 }
@@ -116,7 +116,7 @@ const tearDownStream = async (stream: MediaStream): Promise<void> => {
         track.stop();
         track.dispatchEvent(new Event("ended"));
         for (var client of Object.values(window.app.clients)) {
-            client.pc.getTransceivers().forEach((transceiver) => {
+            client.pc?.getTransceivers().forEach((transceiver) => {
                 if (transceiver.sender.track?.id === track.id) {
                     transceiver.stop();
                 }
@@ -141,19 +141,17 @@ const setupTrack = (track: MediaStreamTrack, stream: MediaStream, priority: RTCP
         track.contentHint = contentHint;
     }
     for (var client of Object.values(window.app.clients)) {
-        if (client.pc) {
-            client.pc.addTransceiver(track, {
-                streams: [stream], sendEncodings: [
-                    { priority: priority, rid: "o" },
-                    ...(simulcast ? [
-                        { priority: priority, rid: "h", maxBitrate: 1200 * 1024 },
-                        { priority: priority, rid: "m", maxBitrate: 600 * 1024, scaleResolutionDownBy: 2 },
-                        { priority: priority, rid: "l", maxBitrate: 300 * 1024, scaleResolutionDownBy: 4 },
-                    ] : [])
-                ],
-                direction: "sendrecv",
-            });
-        }
+        client.pc?.addTransceiver(track, {
+            streams: [stream], sendEncodings: [
+                { priority: priority, rid: "o" },
+                ...(simulcast ? [
+                    { priority: priority, rid: "h", maxBitrate: 1200 * 1024 },
+                    { priority: priority, rid: "m", maxBitrate: 600 * 1024, scaleResolutionDownBy: 2 },
+                    { priority: priority, rid: "l", maxBitrate: 300 * 1024, scaleResolutionDownBy: 4 },
+                ] : [])
+            ],
+            direction: "sendrecv",
+        });
     }
 };
 
@@ -281,8 +279,7 @@ const getStreamsDims = async (): Promise<StreamDimensions[]> => {
     if (!window.app.viewStreams) return elems;
     let statsDict: Record<string, { width?: number, height?: number }> = {};
     for (const client of Object.values(window.app.clients)) {
-        const stats = await client.pc.getStats();
-        stats.forEach(stat => {
+        (await client.pc?.getStats())?.forEach(stat => {
             if (stat.type === 'inbound-rtp' && stat.kind === 'video') {
                 statsDict[normalizeStreamId(stat.trackIdentifier)] = { width: stat.frameWidth, height: stat.frameHeight };
             }
