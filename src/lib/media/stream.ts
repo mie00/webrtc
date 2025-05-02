@@ -422,27 +422,7 @@ const createStreamElement = async (stream: MediaStream, tag: 'video' | 'audio', 
     if (mediaContainer) {
         mediaContainer.appendChild(mediaElement);
     }
-    try {
-        await mediaElement.play();
-    } catch (e) {
-        console.log('error playing', e);
-        let playButton = document.getElementById('play-button');
-        if (!playButton) {
-            playButton = document.createElement('button');
-            playButton.id = 'play-button';
-            playButton.classList.add('fixed', 'inset-0', 'bg-black', 'bg-opacity-50', 'flex', 'justify-center', 'items-center', 'z-50', 'text-9xl');
-            playButton.appendChild(document.createTextNode('▶'));
-            document.body.appendChild(playButton);
-            playButton.addEventListener('click', (ev) => {
-                mediaElement.play();
-                playButton.remove();
-            });
-        } else {
-            playButton.addEventListener('click', (ev) => {
-                mediaElement.play();
-            });
-        }
-    }
+    await mediaElement.play();
     return mediaElement;
 };
 
@@ -453,36 +433,6 @@ const setButton = (target: HTMLElement, on: boolean): void => {
         target.classList.remove('bg-blue-500');
     }
 };
-
-const toggleAudioButton = document.getElementById('toggle-audio');
-if (toggleAudioButton) {
-    toggleAudioButton.addEventListener('click', async (ev) => {
-        const appWithConfig = window.app as AppWithStreamConfig;
-        appWithConfig.streamConfig.audio = !appWithConfig.streamConfig.audio;
-        setButton(ev.target as HTMLElement, appWithConfig.streamConfig.audio);
-        await setupLocalStream('audio');
-    });
-}
-
-const toggleVideoButton = document.getElementById('toggle-video');
-if (toggleVideoButton) {
-    toggleVideoButton.addEventListener('click', async (ev) => {
-        const appWithConfig = window.app as AppWithStreamConfig;
-        appWithConfig.streamConfig.video = !appWithConfig.streamConfig.video;
-        setButton(ev.target as HTMLElement, appWithConfig.streamConfig.video);
-        await setupLocalStream('video');
-    });
-}
-
-const toggleScreenButton = document.getElementById('toggle-screen');
-if (toggleScreenButton) {
-    toggleScreenButton.addEventListener('click', async (ev) => {
-        const appWithConfig = window.app as AppWithStreamConfig;
-        appWithConfig.streamConfig.screen = !appWithConfig.streamConfig.screen;
-        setButton(ev.target as HTMLElement, appWithConfig.streamConfig.screen);
-        await setupLocalStream('screen');
-    });
-}
 
 const toggleAudioContextMenu = document.getElementById('toggle-audio');
 if (toggleAudioContextMenu) {
@@ -637,61 +587,3 @@ export {
     setupStream,
     type AppWithStreamConfig
 };
-
-
-const shareVideoButton = document.getElementById('share-video');
-if (shareVideoButton) {
-    shareVideoButton.addEventListener('click', async (ev) => {
-        const appWithConfig = window.app as AppWithStreamConfig;
-        if (appWithConfig.streamConfig.local) {
-            if (appWithConfig.streamConfig.videoNode) {
-                appWithConfig.streamConfig.videoNode.src = '';
-                appWithConfig.streamConfig.videoNode = undefined;
-            }
-            appWithConfig.streamConfig.local = false;
-            setButton(ev.target as HTMLElement, appWithConfig.streamConfig.local);
-            await setupLocalStream('local');
-            const uploadVideo = document.getElementById('upload-video');
-            if (uploadVideo) {
-                (uploadVideo as HTMLInputElement).value = '';
-            }
-        } else {
-            const uploadVideo = document.getElementById('upload-video');
-            if (uploadVideo) {
-                uploadVideo.click();
-            }
-        }
-    });
-}
-
-const uploadVideoInput = document.getElementById('upload-video') as HTMLInputElement;
-if (uploadVideoInput) {
-    uploadVideoInput.addEventListener('change', async (ev) => {
-        const file = uploadVideoInput.files?.[0];
-        if (!file) return;
-        
-        const fileURL = URL.createObjectURL(file);
-
-        const videoNode = document.createElement('video');
-        videoNode.src = fileURL;
-        videoNode.autoplay = true;
-        videoNode.controls = false;
-        videoNode.loop = true;
-        
-        const appWithConfig = window.app as AppWithStreamConfig;
-        appWithConfig.streamConfig.videoNode = videoNode;
-        appWithConfig.streamConfig.videoStream = videoNode.captureStream ? 
-            videoNode.captureStream() : 
-            (videoNode as any).mozCaptureStream();
-        appWithConfig.streamConfig.local = !appWithConfig.streamConfig.local;
-
-        const shareVideoBtn = document.getElementById('share-video');
-        if (shareVideoBtn) {
-            setButton(shareVideoBtn, appWithConfig.streamConfig.local);
-        }
-        await setupLocalStream('local');
-    });
-}
-
-// Declare the backgroundChange function to avoid TypeScript errors
-// backgroundChange is already declared in the global scope

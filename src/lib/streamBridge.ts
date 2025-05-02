@@ -91,7 +91,7 @@ export function streamInit(originalApp: App): void {
  * Set up track handler for a client
  */
 export function setupTrackHandler(app: App, cid: string): void {
-  app.clients[cid].pc.addEventListener("track", async (ev: RTCTrackEvent) => {
+  app.clients[cid].pc?.addEventListener("track", async (ev: RTCTrackEvent) => {
     console.log("got track event", ev);
     
     const streamId = normalizeStreamId(ev.streams[0].id);
@@ -129,14 +129,14 @@ export function setupTrackHandler(app: App, cid: string): void {
     // Forward to other clients
     for (let cid2 of Object.keys(app.clients)) {
       if (cid == cid2) continue;
-      app.clients[cid2].pc.addTrack(ev.track, ev.streams[0]);
+      app.clients[cid2].pc?.addTrack(ev.track, ev.streams[0]);
     }
   });
   
   // Add existing streams to new client
   for (let stream of Object.values(app.viewStreams || {})) {
     stream.getTracks().forEach(function (track) {
-      app.clients[cid].pc.addTrack(track, stream);
+      app.clients[cid].pc?.addTrack(track, stream);
     });
   }
 }
