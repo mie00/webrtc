@@ -298,6 +298,6 @@
   on:configUpdated={handleReset}
 />
 
-<ContextMenu />
+<!-- <ContextMenu /> -->
 
 <div id="diffs" class="whitespace-pre-line hidden"></div>

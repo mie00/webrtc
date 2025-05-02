@@ -1,5 +1,3 @@
-const recordButton = document.getElementById('record') as HTMLButtonElement;
-
 let lastStreams: string[] = [];
 
 const FW = 1920;
