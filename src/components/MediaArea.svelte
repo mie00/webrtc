@@ -3,6 +3,16 @@
   import { streamStore, updateStreamConfig } from '../stores/streamStore';
   import { setupLocalStream, refreshStreamViews } from '../lib/streamBridge';
   import { startRecording, stopRecording } from '../lib/media/recorder';
+  import ContextMenu from './ContextMenu.svelte';
+  import { setConfig } from '../stores/configStore';
+  
+  // Context menu state
+  let showMenu = false;
+  let menuPosition = { x: 0, y: 0 };
+  let menuItems: string[] = [];
+  let selectedButton: 'audio'|'video'|null = null;
+  let audioButton: HTMLElement;
+  let videoButton: HTMLElement;
   
   // Props
   export let webRTCApp;
@@ -44,6 +54,44 @@
     const newValue = !$streamStore.streamConfig.audio;
     updateStreamConfig({ audio: newValue });
     await setupLocalStream('audio');
+  }
+
+  async function handleContextMenu(type: 'audio'|'video', event: MouseEvent) {
+    event.preventDefault();
+    selectedButton = type;
+    
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const filtered = devices.filter(device => device.kind === `${type}input`);
+    
+    if (filtered.length === 0) {
+      alert(`No ${type} devices found`);
+      return;
+    }
+
+    menuItems = filtered.map(d => d.label);
+    menuPosition = { x: event.pageX, y: event.pageY };
+    showMenu = true;
+  }
+
+  async function handleContextSelect(item: string) {
+    showMenu = false;
+    if (!selectedButton) return;
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const device = devices.find(d => d.label === item && d.kind === `${selectedButton}input`);
+    
+    if (device) {
+      setConfig(`${selectedButton}-device`, `${device.groupId}|${device.deviceId}`);
+      updateStreamConfig({ [selectedButton]: true });
+      await setupLocalStream(selectedButton);
+      
+      // Update button state
+      if (selectedButton === 'audio') {
+        audioButton.classList.toggle('bg-blue-600', true);
+      } else {
+        videoButton.classList.toggle('bg-blue-600', true);
+      }
+    }
   }
   
   async function handleToggleVideo() {
@@ -120,10 +168,10 @@
   <button on:click={handleOpenQr} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
     ▩ <!-- QR Code -->
   </button>
-  <button on:click={handleToggleAudio} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isAudioEnabled}>
+  <button bind:this={audioButton} on:click={handleToggleAudio} on:contextmenu={e => handleContextMenu('audio', e)} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isAudioEnabled}>
     {isAudioEnabled ? '🎤' : '🔇'} <!-- Microphone -->
   </button>
-  <button on:click={handleToggleVideo} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoEnabled}>
+  <button bind:this={videoButton} on:click={handleToggleVideo} on:contextmenu={e => handleContextMenu('video', e)} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoEnabled}>
     {isVideoEnabled ? '🎥' : '📷'} <!-- Video Camera -->
   </button>
   <button on:click={handleToggleScreen} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isScreenSharing}>
@@ -143,3 +191,10 @@
   </button>
   <input bind:this={uploadVideo} type="file" on:change={handleVideoUpload} accept="video/*" class="hidden">
 </div>
+
+<ContextMenu
+  {menuItems}
+  position={menuPosition}
+  cb={handleContextSelect}
+  hide={() => showMenu = false}
+/>
