@@ -1,7 +1,14 @@
-import { describe, test, beforeAll, afterAll, jest } from '@jest/globals'; // Import Jest globals
-import puppeteer, { type Browser, type Page } from 'puppeteer'; // Use type imports for Browser/Page
-import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'; // Use type import
-import path from 'path'; // Needed for resolving project root potentially
+import { describe, test, beforeAll, afterAll, jest } from '@jest/globals';
+// Puppeteer is now globally available via the environment, but we need types
+import type { Browser, Page } from 'puppeteer';
+import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
+import path from 'path';
+
+// --- Type Assertion for Global Browser ---
+// This tells TypeScript that we expect __BROWSER__ to be on the global scope
+declare global {
+  var __BROWSER__: Browser;
+}
 
 // --- Configuration ---
 // IMPORTANT: Replace these selectors with actual values from your application!
@@ -48,10 +55,12 @@ describe('WebRTC Peer Connection E2E Test', () => {
 
     let serverProcess: ChildProcessWithoutNullStreams | null = null;
     let serverUrl: string | null = null;
-    let browserA: Browser | null = null;
-    let browserB: Browser | null = null;
+    // browserA and browserB are no longer needed here, we use pages from global.__BROWSER__
+    let pageA: Page | null = null;
+    let pageB: Page | null = null;
 
     beforeAll(async () => {
+        // Server startup remains the same
         console.log('Starting development server...');
         // Use a Promise to wait for the server URL
         await new Promise<void>((resolve, reject) => {
@@ -135,32 +144,37 @@ describe('WebRTC Peer Connection E2E Test', () => {
 
 
     afterAll(async () => {
-        console.log('Cleaning up...');
-        // Close browsers first
-        console.log('Closing browsers...');
-        if (browserA) await browserA.close();
-        if (browserB) await browserB.close();
-        console.log('Browsers closed.');
+        console.log('Cleaning up test suite...');
+        // Close pages if they were opened
+        console.log('Closing pages...');
+        if (pageA && !pageA.isClosed()) await pageA.close();
+        if (pageB && !pageB.isClosed()) await pageB.close();
+        console.log('Pages closed.');
 
-        // Then kill the server process
+        // Kill the server process started by this suite
         killServer();
-        console.log('Cleanup finished.');
+        console.log('Test suite cleanup finished.');
+        // Note: Browser is closed by globalTeardown, not here.
     });
 
     test('should establish a WebRTC connection between two peers', async () => {
         if (!serverUrl) {
             throw new Error("Server URL not available for test.");
         }
+        // Access the browser instance provided by the environment
+        const browser = global.__BROWSER__;
+        if (!browser) {
+            throw new Error("Puppeteer browser instance not found in global scope.");
+        }
         console.log(`Starting WebRTC connection test using URL: ${serverUrl}`);
 
         try {
-            // 1. Launch Browser A
-            console.log('Launching Browser A...');
-            browserA = await puppeteer.launch({ headless: 'new' }); // Use headless: 'new' or false
-            const pageA = await browserA.newPage();
-            console.log(`Browser A navigating to: ${serverUrl}`);
+            // 1. Open Page A in the shared browser
+            console.log('Opening Page A...');
+            pageA = await browser.newPage();
+            console.log(`Page A navigating to: ${serverUrl}`);
             await pageA.goto(serverUrl, { waitUntil: 'networkidle0', timeout: PUPPETEER_TIMEOUT });
-            console.log('Browser A navigation complete.');
+            console.log('Page A navigation complete.');
 
             // 2. Wait for and extract the invite URL from Browser A
             console.log('Waiting for invite URL element...');
@@ -179,28 +193,31 @@ describe('WebRTC Peer Connection E2E Test', () => {
             }
             console.log(`Extracted Invite URL: ${inviteUrl}`);
 
-            // 3. Launch Browser B
-            console.log('Launching Browser B...');
-            browserB = await puppeteer.launch({ headless: 'new' }); // Use headless: false for debugging
-            const pageB = await browserB.newPage();
+            // 3. Open Page B in the shared browser
+            console.log('Opening Page B...');
+            pageB = await browser.newPage();
 
-            // 4. Navigate Browser B to the invite URL
-            console.log('Browser B navigating to invite URL...');
-            await pageB.goto(inviteUrl, { waitUntil: 'networkidle0' });
-            console.log('Browser B navigation complete.');
+            // 4. Navigate Page B to the invite URL
+            console.log('Page B navigating to invite URL...');
+            await pageB.goto(inviteUrl, { waitUntil: 'networkidle0', timeout: PUPPETEER_TIMEOUT });
+            console.log('Page B navigation complete.');
 
-            // 5. Find and click the call button in Browser B
-            console.log('Waiting for call button in Browser B...');
+            // 5. Find and click the call button in Page B
+            console.log('Waiting for call button in Page B...');
             await pageB.waitForSelector(CALL_BUTTON_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT });
             console.log('Call button found. Clicking...');
             await pageB.click(CALL_BUTTON_SELECTOR);
             console.log('Call button clicked.');
 
-            // 6. Wait for connection to be established in both browsers
-            console.log('Waiting for connection establishment in both browsers...');
+            // 6. Wait for connection to be established in both pages
+            console.log('Waiting for connection establishment in both pages...');
+            // Ensure pages are not null before passing them
+            if (!pageA || !pageB) {
+                throw new Error("pageA or pageB is null before checking connection.");
+            }
             await Promise.all([
-                checkConnectionEstablished(pageA, 'Browser A'),
-                checkConnectionEstablished(pageB, 'Browser B')
+                checkConnectionEstablished(pageA, 'Page A'),
+                checkConnectionEstablished(pageB, 'Page B')
             ]);
 
             console.log('--- TEST SUCCESS: WebRTC connection appears established in both browsers! ---');
@@ -215,6 +232,7 @@ describe('WebRTC Peer Connection E2E Test', () => {
             // Re-throw the error to make Jest fail the test
             throw error;
         }
-        // Note: Browser cleanup is handled in afterAll
+        // Note: Page cleanup is handled in afterAll for this suite.
+        // Browser cleanup is handled by globalTeardown.
     });
 });
