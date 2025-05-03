@@ -7,7 +7,7 @@ export default {
     '^.+\\.js$': 'babel-jest',
     '^.+\\.ts$': ['ts-jest', {
       tsconfig: 'tsconfig.json', // Move tsconfig here
-      useESM: true,
+      // useESM: true, // Remove this line
       // isolatedModules: true, // Keep if needed, often default/handled by tsconfig
     }],
     '^.+\\.svelte$': 'svelte-jester'
