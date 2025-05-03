@@ -1,3 +1,4 @@
+import { mount } from 'svelte';
 import App from './App.svelte';
 import { WebRTCApp } from './lib/webrtc/WebRTCApp.js';
 import { getConfig } from './lib/utils/config.js';
@@ -13,17 +14,19 @@ window.webRTCApp = webRTCApp;
 window.app = window.app || webRTCApp.getApp();
 
 // Initialize the Svelte app
-const app = new App({
-  target: document.getElementById('app'),
+const targetElement = document.getElementById('app');
+if (!targetElement) {
+  throw new Error("Target element 'app' not found in the DOM");
+}
+mount(App, {
+  target: targetElement,
   props: {
     webRTCApp
   }
 });
 
-// Export for testing/debugging
-export default app;
-
 // For backward compatibility
+// Note: `export default app;` is removed as `mount` returns an unmount function, not the instance.
 export const rtcUtils = {
   webRTCApp,
   sendNego: (client: WebRTCClient, data: any) => webRTCApp.sendNego(client, data),
