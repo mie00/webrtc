@@ -336,6 +336,9 @@
   <button bind:this={videoButton} on:click={handleToggleVideo} on:contextmenu={e => handleContextMenu('video', e)} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoEnabled}>
     {isVideoEnabled ? '🎥' : '📷'} <!-- Video Camera -->
   </button>
+  <button on:click={handleToggleBlur} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isBlurEnabled}>
+    🌫️ <!-- Blur effect -->
+  </button>
   <button on:click={handleToggleScreen} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isScreenSharing}>
     🖥️ <!-- Monitor for Share Screen -->
   </button>
