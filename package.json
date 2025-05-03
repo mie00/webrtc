@@ -42,7 +42,6 @@
     "@types/socket.io-client": "^3.0.0",
     "@types/webrtc": "^0.0.46",
     "babel-jest": "^29.7.0",
-    "puppeteer": "^22.13.1", // <-- Add puppeteer itself
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
     "jest": "^29.7.0",
