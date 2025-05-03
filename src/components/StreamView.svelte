@@ -1,6 +1,5 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
-  import { normalizeStreamId } from '../lib/streamBridge';
   
   export let stream: MediaStream;
   export let type: 'audio' | 'video';
