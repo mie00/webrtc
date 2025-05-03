@@ -1,8 +1,9 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import { streamStore, updateStreamConfig, setViewLayout, type LayoutType } from '../stores/streamStore';
-  import { setupLocalStream, destroyLocalStream, refreshStreamViews } from '../lib/streamBridge';
+  import { setupLocalStream, destroyLocalStream, normalizeStreamId } from '../lib/streamBridge';
   import { startRecording, stopRecording } from '../lib/media/recorder';
+  import { calculateStreamPositions } from '../lib/utils/streamLayout';
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, getAllConfig } from '../stores/configStore';
   import StreamView from './StreamView.svelte';
@@ -47,14 +48,16 @@
   // All active streams for display
   $: activeStreams = [
     ...localStreams.filter(([_, data]) => data.active).map(([id, data]) => ({
-      id,
+      id: normalizeStreamId(data.stream.id),
+      streamKey: id,
       stream: data.stream,
       type: data.type,
       isLocal: true,
       peerId: null
     })),
     ...remoteStreams.map(({ id, stream, peerId }) => ({
-      id,
+      id: normalizeStreamId(stream.id),
+      streamKey: id,
       stream,
       type: stream.getVideoTracks().length > 0 ? 'camera' : 'audio',
       isLocal: false,
@@ -62,19 +65,45 @@
     }))
   ];
   
+  // Stream positions
+  let mediaContainerElement: HTMLElement;
+  let streamPositions: Array<{ id: string; x: number; y: number; width: number; height: number }> = [];
+  
+  function updateStreamPositions() {
+    if (!mediaContainerElement) return;
+    
+    const containerWidth = mediaContainerElement.clientWidth;
+    const containerHeight = mediaContainerElement.clientHeight;
+    
+    streamPositions = calculateStreamPositions(
+      containerWidth,
+      containerHeight,
+      currentLayout,
+      focusedStream
+    );
+  }
+  
   onMount(() => {
-    // Set up interval for refreshing stream views
-    refreshInterval = window.setInterval(refreshStreamViews, 1000);
+    // Set up interval for updating stream positions
+    refreshInterval = window.setInterval(updateStreamPositions, 1000);
     
     // Add resize listener
-    window.addEventListener('resize', refreshStreamViews);
+    window.addEventListener('resize', updateStreamPositions);
     
     return () => {
       // Clean up on component destruction
       clearInterval(refreshInterval);
-      window.removeEventListener('resize', refreshStreamViews);
+      window.removeEventListener('resize', updateStreamPositions);
     };
   });
+  
+  // Update positions when layout or streams change
+  $: {
+    currentLayout;
+    focusedStream;
+    activeStreams;
+    updateStreamPositions();
+  }
   
   // Event handlers
   function handleHangup() {
@@ -236,11 +265,12 @@
   {#if currentLayout === 'grid'}
     <div class="stream-grid">
       {#each activeStreams as stream (stream.id)}
-        <div class="stream-container">
+        <div class="stream-container" style="position: relative;">
           <StreamView 
-            stream={stream.stream} 
+            stream={stream.stream}
+            streamId={stream.id}
             type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
-            muted={stream.isLocal && stream.type != 'file'} 
+            muted={stream.isLocal && stream.type !== 'file'} 
             mirrored={stream.isLocal && stream.type === 'camera'} 
             peerId={stream.peerId}
             on:focus={handleFocusStream}
@@ -254,9 +284,10 @@
       {#each activeStreams.filter(s => s.id === focusedStream) as stream (stream.id)}
         <div class="main-stream">
           <StreamView 
-            stream={stream.stream} 
+            stream={stream.stream}
+            streamId={stream.id}
             type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
-            muted={stream.isLocal && stream.type != 'file'} 
+            muted={stream.isLocal && stream.type !== 'file'} 
             mirrored={stream.isLocal && stream.type === 'camera'} 
             peerId={stream.peerId}
             on:focus={handleFocusStream}
@@ -269,9 +300,10 @@
         {#each activeStreams.filter(s => s.id !== focusedStream) as stream (stream.id)}
           <div class="small-stream">
             <StreamView 
-              stream={stream.stream} 
+              stream={stream.stream}
+              streamId={stream.id}
               type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
-              muted={stream.isLocal && stream.type != 'file'} 
+              muted={stream.isLocal && stream.type !== 'file'} 
               mirrored={stream.isLocal && stream.type === 'camera'} 
               peerId={stream.peerId}
               on:focus={handleFocusStream}
@@ -286,9 +318,10 @@
       {#each activeStreams.filter(s => s.type === 'screen') as stream (stream.id)}
         <div class="presentation-stream">
           <StreamView 
-            stream={stream.stream} 
+            stream={stream.stream}
+            streamId={stream.id}
             type="video" 
-            muted={stream.isLocal && stream.type != 'file'} 
+            muted={stream.isLocal && stream.type !== 'file'} 
             peerId={stream.peerId}
             on:focus={handleFocusStream}
           />
@@ -300,9 +333,10 @@
         {#each activeStreams.filter(s => s.type !== 'screen') as stream (stream.id)}
           <div class="small-stream">
             <StreamView 
-              stream={stream.stream} 
+              stream={stream.stream}
+              streamId={stream.id}
               type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
-              muted={stream.isLocal && stream.type != 'file'} 
+              muted={stream.isLocal && stream.type !== 'file'} 
               mirrored={stream.isLocal && stream.type === 'camera'} 
               peerId={stream.peerId}
               on:focus={handleFocusStream}
@@ -369,66 +403,10 @@
 {/if}
 
 <style>
-  .stream-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    grid-auto-rows: 1fr;
-    gap: 8px;
-    width: 100%;
-    height: 100%;
-    padding: 8px;
-  }
-  
-  .focus-layout {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-    padding: 8px;
-  }
-  
-  .main-stream {
-    flex: 1;
-    margin-bottom: 8px;
-  }
-  
-  .other-streams {
-    display: flex;
-    height: 150px;
-    gap: 8px;
-    overflow-x: auto;
-  }
-  
-  .small-stream {
-    width: 200px;
-    height: 150px;
-    flex-shrink: 0;
-  }
-  
-  .presentation-layout {
-    display: flex;
-    width: 100%;
-    height: 100%;
-    padding: 8px;
-  }
-  
-  .presentation-stream {
-    flex: 1;
-    margin-right: 8px;
-  }
-  
-  .presentation-others {
-    width: 200px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    overflow-y: auto;
-  }
-  
   .stream-container {
-    width: 100%;
-    height: 100%;
     overflow: hidden;
     border-radius: 8px;
+    transition: all 0.3s ease;
+    padding: 4px;
   }
 </style>

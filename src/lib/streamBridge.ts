@@ -16,7 +16,6 @@ import { type AppWithStreamConfig, normalizeStreamId, getStreamElemId } from './
 
 /**
  * Initialize the stream module with the app object
- * This maintains compatibility with the original streamInit function
  */
 export function streamInit(originalApp: App): void {
   const app = originalApp as AppWithStreamConfig;
@@ -30,12 +29,6 @@ export function streamInit(originalApp: App): void {
   // Set up handlers for stream events
   app.nego_handlers['stream.end'] = (data: { stream: string }, cid: string) => {
     const streamId = normalizeStreamId(data.stream);
-    
-    // Remove from DOM (for backward compatibility)
-    document.querySelectorAll(`.${getStreamElemId(streamId)}`).forEach(elem => elem.remove());
-    
-    // Remove from Svelte store (legacy)
-    removeViewStream(streamId);
     
     // Remove from enhanced store structure
     removeRemoteStream(cid, streamId);
@@ -63,18 +56,20 @@ export function streamInit(originalApp: App): void {
         
         stream.getTracks().map((track) => track.stop());
         
-        removeViewStream(normalizeStreamId(stream.id));
-        
         // Remove from enhanced store structure
         removeLocalStream(streamId);
       });
     }
   };
+  
   // Set up a subscription to sync store changes back to app object
   streamStore.subscribe(state => {
     // This ensures the app object stays in sync with the store
     app.streamConfig = { ...state.streamConfig };
   });
+  
+  // Import getAllConfig
+  const { getAllConfig } = require('../stores/configStore');
 }
 
 /**
@@ -86,14 +81,9 @@ export function setupTrackHandler(app: App, cid: string): void {
     
     const streamId = normalizeStreamId(ev.streams[0].id);
     
-    // Add to Svelte store (legacy)
-    addViewStream(streamId, ev.streams[0]);
-    
     // Add to enhanced store structure
     addRemoteStream(cid, streamId, ev.streams[0]);
     
-    // Create stream element (will be handled by Svelte component)
-    // But also create a DOM element for backward compatibility
     ev.track.onended = (ev: Event) => {
       console.log(ev);
       const target = ev.target as MediaStreamTrack;
@@ -103,12 +93,6 @@ export function setupTrackHandler(app: App, cid: string): void {
       Object.values(app.clients).forEach((client) => 
         sendNego(client, { type: 'stream.end', stream: targetId })
       );
-      
-      // Remove from DOM
-      document.querySelectorAll(`.${getStreamElemId(targetId)}`).forEach(elem => elem.remove());
-      
-      // Remove from Svelte store (legacy)
-      removeViewStream(targetId);
       
       // Remove from enhanced store structure
       removeRemoteStream(cid, targetId);
@@ -121,23 +105,103 @@ export function setupTrackHandler(app: App, cid: string): void {
     }
   });
   
-  // TODO: Add existing streams to new client
+  // Add existing streams to new client
+  Object.entries(app.streams || {}).forEach(([_, stream]) => {
+    stream.getTracks().forEach(track => {
+      app.clients[cid].pc?.addTrack(track, stream);
+    });
+  });
 }
 
 /**
  * Enhanced version of setupLocalStream that uses the new store structure
  */
 export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (instant: number) => void): Promise<void> => {
-  // Import the original function to maintain compatibility
-  const { setupLocalStream: originalSetupLocalStream } = await import('./media/stream');
-  
-  // Call the original function first to maintain backward compatibility
-  await originalSetupLocalStream(changed, audioCb);
-  
-  // Now update our enhanced store structure
   const app = window.app as AppWithStreamConfig;
+  let stream: MediaStream | undefined;
   
-  if (app.streams && app.streams[changed]) {
+  // Handle different stream types
+  if (changed === 'audio') {
+    if (app.streamConfig.audio) {
+      stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { 
+          groupId: getAllConfig()['audio-device']?.split('|')[0], 
+          deviceId: getAllConfig()['audio-device']?.split('|')[1] 
+        } 
+      });
+      
+      // Set up the stream for WebRTC
+      setupStream(stream, "high");
+      
+      // Process audio for visualization if callback provided
+      if (audioCb) {
+        processAudio(app as AudioProcessingApp, stream, audioCb);
+      }
+    } else if (audioCb) {
+      stopProcessingAudio(app as AudioProcessingApp);
+      audioCb(0);
+    }
+  } else if (changed === 'video') {
+    if (app.streamConfig.video) {
+      stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          groupId: getAllConfig()['video-device']?.split('|')[0], 
+          deviceId: getAllConfig()['video-device']?.split('|')[1] 
+        } 
+      });
+      
+      // Apply background blur if enabled
+      if (app.config && app.config['blur-video'] === 'yes') {
+        try {
+          // Create a video element for the stream
+          const videoElem = document.createElement('video');
+          videoElem.autoplay = true;
+          videoElem.muted = true;
+          videoElem.srcObject = stream;
+          
+          // Wait for video to be ready
+          await new Promise<void>((resolve) => {
+            videoElem.onloadedmetadata = () => {
+              videoElem.play().then(() => resolve());
+            };
+          });
+          
+          const blurredStream = await backgroundChange(videoElem);
+          setupStream(blurredStream, "low", "motion", true);
+          stream = blurredStream; // Replace the original stream with the blurred one
+        } catch (error) {
+          console.error('Failed to apply background blur:', error);
+          setupStream(stream, "low", "motion", true);
+        }
+      } else {
+        setupStream(stream, "low", "motion", true);
+      }
+    }
+  } else if (changed === 'screen') {
+    if (app.streamConfig.screen) {
+      stream = await navigator.mediaDevices.getDisplayMedia({ 
+        audio: true, 
+        video: { cursor: "always" } as any 
+      });
+      setupStream(stream, "medium", 'detail', false);
+    }
+  } else if (changed === 'local') {
+    if (app.streamConfig.local && app.streamConfig.videoStream) {
+      stream = app.streamConfig.videoStream;
+      stream.getTracks().forEach(track => {
+        setupTrack(track, stream!, "medium", undefined, false);
+      });
+      stream.onaddtrack = (ev: MediaStreamTrackEvent) => {
+        setupTrack(ev.track, stream!, "medium", undefined, false);
+      };
+    }
+  }
+  
+  if (stream) {
+    // Store in app object for backward compatibility
+    app.streams = app.streams || {};
+    app.streams[changed] = stream;
+    
     // Map the stream type
     let streamType: StreamType = 'custom';
     if (changed === 'audio') streamType = 'audio';
@@ -146,9 +210,33 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
     else if (changed === 'local') streamType = 'file';
     
     // Add to enhanced store structure
-    addLocalStream(changed, app.streams[changed], streamType);
+    addLocalStream(changed, stream, streamType);
   } else {
     // If the stream was removed, remove it from our enhanced store too
+    removeLocalStream(changed);
+  }
+};
+
+/**
+ * Destroy a local stream
+ */
+export const destroyLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (instant: number) => void): Promise<void> => {
+  const app = window.app as AppWithStreamConfig;
+  
+  if (app.streams && app.streams[changed]) {
+    // Stop all tracks
+    tearDownStream(app.streams[changed]);
+    
+    // Remove from app object
+    delete app.streams[changed];
+    
+    // Handle audio processing if needed
+    if (changed === 'audio' && audioCb) {
+      stopProcessingAudio(app as AudioProcessingApp);
+      audioCb(0);
+    }
+    
+    // Remove from store
     removeLocalStream(changed);
   }
 };
@@ -162,9 +250,7 @@ export {
   tearDownStream, 
   setupTrack, 
   setupStream, 
-  getStreamsDims, 
-  refreshStreamViews,
-  destroyLocalStream,
+  getStreamsDims,
 } from './media/stream';
 
 // Export background utilities
