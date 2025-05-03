@@ -86,16 +86,18 @@ export function forwardInit(originalApp: App): void {
   if (app.allowed_host !== currentState.allowedHost) {
     setAllowedHost(app.allowed_host);
   }
-  
+
+  // Ensure app.forward_peer is handled correctly (it might be undefined)
   if (app.forward_peer !== currentState.forwardPeer) {
-    setForwardPeer(app.forward_peer);
+    setForwardPeer(app.forward_peer ?? null); // Use null if undefined
   }
-  
+
   // Set up a subscription to sync store changes back to app object
   forwardStore.subscribe(state => {
     // This ensures the app object stays in sync with the store
+    // Ensure state.forwardPeer (which can be null) is handled correctly for app.forward_peer (which expects string | undefined)
     app.allowed_host = state.allowedHost;
-    app.forward_peer = state.forwardPeer;
+    app.forward_peer = state.forwardPeer ?? undefined; // Use undefined if null
     app.inflight = { ...state.inflight };
   });
 }
@@ -215,7 +217,7 @@ export function setupForwardChannel(originalApp: App, cid: string): void {
                   type: "end",
                   id: data.id,
                 }));
-                return null;
+                return; // Return void, not null
               }
               const reader = response.body.getReader();
               await sendData(reader, data.id, cid);

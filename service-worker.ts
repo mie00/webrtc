@@ -99,11 +99,10 @@ function objectToArrayBuffer(data: Record<string, any>): ArrayBuffer {
         }
     }
     
-    if (event.resultingClientId) {
+    if (event.resultingClientId && host) { // Ensure host is defined
         sw.client_ids ||= {};
         sw.client_ids[event.resultingClientId] = host;
     }
-    
     console.log("handling fetch for host", event.request.referrer, event.request.url, host);
     
     if (isNaN(sw.counter)) {
@@ -112,10 +111,17 @@ function objectToArrayBuffer(data: Record<string, any>): ArrayBuffer {
     
     const id = sw.counter++;
     sw.handlers ||= {};
+
+    if (!host) {
+      console.error("Host is undefined, cannot proceed with fetch handling for:", event.request.url);
+      // Optionally, respond with an error or fetch normally
+      // return fetch(event.request); 
+      return; 
+    }
     
     let rurl = new URL(event.request.url);
-    const hurl = new URL(host);
-    
+    const hurl = new URL(host); // host is now guaranteed to be a string
+
     if (homepage) {
         rurl = hurl;
     } else {

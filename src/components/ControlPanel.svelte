@@ -1,9 +1,10 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { tweened } from 'svelte/motion';
+  import type { WebRTCApp } from '../lib/webrtc/WebRTCApp'; // Import the type
   
   // Props
-  export let webRTCApp;
+  export let webRTCApp: WebRTCApp; // Add type annotation
   
   const dispatch = createEventDispatcher();
   
@@ -18,7 +19,7 @@
     isPanelOpen = !isPanelOpen;
   }
   
-  function handleKeyPress(event) {
+  function handleKeyPress(event: KeyboardEvent) { // Add type annotation
     if (event.key === 'Enter') {
       sendMessage();
     }
@@ -37,10 +38,10 @@
     message = '';
   }
   
-  async function handleFileUpload(event) {
-    const file = event.target.files[0];
+  async function handleFileUpload(event: Event) { // Add type annotation
+    const target = event.target as HTMLInputElement; // Cast target
+    const file = target.files?.[0]; // Use optional chaining
     if (!file) return;
-    
     // Import the sendFile function from our bridge
     const { sendFile } = await import('../lib/fileBridge.js');
     sendFile(file);

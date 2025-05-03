@@ -10,7 +10,8 @@ import { getAllConfig, updateConfig } from '../../stores/configStore.js';
  * @deprecated Use the configStore from src/stores/configStore.ts instead
  */
 function getConfig(): Record<string, string> {
-    return getAllConfig();
+    // Cast the result to match the declared return type
+    return getAllConfig() as Record<string, string>;
 }
 
 /**

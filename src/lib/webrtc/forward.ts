@@ -1,4 +1,4 @@
-/// <reference path="../../types/global.d.ts" />
+/// <reference path="../../../types/global.d.ts" />
 
 interface ForwardClient extends WebRTCClient {
   forward: RTCDataChannel;
@@ -61,7 +61,7 @@ async function sendData(reader: ReadableStreamDefaultReader<Uint8Array>, id: str
         return;
       }
     }
-    gvalue = null;
+    gvalue = undefined; // Assign undefined instead of null
     if (gdone) {
       client.forward.send(JSON.stringify({
         type: "end",
