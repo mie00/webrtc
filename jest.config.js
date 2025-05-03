@@ -24,10 +24,8 @@ export default {
   },
   // Ensure svelte and potentially other ESM modules in node_modules are transformed
   transformIgnorePatterns: [
-    // Default is /node_modules/, so we need to whitelist svelte and its dependencies if they use ESM
-    '/node_modules/(?!svelte)', // Allow transforming files directly within node_modules/svelte/
-    // If svelte internally depends on other ESM packages not transformed by default, add them here too.
-    // e.g., '/node_modules/(?!svelte|another-esm-pkg)'
+    // Allow svelte and potentially @sveltejs packages to be transformed
+    '/node_modules/(?!(@?svelte|@?sveltejs)/)',
   ],
   collectCoverageFrom: [
     'src/**/*.{js,ts,svelte}',

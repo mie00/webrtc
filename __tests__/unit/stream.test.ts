@@ -199,12 +199,13 @@ describe('Stream Management', () => {
       positioned: []
     });
   });
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.resetModules();
-  });
-
+    
+  // Remove this redundant beforeEach block
+  // beforeEach(() => {
+  //   jest.clearAllMocks();
+  //   jest.resetModules(); // This might interfere with beforeAll import
+  // });
+    
   test('normalizeStreamId should remove curly braces', () => {
     // Test with curly braces
     expect(streamModule.normalizeStreamId('{test-id}')).toBe('test-id');
