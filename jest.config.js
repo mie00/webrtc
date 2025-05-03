@@ -3,9 +3,6 @@ export default {
   testEnvironment: 'jest-environment-jsdom-sixteen',
   moduleFileExtensions: ['ts', 'js', 'svelte'],
   transform: {
-    '^.+\\.svelte$': ['svelte-jester', {
-      preprocess: true
-    }],
     '^.+\\.js$': 'babel-jest',
     '^.+\\.ts$': ['ts-jest', {
       useESM: true
@@ -33,6 +30,5 @@ export default {
   ],
   coverageReporters: ['text', 'lcov', 'clover'],
   testPathIgnorePatterns: ['/node_modules/'],
-  verbose: true,
-  extensionsToTreatAsEsm: ['.ts', '.svelte']
+  verbose: true
 };
