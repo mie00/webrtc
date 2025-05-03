@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { tweened } from 'svelte/motion';
-  import type { WebRTCApp } from '../lib/webrtc/WebRTCApp'; // Import the type
+  import type { WebRTCApp } from '../lib/webrtc/WebRTCApp.js'; // Import the type
   
   // Props
   export let webRTCApp: WebRTCApp; // Add type annotation
