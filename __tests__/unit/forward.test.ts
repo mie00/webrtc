@@ -120,9 +120,9 @@ describe('Forward Channel', () => {
     jest.clearAllMocks();
   });
 
-  test('forwardInit should set up cleanups and initial state', () => {
-    // Import the module - use the compiled JS file for testing (bridge)
-    const forwardModule = require('../../src/lib/forwardBridge.js');
+  test('forwardInit should set up cleanups and initial state', async () => {
+    // Use dynamic import and point to .ts file
+    const forwardModule = await import('../../src/lib/forwardBridge.ts');
     
     // Call the function
     forwardModule.forwardInit(app);
@@ -132,8 +132,9 @@ describe('Forward Channel', () => {
     expect(app.allowed_host).toBeNull();
   });
 
-  test('setupForwardChannel should create a data channel', () => {
-    const forwardModule = require('../../src/lib/forwardBridge.js'); // Use the bridge
+  test('setupForwardChannel should create a data channel', async () => {
+    // Use dynamic import and point to .ts file
+    const forwardModule = await import('../../src/lib/forwardBridge.ts');
     
     // Call the function
     forwardModule.setupForwardChannel(app, 'test-client-id');
@@ -145,10 +146,9 @@ describe('Forward Channel', () => {
     );
   });
 
-  test('concatUint8Arrays should correctly concatenate arrays', () => {
-    // This function might now be in webrtc/forward.js or the bridge
-    // Let's assume it's exported from the bridge for now
-    const forwardModule = require('../../src/lib/forwardBridge.js'); 
+  test('concatUint8Arrays should correctly concatenate arrays', async () => {
+    // Use dynamic import and point to .ts file
+    const forwardModule = await import('../../src/lib/forwardBridge.ts');
     
     // Create test arrays
     const array1 = new Uint8Array([1, 2, 3]);

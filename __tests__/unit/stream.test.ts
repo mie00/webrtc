@@ -173,8 +173,9 @@ describe('Stream Management', () => {
     jest.resetModules();
   });
 
-  test('normalizeStreamId should remove curly braces', () => {
-    const streamModule = require('../../src/lib/streamBridge.js'); // Use the bridge
+  test('normalizeStreamId should remove curly braces', async () => {
+    // Use dynamic import and point to .ts file
+    const streamModule = await import('../../src/lib/streamBridge.ts');
 
     // Test with curly braces
     expect(streamModule.normalizeStreamId('{test-id}')).toBe('test-id');
@@ -183,8 +184,9 @@ describe('Stream Management', () => {
     expect(streamModule.normalizeStreamId('test-id')).toBe('test-id');
   });
 
-  test('getStreamElemId should return correct element ID', () => {
-    const streamModule = require('../../src/lib/streamBridge.js'); // Use the bridge
+  test('getStreamElemId should return correct element ID', async () => {
+    // Use dynamic import and point to .ts file
+    const streamModule = await import('../../src/lib/streamBridge.ts');
 
     // Test with a stream ID
     expect(streamModule.getStreamElemId('test-id')).toBe('stream-test-id');
@@ -193,8 +195,9 @@ describe('Stream Management', () => {
     expect(streamModule.getStreamElemId('{test-id}')).toBe('stream-test-id');
   });
 
-  test('stream.end handler should remove elements and clean up', () => {
-    const streamModule = require('../../src/lib/streamBridge.js'); // Use the bridge
+  test('stream.end handler should remove elements and clean up', async () => {
+    // Use dynamic import and point to .ts file
+    const streamModule = await import('../../src/lib/streamBridge.ts');
 
     // Initialize the stream module
     streamModule.streamInit(app);
@@ -219,7 +222,8 @@ describe('Stream Management', () => {
   });
 
   test('setupTrackHandler should handle incoming tracks', async () => {
-    const streamModule = require('../../src/lib/streamBridge.js'); // Use the bridge
+    // Use dynamic import and point to .ts file
+    const streamModule = await import('../../src/lib/streamBridge.ts');
 
     // Create a mock media element
     const mockMediaElement = {

@@ -8,8 +8,8 @@ describe('SDP Compression', () => {
   });
 });
 
-// Correct the relative path (assuming tests run on compiled JS)
-import { compress, decompress } from '../../src/lib/utils/sdpCompress.js';
+// Import from the .ts file
+import { compress, decompress } from '../../src/lib/utils/sdpCompress.ts';
 
 describe('SDP Compression', () => {
   beforeEach(() => {

@@ -29,19 +29,26 @@ describe('Chat Functionality', () => {
     }
   };
 
-  // Import WebRTCApp and spy on its log method
-  const { WebRTCApp } = require('../../src/lib/webrtc/WebRTCApp.js'); // Updated path
-  jest.spyOn(WebRTCApp, 'log').mockImplementation(() => {});
+  // Import WebRTCApp and spy on its log method - Point to .ts file
+  let WebRTCApp: typeof import('../../src/lib/webrtc/WebRTCApp.ts').WebRTCApp;
+  let chatModule: typeof import('../../src/lib/chatBridge.ts');
+
+  beforeAll(async () => {
+    // Import modules before tests run
+    const rtcAppModule = await import('../../src/lib/webrtc/WebRTCApp.ts');
+    WebRTCApp = rtcAppModule.WebRTCApp;
+    chatModule = await import('../../src/lib/chatBridge.ts');
+    jest.spyOn(WebRTCApp, 'log').mockImplementation(() => {});
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Re-spy after clearing mocks if needed, or ensure spy is set up in beforeAll
+    jest.spyOn(WebRTCApp, 'log').mockImplementation(() => {});
   });
 
   test('setupChatChannel should create a data channel', () => {
-    // Import the module
-    const chatModule = require('../../src/lib/chatBridge.js'); // Use the bridge
-    
-    // Call the function
+    // Use the imported module
     chatModule.setupChatChannel(app, 'test-client-id');
     
     // Verify the data channel was created
@@ -52,9 +59,7 @@ describe('Chat Functionality', () => {
   });
 
   test('chat data channel should handle messages', () => {
-    const chatModule = require('../../src/lib/chatBridge.js'); // Use the bridge
-    
-    // Call the function
+    // Use the imported module
     chatModule.setupChatChannel(app, 'test-client-id');
     
     // Get the data channel

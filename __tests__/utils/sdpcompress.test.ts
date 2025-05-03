@@ -16,9 +16,9 @@ describe('SDP Compression', () => {
     }
   });
 
-  test('compress and decompress should be reversible', () => {
-    // Import the functions
-    const { compress, decompress } = require('../../src/lib/utils/sdpCompress.js');
+  test('compress and decompress should be reversible', async () => {
+    // Import the functions - Use dynamic import and point to .ts file
+    const { compress, decompress } = await import('../../src/lib/utils/sdpCompress.ts');
     
     const sampleSDP = `v=0
 o=- 1234567890 2 IN IP4 127.0.0.1

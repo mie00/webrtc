@@ -236,7 +236,8 @@ describe('Main Application', () => {
       sids: {}
     };
     
-    const mainModule = require('../../src/main');
+    // Use dynamic import for ESM compatibility in tests
+    const mainModule = await import('../../src/main.ts');
     
     // Create a mock client
     const mockClient = {
@@ -337,8 +338,9 @@ describe('Main Application', () => {
     );
   });
 
-  test('uuidv4 should generate a valid UUID', () => {
-    const mainModule = require('../../src/main');
+  test('uuidv4 should generate a valid UUID', async () => {
+    // Use dynamic import for ESM compatibility in tests
+    const mainModule = await import('../../src/main.ts');
     
     // Call the function via rtcUtils
     const uuid = mainModule.rtcUtils.uuidv4();
@@ -356,18 +358,18 @@ describe('Main Application', () => {
     const mockForwardInit = jest.fn();
     const mockChatInit = jest.fn();
     const mockFileInit = jest.fn();
-    jest.mock('../../src/lib/streamBridge', () => ({ streamInit: mockStreamInit }));
-    jest.mock('../../src/lib/forwardBridge', () => ({ forwardInit: mockForwardInit }));
-    jest.mock('../../src/lib/chatBridge', () => ({ chatInit: mockChatInit }));
-    jest.mock('../../src/lib/fileBridge', () => ({ fileInit: mockFileInit }));
+    // Mock the .ts files directly
+    jest.mock('../../src/lib/streamBridge.ts', () => ({ streamInit: mockStreamInit }));
+    jest.mock('../../src/lib/forwardBridge.ts', () => ({ forwardInit: mockForwardInit }));
+    jest.mock('../../src/lib/chatBridge.ts', () => ({ chatInit: mockChatInit }));
+    jest.mock('../../src/lib/fileBridge.ts', () => ({ fileInit: mockFileInit }));
 
-    // Set up the global app object *before* requiring the module if needed by WebRTCApp constructor
-    // global.app = { config: getConfig() }; // Not strictly needed as main.ts creates the instance
-
-    const mainModule = require('../../src/main');
+    // Import after mocks are set up
+    const mainModule = await import('../../src/main.ts');
     const webRTCAppInstance = mainModule.rtcUtils.webRTCApp; // Get the instance created by main.ts
 
     // Reset inited flag if necessary before calling init
+    // Access app via the instance's getter method
     webRTCAppInstance.app.inited = false;
 
     // Call the function via rtcUtils

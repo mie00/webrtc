@@ -3,11 +3,20 @@
  */
 
 describe('Chat Functionality', () => {
-  let app;
+  let app: App; // Add type annotation if possible
   
-  // Import WebRTCApp and spy on its log method
-  const { WebRTCApp } = require('../../src/lib/webrtc/WebRTCApp.js'); // Updated path
-  jest.spyOn(WebRTCApp, 'log').mockImplementation(() => {});
+  // Import WebRTCApp and spy on its log method - Point to .ts file
+  let WebRTCApp: typeof import('../../src/lib/webrtc/WebRTCApp.ts').WebRTCApp;
+  let chatModule: typeof import('../../src/lib/chatBridge.ts');
+
+  beforeAll(async () => {
+    // Import modules before tests run
+    const rtcAppModule = await import('../../src/lib/webrtc/WebRTCApp.ts');
+    WebRTCApp = rtcAppModule.WebRTCApp;
+    chatModule = await import('../../src/lib/chatBridge.ts');
+    jest.spyOn(WebRTCApp, 'log').mockImplementation(() => {});
+  });
+
   beforeEach(() => {
     // Reset DOM
     document.body.innerHTML = `
@@ -30,15 +39,15 @@ describe('Chat Functionality', () => {
     
     // Mock global app
     global.app = app;
+    // Re-spy after clearing mocks if needed
+    jest.spyOn(WebRTCApp, 'log').mockImplementation(() => {});
   });
   
   test('setupChatChannel should create a data channel', () => {
-    // Import the module
-    const chat = require('../../src/lib/chatBridge.js'); // Use the bridge
-    
-    if (chat.setupChatChannel) {
+    // Use the imported module
+    if (chatModule.setupChatChannel) {
       // Call the function
-      chat.setupChatChannel(app, 'test-client');
+      chatModule.setupChatChannel(app, 'test-client');
       
       // Check if data channel was created
       expect(app.clients['test-client'].pc.createDataChannel).toHaveBeenCalledWith(
@@ -54,12 +63,10 @@ describe('Chat Functionality', () => {
   });
   
   test('chat data channel should handle messages', () => {
-    // Import the module
-    const chat = require('../../src/lib/chatBridge.js'); // Use the bridge
-    
-    if (chat.setupChatChannel) {
+    // Use the imported module
+    if (chatModule.setupChatChannel) {
       // Call the function
-      chat.setupChatChannel(app, 'test-client');
+      chatModule.setupChatChannel(app, 'test-client');
       
       // Get the data channel
       const dc = app.clients['test-client'].dc;

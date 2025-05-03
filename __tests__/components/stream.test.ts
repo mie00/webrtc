@@ -27,15 +27,15 @@ describe('Stream Management', () => {
     // Mock global app object
     global.app = app;
     
-    // Import the module (use the bridge)
-    const stream = require('../../src/lib/streamBridge.js');
-    if (stream.streamInit) {
-      stream.streamInit(app);
+    // Import the module (use the bridge) - Use dynamic import
+    const streamModule = await import('../../src/lib/streamBridge.ts');
+    if (streamModule.streamInit) {
+      streamModule.streamInit(app);
     }
   });
   
-  test('normalizeStreamId should remove curly braces', () => {
-    const stream = require('../../src/lib/streamBridge.js'); // Use the bridge
+  test('normalizeStreamId should remove curly braces', async () => {
+    const stream = await import('../../src/lib/streamBridge.ts'); // Use the bridge
     if (stream.normalizeStreamId) {
       expect(stream.normalizeStreamId('{stream-id-123}')).toBe('stream-id-123');
       expect(stream.normalizeStreamId('stream-id-123')).toBe('stream-id-123');
@@ -45,8 +45,8 @@ describe('Stream Management', () => {
     }
   });
   
-  test('getStreamElemId should return correct element ID', () => {
-    const stream = require('../../src/lib/streamBridge.js'); // Use the bridge
+  test('getStreamElemId should return correct element ID', async () => {
+    const stream = await import('../../src/lib/streamBridge.ts'); // Use the bridge
     if (stream.getStreamElemId) {
       expect(stream.getStreamElemId('{stream-id-123}')).toBe('stream-stream-id-123');
     } else {
