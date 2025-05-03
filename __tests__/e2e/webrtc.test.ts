@@ -1,3 +1,4 @@
+import { describe, test, beforeAll, afterAll, jest } from '@jest/globals'; // Import Jest globals
 import puppeteer, { type Browser, type Page } from 'puppeteer'; // Use type imports for Browser/Page
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'; // Use type import
 import path from 'path'; // Needed for resolving project root potentially
