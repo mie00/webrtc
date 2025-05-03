@@ -100,7 +100,7 @@ describe('Main Application', () => {
     }) as jest.Mock; // Cast the mock function itself
 
     // Mock createElement with type assertion
-    document.createElement = jest.fn().mockImplementation((tag: string) => { // Cast document
+    document.createElement = jest.fn().mockImplementation((tag: string): HTMLElement => { // Add return type
       return { // Cast return value
         style: {},
         classList: {
@@ -145,21 +145,21 @@ describe('Main Application', () => {
       setItem: jest.fn()
     } as any, // Cast localStorage
     innerWidth: 1920,
-    innerHeight: 1080,
-    // Add other missing window properties if needed by tests, or cast
-  };
+    innerHeight: 1080
+  } as any; // Cast window
 
+  // Mock navigator properties (casting to any)
   global.navigator = {
     clipboard: {
-      writeText: jest.fn().mockResolvedValue(undefined)
-    },
+      writeText: jest.fn().mockResolvedValue(undefined as never) // Fix resolved value type
+    } as any, // Cast clipboard
     vendor: '',
     mediaDevices: {
       getUserMedia: jest.fn().mockResolvedValue({
         getTracks: jest.fn().mockReturnValue([])
-      })
-    }
-  }; // Cast navigator
+      } as any) // Cast resolved value
+    } as any // Cast mediaDevices
+  } as any; // Cast navigator
 
   // Mock crypto properties (casting to any)
   global.crypto = {
@@ -306,44 +306,43 @@ describe('Main Application', () => {
 
     // Verify the message ID was added (cast argument to string)
     const sendMock = mockClient.nego_dc!.send as jest.Mock; // Cast send to jest.Mock
-    expect(JSON.parse(sendMock.mock.calls[0][0] as string).id).toBeDefined(); // Use non-null assertion
+    expect(JSON.parse(sendMock.mock.calls[0][0] as string).id).toBeDefined();
   });
 
   test('destroyClient should clean up client resources', () => {
-    // Set up the global app object using type assertion
-    global.app = { // Use App type for better structure
+    // Set up the global app object (type handled by jest-globals.d.ts)
+    global.app = {
       config: global.getConfig(),
       clients: {
         'test-cid': {
-          pc: { close: jest.fn() }, // Cast pc mock
-          nego_dc: { onclose: null, onmessage: null }, // Cast nego_dc mock
-          dc: {}, // Cast dc mock
-          dc_file: {}, // Cast dc_file mock
-          forward: {}, // Cast forward mock
-          file_stuff: {}, // Cast file_stuff mock
+          pc: { close: jest.fn() } as any, // Cast pc mock
+          nego_dc: { onclose: null, onmessage: null } as any, // Cast nego_dc mock
+          dc: {} as any, // Cast dc mock
+          dc_file: {} as any, // Cast dc_file mock
+          forward: {} as any, // Cast forward mock
+          file_stuff: {} as any, // Cast file_stuff mock
           _transceiver_interval: 123,
           polite: true,
           makingOffer: false
-        } as WebRTCClient, // Cast test-cid client
+        } as unknown as WebRTCClient, // Use unknown cast for complex mock
         'other-cid': {
-          pc: { close: jest.fn() }, // Cast pc mock
-          nego_dc: { send: jest.fn() } // Cast nego_dc mock
+          pc: { close: jest.fn() } as any, // Cast pc mock
+          nego_dc: { send: jest.fn() } as any // Cast nego_dc mock
           // Add other required properties for WebRTCClient or cast
-        } as WebRTCClient // Cast other-cid client
+        } as unknown as WebRTCClient // Use unknown cast for complex mock
       },
       cleanups: {
         test: jest.fn()
       },
-      // Add other required App properties
       viewStreams: {},
       nego_messages: {},
       nego_handlers: {},
-      participants: {},
+      // participants: {}, // Remove if not part of App type
       inited: false,
-    }; // Assign to global and cast
+    } as any; // Use 'as any' for simplicity
 
     // Store a reference to the client object and its PC before destroying
-    const clientObj = global.app.clients['test-cid'];
+    const clientObj = global.app!.clients['test-cid']; // Use non-null assertion
     const pcCloseSpy = clientObj.pc!.close; // Use non-null assertion
 
     // Access webRTCApp via rtcUtils and spy on the instance's method

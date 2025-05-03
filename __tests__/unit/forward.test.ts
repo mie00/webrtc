@@ -46,7 +46,7 @@ describe('Forward Channel', () => {
     }) as jest.Mock; // Cast the mock function itself
 
     // Mock createElement with type assertion
-    document.createElement = jest.fn().mockImplementation((tag: string) => {
+    document.createElement = jest.fn().mockImplementation((tag: string): HTMLElement => { // Add return type
       return {
         id: '',
         src: '',
