@@ -247,8 +247,9 @@
     qrCodeUrl = newUrl;
   };
   
-  const acceptHandler = async (cid: string, pasteValue: string) => { // Add types for cid and pasteValue
-    if (!pasteValue) return;
+  // Update acceptHandler signature to match the event detail type (cid can be null)
+  const acceptHandler = async (cid: string | null, pasteValue: string) => { 
+    if (!pasteValue || !cid) return; // Add check for null cid
     
     let data = pasteValue;
     const answer = await decompress(data.trim());
@@ -293,7 +294,8 @@
   on:close={() => showCopyOverlay = false}
   on:openConfig={toggleConfigOverlay}
   on:reset={handleReset}
-  on:accept={(e) => acceptHandler(e.detail.cid as string, e.detail.pasteValue as string)} // Add type assertions if needed, or ensure CopyOverlay emits typed details
+  // Remove type assertions, types should now be inferred correctly
+  on:accept={(e) => acceptHandler(e.detail.cid, e.detail.pasteValue)} 
   on:join={handleJoin}
 />
 

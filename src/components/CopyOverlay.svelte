@@ -14,7 +14,20 @@
   let copyButtonText = 'Copy';
   let qrCodeElement: HTMLElement;
   
-  const dispatch = createEventDispatcher();
+  // Define the structure of the detail for the 'accept' event
+  interface AcceptEventDetail {
+    pasteValue: string;
+    cid: string | null; // Allow null as per the original logic
+  }
+  
+  // Specify the event map for the dispatcher
+  const dispatch = createEventDispatcher<{
+    close: void;
+    openConfig: void;
+    reset: void;
+    accept: AcceptEventDetail;
+    join: void;
+  }>();
   
   $: if (show && qrCodeUrl && qrCodeElement) {
     renderQRCode();
@@ -60,7 +73,12 @@
   }
   
   function handleAccept() {
-    dispatch('accept', { pasteValue, cid: window.app?.bc ? Object.keys(window.app.clients)[0] : null });
+    // Ensure the dispatched object matches the AcceptEventDetail interface
+    const detail: AcceptEventDetail = {
+      pasteValue,
+      cid: window.app?.bc ? Object.keys(window.app.clients)[0] : null 
+    };
+    dispatch('accept', detail);
   }
   
   function handleJoin() {
