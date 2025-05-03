@@ -1,4 +1,5 @@
-import { describe, beforeEach, jest, test, expect } from '@jest/globals';
+import { describe, beforeEach, jest, test, expect, beforeAll } from '@jest/globals';
+import type { App } from '../../types/global'; // Import App type
 
 /**
  * @jest-environment jsdom
@@ -82,25 +83,24 @@ describe('Main Application', () => {
         appendChild: jest.fn()
       };
     });
-    
-    document.createDocumentFragment = jest.fn().mockReturnValue({
+
+    (document as any).createDocumentFragment = jest.fn().mockReturnValue({
       appendChild: jest.fn()
-    });
-    
-    document.createTextNode = jest.fn();
-    document.querySelector = jest.fn().mockReturnValue(null);
-    
+    } as any);
+
+    (document as any).createTextNode = jest.fn();
+    (document as any).querySelector = jest.fn().mockReturnValue(null);
     if (!document.body) {
       Object.defineProperty(document, 'body', {
-        value: { appendChild: jest.fn() },
+        value: { appendChild: jest.fn() } as any,
         writable: true
       });
     } else {
-      document.body.appendChild = jest.fn();
+      (document.body as any).appendChild = jest.fn();
     }
   });
 
-  global.window = {
+  (global as any).window = {
     location: {
       href: 'https://example.com',
       origin: 'https://example.com',
@@ -118,47 +118,48 @@ describe('Main Application', () => {
       setItem: jest.fn()
     },
     innerWidth: 1920,
-    innerHeight: 1080
-  };
+    innerHeight: 1080,
+    // Add other missing window properties if needed by tests, or cast
+  } as any;
 
-  global.navigator = {
+  (global as any).navigator = {
     clipboard: {
-      writeText: jest.fn().mockResolvedValue(undefined)
+      writeText: jest.fn().mockResolvedValue(undefined as any)
     },
     vendor: '',
     mediaDevices: {
       getUserMedia: jest.fn().mockResolvedValue({
         getTracks: jest.fn().mockReturnValue([])
-      })
+      } as any)
     }
-  };
+  } as any; // Cast navigator
 
-  global.crypto = {
+  (global as any).crypto = {
     getRandomValues: jest.fn().mockReturnValue(new Uint8Array([1, 2, 3, 4])),
     subtle: {
-      digest: jest.fn().mockResolvedValue(new ArrayBuffer(32))
+      digest: jest.fn().mockResolvedValue(new ArrayBuffer(32) as any)
     }
-  };
+  } as any; // Cast crypto
 
-  global.RTCPeerConnection = jest.fn().mockImplementation(() => ({
+  (global as any).RTCPeerConnection = jest.fn().mockImplementation(() => ({
     createDataChannel: jest.fn().mockReturnValue({
       onopen: null,
       onclose: null,
       onerror: null,
       onmessage: null,
       send: jest.fn()
-    }),
-    createOffer: jest.fn().mockResolvedValue({}),
-    createAnswer: jest.fn().mockResolvedValue({}),
-    setLocalDescription: jest.fn().mockResolvedValue(undefined),
-    setRemoteDescription: jest.fn().mockResolvedValue(undefined),
-    addIceCandidate: jest.fn().mockResolvedValue(undefined),
+    } as any), // Cast DataChannel mock
+    createOffer: jest.fn().mockResolvedValue({} as any),
+    createAnswer: jest.fn().mockResolvedValue({} as any),
+    setLocalDescription: jest.fn().mockResolvedValue(undefined as any),
+    setRemoteDescription: jest.fn().mockResolvedValue(undefined as any),
+    addIceCandidate: jest.fn().mockResolvedValue(undefined as any),
     onicecandidate: null,
     onconnectionstatechange: null,
     oniceconnectionstatechange: null,
     onnegotiationneeded: null,
     close: jest.fn(),
-    getStats: jest.fn().mockResolvedValue(new Map()),
+    getStats: jest.fn().mockResolvedValue(new Map() as any),
     addTrack: jest.fn(),
     addTransceiver: jest.fn(),
     getTransceivers: jest.fn().mockReturnValue([]),
@@ -168,130 +169,131 @@ describe('Main Application', () => {
     iceConnectionState: 'new',
     localDescription: { sdp: 'test-sdp' },
     currentLocalDescription: { sdp: 'test-sdp' }
-  }));
+  } as any)); // Cast RTCPeerConnection mock
+  (global as any).RTCPeerConnection.generateCertificate = jest.fn().mockResolvedValue({} as any); // Add missing static method
 
-  global.getConfig = jest.fn().mockReturnValue({
+  (global as any).getConfig = jest.fn().mockReturnValue({
     'stun-servers': 'stun.l.google.com:19302',
     'turn-server-v2': 'turn.example.com:3478',
     'turn-username': 'test-username',
     'turn-password': 'test-password',
     'config-loader': 'server'
-  });
+  } as Record<string, string>); // Cast getConfig return value
 
-  global.io = jest.fn().mockReturnValue({
+  (global as any).io = jest.fn().mockReturnValue({
     on: jest.fn(),
     emit: jest.fn()
-  });
+  } as any); // Cast io mock
 
-  global.Diff = {
+  (global as any).Diff = {
     diffChars: jest.fn().mockReturnValue([
       { value: 'test', added: true },
       { value: 'diff', removed: true },
       { value: 'common', added: false, removed: false }
     ])
-  };
+  } as any; // Cast Diff mock
 
-  global.QRCode = jest.fn();
-  global.BroadcastChannel = jest.fn().mockImplementation(() => ({
+  (global as any).QRCode = jest.fn();
+  (global as any).BroadcastChannel = jest.fn().mockImplementation(() => ({
     onmessage: null,
     postMessage: jest.fn(),
     close: jest.fn()
-  }));
+  } as any)); // Cast BroadcastChannel mock
 
-  global.URLSearchParams = jest.fn().mockImplementation(() => ({
+  (global as any).URLSearchParams = jest.fn().mockImplementation(() => ({
     get: jest.fn(),
     set: jest.fn(),
     has: jest.fn().mockReturnValue(false),
     toString: jest.fn().mockReturnValue('')
-  }));
+  } as any)); // Cast URLSearchParams mock
 
-  global.URL = jest.fn().mockImplementation(() => ({
+  (global as any).URL = jest.fn().mockImplementation(() => ({
     searchParams: {
       set: jest.fn()
     },
     toString: jest.fn().mockReturnValue('https://example.com')
-  }));
+  } as any)); // Cast URL mock
+  // Add missing static methods to URL mock
+  (global as any).URL.createObjectURL = jest.fn();
+  (global as any).URL.revokeObjectURL = jest.fn();
+  (global as any).URL.canParse = jest.fn();
+  (global as any).URL.parse = jest.fn();
 
-  global.compress = jest.fn().mockResolvedValue('compressed-sdp');
-  global.decompress = jest.fn().mockResolvedValue('decompressed-sdp');
-  global.EMOJIS = ['😀', '😁', '😂', '😃'];
 
-  beforeEach(() => {
+  (global as any).compress = jest.fn().mockResolvedValue('compressed-sdp' as any);
+  (global as any).decompress = jest.fn().mockResolvedValue('decompressed-sdp' as any);
+  (global as any).EMOJIS = ['😀', '😁', '😂', '😃'];
+
+  beforeEach(async () => { // Make beforeEach async if needed for mainModule import
     jest.clearAllMocks();
     // Reset the app object for each test
-    global.app = undefined;
-    
+    (global as any).app = undefined;
+
     // Mock clearInterval
-    global.clearInterval = jest.fn();
+    (global as any).clearInterval = jest.fn();
+
+    // Ensure mainModule is loaded if not done in beforeAll
+    if (!mainModule) {
+      mainModule = await import('../../src/main.js');
+    }
   });
 
   test('sendNego should send data through negotiation channel', async () => {
-    // Clear the module cache to ensure a fresh require
-    jest.resetModules();
-    
-    // Set up the global app object before requiring the module
-    global.app = {
-      config: getConfig(),
+    // Set up the global app object before the test
+    (global as any).app = {
+      config: (global as any).getConfig(),
       clients: {},
       cleanups: {},
       nego_handlers: {},
       nego_messages: {},
-      sids: {}
-    };
-    
-    // Use dynamic import for ESM compatibility in tests
-    const mainModule = await import('../../src/main');
-    
-    // Create a mock client
-    const mockClient = {
+      sids: {},
+      // Add other required App properties with default/mock values
+      viewStreams: {},
+      participants: {},
+      inited: false,
+    } as App; // Use App type
+
+    // mainModule is already imported in beforeAll/beforeEach
+
+    const mockClient: Partial<WebRTCClient> = { // Use Partial<WebRTCClient> for mock
       nego_dc: {
         send: jest.fn()
-      }
+      } as any // Cast nego_dc mock
     };
-    
     // Create test data
     const testData = { type: 'test', value: 'test-value' };
     
     // Call the function via rtcUtils
-    mainModule.rtcUtils.sendNego(mockClient, testData);
-    
+    mainModule.rtcUtils.sendNego(mockClient as WebRTCClient, testData); // Cast mockClient
+
     // Verify the data was sent
-    expect(mockClient.nego_dc.send).toHaveBeenCalledWith(expect.stringContaining('test-value'));
+    expect(mockClient.nego_dc!.send).toHaveBeenCalledWith(expect.stringContaining('test-value')); // Use non-null assertion
 
     // Verify the message ID was added (cast argument to string)
-    expect(JSON.parse(mockClient.nego_dc.send.mock.calls[0][0] as string).id).toBeDefined();
+    expect(JSON.parse(mockClient.nego_dc!.send.mock.calls[0][0] as string).id).toBeDefined(); // Use non-null assertion
   });
 
-  test('destroyClient should clean up client resources', () => { // No longer needs async
+  test('destroyClient should clean up client resources', () => {
     // Set up the global app object using type assertion
-    const testApp: App = { // Use App type for better structure
+    (global as any).app = { // Use App type for better structure
       config: (global as any).getConfig(),
       clients: {
         'test-cid': {
-          pc: {
-            close: jest.fn()
-          },
-          nego_dc: {
-            onclose: null,
-            onmessage: null
-          },
-          dc: {},
-          dc_file: {},
-          forward: {},
-          file_stuff: {},
+          pc: { close: jest.fn() } as any, // Cast pc mock
+          nego_dc: { onclose: null, onmessage: null } as any, // Cast nego_dc mock
+          dc: {} as any, // Cast dc mock
+          dc_file: {} as any, // Cast dc_file mock
+          forward: {} as any, // Cast forward mock
+          file_stuff: {} as any, // Cast file_stuff mock
           _transceiver_interval: 123,
           polite: true,
           makingOffer: false
-        },
+        } as WebRTCClient, // Cast test-cid client
         'other-cid': {
-          pc: {
-            close: jest.fn()
-          },
-          nego_dc: {
-            send: jest.fn()
-          }
-        }
-      },
+          pc: { close: jest.fn() } as any, // Cast pc mock
+          nego_dc: { send: jest.fn() } as any // Cast nego_dc mock
+          // Add other required properties for WebRTCClient or cast
+        } as WebRTCClient // Cast other-cid client
       },
       cleanups: {
         test: jest.fn()
@@ -302,25 +304,24 @@ describe('Main Application', () => {
       nego_handlers: {},
       participants: {},
       inited: false,
-    };
-    (global as any).app = testApp; // Assign to global
+    } as App; // Assign to global and cast as App
 
     // Store a reference to the client object and its PC before destroying
-    const clientObj = testApp.clients['test-cid'];
-    const pcCloseSpy = clientObj.pc!.close; // Use non-null assertion if sure pc exists
+    const clientObj = (global as any).app.clients['test-cid'];
+    const pcCloseSpy = clientObj.pc!.close; // Use non-null assertion
 
-    // Use the imported module variable
     // Access webRTCApp via rtcUtils and spy on the instance's method
+    // mainModule is already available
     jest.spyOn(mainModule.rtcUtils.webRTCApp, 'sendNego');
 
     // Call the function via rtcUtils
     mainModule.rtcUtils.destroyClient('test-cid');
 
     // Verify the client was cleaned up
-    expect(global.clearInterval).toHaveBeenCalledWith(123);
+    expect((global as any).clearInterval).toHaveBeenCalledWith(123);
     expect(pcCloseSpy).toHaveBeenCalled();
 
-    // Verify all fields are properly cleaned up (accessing via testApp)
+    // Verify all fields are properly cleaned up (accessing via global.app)
     expect(clientObj.pc).toBeNull();
     expect(clientObj.dc).toBeUndefined();
     expect(clientObj.dc_file).toBeUndefined();
@@ -331,21 +332,21 @@ describe('Main Application', () => {
     expect(clientObj.polite).toBeUndefined();
     expect(clientObj.makingOffer).toBeUndefined();
 
-    // Verify the client is removed from the clients object (accessing via testApp)
-    expect(testApp.clients['test-cid']).toBeUndefined();
+    // Verify the client is removed from the clients object (accessing via global.app)
+    expect((global as any).app.clients['test-cid']).toBeUndefined();
 
-    // Verify cleanup functions were called (accessing via testApp)
-    expect(testApp.cleanups.test).toHaveBeenCalledWith('test-cid');
+    // Verify cleanup functions were called (accessing via global.app)
+    expect((global as any).app.cleanups.test).toHaveBeenCalledWith('test-cid');
 
     // Verify sendNego was called for other clients via the spy on the instance
     expect(mainModule.rtcUtils.webRTCApp.sendNego).toHaveBeenCalledWith(
-      testApp.clients['other-cid'],
+      (global as any).app.clients['other-cid'], // Access client via global.app
       {type: 'participant.end', cid: 'test-cid'}
     );
   });
 
-  test('uuidv4 should generate a valid UUID', () => { // No longer needs async
-    // Use the imported module variable
+  test('uuidv4 should generate a valid UUID', () => {
+    // mainModule is already available
     // Call the function via rtcUtils
     const uuid = mainModule.rtcUtils.uuidv4();
 
@@ -353,15 +354,16 @@ describe('Main Application', () => {
     expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
   });
 
-  test('init should set up the application state', async () => { // Keep async due to await init()
-    // Mocks are defined outside describe block
+  test('init should set up the application state', async () => {
+    // Mocks are defined and setup outside/before this test
+    // mainModule is already available
 
-    // Use the imported module variable
     const webRTCAppInstance = mainModule.rtcUtils.webRTCApp; // Get the instance
 
     // Reset inited flag if necessary before calling init
-    // Access app via the instance's getter method
-    webRTCAppInstance.getApp().inited = false;
+    // Access app via the instance's getter method if needed, or set on global
+    (global as any).app = { inited: false }; // Minimal setup if needed before init
+    webRTCAppInstance.getApp().inited = false; // Ensure instance state is reset too
 
     // Call the function via rtcUtils
     await mainModule.rtcUtils.init();
@@ -369,7 +371,7 @@ describe('Main Application', () => {
     // Get the app object after initialization using the exported getter
     const appAfterInit = mainModule.rtcUtils._getApp();
 
-    // Verify the app state was initialized
+    // Verify the app state was initialized (accessing via global.app or appAfterInit)
     expect(appAfterInit.participants).toEqual({});
     expect(appAfterInit.cleanups).toEqual({});
     expect(appAfterInit.clients).toEqual({});
