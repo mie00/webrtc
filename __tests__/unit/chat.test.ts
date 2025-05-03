@@ -6,14 +6,15 @@ import { describe, jest, beforeEach, beforeAll, test, expect } from '@jest/globa
 
 describe('Chat Functionality', () => {
   beforeEach(() => {
-    // Setup DOM mocks
+    // Setup DOM mocks with type assertion
     document.getElementById = jest.fn().mockReturnValue({
       value: 'test message',
       onkeydown: null,
       select: jest.fn()
-    });
+    } as unknown as HTMLElement) as jest.Mock; // Cast return value and mock
   });
 
+  // Cast global.app to App type or use 'as any' for simplicity
   global.app = {
     clients: {
       'test-client-id': {

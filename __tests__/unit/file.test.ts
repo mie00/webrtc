@@ -14,11 +14,11 @@ describe('File Utilities', () => {
   });
 
   beforeEach(() => {
-    // Setup DOM mocks
+    // Setup DOM mocks with type assertions
     document.getElementById = jest.fn().mockReturnValue({
       addEventListener: jest.fn(),
       disabled: false
-    });
+    } as unknown as HTMLElement) as jest.Mock; // Cast return value and mock
     
     document.createElement = jest.fn().mockReturnValue({
       href: '',
@@ -27,11 +27,12 @@ describe('File Utilities', () => {
         add: jest.fn()
       },
       appendChild: jest.fn()
-    });
+    } as unknown as HTMLElement) as jest.Mock; // Cast return value and mock
     
-    document.createTextNode = jest.fn();
+    document.createTextNode = jest.fn() as jest.Mock; // Cast mock
   });
 
+  // Cast global.app or ensure it matches App type
   global.app = {
     clients: {
       'test-client-id': {
@@ -42,13 +43,15 @@ describe('File Utilities', () => {
         }
       }
     }
-  };
+  } as any; // Cast global.app for simplicity
 
+  // Cast global.URL and its methods
   global.URL = {
-    createObjectURL: jest.fn().mockReturnValue('blob:test-url')
-  };
+    createObjectURL: jest.fn().mockReturnValue('blob:test-url') as jest.Mock,
+    revokeObjectURL: jest.fn() // Add revokeObjectURL mock
+  } as any; // Cast global.URL
 
-  global.log = jest.fn();
+  global.log = jest.fn(); // Assuming log is defined in jest.global.d.ts
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -60,7 +63,7 @@ describe('File Utilities', () => {
     const arrayBuffer = testData.buffer;
 
     // Test with chunk size of 3
-    const chunks = fileModule.splitArrayBuffer(arrayBuffer, 3); // Use imported module
+    const chunks = file.splitArrayBuffer(arrayBuffer, 3); // Use imported module 'file'
 
     // Verify the chunks
     expect(chunks.length).toBe(4);
@@ -71,17 +74,16 @@ describe('File Utilities', () => {
   });
 
   test('updateProgressBar should update progress element correctly', () => {
-    // Setup mock element
+    // Setup mock element (fix duplicate value property)
     const mockProgressElement = {
-      value: 0,
       value: 0,
       innerHTML: ''
     };
-    // Use jest.spyOn to mock getElementById and cast return value
-    const getElementByIdSpy = jest.spyOn(document, 'getElementById').mockReturnValue(mockProgressElement);
+    // Use jest.spyOn to mock getElementById and cast return value appropriately
+    const getElementByIdSpy = jest.spyOn(document, 'getElementById').mockReturnValue(mockProgressElement as unknown as HTMLElement); // Cast return value
 
-    // Call the function with test values using imported module
-    fileModule.updateProgressBar('test-id', 100, () => 25); // Use imported module
+    // Call the function with test values using imported module 'file'
+    file.updateProgressBar('test-id', 100, () => 25); // Use imported module 'file'
 
     // Verify the progress was updated correctly
     expect(mockProgressElement.value).toBe(75); // (100-25)/100*100
@@ -100,15 +102,22 @@ describe('File Utilities', () => {
       type: 'text/plain',
       size: 1024,
       slice: jest.fn().mockReturnValue(new Blob())
-    }; // Cast to any to avoid missing File properties error
+    } as any; // Cast to any to avoid missing File properties error
 
-    // Call the function using imported module
-    fileModule.readFile(testFile, 'test-client-id'); // Use imported module
+    // Call the function using imported module 'file'
+    file.readFile(testFile as File, 'test-client-id'); // Use imported module 'file', cast testFile
 
     // Verify the file data was sent using global.app
-    expect(global.app.clients['test-client-id'].dc_file.send).toHaveBeenCalledWith(
+    expect((global.app as any).clients['test-client-id'].dc_file.send).toHaveBeenCalledWith(
       expect.stringContaining('"name":"test.txt"')
     );
+
+    // Mock FileReader globally if not already done
+    global.FileReader = jest.fn().mockImplementation(() => ({
+        readAsArrayBuffer: jest.fn(),
+        onload: null,
+        onerror: null
+    })) as any; // Cast mock
 
     // Verify the file reader was used (accessing the mocked global)
     expect(global.FileReader).toHaveBeenCalled();

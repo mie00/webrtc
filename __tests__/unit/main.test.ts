@@ -1,5 +1,5 @@
 import { describe, beforeEach, jest, test, expect, beforeAll } from '@jest/globals';
-import type { WebRTCClient } from '../../types/global'; // Import WebRTCClient
+import type { WebRTCClient } from '../../types/global.js'; // Import WebRTCClient - ADD .js extension
 
 /**
  * @jest-environment jsdom
@@ -33,21 +33,21 @@ describe('Main Application', () => {
     mockChatInit.mockClear();
     mockFileInit.mockClear();
 
-    // Setup DOM mocks
-    document.getElementById = jest.fn().mockImplementation((id): HTMLElement | null => { // Add return type
+    // Setup DOM mocks with type assertion for the mock function itself
+    document.getElementById = jest.fn().mockImplementation((id: string): HTMLElement | null => { // Add type for id
       if (id === 'toggle-controls') {
         return {
           addEventListener: jest.fn(),
           innerHTML: ''
-        };
+        } as unknown as HTMLElement; // Cast return value
       } else if (id === 'control') {
         return {
           classList: {
             contains: jest.fn().mockReturnValue(true),
             add: jest.fn(),
             remove: jest.fn()
-          }
-        };
+          } as DOMTokenList // Cast classList
+        } as unknown as HTMLElement; // Cast return value
       } else if (id === 'config-overlay' || id === 'copy-overlay') {
         return {
           classList: {
@@ -99,10 +99,10 @@ describe('Main Application', () => {
       return null;
     }) as jest.Mock; // Cast the mock function itself
 
-    // Mock createElement with type assertion
-    document.createElement = jest.fn().mockImplementation((tag: string): HTMLElement => { // Add return type
-      return { // Cast return value
-        style: {},
+    // Mock createElement with type assertion for the mock function itself
+    document.createElement = jest.fn().mockImplementation((tag: string): HTMLElement => {
+      return {
+        style: {} as CSSStyleDeclaration, // Cast style
         classList: {
           add: jest.fn()
         },
@@ -122,7 +122,7 @@ describe('Main Application', () => {
         writable: true
       });
     } else {
-      (document.body).appendChild = jest.fn() as jest.Mock; // Cast appendChild
+      (document.body as any).appendChild = jest.fn() as jest.Mock; // Cast body and appendChild
     }
   });
 
@@ -157,9 +157,9 @@ describe('Main Application', () => {
     mediaDevices: {
       getUserMedia: jest.fn().mockResolvedValue({
         getTracks: jest.fn().mockReturnValue([])
-      } as any) // Cast resolved value
-    } as any // Cast mediaDevices
-  } as any; // Cast navigator
+      } as unknown as MediaStream) // Cast resolved value
+    } as unknown as MediaDevices // Cast mediaDevices
+  } as unknown as Navigator; // Cast navigator
 
   // Mock crypto properties (casting to any)
   global.crypto = {
@@ -176,18 +176,18 @@ describe('Main Application', () => {
       onerror: null,
       onmessage: null,
       send: jest.fn()
-    } as any), // Cast DataChannel mock
-    createOffer: jest.fn().mockResolvedValue({} as any), // Cast resolved value
-    createAnswer: jest.fn().mockResolvedValue({} as any), // Cast resolved value
-    setLocalDescription: jest.fn().mockResolvedValue(undefined as never), // Fix resolved value type
-    setRemoteDescription: jest.fn().mockResolvedValue(undefined as never), // Fix resolved value type
-    addIceCandidate: jest.fn().mockResolvedValue(undefined as never), // Fix resolved value type
+    } as RTCDataChannel), // Cast DataChannel mock
+    createOffer: jest.fn().mockResolvedValue({ type: 'offer', sdp: 'sdp' } as RTCSessionDescriptionInit), // Cast resolved value
+    createAnswer: jest.fn().mockResolvedValue({ type: 'answer', sdp: 'sdp' } as RTCSessionDescriptionInit), // Cast resolved value
+    setLocalDescription: jest.fn().mockResolvedValue(undefined), // Fix resolved value type
+    setRemoteDescription: jest.fn().mockResolvedValue(undefined), // Fix resolved value type
+    addIceCandidate: jest.fn().mockResolvedValue(undefined), // Fix resolved value type
     onicecandidate: null,
     onconnectionstatechange: null,
     oniceconnectionstatechange: null,
     onnegotiationneeded: null,
     close: jest.fn(),
-    getStats: jest.fn().mockResolvedValue(new Map() as never), // Fix resolved value type
+    getStats: jest.fn().mockResolvedValue(new Map() as RTCStatsReport), // Fix resolved value type
     addTrack: jest.fn(),
     addTransceiver: jest.fn(),
     getTransceivers: jest.fn().mockReturnValue([]),
@@ -196,9 +196,10 @@ describe('Main Application', () => {
     connectionState: 'new',
     iceConnectionState: 'new',
     localDescription: { sdp: 'test-sdp' },
-    currentLocalDescription: { sdp: 'test-sdp' }
-  } as any) as jest.Mock; // Cast return and mock
-  (global.RTCPeerConnection as any).generateCertificate = jest.fn().mockResolvedValue({} as never); // Fix resolved value type and cast
+    currentLocalDescription: { sdp: 'test-sdp' } as RTCSessionDescription, // Cast description
+  } as RTCPeerConnection) as jest.Mock; // Cast return and mock
+  // Add generateCertificate to the mock implementation if needed, or cast the mock itself
+  (global.RTCPeerConnection as any).generateCertificate = jest.fn().mockResolvedValue({} as RTCCertificate); // Fix resolved value type and cast
 
   // Cast getConfig mock (already declared in jest-globals.d.ts)
   global.getConfig = jest.fn().mockReturnValue({
@@ -207,15 +208,17 @@ describe('Main Application', () => {
     'turn-username': 'test-username',
     'turn-password': 'test-password',
     'config-loader': 'server'
-  });
+  }) as jest.Mock; // Cast mock
 
   // Cast io mock (already declared in jest-globals.d.ts)
+  // @ts-ignore - Assuming io is correctly typed in jest.global.d.ts but TS struggles here
   global.io = jest.fn().mockReturnValue({
     on: jest.fn(),
     emit: jest.fn()
   } as any);
 
   // Cast Diff mock (already declared in jest-globals.d.ts)
+  // @ts-ignore - Assuming Diff is correctly typed
   global.Diff = {
     diffChars: jest.fn().mockReturnValue([
       { value: 'test', added: true },
@@ -225,13 +228,14 @@ describe('Main Application', () => {
   };
 
   // Cast QRCode mock (already declared in jest-globals.d.ts)
+  // @ts-ignore - Assuming QRCode is correctly typed
   global.QRCode = jest.fn();
   // Cast BroadcastChannel mock
   global.BroadcastChannel = jest.fn().mockImplementation(() => ({
     onmessage: null,
     postMessage: jest.fn(),
     close: jest.fn()
-  } as any)) as jest.Mock;
+  } as BroadcastChannel)) as jest.Mock;
 
   // Cast URLSearchParams mock
   global.URLSearchParams = jest.fn().mockImplementation(() => ({
@@ -239,7 +243,7 @@ describe('Main Application', () => {
     set: jest.fn(),
     has: jest.fn().mockReturnValue(false),
     toString: jest.fn().mockReturnValue('')
-  } as any)) as jest.Mock;
+  } as URLSearchParams)) as jest.Mock;
 
   // Cast URL mock
   global.URL = jest.fn().mockImplementation(() => ({
@@ -247,17 +251,18 @@ describe('Main Application', () => {
       set: jest.fn()
     } as any, // Cast searchParams
     toString: jest.fn().mockReturnValue('https://example.com')
-  } as any)) as any; // Cast return and mock itself
+  } as URL)) as any; // Cast return and mock itself
   // Add missing static methods to URL mock (casting to any)
-  (global.URL as any).createObjectURL = jest.fn().mockReturnValue('blob:test-url'); // Add return value
+  (global.URL as any).createObjectURL = jest.fn().mockReturnValue('blob:test-url');
   (global.URL as any).revokeObjectURL = jest.fn();
-  (global.URL as any).canParse = jest.fn().mockReturnValue(true); // Add return value
+  (global.URL as any).canParse = jest.fn().mockReturnValue(true);
   (global.URL as any).parse = jest.fn();
 
 
   // Cast compress/decompress/EMOJIS (already declared in jest-globals.d.ts)
-  global.compress = jest.fn().mockResolvedValue('compressed-sdp' as never); // Fix resolved value type
-  global.decompress = jest.fn().mockResolvedValue('decompressed-sdp' as never); // Fix resolved value type
+  global.compress = jest.fn().mockResolvedValue('compressed-sdp') as jest.Mock; // Fix resolved value type & cast mock
+  global.decompress = jest.fn().mockResolvedValue('decompressed-sdp') as jest.Mock; // Fix resolved value type & cast mock
+  // @ts-ignore - Assuming EMOJIS is correctly typed
   global.EMOJIS = ['😀', '😁', '😂', '😃'];
 
   beforeEach(async () => { // Make beforeEach async if needed for mainModule import

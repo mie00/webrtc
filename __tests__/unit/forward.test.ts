@@ -1,6 +1,6 @@
-import { describe, beforeEach, jest, test, expect, beforeAll } from '@jest/globals';
+import { describe, beforeEach, jest, test, expect } from '@jest/globals'; // Removed beforeAll as it's not used
 import * as forwardModule from '../../src/lib/forwardBridge.js'; // Import the module
-import type { App } from '../../types/global'; // Import App type
+import type { App } from '../../types/global.js'; // Import App type - ADD .js extension
 
 /**
  * @jest-environment jsdom
@@ -16,8 +16,8 @@ describe('Forward Channel', () => {
   // });
 
   beforeEach(() => {
-    // Setup DOM mocks
-    document.getElementById = jest.fn().mockImplementation((id): HTMLElement | null => { // Add return type
+    // Setup DOM mocks with type assertion for the mock function itself
+    document.getElementById = jest.fn().mockImplementation((id: string): HTMLElement | null => { // Add type for id
       if (id === 'start-forward') {
         return {
           addEventListener: jest.fn(),
@@ -45,8 +45,8 @@ describe('Forward Channel', () => {
       return null;
     }) as jest.Mock; // Cast the mock function itself
 
-    // Mock createElement with type assertion
-    document.createElement = jest.fn().mockImplementation((tag: string): HTMLElement => { // Add return type
+    // Mock createElement with type assertion for the mock function itself
+    document.createElement = jest.fn().mockImplementation((tag: string): HTMLElement => {
       return {
         id: '',
         src: '',
@@ -105,7 +105,7 @@ describe('Forward Channel', () => {
       port2: { postMessage: jest.fn() } as any // Add port2 for completeness
     })) as any; // Cast mock
 
-    // Mock fetch with type assertion (casting to any)
+    // Mock fetch with type assertion for the mock function itself
     global.fetch = jest.fn().mockResolvedValue({
       status: 200,
       statusText: 'OK',
@@ -115,10 +115,10 @@ describe('Forward Channel', () => {
           read: jest.fn().mockResolvedValue({ done: true, value: new Uint8Array([]) } as never) // Fix resolved value type
         })
       } as any // Cast body
-    } as any) as jest.Mock; // Cast resolved value and mock
+    } as Response) as jest.Mock; // Cast resolved value to Response and the mock itself
 
     // Mock alert with type assertion
-    global.alert = jest.fn();
+    global.alert = jest.fn() as jest.Mock; // Cast mock
 
     // Mock URL with type assertion (casting to any)
     global.URL = class {
@@ -140,8 +140,8 @@ describe('Forward Channel', () => {
       setInterval: jest.fn().mockReturnValue(123) as any // Cast setInterval
     } as any; // Cast window
 
-    // Mock prompt (type handled by jest-globals.d.ts)
-    global.prompt = jest.fn().mockReturnValue('http://127.0.0.1:5000');
+    // Mock prompt (type handled by jest-globals.d.ts) - Cast the mock
+    global.prompt = jest.fn().mockReturnValue('http://127.0.0.1:5000') as jest.Mock;
 
 
     jest.clearAllMocks();
@@ -176,8 +176,9 @@ describe('Forward Channel', () => {
     const array3 = new Uint8Array([6, 7, 8, 9]);
     
     // Call the function
+    // Call the function - Assuming concatUint8Arrays exists and is correctly typed
     const result = forwardModule.concatUint8Arrays([array1, array2, array3]);
-    
+
     // Verify the result
     expect(result).toEqual(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9]));
   });

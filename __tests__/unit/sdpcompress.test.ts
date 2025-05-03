@@ -10,8 +10,8 @@ describe('SDP Compression', () => {
   });
 });
 
-// Import from the .ts file
-import { compress, decompress } from '../../src/lib/utils/sdpCompress';
+// Import from the .js file (as required by moduleResolution)
+import { compress, decompress } from '../../src/lib/utils/sdpCompress.js';
 
 describe('SDP Compression', () => {
   beforeEach(() => {

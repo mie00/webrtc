@@ -5,9 +5,11 @@ import { describe, jest, beforeEach, test, expect } from '@jest/globals';
  */
 
 // Mock the backgroundChange function
-global.backgroundChange = jest.fn().mockResolvedValue({ // Cast global
+// Cast the mock function itself and the resolved value
+global.backgroundChange = jest.fn().mockResolvedValue({
   getTracks: jest.fn().mockReturnValue([])
-}); // Cast resolved value
+} as unknown as MediaStream) as jest.Mock<Promise<MediaStream>>;
+
 
 // Declare module variable at the top level
 let streamModule: typeof import('../../src/lib/streamBridge.js');
