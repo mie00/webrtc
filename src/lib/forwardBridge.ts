@@ -112,7 +112,12 @@ import {
  */
 export function setupForwardChannel(originalApp: App, cid: string): void {
   const app = originalApp as ForwardApp;
-  const forward = app.clients[cid].pc.createDataChannel("forward", {
+  const pc = app.clients[cid]?.pc;
+  if (!pc) {
+    console.error(`PeerConnection not found for client ${cid} when setting up forward channel (bridge).`);
+    return;
+  }
+  const forward = pc.createDataChannel("forward", {
     negotiated: true,
     id: 3
   });

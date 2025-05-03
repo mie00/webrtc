@@ -22,7 +22,12 @@ function updateProgressBar(id: string, file_size: number, get_ready: () => numbe
 }
 
 function setupFileChannel(app: App, cid: string): void {
-    const dc_file = window.app.clients[cid].pc.createDataChannel("file", {
+    const pc = window.app.clients[cid]?.pc;
+    if (!pc) {
+      console.error(`PeerConnection not found for client ${cid} when setting up file channel.`);
+      return;
+    }
+    const dc_file = pc.createDataChannel("file", {
         negotiated: true,
         id: 2
     });
