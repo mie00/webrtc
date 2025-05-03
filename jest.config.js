@@ -15,7 +15,8 @@ export default {
   testMatch: ['**/__tests__/**/*.test.(js|ts)'],
   // Add this section to indicate which file extensions should be treated as ESM
   extensionsToTreatAsEsm: ['.ts', '.svelte'],
-  setupFiles: ['./jest.setup.js'],
+  // setupFiles runs before the environment is set up. Use setupFilesAfterEnv for mocks.
+  setupFilesAfterEnv: ['./jest.setup.js'],
   // globals section is deprecated for ts-jest config
   moduleNameMapper: {
     // Handle module aliases for ESM
