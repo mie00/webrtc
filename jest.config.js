@@ -1,5 +1,6 @@
 export default {
-  preset: 'ts-jest/presets/js-with-babel',
+  // preset: 'ts-jest/presets/js-with-babel', // Remove preset
+  extensionsToTreatAsEsm: ['.ts', '.svelte'], // Add this line
   testEnvironment: 'jsdom', // Use built-in jsdom environment
   moduleFileExtensions: ['ts', 'js', 'svelte'],
   transform: {
