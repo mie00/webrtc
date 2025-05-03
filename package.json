@@ -9,11 +9,11 @@
     "dev": "vite dev",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:unit": "jest __tests__/unit",
-    "test:integration": "jest __tests__/integration"
+    "test": "NODE_OPTIONS=--enable-source-maps jest",
+    "test:watch": "NODE_OPTIONS=--enable-source-maps jest --watch",
+    "test:coverage": "NODE_OPTIONS=--enable-source-maps jest --coverage",
+    "test:unit": "NODE_OPTIONS=--enable-source-maps jest __tests__/unit",
+    "test:integration": "NODE_OPTIONS=--enable-source-maps jest __tests__/integration"
   },
   "keywords": [
     "webrtc",

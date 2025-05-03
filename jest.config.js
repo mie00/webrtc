@@ -7,7 +7,7 @@ export default {
     // Remove babel-jest transform
     // '^.+\\.js$': 'babel-jest',
     '^.+\\.ts$': ['ts-jest', {
-      // tsconfig: 'tsconfig.json', // Can often be omitted if it's the default name
+      // tsconfig: 'tsconfig.json', // Remove this line, ts-jest finds it by default
       useESM: true, // Required by the ESM preset
       // isolatedModules: true, // Keep if needed, often default/handled by tsconfig
     }],
