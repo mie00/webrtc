@@ -9,11 +9,11 @@
     "dev": "vite dev",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "test": "node --experimental-vm-modules ./node_modules/.bin/jest",
-    "test:watch": "node --experimental-vm-modules ./node_modules/.bin/jest --watch",
-    "test:coverage": "node --experimental-vm-modules ./node_modules/.bin/jest --coverage",
-    "test:unit": "node --experimental-vm-modules ./node_modules/.bin/jest __tests__/unit",
-    "test:integration": "node --experimental-vm-modules ./node_modules/.bin/jest __tests__/integration"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:unit": "jest __tests__/unit",
+    "test:integration": "jest __tests__/integration"
   },
   "keywords": [
     "webrtc",
