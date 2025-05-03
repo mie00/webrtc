@@ -4,13 +4,15 @@
   import ControlPanel from './components/ControlPanel.svelte';
   import CopyOverlay from './components/CopyOverlay.svelte';
   import ConfigOverlay from './components/ConfigOverlay.svelte';
+  import { io, Socket } from 'socket.io-client';
   import ContextMenu from './components/ContextMenu.svelte';
   import { configStore, getAllConfig } from './stores/configStore.js';
   import { streamStore } from './stores/streamStore.js';
   import { compress, decompress } from './lib/utils/sdpCompress.js';
+  import type { WebRTCApp } from './lib/webrtc/WebRTCApp'; // Import the type
   
   // Props
-  export let webRTCApp;
+  export let webRTCApp: WebRTCApp; // Add type annotation
   
   // State
   let showCopyOverlay = false;
@@ -23,7 +25,10 @@
   let showPasteText = false;
   
   // Socket.io connection
-  let socket;
+  let socket: Socket; // Add type annotation
+  
+  // Window loader function type
+  type WindowLoader = () => Promise<void>;
   
   onMount(() => {
     // Initialize socket connection
@@ -66,7 +71,7 @@
   
   // Socket event handlers
   function setupSocketHandlers() {
-    socket.on('init', async (id) => {
+    socket.on('init', async (id: string) => { // Add type for id
       console.log("init", id);
       const urlParams = new URLSearchParams(window.location.search);
       urlParams.set('r', id);
@@ -74,9 +79,9 @@
       onId();
     });
     
-    socket.on('subscribed', async (sid) => {
+    socket.on('subscribed', async (sid: string) => { // Add type for sid
       console.log('got subscribed', sid);
-      const cid = await webRTCApp.getOffer(async (candidate) => {
+      const cid = await webRTCApp.getOffer(async (candidate: RTCIceCandidateInit | null) => { // Add type for candidate
         if (!candidate) return;
         console.log("got a candidate", sid, candidate);
         socket.emit('candidate', sid, JSON.stringify(candidate));
@@ -89,7 +94,7 @@
       }
     });
     
-    socket.on('answer', async (sid, sdp) => {
+    socket.on('answer', async (sid: string, sdp: string) => { // Add types for sid and sdp
       console.log('got an answer', sid, sdp);
       const app = webRTCApp.getApp();
       if (app.sids && app.sids[sid] && app.clients[app.sids[sid]]) {
@@ -100,9 +105,9 @@
       }
     });
     
-    socket.on('offer', async (sid, sdp) => {
+    socket.on('offer', async (sid: string, sdp: string) => { // Add types for sid and sdp
       console.log('got an offer', sid, sdp);
-      const cid = await webRTCApp.getAnswer(sdp, async (candidate) => {
+      const cid = await webRTCApp.getAnswer(sdp, async (candidate: RTCIceCandidateInit | null) => { // Add type for candidate
         if (!candidate) return;
         console.log("got a candidate", sid, candidate);
         socket.emit('candidate', sid, JSON.stringify(candidate));
@@ -124,7 +129,7 @@
       windowLoader();
     });
     
-    socket.on('candidate', async (sid, candidate) => {
+    socket.on('candidate', async (sid: string, candidate: string) => { // Add types for sid and candidate (stringified JSON)
       console.log('got a candidate from peer', sid, candidate);
       const app = webRTCApp.getApp();
       if (app.sids && app.sids[sid] && app.clients[app.sids[sid]]) {
@@ -134,9 +139,9 @@
   }
   
   // Window loaders
-  let windowLoader;
+  let windowLoader: WindowLoader; // Use the defined type
   
-  const clientWindowLoader = async () => {
+  const clientWindowLoader: WindowLoader = async () => { // Add type annotation
     console.log("client window loader");
     const urlParams = new URLSearchParams(window.location.search);
     
@@ -146,8 +151,8 @@
       showAcceptButton = true;
       showPasteText = true;
       
-      let cid;
-      cid = await webRTCApp.getOffer(async (candidate) => {
+      let cid: string; // Add type for cid
+      cid = await webRTCApp.getOffer(async (candidate: RTCIceCandidateInit | null) => { // Add type for candidate
         if (Date.now() - now > 10 * 1000) { return; }
         const app = webRTCApp.getApp();
         const sdp = app.clients[cid].pc?.localDescription?.sdp;
@@ -193,8 +198,8 @@
         const offer = await decompress(offerParam);
         showCopyOverlay = true;
         
-        let cid;
-        cid = await webRTCApp.getAnswer(offer, async (candidate) => {
+        let cid: string; // Add type for cid
+        cid = await webRTCApp.getAnswer(offer, async (candidate: RTCIceCandidateInit | null) => { // Add type for candidate
           if (Date.now() - now > 10 * 1000) { return; }
           const app = webRTCApp.getApp();
           const sdp = app.clients[cid].pc?.localDescription?.sdp;
@@ -210,7 +215,7 @@
     }
   };
   
-  const serverWindowLoader = async () => {
+  const serverWindowLoader: WindowLoader = async () => { // Add type annotation
     const urlParams = new URLSearchParams(window.location.search);
     
     if (!urlParams.has('r')) {
@@ -242,7 +247,7 @@
     qrCodeUrl = newUrl;
   };
   
-  const acceptHandler = async (cid, pasteValue) => {
+  const acceptHandler = async (cid: string, pasteValue: string) => { // Add types for cid and pasteValue
     if (!pasteValue) return;
     
     let data = pasteValue;
@@ -288,7 +293,7 @@
   on:close={() => showCopyOverlay = false}
   on:openConfig={toggleConfigOverlay}
   on:reset={handleReset}
-  on:accept={(e) => acceptHandler(e.detail.cid, e.detail.pasteValue)}
+  on:accept={(e) => acceptHandler(e.detail.cid as string, e.detail.pasteValue as string)} // Add type assertions if needed, or ensure CopyOverlay emits typed details
   on:join={handleJoin}
 />
 
