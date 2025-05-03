@@ -236,7 +236,7 @@ describe('Main Application', () => {
       sids: {}
     };
     
-    const mainModule = require('../../js/main');
+    const mainModule = require('../../src/main');
     
     // Create a mock client
     const mockClient = {
@@ -248,8 +248,8 @@ describe('Main Application', () => {
     // Create test data
     const testData = { type: 'test', value: 'test-value' };
     
-    // Call the function
-    mainModule.sendNego(mockClient, testData);
+    // Call the function via rtcUtils
+    mainModule.rtcUtils.sendNego(mockClient, testData);
     
     // Verify the data was sent
     expect(mockClient.nego_dc.send).toHaveBeenCalledWith(expect.stringContaining('test-value'));
@@ -300,13 +300,14 @@ describe('Main Application', () => {
     const clientObj = app.clients['test-cid'];
     const pcCloseSpy = clientObj.pc.close;
 
-    const mainModule = require('../../js/main');
+    const mainModule = require('../../src/main');
 
-    mainModule.webRTCApp.app = global.app;
-    jest.spyOn(mainModule.webRTCApp, 'sendNego')
+    // Access webRTCApp via rtcUtils and spy on the instance's method
+    mainModule.rtcUtils.webRTCApp.app = global.app; // Assign global app to the instance's app
+    jest.spyOn(mainModule.rtcUtils.webRTCApp, 'sendNego');
 
-    // Call the function
-    mainModule.destroyClient('test-cid');
+    // Call the function via rtcUtils
+    mainModule.rtcUtils.destroyClient('test-cid');
     
     // Verify the client was cleaned up
     expect(global.clearInterval).toHaveBeenCalledWith(123);
@@ -329,17 +330,107 @@ describe('Main Application', () => {
     // Verify cleanup functions were called
     expect(app.cleanups.test).toHaveBeenCalledWith('test-cid');
     
-    // Verify sendNego was called for other clients
-    expect(mainModule.webRTCApp.sendNego).toHaveBeenCalledWith(
+    // Verify sendNego was called for other clients via the spy on the instance
+    expect(mainModule.rtcUtils.webRTCApp.sendNego).toHaveBeenCalledWith(
       app.clients['other-cid'], 
       {type: 'participant.end', cid: 'test-cid'}
     );
   });
 
   test('uuidv4 should generate a valid UUID', () => {
-    const mainModule = require('../../js/main');
+    const mainModule = require('../../src/main');
     
-    // Call the function
+    // Call the function via rtcUtils
+    const uuid = mainModule.rtcUtils.uuidv4();
+    
+    // Verify it's a valid UUID
+    expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  });
+
+  test('init should set up the application state', async () => {
+    // Clear the module cache to ensure a fresh require
+    jest.resetModules();
+
+    // Mock bridge initializers *before* requiring main
+    const mockStreamInit = jest.fn();
+    const mockForwardInit = jest.fn();
+    const mockChatInit = jest.fn();
+    const mockFileInit = jest.fn();
+    jest.mock('../../src/lib/streamBridge', () => ({ streamInit: mockStreamInit }));
+    jest.mock('../../src/lib/forwardBridge', () => ({ forwardInit: mockForwardInit }));
+    jest.mock('../../src/lib/chatBridge', () => ({ chatInit: mockChatInit }));
+    jest.mock('../../src/lib/fileBridge', () => ({ fileInit: mockFileInit }));
+
+    // Set up the global app object *before* requiring the module if needed by WebRTCApp constructor
+    // global.app = { config: getConfig() }; // Not strictly needed as main.ts creates the instance
+
+    const mainModule = require('../../src/main');
+    const webRTCAppInstance = mainModule.rtcUtils.webRTCApp; // Get the instance created by main.ts
+
+    // Reset inited flag if necessary before calling init
+    webRTCAppInstance.app.inited = false;
+
+    // Call the function via rtcUtils
+    await mainModule.rtcUtils.init();
+    
+    // Get the app object after initialization using the exported getter
+    const appAfterInit = mainModule.rtcUtils._getApp();
+    
+    // Verify the app state was initialized
+    expect(appAfterInit.participants).toEqual({});
+    expect(appAfterInit.cleanups).toEqual({});
+    expect(appAfterInit.clients).toEqual({});
+    expect(appAfterInit.inited).toBe(true);
+    expect(appAfterInit.nego_messages).toEqual({});
+    expect(appAfterInit.nego_handlers).toBeDefined();
+    
+    // Verify the init functions were called (via mocks)
+    expect(mockStreamInit).toHaveBeenCalledWith(appAfterInit);
+    expect(mockForwardInit).toHaveBeenCalledWith(appAfterInit);
+    expect(mockChatInit).toHaveBeenCalledWith(appAfterInit);
+    expect(mockFileInit).toHaveBeenCalledWith(appAfterInit);
+  });
+});
+-    const uuid = mainModule.uuidv4();
+-    
+-    // Verify it's a valid UUID
+-    expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+-  });
+-
+-  test('init should set up the application state', async () => {
+-    // Clear the module cache to ensure a fresh require
+-    jest.resetModules();
+-    
+-    // Set up the global app object before requiring the module
+-    global.app = {
+-      config: getConfig()
+-    };
+-    
+-    // Mock the streamInit and forwardInit functions
+-    global.streamInit = jest.fn();
+-    global.forwardInit = jest.fn();
+-    
+-    const mainModule = require('../../js/main');
+-    
+-    // Call the function
+-    await mainModule.init();
+-    
+-    // Get the app object after initialization
+-    const appAfterInit = mainModule._getApp();
+-    
+-    // Verify the app state was initialized
+-    expect(appAfterInit.participants).toEqual({});
+-    expect(appAfterInit.cleanups).toEqual({});
+-    expect(appAfterInit.clients).toEqual({});
+-    expect(appAfterInit.inited).toBe(true);
+-    expect(appAfterInit.nego_messages).toEqual({});
+-    expect(appAfterInit.nego_handlers).toBeDefined();
+-    
+-    // Verify the init functions were called
+-    expect(global.streamInit).toHaveBeenCalledWith(appAfterInit);
+-    expect(global.forwardInit).toHaveBeenCalledWith(appAfterInit);
+-  });
+-});
     const uuid = mainModule.uuidv4();
     
     // Verify it's a valid UUID
