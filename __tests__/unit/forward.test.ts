@@ -42,7 +42,7 @@ describe('Forward Channel', () => {
     });
 
     // Mock createElement with type assertion
-    (document as any).createElement = jest.fn().mockImplementation((tag: string) => {
+    document.createElement = jest.fn().mockImplementation((tag: string) => {
       return {
         id: '',
         src: '',
@@ -56,7 +56,7 @@ describe('Forward Channel', () => {
     });
 
     // Mock global.app with type assertion
-    (global as any).app = {
+    global.app = {
       clients: {
         'test-client-id': {
           pc: {
@@ -85,39 +85,39 @@ describe('Forward Channel', () => {
     };
 
     // Mock navigator with type assertions
-    (global as any).navigator = {
+    global.navigator = {
       serviceWorker: {
-        register: jest.fn().mockResolvedValue({} as any), // Cast resolved value
-        ready: Promise.resolve({ then: jest.fn() } as any), // Cast resolved value
+        register: jest.fn().mockResolvedValue({}), // Cast resolved value
+        ready: Promise.resolve({ then: jest.fn() }), // Cast resolved value
         controller: {
           postMessage: jest.fn()
-        } as any, // Cast controller
+        }, // Cast controller
         addEventListener: jest.fn()
       }
     };
 
     // Mock MessageChannel with type assertion
-    (global as any).MessageChannel = jest.fn().mockImplementation(() => ({
+    global.MessageChannel = jest.fn().mockImplementation(() => ({
       port1: { onmessage: null }
     }));
 
     // Mock fetch with type assertion
-    (global as any).fetch = jest.fn().mockResolvedValue({
+    global.fetch = jest.fn().mockResolvedValue({
       status: 200,
       statusText: 'OK',
       headers: new Map([['Content-Type', 'text/plain']]),
       body: {
         getReader: jest.fn().mockReturnValue({
-          read: jest.fn().mockResolvedValue({ done: true, value: new Uint8Array([]) } as any) // Cast resolved value
+          read: jest.fn().mockResolvedValue({ done: true, value: new Uint8Array([]) }) // Cast resolved value
         })
       }
-    } as any); // Cast resolved value
+    }); // Cast resolved value
 
     // Mock alert with type assertion
-    (global as any).alert = jest.fn();
+    global.alert = jest.fn();
 
     // Mock URL with type assertion
-    (global as any).URL = class {
+    global.URL = class {
       searchParams = { // Define property directly
         set: jest.fn()
       };
@@ -125,21 +125,21 @@ describe('Forward Channel', () => {
     };
 
     // Mock window with type assertions
-    (global as any).window = {
+    global.window = {
       location: {
         href: 'http://example.com',
         host: 'example.com'
         // Add other Location properties if needed by tests, or cast
-      } as any,
+      },
       history: {
         pushState: jest.fn()
         // Add other History properties if needed by tests, or cast
-      } as any,
+      },
       setInterval: jest.fn().mockReturnValue(123)
     };
 
     // Mock prompt with type assertion
-    (global as any).prompt = jest.fn().mockReturnValue('http://127.0.0.1:5000');
+    global.prompt = jest.fn().mockReturnValue('http://127.0.0.1:5000');
 
 
     jest.clearAllMocks();
@@ -148,19 +148,19 @@ describe('Forward Channel', () => {
 
   test('forwardInit should set up cleanups and initial state', () => { // No longer needs async
     // Use the imported module variable and global.app
-    forwardModule.forwardInit((global as any).app);
+    forwardModule.forwardInit(global.app);
 
     // Verify the cleanups were set up
-    expect((global as any).app.cleanups['forward']).toBeDefined();
-    expect((global as any).app.allowed_host).toBeNull();
+    expect(global.app.cleanups['forward']).toBeDefined();
+    expect(global.app.allowed_host).toBeNull();
   });
 
   test('setupForwardChannel should create a data channel', () => { // No longer needs async
     // Use the imported module variable and global.app
-    forwardModule.setupForwardChannel((global as any).app, 'test-client-id');
+    forwardModule.setupForwardChannel(global.app, 'test-client-id');
 
     // Verify the data channel was created
-    expect((global as any).app.clients['test-client-id'].pc.createDataChannel).toHaveBeenCalledWith(
+    expect(global.app.clients['test-client-id'].pc.createDataChannel).toHaveBeenCalledWith(
       'forward',
       { negotiated: true, id: 3 }
     );
