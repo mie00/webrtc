@@ -14,7 +14,7 @@
     "test:coverage": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest --coverage",
     "test:unit": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest __tests__/unit",
     "test:integration": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest __tests__/integration",
-    "test:e2e": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest --config jest.config.cjs --runInBand __tests__/e2e" // Use config file
+    "test:e2e": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest --config jest.config.cjs --runInBand __tests__/e2e"
   },
   "keywords": [
     "webrtc",
@@ -53,7 +53,7 @@
     "ts-jest": "^29.3.2",
     "typescript": "^5.8.3",
     "vite": "^6.3.4",
-    "mkdirp": "^3.0.1", // Dependency for global setup
-    "rimraf": "^5.0.10"  // Dependency for global teardown
+    "mkdirp": "^3.0.1",
+    "rimraf": "^5.0.10"
   }
 }
