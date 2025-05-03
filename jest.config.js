@@ -1,6 +1,5 @@
 export default {
   preset: 'ts-jest/presets/default-esm', // Use ESM preset
-  // extensionsToTreatAsEsm: ['.ts', '.svelte'], // Remove this line, handled by preset
   testEnvironment: 'jsdom', // Use built-in jsdom environment
   moduleFileExtensions: ['ts', 'js', 'svelte'],
   transform: {
@@ -14,6 +13,8 @@ export default {
     '^.+\\.svelte$': ['svelte-jester', { preprocess: true }] // Ensure svelte-jester uses preprocess
   },
   testMatch: ['**/__tests__/**/*.test.(js|ts)'],
+  // Add this section to indicate which file extensions should be treated as ESM
+  extensionsToTreatAsEsm: ['.ts', '.svelte'],
   setupFiles: ['./jest.setup.js'],
   // globals section is deprecated for ts-jest config
   moduleNameMapper: {
