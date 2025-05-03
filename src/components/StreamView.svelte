@@ -8,7 +8,6 @@
   export let mirrored: boolean = false;
   export let controls: boolean = false;
   export let peerId: string | null = null;
-  export let streamId: string = normalizeStreamId(stream.id);
   
   const dispatch = createEventDispatcher();
   let mediaElement: HTMLVideoElement | HTMLAudioElement;

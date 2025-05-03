@@ -203,12 +203,12 @@
   let isRecording = false;
   
   async function handleRecord() {
-    if (window.app.recorder) {
+    if (isRecording) {
       stopRecording();
     } else {
       await startRecording();
     }
-    isRecording = !!window.app.recorder;
+    isRecording = !!isRecording;
   }
   
   function handleOpenQr() {
@@ -229,8 +229,8 @@
 
   async function handleFilePlay(event: Event) {
     videoNode.play();
-    const videoStream = videoNode.captureStream ? 
-      videoNode.captureStream() : 
+    const videoStream = (videoNode as any).captureStream ? 
+      (videoNode as any).captureStream() : 
       (videoNode as any).mozCaptureStream();
 
     updateStreamConfig({
@@ -263,7 +263,6 @@
            style="left: {position?.x}px; top: {position?.y}px; width: {position?.width}px; height: {position?.height}px;">
         <StreamView 
           stream={stream.stream}
-          streamId={stream.id}
           type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
           muted={stream.isLocal && stream.type !== 'file'} 
           mirrored={stream.isLocal && stream.type === 'camera'} 
