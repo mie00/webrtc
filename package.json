@@ -23,6 +23,29 @@
   ],
   "author": "",
   "license": "ISC",
-  "devDependencies": {},
-  "dependencies": {}
+  "devDependencies": {
+    "@babel/core": "^7.27.1",
+    "@babel/preset-env": "^7.27.1",
+    "@babel/preset-typescript": "^7.27.1",
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/svelte": "^5.2.7",
+    "@tsconfig/svelte": "^5.0.4",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.15.3",
+    "@types/webrtc": "^0.0.46",
+    "babel-jest": "^29.7.0",
+    "concurrently": "^9.1.2",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "svelte-check": "^4.1.7",
+    "svelte-jester": "^5.0.0",
+    "svelte-preprocess": "^6.0.3",
+    "ts-jest": "^29.3.2",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.4"
+  },
+  "dependencies": {
+    "svelte": "^5.28.2"
+  }
 }
