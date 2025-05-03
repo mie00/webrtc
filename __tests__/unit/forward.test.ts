@@ -124,7 +124,7 @@ describe('Forward Channel', () => {
 
   test('forwardInit should set up cleanups and initial state', async () => {
     // Use dynamic import and point to .ts file
-    const forwardModule = await import('../../src/lib/forwardBridge.ts');
+    const forwardModule = await import('../../src/lib/forwardBridge');
     
     // Call the function
     forwardModule.forwardInit(app);
@@ -136,7 +136,7 @@ describe('Forward Channel', () => {
 
   test('setupForwardChannel should create a data channel', async () => {
     // Use dynamic import and point to .ts file
-    const forwardModule = await import('../../src/lib/forwardBridge.ts');
+    const forwardModule = await import('../../src/lib/forwardBridge');
     
     // Call the function
     forwardModule.setupForwardChannel(app, 'test-client-id');
@@ -150,7 +150,7 @@ describe('Forward Channel', () => {
 
   test('concatUint8Arrays should correctly concatenate arrays', async () => {
     // Use dynamic import and point to .ts file
-    const forwardModule = await import('../../src/lib/forwardBridge.ts');
+    const forwardModule = await import('../../src/lib/forwardBridge');
     
     // Create test arrays
     const array1 = new Uint8Array([1, 2, 3]);

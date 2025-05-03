@@ -11,7 +11,7 @@ describe('SDP Compression', () => {
 });
 
 // Import from the .ts file
-import { compress, decompress } from '../../src/lib/utils/sdpCompress.ts';
+import { compress, decompress } from '../../src/lib/utils/sdpCompress';
 
 describe('SDP Compression', () => {
   beforeEach(() => {

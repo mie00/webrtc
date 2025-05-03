@@ -10,7 +10,7 @@ let file: typeof import('../../src/lib/utils/file.ts');
 describe('File Utilities', () => {
   beforeAll(async () => {
     // Import the module before tests run
-    file = await import('../../src/lib/utils/file.ts');
+    file = await import('../../src/lib/utils/file');
   });
 
   beforeEach(() => {

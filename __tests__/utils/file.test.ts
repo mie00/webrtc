@@ -5,7 +5,7 @@
 describe('File Utilities', () => {
   test('splitArrayBuffer should correctly split buffer into chunks', async () => {
     // Use dynamic import and point to .ts file
-    const { splitArrayBuffer } = await import('../../src/lib/utils/file.ts');
+    const { splitArrayBuffer } = await import('../../src/lib/utils/file');
     
     // Create a sample ArrayBuffer
     const buffer = new ArrayBuffer(1000);

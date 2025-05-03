@@ -31,7 +31,7 @@ describe('Stream Management', () => {
     global.app = app;
     
     // Import the module (use the bridge) - Use dynamic import
-    const streamModule = await import('../../src/lib/streamBridge.ts');
+    const streamModule = await import('../../src/lib/streamBridge');
     if (streamModule.streamInit) {
       streamModule.streamInit(app);
     }
@@ -39,7 +39,7 @@ describe('Stream Management', () => {
 
   // Make test async
   test('normalizeStreamId should remove curly braces', async () => {
-    const stream = await import('../../src/lib/streamBridge.ts'); // Use the bridge
+    const stream = await import('../../src/lib/streamBridge'); // Use the bridge
     if (stream.normalizeStreamId) {
       expect(stream.normalizeStreamId('{stream-id-123}')).toBe('stream-id-123');
       expect(stream.normalizeStreamId('stream-id-123')).toBe('stream-id-123');

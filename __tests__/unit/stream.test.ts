@@ -55,7 +55,7 @@ describe('Stream Management', () => {
   // Setup mock functions before importing the module
   beforeAll(async () => {
     // Import the module once after mocks are set up
-    streamModule = await import('../../src/lib/streamBridge.ts');
+    streamModule = await import('../../src/lib/streamBridge');
   });
 
   beforeEach(() => {

@@ -239,7 +239,7 @@ describe('Main Application', () => {
     };
     
     // Use dynamic import for ESM compatibility in tests
-    const mainModule = await import('../../src/main.ts');
+    const mainModule = await import('../../src/main');
     
     // Create a mock client
     const mockClient = {
@@ -304,7 +304,7 @@ describe('Main Application', () => {
     const pcCloseSpy = clientObj.pc.close;
 
     // Use dynamic import for ESM compatibility in tests
-    const mainModule = await import('../../src/main.ts');
+    const mainModule = await import('../../src/main');
 
     // Access webRTCApp via rtcUtils and spy on the instance's method
     // No need to assign global.app, the instance manages its own state
@@ -343,7 +343,7 @@ describe('Main Application', () => {
 
   test('uuidv4 should generate a valid UUID', async () => { // Already async, no change needed here, but including for context if needed
     // Use dynamic import for ESM compatibility in tests
-    const mainModule = await import('../../src/main.ts');
+    const mainModule = await import('../../src/main');
     
     // Call the function via rtcUtils
     const uuid = mainModule.rtcUtils.uuidv4();
@@ -365,10 +365,10 @@ describe('Main Application', () => {
     jest.mock('../../src/lib/streamBridge.ts', () => ({ streamInit: mockStreamInit }));
     jest.mock('../../src/lib/forwardBridge.ts', () => ({ forwardInit: mockForwardInit }));
     jest.mock('../../src/lib/chatBridge.ts', () => ({ chatInit: mockChatInit }));
-    jest.mock('../../src/lib/fileBridge.ts', () => ({ fileInit: mockFileInit }));
+    jest.mock('../../src/lib/fileBridge', () => ({ fileInit: mockFileInit }));
 
     // Import after mocks are set up
-    const mainModule = await import('../../src/main.ts');
+    const mainModule = await import('../../src/main');
     const webRTCAppInstance = mainModule.rtcUtils.webRTCApp; // Get the instance created by main.ts
 
     // Reset inited flag if necessary before calling init

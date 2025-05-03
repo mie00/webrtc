@@ -29,8 +29,8 @@ export default {
   moduleNameMapper: {
     // Handle module aliases for ESM
     '^\\$lib/(.*)$': '<rootDir>/src/lib/$1',
-    // Handle .js extension in imports when importing .ts files (ESM needs explicit extensions)
-    // '^(\\.{1,2}/.*)\\.js$': '$1' // This might not be needed with ESM preset, test carefully
+    // Map .js imports to .ts files for ESM module resolution in tests
+    '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   // Remove transformIgnorePatterns - let the preset and transformers handle it
   // transformIgnorePatterns: [ ... ],
