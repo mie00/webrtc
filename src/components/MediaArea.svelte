@@ -141,6 +141,7 @@
   
   async function handleToggleBlur() {
     const newValue = isBlurEnabled ? 'no' : 'yes';
+    isBlurEnabled = !isBlurEnabled;
     updateConfig('blur-video', newValue);
     
     // If video is already enabled, restart it to apply the blur effect
