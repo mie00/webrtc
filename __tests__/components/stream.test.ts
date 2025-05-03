@@ -51,7 +51,7 @@ describe('Stream Management', () => {
 
   // Make test async
   test('getStreamElemId should return correct element ID', async () => {
-    const stream = await import('../../src/lib/streamBridge.ts'); // Use the bridge
+    const stream = await import('../../src/lib/streamBridge'); // Use the bridge
     if (stream.getStreamElemId) {
       expect(stream.getStreamElemId('{stream-id-123}')).toBe('stream-stream-id-123');
     } else {
