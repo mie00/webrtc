@@ -58,18 +58,22 @@ async function bodyToArrayBuffer(body: ReadableStream<Uint8Array> | null): Promi
     return uint8Array;
 }
 
-function objectToArrayBuffer(data: Record<string, any>): ArrayBuffer {
-    const keys = Object.keys(data);
-    const length = keys.length;
-
-    const buffer = new ArrayBuffer(length);
-    const uint8Array = new Uint8Array(buffer);
-
-    for (let i = 0; i < length; i++) {
-        uint8Array[i] = data[i];
+// This function assumes 'data' is an object like { '0': byte0, '1': byte1, ... }
+// representing the bytes of the buffer. This might need adjustment
+// depending on how the data is actually structured when sent from the client.
+function objectToArrayBuffer(data: Record<string, number>): ArrayBufferLike {
+    // If data is already an ArrayBuffer or TypedArray, return it directly
+    if (data instanceof ArrayBuffer) {
+        return data;
+    }
+    if (ArrayBuffer.isView(data)) {
+        return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
     }
 
-    return buffer;
+    // Otherwise, assume object structure and convert
+    const values = Object.values(data);
+    const uint8Array = new Uint8Array(values);
+    return uint8Array.buffer;
 }
 
 (self as unknown as ServiceWorkerGlobalScope).addEventListener('fetch', (event: FetchEvent) => {
@@ -132,12 +136,17 @@ function objectToArrayBuffer(data: Record<string, any>): ArrayBuffer {
     console.log("handling2 fetch for host", homepage, host, hurl, rurl, event.request.referrer, event.request.url, id);
 
     const postRequest = async function (): Promise<void> {
-        console.log(sw.clientId);
-        if (!sw.clientId) return;
-        
+        if (!sw.clientId) {
+            console.error("Service worker has no client ID to post message to for:", rurl.toString());
+            throw new Error("No client ID available"); // Throw error to reject the promise
+        }
+
         const client = await sw.clients.get(sw.clientId);
-        if (!client) return;
-        
+        if (!client) {
+            console.error("Could not find client with ID:", sw.clientId);
+            throw new Error("Client not found"); // Throw error to reject the promise
+        }
+
         console.log("sending message to window", client.url);
         const body = await bodyToArrayBuffer(event.request.body);
         
@@ -154,14 +163,41 @@ function objectToArrayBuffer(data: Record<string, any>): ArrayBuffer {
         sw.handlers[id] = (data, err) => {
             console.log("called callback for fetch", data, err);
             if (err) {
-                reject(err);
+                console.error("Fetch handler received error:", err);
+                // Respond with a generic error, or reject the promise
+                // reject(new Error("Failed to fetch")); // Option 1: Reject promise
+                resolve(new Response("Service Worker fetch failed", { status: 500 })); // Option 2: Respond with error
+                delete sw.handlers[id];
                 return;
             }
-            const arrayBuffer = objectToArrayBuffer(data.body);
-            resolve(new Response(arrayBuffer, data));
-            delete sw.handlers[id];
+            try {
+                const arrayBuffer = objectToArrayBuffer(data.body);
+                // Ensure headers are in the correct format for the Response constructor
+                const responseHeaders = new Headers();
+                if (data.headers) {
+                    for (const [key, value] of Object.entries(data.headers)) {
+                        if (typeof value === 'string') {
+                            responseHeaders.append(key, value);
+                        }
+                    }
+                }
+                resolve(new Response(arrayBuffer, {
+                    status: data.status || 200,
+                    statusText: data.statusText || 'OK',
+                    headers: responseHeaders
+                }));
+            } catch (conversionError) {
+                 console.error("Error converting/creating response in SW:", conversionError, data);
+                 resolve(new Response("Service Worker response processing error", { status: 500 }));
+            } finally {
+                 delete sw.handlers[id];
+            }
         };
-    }));
+    })).catch(fetchError => {
+        // Catch errors from postRequest (e.g., no client ID)
+        console.error("Error setting up fetch handler promise:", fetchError);
+        return new Response("Service Worker internal error", { status: 500 });
+    });
 
     event.respondWith(resp);
 });
