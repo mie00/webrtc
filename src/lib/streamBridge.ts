@@ -8,10 +8,10 @@ import {
   addRemoteStream,
   removeRemoteStream,
   type StreamType
-} from '../stores/streamStore';
+} from '../stores/streamStore.js';
 import {
   getAllConfig
-} from '../stores/configStore';
+} from '../stores/configStore.js';
 import { get } from 'svelte/store';
 import {
   type AppWithStreamConfig,
@@ -22,9 +22,9 @@ import {
   stopProcessingAudio,
   setupTrack,
   tearDownStream,
-} from './media/stream'
+} from './media/stream.js'
 // Export background utilities
-import { backgroundChange } from './utils/background';
+import { backgroundChange } from './utils/background.js';
 
 // This module serves as a bridge between the WebRTC app and Svelte components
 
@@ -263,7 +263,7 @@ export {
   setupTrack, 
   setupStream, 
   getStreamsDims,
-} from './media/stream';
+} from './media/stream.js';
 
 // Helper function to send negotiation messages
 function sendNego(client: WebRTCClient, data: any): void {

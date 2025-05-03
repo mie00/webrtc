@@ -30,7 +30,7 @@
     const app = webRTCApp.getApp();
     
     // Import the sendChatMessage function from our bridge
-    const { sendChatMessage } = await import('../lib/chatBridge');
+    const { sendChatMessage } = await import('../lib/chatBridge.js');
     sendChatMessage(message.trim(), app.config['user-name'] || 'You');
     
     // Clear input
@@ -42,7 +42,7 @@
     if (!file) return;
     
     // Import the sendFile function from our bridge
-    const { sendFile } = await import('../lib/fileBridge');
+    const { sendFile } = await import('../lib/fileBridge.js');
     sendFile(file);
     
     // Reset file input

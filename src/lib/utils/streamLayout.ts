@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
-import { streamStore, type LayoutType } from '../../stores/streamStore';
-import { normalizeStreamId } from '../streamBridge';
+import { streamStore, type LayoutType } from '../../stores/streamStore.js';
+import { normalizeStreamId } from '../streamBridge.js';
 
 /**
  * Calculate optimal layout for streams in a container

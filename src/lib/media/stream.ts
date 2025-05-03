@@ -1,7 +1,7 @@
 // Import types from global.d.ts
 /// <reference path="../../../types/global.d.ts" />
 
-import { getAllConfig } from '../../stores/configStore';
+import { getAllConfig } from '../../stores/configStore.js';
 
 // Use type assertion to handle vendor prefixes
 window.AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -165,7 +165,7 @@ const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local',
             if (appWithConfig.config && appWithConfig.config['blur-video'] === 'yes') {
                 try {
                     // Import the backgroundChange function
-                    const { backgroundChange } = await import('../utils/background');
+                    const { backgroundChange } = await import('../utils/background.js');
                     const blurredStream = await backgroundChange(videoElem);
                     setupStream(blurredStream, "low", "motion", true);
                     stream = blurredStream; // Replace the original stream with the blurred one

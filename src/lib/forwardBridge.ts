@@ -105,7 +105,7 @@ import {
   sendData, 
   concatUint8Arrays,
   setButton
-} from './webrtc/forward';
+} from './webrtc/forward.js';
 
 /**
  * Set up forward channel for a client

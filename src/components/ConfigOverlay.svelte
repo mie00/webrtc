@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { configStore, updateConfig } from '../stores/configStore';
+  import { configStore, updateConfig } from '../stores/configStore.js';
   
   // Props
   export let show = false;

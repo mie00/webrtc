@@ -8,7 +8,7 @@ describe('SDP Compression', () => {
   });
 });
 
-import { compress, decompress } from '../../js/sdpcompress.js';
+import { compress, decompress } from '../src/lib/utils/sdpCompress.js';
 
 describe('SDP Compression', () => {
   beforeEach(() => {

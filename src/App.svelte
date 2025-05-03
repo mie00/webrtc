@@ -5,9 +5,9 @@
   import CopyOverlay from './components/CopyOverlay.svelte';
   import ConfigOverlay from './components/ConfigOverlay.svelte';
   import ContextMenu from './components/ContextMenu.svelte';
-  import { configStore, getAllConfig } from './stores/configStore';
-  import { streamStore } from './stores/streamStore';
-  import { compress, decompress } from './lib/utils/sdpCompress';
+  import { configStore, getAllConfig } from './stores/configStore.js';
+  import { streamStore } from './stores/streamStore.js';
+  import { compress, decompress } from './lib/utils/sdpCompress.js';
   
   // Props
   export let webRTCApp;
