@@ -8,7 +8,8 @@ describe('SDP Compression', () => {
   });
 });
 
-import { compress, decompress } from '../src/lib/utils/sdpCompress.js';
+// Correct the relative path
+import { compress, decompress } from '../../src/lib/utils/sdpCompress.js';
 
 describe('SDP Compression', () => {
   beforeEach(() => {

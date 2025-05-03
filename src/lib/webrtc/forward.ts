@@ -1,4 +1,4 @@
-/// <reference path="../types/global.d.ts" />
+/// <reference path="../../types/global.d.ts" />
 
 interface ForwardClient extends WebRTCClient {
   forward: RTCDataChannel;
@@ -25,7 +25,7 @@ async function sendData(reader: ReadableStreamDefaultReader<Uint8Array>, id: str
   console.log("reader", reader);
   const max_size = 2 * 1024;
   let offset = 0;
-  let gvalue: Uint8Array | null = null;
+  let gvalue: Uint8Array | undefined = undefined; // Allow undefined from reader.read()
   let gdone = false;
   let sentOnBuffer = 0;
 
@@ -188,7 +188,7 @@ function setupForwardChannel(app: ForwardApp, cid: string): void {
                   type: "end",
                   id: data.id,
                 }));
-                return null;
+                return; // Return void, not null
               }
               const reader = response.body.getReader();
               await sendData(reader, data.id, cid);
