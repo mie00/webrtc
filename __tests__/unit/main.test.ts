@@ -1,5 +1,5 @@
 import { describe, beforeEach, jest, test, expect, beforeAll } from '@jest/globals';
-import type { App } from '../../types/global'; // Import App type
+// import type { App } from '../../types/global'; // Remove App type import
 
 /**
  * @jest-environment jsdom
@@ -100,14 +100,14 @@ describe('Main Application', () => {
     });
 
     // Mock createElement with type assertion
-    (document as any).createElement = jest.fn().mockImplementation((tag: string) => {
-      return {
+    (document as any).createElement = jest.fn().mockImplementation((tag: string) => { // Cast document
+      return { // Cast return value
         style: {},
         classList: {
           add: jest.fn()
         },
         appendChild: jest.fn()
-      };
+      } as any;
     });
 
     (document as any).createDocumentFragment = jest.fn().mockReturnValue({
@@ -277,7 +277,7 @@ describe('Main Application', () => {
       viewStreams: {},
       participants: {},
       inited: false,
-    } as App; // Use App type
+    } as any; // Use any type
 
     // mainModule is already imported in beforeAll/beforeEach
 
@@ -296,7 +296,8 @@ describe('Main Application', () => {
     expect(mockClient.nego_dc!.send).toHaveBeenCalledWith(expect.stringContaining('test-value')); // Use non-null assertion
 
     // Verify the message ID was added (cast argument to string)
-    expect(JSON.parse(mockClient.nego_dc!.send.mock.calls[0][0] as string).id).toBeDefined(); // Use non-null assertion
+    const sendMock = mockClient.nego_dc!.send as jest.Mock; // Cast send to jest.Mock
+    expect(JSON.parse(sendMock.mock.calls[0][0] as string).id).toBeDefined(); // Use non-null assertion
   });
 
   test('destroyClient should clean up client resources', () => {
@@ -330,7 +331,7 @@ describe('Main Application', () => {
       nego_handlers: {},
       participants: {},
       inited: false,
-    } as App; // Assign to global and cast as App
+    } as any; // Assign to global and cast as any
 
     // Store a reference to the client object and its PC before destroying
     const clientObj = (global as any).app.clients['test-cid'];

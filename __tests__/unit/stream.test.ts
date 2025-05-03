@@ -5,9 +5,9 @@ import { describe, jest, beforeEach, test, expect } from '@jest/globals';
  */
 
 // Mock the backgroundChange function
-(global as any).backgroundChange = jest.fn().mockResolvedValue({ // Cast global
+(global as any).backgroundChange = jest.fn().mockResolvedValue({
   getTracks: jest.fn().mockReturnValue([])
-} as any); // Cast resolved value
+} as any);
 
 // Restore mocks for specific stores that import svelte/store
 jest.mock('../../src/stores/streamStore', () => ({
@@ -65,9 +65,9 @@ describe('Stream Management', () => {
     // jest.resetModules(); // Keep this commented unless clearAllMocks isn't enough
 
     // Setup DOM mocks with type assertion
-    (document as any).getElementById = jest.fn().mockImplementation((id: string): HTMLElement | null => { // Add return type
+    (document as any).getElementById = jest.fn().mockImplementation((id: string): HTMLElement | null => {
       if (id === 'toggle-audio' || id === 'toggle-video' || id === 'toggle-screen') {
-        return { // Cast return object to any to satisfy HTMLElement properties
+        return {
           addEventListener: jest.fn(),
           classList: {
             add: jest.fn(),
@@ -101,8 +101,8 @@ describe('Stream Management', () => {
     });
 
     // Mock createElement with type assertion
-    (document as any).createElement = jest.fn().mockImplementation((tag: string): HTMLElement => { // Add return type
-      return { // Cast return object to any to satisfy HTMLElement properties
+    (document as any).createElement = jest.fn().mockImplementation((tag: string): HTMLElement => {
+      return {
         srcObject: null,
         classList: {
           add: jest.fn()
@@ -113,9 +113,9 @@ describe('Stream Management', () => {
         controls: false,
         disablePictureInPicture: false,
         playsInline: false,
-        play: jest.fn().mockResolvedValue(undefined as any),
+        play: jest.fn().mockResolvedValue(undefined as any), // Keep cast here
         appendChild: jest.fn(),
-      } as any;
+      } as any; // Keep cast here
     });
 
     // Mock createTextNode, querySelectorAll, querySelector with type assertions
@@ -144,9 +144,9 @@ describe('Stream Management', () => {
             addTransceiver: jest.fn(),
             addEventListener: jest.fn(),
             getTransceivers: jest.fn().mockReturnValue([]),
-            getStats: jest.fn().mockResolvedValue(new Map() as any)
-          } as any, // Cast pc mock
-          forward: {} as any // Cast forward mock
+            getStats: jest.fn().mockResolvedValue(new Map() as any) // Keep cast here
+          } as any,
+          forward: {} as any
         }
       },
       cleanups: {},
@@ -174,7 +174,7 @@ describe('Stream Management', () => {
               }
             ]),
             getVideoTracks: jest.fn().mockReturnValue([]),
-          } as any),
+          } as any), // Keep cast here
           getDisplayMedia: jest.fn().mockResolvedValue({
             id: 'test-screen-id',
             getTracks: jest.fn().mockReturnValue([
@@ -186,11 +186,11 @@ describe('Stream Management', () => {
               }
             ]),
             getVideoTracks: jest.fn().mockReturnValue([]),
-          } as any),
+          } as any), // Keep cast here
           enumerateDevices: jest.fn().mockResolvedValue([
             { kind: 'audioinput', label: 'Test Microphone', deviceId: 'audio-device-id', groupId: 'audio-group-id' },
             { kind: 'videoinput', label: 'Test Camera', deviceId: 'video-device-id', groupId: 'video-group-id' },
-          ] as any)
+          ] as any) // Keep cast here
         },
         userAgent: 'test-user-agent',
       },
@@ -287,8 +287,8 @@ describe('Stream Management', () => {
       controls: false,
       disablePictureInPicture: false,
       playsInline: false,
-      play: jest.fn().mockResolvedValue(undefined as any)
-    } as any; // Cast mockMediaElement
+      play: jest.fn().mockResolvedValue(undefined as any) // Keep cast here
+    } as any;
 
     // Ensure media container exists using jest.spyOn
     const getElementByIdSpy = jest.spyOn(document, 'getElementById').mockReturnValueOnce({
