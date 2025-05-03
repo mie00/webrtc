@@ -16,7 +16,7 @@ async function setupStreams(merger: any): Promise<void> {
   const streams = (await getStreamsDims()).filter(({ width, height }) => width && height);
   const videoStreamsLength = streams.length;
   
-  for (let [key, value] of Object.entries(window.app.viewStreams || {})) {
+  for (let [key, value] of Object.entries(window.app.viewStreams || {}) as [string, MediaStream][]) {
     if (value.getVideoTracks().length === 0) {
       streams.push({ key });
     }

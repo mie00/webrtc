@@ -57,8 +57,8 @@ const tearDownStream = async (stream: MediaStream): Promise<void> => {
     stream.getTracks().forEach(function (track) {
         track.stop();
         track.dispatchEvent(new Event("ended"));
-        for (var client of Object.values(window.app.clients)) {
-            client.pc?.getTransceivers().forEach((transceiver) => {
+        for (var client of Object.values(window.app.clients) as WebRTCClient[]) {
+            client.pc?.getTransceivers().forEach((transceiver: RTCRtpTransceiver) => {
                 if (transceiver.sender.track?.id === track.id) {
                     transceiver.stop();
                 }
@@ -76,7 +76,7 @@ const setupTrack = (track: MediaStreamTrack, stream: MediaStream, priority: RTCP
         // TODO: make configurable
         track.contentHint = contentHint;
     }
-    for (var client of Object.values(window.app.clients)) {
+    for (var client of Object.values(window.app.clients) as WebRTCClient[]) {
         client.pc?.addTransceiver(track, {
             streams: [stream], sendEncodings: [
                 { priority: priority, rid: "o" },
@@ -225,14 +225,14 @@ const getStreamsDims = async (): Promise<StreamDimensions[]> => {
     let elems: StreamDimensions[] = [];
     if (!window.app.viewStreams) return elems;
     let statsDict: Record<string, { width?: number, height?: number }> = {};
-    for (const client of Object.values(window.app.clients)) {
-        (await client.pc?.getStats())?.forEach(stat => {
+    for (const client of Object.values(window.app.clients) as WebRTCClient[]) {
+        (await client.pc?.getStats())?.forEach((stat: any) => {
             if (stat.type === 'inbound-rtp' && stat.kind === 'video') {
                 statsDict[normalizeStreamId(stat.trackIdentifier)] = { width: stat.frameWidth, height: stat.frameHeight };
             }
         });
     }
-    for (let [key, value] of Object.entries(window.app.viewStreams)) {
+    for (let [key, value] of Object.entries(window.app.viewStreams) as [string, MediaStream][]) {
         if (value.getVideoTracks().length === 0) {
             continue;
         }

@@ -181,7 +181,8 @@ function objectToArrayBuffer(data: Record<string, number>): ArrayBufferLike {
                         }
                     }
                 }
-                resolve(new Response(arrayBuffer, {
+                // Cast ArrayBufferLike to ArrayBuffer for Response constructor
+                resolve(new Response(arrayBuffer as ArrayBuffer, {
                     status: data.status || 200,
                     statusText: data.statusText || 'OK',
                     headers: responseHeaders
