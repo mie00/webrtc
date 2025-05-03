@@ -1,4 +1,4 @@
-import { EMOJIS } from '../utils/emojis';
+import { EMOJIS } from '../utils/emojis.js';
 
 // Type definitions for local use
 interface NegoMessage {
@@ -186,10 +186,10 @@ export class WebRTCApp {
 
     // Initialize other modules
     // Import dynamically to avoid circular dependencies
-    const { streamInit } = await import('../streamBridge');
-    const { forwardInit } = await import('../forwardBridge');
-    const { chatInit } = await import('../chatBridge');
-    const { fileInit } = await import('../fileBridge');
+    const { streamInit } = await import('../streamBridge.js');
+    const { forwardInit } = await import('../forwardBridge.js');
+    const { chatInit } = await import('../chatBridge.js');
+    const { fileInit } = await import('../fileBridge.js');
     streamInit(this.app);
     forwardInit(this.app);
     chatInit(this.app);
@@ -277,10 +277,10 @@ export class WebRTCApp {
     };
 
     // Import dynamically to avoid circular dependencies
-    const { setupTrackHandler } = await import('../streamBridge');
-    const { setupForwardChannel } = await import('../forwardBridge');
-    const { setupChatChannel } = await import('../chatBridge');
-    const { setupFileChannel } = await import('../fileBridge');
+    const { setupTrackHandler } = await import('../streamBridge.js');
+    const { setupForwardChannel } = await import('../forwardBridge.js');
+    const { setupChatChannel } = await import('../chatBridge.js');
+    const { setupFileChannel } = await import('../fileBridge.js');
     setupTrackHandler(this.app, cid);
     setupChatChannel(this.app, cid);
     setupFileChannel(this.app, cid);

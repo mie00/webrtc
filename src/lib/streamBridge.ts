@@ -7,11 +7,12 @@ import {
   removeLocalStream,
   addRemoteStream,
   removeRemoteStream,
-  type StreamType
-} from '../stores/streamStore';
+  type StreamType,
+  type StreamState // Import StreamState
+} from '../stores/streamStore.js';
 import {
   getAllConfig
-} from '../stores/configStore';
+} from '../stores/configStore.js';
 import { get } from 'svelte/store';
 import {
   type AppWithStreamConfig,
@@ -22,9 +23,9 @@ import {
   stopProcessingAudio,
   setupTrack,
   tearDownStream,
-} from './media/stream'
+} from './media/stream.js'
 // Export background utilities
-import { backgroundChange } from './utils/background';
+import { backgroundChange } from './utils/background.js';
 
 // This module serves as a bridge between the WebRTC app and Svelte components
 
@@ -64,11 +65,12 @@ export function streamInit(originalApp: App): void {
         
         try {
           Object.values(app.clients).forEach((client) => 
-            sendNego(client, { type: 'stream.end', stream: normalizeStreamId(stream.id) })
+            // Add type assertion for clarity if needed, though Object.values should return WebRTCClient[]
+            sendNego(client as WebRTCClient, { type: 'stream.end', stream: normalizeStreamId(stream.id) })
           );
         } catch { }
         
-        stream.getTracks().map((track) => track.stop());
+        stream.getTracks().map((track: MediaStreamTrack) => track.stop()); // Add type MediaStreamTrack
         
         // Remove from enhanced store structure
         removeLocalStream(streamId);
@@ -77,9 +79,12 @@ export function streamInit(originalApp: App): void {
   };
   
   // Set up a subscription to sync store changes back to app object
-  streamStore.subscribe(state => {
+  streamStore.subscribe((state: StreamState) => { // Add type StreamState
     // This ensures the app object stays in sync with the store
-    app.streamConfig = { ...state.streamConfig };
+    // Assuming state has streamConfig, adjust if StreamState structure is different
+    if (state.streamConfig) { 
+      app.streamConfig = { ...state.streamConfig };
+    }
   });
 }
 
@@ -200,12 +205,15 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
   } else if (changed === 'local') {
     if (app.streamConfig.local && app.streamConfig.videoStream) {
       stream = app.streamConfig.videoStream;
-      stream.getTracks().forEach(track => {
-        setupTrack(track, stream!, "medium", undefined, false);
-      });
-      stream.onaddtrack = (ev: MediaStreamTrackEvent) => {
-        setupTrack(ev.track, stream!, "medium", undefined, false);
-      };
+      // Add null check for stream
+      if (stream) { 
+        stream.getTracks().forEach(track => {
+          setupTrack(track, stream!, "medium", undefined, false);
+        });
+        stream.onaddtrack = (ev: MediaStreamTrackEvent) => {
+          setupTrack(ev.track, stream!, "medium", undefined, false);
+        };
+      }
     }
   }
   
