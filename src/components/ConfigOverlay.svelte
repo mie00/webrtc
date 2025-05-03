@@ -1,14 +1,18 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { configStore, updateConfig } from '../stores/configStore.js';
+  import { configStore, updateConfig, type Config } from '../stores/configStore.js'; // Import Config type
   
   // Props
   export let show = false;
   
-  const dispatch = createEventDispatcher();
+  // Define event map for type safety
+  const dispatch = createEventDispatcher<{
+    close: void;
+    configUpdated: void;
+  }>();
   
   // Event handlers
-  function handleClose(event) {
+  function handleClose(event: Event) { // Add type for event
     if (event.target === event.currentTarget) {
       dispatch('close');
     }
@@ -22,8 +26,10 @@
   }
   
   // Handle input changes directly
-  function handleInputChange(event, key) {
-    updateConfig(key, event.target.value);
+  // Add types for event and key. Use type assertion for event.target.value
+  function handleInputChange(event: Event, key: keyof Config) { 
+    const target = event.target as HTMLInputElement | HTMLSelectElement;
+    updateConfig(key, target.value);
   }
 </script>
 
