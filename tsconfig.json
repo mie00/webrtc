@@ -4,6 +4,7 @@
     "target": "ESNext",
     "useDefineForClassFields": true,
     "module": "ESNext",
+    "moduleResolution": "NodeNext", // Add this line
     "resolveJsonModule": true,
     "isolatedModules": true,
     "sourceMap": true,

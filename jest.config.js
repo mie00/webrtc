@@ -4,10 +4,11 @@ export default {
   testEnvironment: 'jsdom', // Use built-in jsdom environment
   moduleFileExtensions: ['ts', 'js', 'svelte'],
   transform: {
-    '^.+\\.js$': 'babel-jest', // Keep babel-jest for JS files if needed, or remove if all JS is handled by ts-jest/preset
+    // Remove babel-jest transform
+    // '^.+\\.js$': 'babel-jest',
     '^.+\\.ts$': ['ts-jest', {
-      tsconfig: 'tsconfig.json',
-      useESM: true, // Re-add this line for ESM preset
+      // tsconfig: 'tsconfig.json', // Can often be omitted if it's the default name
+      useESM: true, // Required by the ESM preset
       // isolatedModules: true, // Keep if needed, often default/handled by tsconfig
     }],
     '^.+\\.svelte$': ['svelte-jester', { preprocess: true }] // Ensure svelte-jester uses preprocess
