@@ -1,23 +1,19 @@
 export default {
   preset: 'ts-jest/presets/js-with-babel',
-  testEnvironment: 'jest-environment-jsdom-sixteen',
+  testEnvironment: 'jsdom', // Use built-in jsdom environment
   moduleFileExtensions: ['ts', 'js', 'svelte'],
   transform: {
     '^.+\\.js$': 'babel-jest',
     '^.+\\.ts$': ['ts-jest', {
-      useESM: true
+      tsconfig: 'tsconfig.json', // Move tsconfig here
+      useESM: true,
+      // isolatedModules: true, // Keep if needed, often default/handled by tsconfig
     }],
     '^.+\\.svelte$': 'svelte-jester'
   },
   testMatch: ['**/__tests__/**/*.test.(js|ts)'],
   setupFiles: ['./jest.setup.js'],
-  globals: {
-    'ts-jest': {
-      isolatedModules: true,
-      tsconfig: 'tsconfig.json',
-      useESM: true
-    }
-  },
+  // globals section is deprecated for ts-jest config
   moduleNameMapper: {
     // Handle module aliases
     '^\\$lib(.*)$': '<rootDir>/src/lib$1',
