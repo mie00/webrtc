@@ -6,7 +6,8 @@ export default {
     '^.+\\.js$': 'babel-jest',
     '^.+\\.ts$': ['ts-jest', {
       useESM: true
-    }]
+    }],
+    '^.+\\.svelte$': 'svelte-jester'
   },
   testMatch: ['**/__tests__/**/*.test.(js|ts)'],
   setupFiles: ['./jest.setup.js'],
