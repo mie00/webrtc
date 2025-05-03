@@ -24,7 +24,7 @@ export default {
   },
   // Ensure svelte and potentially other ESM modules in node_modules are transformed
   transformIgnorePatterns: [
-    "/node_modules/(?!(@?svelte)/)" // Allow transforming svelte and @svelte packages
+    '<rootDir>/node_modules/(?!(@?svelte)/)' // Use <rootDir> and allow transforming svelte packages
   ],
   collectCoverageFrom: [
     'src/**/*.{js,ts,svelte}',
