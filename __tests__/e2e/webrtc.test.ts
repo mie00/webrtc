@@ -12,7 +12,7 @@ declare global {
 
 // --- Configuration ---
 // IMPORTANT: Replace these selectors with actual values from your application!
-const INVITE_URL_SELECTOR = '#selector-for-invite-url'; // <-- Replace with selector for the invite URL element (e.g., input, span)
+const INVITE_URL_SELECTOR = 'button ::-p-text(Copy)'; // <-- Replace with selector for the invite URL element (e.g., input, span)
 const CALL_BUTTON_SELECTOR = '#selector-for-call-button'; // <-- Replace with selector for the green call button
 const CONNECTION_INDICATOR_SELECTOR = '#selector-for-connection-indicator'; // <-- Replace with selector for element indicating connection success (must work in both pages)
 
