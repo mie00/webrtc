@@ -30,7 +30,7 @@ describe('Chat Functionality', () => {
   };
 
   // Import WebRTCApp and spy on its log method
-  const { WebRTCApp } = require('../../js/WebRTCApp');
+  const { WebRTCApp } = require('../../src/lib/webrtc/WebRTCApp.js'); // Updated path
   jest.spyOn(WebRTCApp, 'log').mockImplementation(() => {});
 
   beforeEach(() => {
@@ -39,7 +39,7 @@ describe('Chat Functionality', () => {
 
   test('setupChatChannel should create a data channel', () => {
     // Import the module
-    const chatModule = require('../../js/chat');
+    const chatModule = require('../../src/lib/chatBridge.js'); // Use the bridge
     
     // Call the function
     chatModule.setupChatChannel(app, 'test-client-id');
@@ -52,7 +52,7 @@ describe('Chat Functionality', () => {
   });
 
   test('chat data channel should handle messages', () => {
-    const chatModule = require('../../js/chat');
+    const chatModule = require('../../src/lib/chatBridge.js'); // Use the bridge
     
     // Call the function
     chatModule.setupChatChannel(app, 'test-client-id');

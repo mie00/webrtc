@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-const file = require('../../js/file');
+const file = require('../../src/lib/utils/file.js'); // Updated path
 
 describe('File Utilities', () => {
   beforeEach(() => {

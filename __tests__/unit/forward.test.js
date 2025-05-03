@@ -121,8 +121,8 @@ describe('Forward Channel', () => {
   });
 
   test('forwardInit should set up cleanups and initial state', () => {
-    // Import the module - use the compiled JS file for testing
-    const forwardModule = require('../../js/forward');
+    // Import the module - use the compiled JS file for testing (bridge)
+    const forwardModule = require('../../src/lib/forwardBridge.js');
     
     // Call the function
     forwardModule.forwardInit(app);
@@ -133,7 +133,7 @@ describe('Forward Channel', () => {
   });
 
   test('setupForwardChannel should create a data channel', () => {
-    const forwardModule = require('../../js/forward');
+    const forwardModule = require('../../src/lib/forwardBridge.js'); // Use the bridge
     
     // Call the function
     forwardModule.setupForwardChannel(app, 'test-client-id');
@@ -146,7 +146,9 @@ describe('Forward Channel', () => {
   });
 
   test('concatUint8Arrays should correctly concatenate arrays', () => {
-    const forwardModule = require('../../js/forward');
+    // This function might now be in webrtc/forward.js or the bridge
+    // Let's assume it's exported from the bridge for now
+    const forwardModule = require('../../src/lib/forwardBridge.js'); 
     
     // Create test arrays
     const array1 = new Uint8Array([1, 2, 3]);

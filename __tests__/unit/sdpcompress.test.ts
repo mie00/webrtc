@@ -8,7 +8,7 @@ describe('SDP Compression', () => {
   });
 });
 
-// Correct the relative path
+// Correct the relative path (assuming tests run on compiled JS)
 import { compress, decompress } from '../../src/lib/utils/sdpCompress.js';
 
 describe('SDP Compression', () => {
