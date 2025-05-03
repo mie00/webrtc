@@ -9,7 +9,7 @@
   import { configStore, getAllConfig } from './stores/configStore.js';
   import { streamStore } from './stores/streamStore.js';
   import { compress, decompress } from './lib/utils/sdpCompress.js';
-  import type { WebRTCApp } from './lib/webrtc/WebRTCApp'; // Corrected import path if needed
+  import type { WebRTCApp } from './lib/webrtc/WebRTCApp.js'; // Corrected import path if needed
   
   // Props
   export let webRTCApp: WebRTCApp; // Add type annotation
