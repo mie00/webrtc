@@ -5,9 +5,9 @@ import { describe, jest, beforeEach, test, expect } from '@jest/globals';
  */
 
 // Mock the backgroundChange function
-(global as any).backgroundChange = jest.fn().mockResolvedValue({ // Cast global
+global.backgroundChange = jest.fn().mockResolvedValue({ // Cast global
   getTracks: jest.fn().mockReturnValue([])
-} as any); // Cast resolved value
+}); // Cast resolved value
 
 // Declare module variable at the top level
 let streamModule: typeof import('../../src/lib/streamBridge.js');
@@ -36,7 +36,7 @@ describe('Stream Management', () => {
     };
 
     // Mock global app object with type assertion
-    (global as any).app = app;
+    global.app = app;
 
     // Initialize the module using the imported variable
     streamModule.streamInit(app);

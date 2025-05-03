@@ -37,9 +37,9 @@ describe('Chat Functionality', () => {
 
   beforeAll(async () => {
     // Import modules before tests run
-    const rtcAppModule = await import('../../src/lib/webrtc/WebRTCApp');
+    const rtcAppModule = await import('../../src/lib/webrtc/WebRTCApp.js');
     WebRTCApp = rtcAppModule.WebRTCApp;
-    chatModule = await import('../../src/lib/chatBridge');
+    chatModule = await import('../../src/lib/chatBridge.js');
     jest.spyOn(WebRTCApp, 'log').mockImplementation(() => {});
   });
 

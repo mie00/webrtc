@@ -10,7 +10,7 @@ let file: typeof import('../../src/lib/utils/file.ts');
 describe('File Utilities', () => {
   beforeAll(async () => {
     // Import the module before tests run
-    file = await import('../../src/lib/utils/file');
+    file = await import('../../src/lib/utils/file.js');
   });
 
   beforeEach(() => {
@@ -78,7 +78,7 @@ describe('File Utilities', () => {
       innerHTML: ''
     };
     // Use jest.spyOn to mock getElementById and cast return value
-    const getElementByIdSpy = jest.spyOn(document, 'getElementById').mockReturnValue(mockProgressElement as any);
+    const getElementByIdSpy = jest.spyOn(document, 'getElementById').mockReturnValue(mockProgressElement);
 
     // Call the function with test values using imported module
     fileModule.updateProgressBar('test-id', 100, () => 25); // Use imported module
@@ -100,17 +100,17 @@ describe('File Utilities', () => {
       type: 'text/plain',
       size: 1024,
       slice: jest.fn().mockReturnValue(new Blob())
-    } as any; // Cast to any to avoid missing File properties error
+    }; // Cast to any to avoid missing File properties error
 
     // Call the function using imported module
     fileModule.readFile(testFile, 'test-client-id'); // Use imported module
 
     // Verify the file data was sent using global.app
-    expect((global as any).app.clients['test-client-id'].dc_file.send).toHaveBeenCalledWith(
+    expect(global.app.clients['test-client-id'].dc_file.send).toHaveBeenCalledWith(
       expect.stringContaining('"name":"test.txt"')
     );
 
     // Verify the file reader was used (accessing the mocked global)
-    expect((global as any).FileReader).toHaveBeenCalled();
+    expect(global.FileReader).toHaveBeenCalled();
   });
 });
