@@ -105,17 +105,17 @@ describe('Main Application', () => {
         style: {} as CSSStyleDeclaration, // Cast style
         classList: {
           add: jest.fn()
-        },
+        } as DOMTokenList, // Cast classList
         appendChild: jest.fn()
-      } as any; // Cast return value
+      } as unknown as HTMLElement; // Cast return value
     }) as jest.Mock; // Cast the mock function itself
 
     document.createDocumentFragment = jest.fn().mockReturnValue({
       appendChild: jest.fn()
-    } as any) as jest.Mock; // Cast return and mock
+    } as unknown as DocumentFragment) as jest.Mock; // Cast return and mock
 
     document.createTextNode = jest.fn() as jest.Mock; // Cast mock
-    document.querySelector = jest.fn().mockReturnValue(null);
+    document.querySelector = jest.fn().mockReturnValue(null) as jest.Mock; // Cast mock
     if (!document.body) {
       Object.defineProperty(document, 'body', {
         value: { appendChild: jest.fn() as jest.Mock }, // Cast appendChild

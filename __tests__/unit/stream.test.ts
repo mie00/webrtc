@@ -107,8 +107,8 @@ describe('Stream Management', () => {
         srcObject: null as MediaProvider | null, // Add type for srcObject
         classList: {
           add: jest.fn()
-        },
-        style: {},
+        } as DOMTokenList, // Cast classList
+        style: {} as CSSStyleDeclaration, // Cast style
         muted: false,
         autoplay: false,
         controls: false,
