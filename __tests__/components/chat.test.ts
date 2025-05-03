@@ -25,22 +25,29 @@ describe('Chat Functionality', () => {
       <div id="chat"></div>
       <div id="output"></div>
     `;
-    
-    // Create mock elements
-    window.chat = document.getElementById('chat');
-    window.output = document.getElementById('output');
-    
-    // Create mock app object
+
+    // Create mock elements and attach to window with type assertion
+    (window as any).chat = document.getElementById('chat');
+    (window as any).output = document.getElementById('output');
+
+    // Create mock app object conforming to App type
     app = {
       clients: {
         'test-client': {
-          pc: new RTCPeerConnection()
+          pc: new RTCPeerConnection() // Use the mocked constructor
         }
-      }
+      },
+      // Add missing properties required by App type
+      viewStreams: {},
+      config: {},
+      nego_messages: {},
+      nego_handlers: {},
+      cleanups: {},
+      // Add other optional properties if needed by the test logic
     };
-    
-    // Mock global app
-    global.app = app;
+
+    // Mock global app with type assertion
+    (global as any).app = app;
     // Re-spy after clearing mocks if needed
     jest.spyOn(WebRTCApp, 'log').mockImplementation(() => {});
   });
@@ -50,10 +57,10 @@ describe('Chat Functionality', () => {
     if (chatModule.setupChatChannel) {
       // Call the function
       chatModule.setupChatChannel(app, 'test-client');
-      
-      // Check if data channel was created
-      expect(app.clients['test-client'].pc.createDataChannel).toHaveBeenCalledWith(
-        'chat', 
+
+      // Check if data channel was created using optional chaining
+      expect(app.clients['test-client']?.pc?.createDataChannel).toHaveBeenCalledWith(
+        'chat',
         expect.objectContaining({
           negotiated: true,
           id: 1
@@ -73,10 +80,11 @@ describe('Chat Functionality', () => {
       // Get the data channel
       const dc = app.clients['test-client'].dc;
       
-      // Trigger message event
+      // Trigger message event with a proper MessageEvent object
       if (dc && dc.onmessage) {
-        dc.onmessage({ data: 'Test message' });
-        
+        const messageEvent = new MessageEvent('message', { data: 'Test message' });
+        dc.onmessage(messageEvent);
+
         // Check if the spied WebRTCApp.log was called
         expect(WebRTCApp.log).toHaveBeenCalledWith('> Test message');
       }

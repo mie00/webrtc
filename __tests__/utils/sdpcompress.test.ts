@@ -19,9 +19,9 @@ describe('SDP Compression', () => {
   });
 
   test('compress and decompress should be reversible', async () => {
-    // Import the functions - Use dynamic import and point to .ts file
-    const { compress, decompress } = await import('../../src/lib/utils/sdpCompress');
-    
+    // Import the functions - Use dynamic import and point to .ts file, adding .js extension
+    const { compress, decompress } = await import('../../src/lib/utils/sdpCompress.js');
+
     const sampleSDP = `v=0
 o=- 1234567890 2 IN IP4 127.0.0.1
 s=-
@@ -35,9 +35,9 @@ a=rtcp:9 IN IP4 0.0.0.0`;
     expect(compressed).toBeTruthy();
     
     const decompressed = decompress(compressed);
-    
-    // Normalize whitespace before comparison
-    const normalizedDecompressed = decompressed.split('\n').map(line => line.trimEnd()).join('\n');
+
+    // Normalize whitespace before comparison (add type string to line)
+    const normalizedDecompressed = decompressed.split('\n').map((line: string) => line.trimEnd()).join('\n');
     expect(normalizedDecompressed).toBe(sampleSDP);
   });
 });

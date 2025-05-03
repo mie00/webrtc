@@ -69,10 +69,11 @@ describe('Main Application', () => {
           appendChild: jest.fn()
         };
       }
-      return null;
+      return null; // Return null for unhandled IDs
     });
-    
-    document.createElement = jest.fn().mockImplementation((tag) => {
+
+    // Mock createElement with type assertion
+    (document as any).createElement = jest.fn().mockImplementation((tag: string) => {
       return {
         style: {},
         classList: {
@@ -256,18 +257,15 @@ describe('Main Application', () => {
     
     // Verify the data was sent
     expect(mockClient.nego_dc.send).toHaveBeenCalledWith(expect.stringContaining('test-value'));
-    
-    // Verify the message ID was added
-    expect(JSON.parse(mockClient.nego_dc.send.mock.calls[0][0]).id).toBeDefined();
+
+    // Verify the message ID was added (cast argument to string)
+    expect(JSON.parse(mockClient.nego_dc.send.mock.calls[0][0] as string).id).toBeDefined();
   });
 
-  test('destroyClient should clean up client resources', async () => {
-    // Clear the module cache to ensure a fresh require
-    jest.resetModules();
-    
-    // Set up the global app object before requiring the module
-    global.app = {
-      config: getConfig(),
+  test('destroyClient should clean up client resources', () => { // No longer needs async
+    // Set up the global app object using type assertion
+    const testApp: App = { // Use App type for better structure
+      config: (global as any).getConfig(),
       clients: {
         'test-cid': {
           pc: {
@@ -294,30 +292,35 @@ describe('Main Application', () => {
           }
         }
       },
+      },
       cleanups: {
         test: jest.fn()
-      }
+      },
+      // Add other required App properties
+      viewStreams: {},
+      nego_messages: {},
+      nego_handlers: {},
+      participants: {},
+      inited: false,
     };
+    (global as any).app = testApp; // Assign to global
 
     // Store a reference to the client object and its PC before destroying
-    const clientObj = app.clients['test-cid'];
-    const pcCloseSpy = clientObj.pc.close;
+    const clientObj = testApp.clients['test-cid'];
+    const pcCloseSpy = clientObj.pc!.close; // Use non-null assertion if sure pc exists
 
-    // Use dynamic import for ESM compatibility in tests
-    const mainModule = await import('../../src/main');
-
+    // Use the imported module variable
     // Access webRTCApp via rtcUtils and spy on the instance's method
-    // No need to assign global.app, the instance manages its own state
     jest.spyOn(mainModule.rtcUtils.webRTCApp, 'sendNego');
 
     // Call the function via rtcUtils
     mainModule.rtcUtils.destroyClient('test-cid');
-    
+
     // Verify the client was cleaned up
     expect(global.clearInterval).toHaveBeenCalledWith(123);
     expect(pcCloseSpy).toHaveBeenCalled();
-    
-    // Verify all fields are properly cleaned up
+
+    // Verify all fields are properly cleaned up (accessing via testApp)
     expect(clientObj.pc).toBeNull();
     expect(clientObj.dc).toBeUndefined();
     expect(clientObj.dc_file).toBeUndefined();
@@ -327,49 +330,34 @@ describe('Main Application', () => {
     expect(clientObj._transceiver_interval).toBeUndefined();
     expect(clientObj.polite).toBeUndefined();
     expect(clientObj.makingOffer).toBeUndefined();
-    
-    // Verify the client is removed from the clients object
-    expect(app.clients['test-cid']).toBeUndefined();
-    
-    // Verify cleanup functions were called
-    expect(app.cleanups.test).toHaveBeenCalledWith('test-cid');
-    
+
+    // Verify the client is removed from the clients object (accessing via testApp)
+    expect(testApp.clients['test-cid']).toBeUndefined();
+
+    // Verify cleanup functions were called (accessing via testApp)
+    expect(testApp.cleanups.test).toHaveBeenCalledWith('test-cid');
+
     // Verify sendNego was called for other clients via the spy on the instance
     expect(mainModule.rtcUtils.webRTCApp.sendNego).toHaveBeenCalledWith(
-      app.clients['other-cid'], 
+      testApp.clients['other-cid'],
       {type: 'participant.end', cid: 'test-cid'}
     );
   });
 
-  test('uuidv4 should generate a valid UUID', async () => { // Already async, no change needed here, but including for context if needed
-    // Use dynamic import for ESM compatibility in tests
-    const mainModule = await import('../../src/main');
-    
+  test('uuidv4 should generate a valid UUID', () => { // No longer needs async
+    // Use the imported module variable
     // Call the function via rtcUtils
     const uuid = mainModule.rtcUtils.uuidv4();
-    
+
     // Verify it's a valid UUID
     expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
   });
 
-  test('init should set up the application state', async () => { // Already async, no change needed here, but including for context if needed
-    // Clear the module cache to ensure a fresh require
-    jest.resetModules();
+  test('init should set up the application state', async () => { // Keep async due to await init()
+    // Mocks are defined outside describe block
 
-    // Mock bridge initializers *before* requiring main
-    const mockStreamInit = jest.fn();
-    const mockForwardInit = jest.fn();
-    const mockChatInit = jest.fn();
-    const mockFileInit = jest.fn();
-    // Mock the .ts files directly
-    jest.mock('../../src/lib/streamBridge.ts', () => ({ streamInit: mockStreamInit }));
-    jest.mock('../../src/lib/forwardBridge.ts', () => ({ forwardInit: mockForwardInit }));
-    jest.mock('../../src/lib/chatBridge.ts', () => ({ chatInit: mockChatInit }));
-    jest.mock('../../src/lib/fileBridge', () => ({ fileInit: mockFileInit }));
-
-    // Import after mocks are set up
-    const mainModule = await import('../../src/main');
-    const webRTCAppInstance = mainModule.rtcUtils.webRTCApp; // Get the instance created by main.ts
+    // Use the imported module variable
+    const webRTCAppInstance = mainModule.rtcUtils.webRTCApp; // Get the instance
 
     // Reset inited flag if necessary before calling init
     // Access app via the instance's getter method
@@ -377,10 +365,10 @@ describe('Main Application', () => {
 
     // Call the function via rtcUtils
     await mainModule.rtcUtils.init();
-    
+
     // Get the app object after initialization using the exported getter
     const appAfterInit = mainModule.rtcUtils._getApp();
-    
+
     // Verify the app state was initialized
     expect(appAfterInit.participants).toEqual({});
     expect(appAfterInit.cleanups).toEqual({});

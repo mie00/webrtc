@@ -27,33 +27,30 @@ describe('Stream Management', () => {
       cleanups: {}
     };
     
-    // Mock global app object
-    global.app = app;
-    
-    // Import the module (use the bridge) - Use dynamic import
-    const streamModule = await import('../../src/lib/streamBridge');
+    // Mock global app object with type assertion
+    (global as any).app = app;
+
+    // Initialize the module if needed (already imported in beforeAll)
     if (streamModule.streamInit) {
       streamModule.streamInit(app);
     }
   });
 
-  // Make test async
-  test('normalizeStreamId should remove curly braces', async () => {
-    const stream = await import('../../src/lib/streamBridge'); // Use the bridge
-    if (stream.normalizeStreamId) {
-      expect(stream.normalizeStreamId('{stream-id-123}')).toBe('stream-id-123');
-      expect(stream.normalizeStreamId('stream-id-123')).toBe('stream-id-123');
+  test('normalizeStreamId should remove curly braces', () => { // No longer needs async
+    // Use the imported module variable
+    if (streamModule.normalizeStreamId) {
+      expect(streamModule.normalizeStreamId('{stream-id-123}')).toBe('stream-id-123');
+      expect(streamModule.normalizeStreamId('stream-id-123')).toBe('stream-id-123');
     } else {
       // Skip test if function doesn't exist
       console.warn('normalizeStreamId function not found, skipping test');
     }
   });
 
-  // Make test async
-  test('getStreamElemId should return correct element ID', async () => {
-    const stream = await import('../../src/lib/streamBridge'); // Use the bridge
-    if (stream.getStreamElemId) {
-      expect(stream.getStreamElemId('{stream-id-123}')).toBe('stream-stream-id-123');
+  test('getStreamElemId should return correct element ID', () => { // No longer needs async
+    // Use the imported module variable
+    if (streamModule.getStreamElemId) {
+      expect(streamModule.getStreamElemId('{stream-id-123}')).toBe('stream-stream-id-123');
     } else {
       // Skip test if function doesn't exist
       console.warn('getStreamElemId function not found, skipping test');

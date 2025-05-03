@@ -58,10 +58,10 @@ describe('File Utilities', () => {
     // Create a test ArrayBuffer
     const testData = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     const arrayBuffer = testData.buffer;
-    
+
     // Test with chunk size of 3
-    const chunks = file.splitArrayBuffer(arrayBuffer, 3);
-    
+    const chunks = fileModule.splitArrayBuffer(arrayBuffer, 3); // Use imported module
+
     // Verify the chunks
     expect(chunks.length).toBe(4);
     expect(new Uint8Array(chunks[0])).toEqual(new Uint8Array([1, 2, 3]));
@@ -74,14 +74,15 @@ describe('File Utilities', () => {
     // Setup mock element
     const mockProgressElement = {
       value: 0,
+      value: 0,
       innerHTML: ''
     };
-    // Use jest.spyOn to mock getElementById
-    const getElementByIdSpy = jest.spyOn(document, 'getElementById').mockReturnValue(mockProgressElement);
-    
-    // Call the function with test values
-    file.updateProgressBar('test-id', 100, () => 25);
-    
+    // Use jest.spyOn to mock getElementById and cast return value
+    const getElementByIdSpy = jest.spyOn(document, 'getElementById').mockReturnValue(mockProgressElement as any);
+
+    // Call the function with test values using imported module
+    fileModule.updateProgressBar('test-id', 100, () => 25); // Use imported module
+
     // Verify the progress was updated correctly
     expect(mockProgressElement.value).toBe(75); // (100-25)/100*100
     expect(mockProgressElement.innerHTML).toBe('75%');
@@ -91,36 +92,25 @@ describe('File Utilities', () => {
   });
 
   test('readFile should process file correctly', () => {
-    // Mock FileReader
-    global.FileReader = jest.fn().mockImplementation(() => {
-      return {
-        onload: null,
-        readAsArrayBuffer: jest.fn(function() {
-          // Simulate the load event
-          if (this.onload) {
-            this.onload({ target: { result: new ArrayBuffer(10) } });
-          }
-        })
-      };
-    });
-    
-    // Create a test file
+    // FileReader is mocked in beforeEach
+
+    // Create a test file object (cast to File or any)
     const testFile = {
       name: 'test.txt',
       type: 'text/plain',
       size: 1024,
       slice: jest.fn().mockReturnValue(new Blob())
-    };
-    
-    // Call the function
-    file.readFile(testFile, 'test-client-id');
-    
-    // Verify the file data was sent
-    expect(app.clients['test-client-id'].dc_file.send).toHaveBeenCalledWith(
+    } as any; // Cast to any to avoid missing File properties error
+
+    // Call the function using imported module
+    fileModule.readFile(testFile, 'test-client-id'); // Use imported module
+
+    // Verify the file data was sent using global.app
+    expect((global as any).app.clients['test-client-id'].dc_file.send).toHaveBeenCalledWith(
       expect.stringContaining('"name":"test.txt"')
     );
-    
-    // Verify the file reader was used
-    expect(FileReader).toHaveBeenCalled();
+
+    // Verify the file reader was used (accessing the mocked global)
+    expect((global as any).FileReader).toHaveBeenCalled();
   });
 });
