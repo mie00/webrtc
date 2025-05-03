@@ -258,94 +258,27 @@
   }
 </script>
 
-<div id="media" class="w-full w-svw h-svh relative bg-black" style="width: 100svw; height: 100svh;">
+<div id="media" bind:this={mediaContainerElement} class="w-full w-svw h-svh relative bg-black" style="width: 100svw; height: 100svh;">
   <!-- Hidden video element for file uploads -->
   
-  <!-- Dynamic stream rendering based on layout -->
-  {#if currentLayout === 'grid'}
-    <div class="stream-grid">
-      {#each activeStreams as stream (stream.id)}
-        <div class="stream-container" style="position: relative;">
-          <StreamView 
-            stream={stream.stream}
-            streamId={stream.id}
-            type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
-            muted={stream.isLocal && stream.type !== 'file'} 
-            mirrored={stream.isLocal && stream.type === 'camera'} 
-            peerId={stream.peerId}
-            on:focus={handleFocusStream}
-          />
-        </div>
-      {/each}
-    </div>
-  {:else if currentLayout === 'focus' && focusedStream}
-    <div class="focus-layout">
-      <!-- Main focused stream -->
-      {#each activeStreams.filter(s => s.id === focusedStream) as stream (stream.id)}
-        <div class="main-stream">
-          <StreamView 
-            stream={stream.stream}
-            streamId={stream.id}
-            type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
-            muted={stream.isLocal && stream.type !== 'file'} 
-            mirrored={stream.isLocal && stream.type === 'camera'} 
-            peerId={stream.peerId}
-            on:focus={handleFocusStream}
-          />
-        </div>
-      {/each}
-      
-      <!-- Other streams in a row -->
-      <div class="other-streams">
-        {#each activeStreams.filter(s => s.id !== focusedStream) as stream (stream.id)}
-          <div class="small-stream">
-            <StreamView 
-              stream={stream.stream}
-              streamId={stream.id}
-              type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
-              muted={stream.isLocal && stream.type !== 'file'} 
-              mirrored={stream.isLocal && stream.type === 'camera'} 
-              peerId={stream.peerId}
-              on:focus={handleFocusStream}
-            />
-          </div>
-        {/each}
+  <!-- Unified stream rendering using calculated positions -->
+  {#each activeStreams as stream (stream.id)}
+    {#if streamPositions.find(pos => pos.id === stream.id)}
+      {@const position = streamPositions.find(pos => pos.id === stream.id)}
+      <div class="stream-container absolute" 
+           style="left: {position?.x}px; top: {position?.y}px; width: {position?.width}px; height: {position?.height}px;">
+        <StreamView 
+          stream={stream.stream}
+          streamId={stream.id}
+          type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
+          muted={stream.isLocal && stream.type !== 'file'} 
+          mirrored={stream.isLocal && stream.type === 'camera'} 
+          peerId={stream.peerId}
+          on:focus={handleFocusStream}
+        />
       </div>
-    </div>
-  {:else if currentLayout === 'presentation'}
-    <div class="presentation-layout">
-      <!-- Find screen share stream if any -->
-      {#each activeStreams.filter(s => s.type === 'screen') as stream (stream.id)}
-        <div class="presentation-stream">
-          <StreamView 
-            stream={stream.stream}
-            streamId={stream.id}
-            type="video" 
-            muted={stream.isLocal && stream.type !== 'file'} 
-            peerId={stream.peerId}
-            on:focus={handleFocusStream}
-          />
-        </div>
-      {/each}
-      
-      <!-- Other streams in a column -->
-      <div class="presentation-others">
-        {#each activeStreams.filter(s => s.type !== 'screen') as stream (stream.id)}
-          <div class="small-stream">
-            <StreamView 
-              stream={stream.stream}
-              streamId={stream.id}
-              type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
-              muted={stream.isLocal && stream.type !== 'file'} 
-              mirrored={stream.isLocal && stream.type === 'camera'} 
-              peerId={stream.peerId}
-              on:focus={handleFocusStream}
-            />
-          </div>
-        {/each}
-      </div>
-    </div>
-  {/if}
+    {/if}
+  {/each}
 </div>
 
 <div class="fixed bottom-0 left-0 right-0 bg-transparent p-4 flex justify-center space-x-0 lg:space-x-4 pointer-events-none">
