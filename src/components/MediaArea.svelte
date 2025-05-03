@@ -7,10 +7,6 @@
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, getAllConfig } from '../stores/configStore.js';
   import StreamView from './StreamView.svelte';
-  import type { WebRTCApp } from '../lib/webrtc/WebRTCApp.js'; // Import the type
-
-  // Props
-  export let webRTCApp: WebRTCApp; // Add type annotation
 
   // Context menu state
   let showMenu = false;

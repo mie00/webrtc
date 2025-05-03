@@ -45,9 +45,11 @@
     // Import the sendFile function from our bridge
     const { sendFile } = await import('../lib/fileBridge.js');
     sendFile(file);
-    
-    // Reset file input
-    event.target.value = '';
+
+    // Reset file input safely
+    if (event.target instanceof HTMLInputElement) {
+      event.target.value = '';
+    }
   }
 </script>
 
