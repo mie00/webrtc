@@ -28,8 +28,20 @@ jest.mock('../../src/stores/streamStore', () => ({
 
 
 describe('Stream Management', () => {
+  let streamModule: typeof import('../../src/lib/streamBridge.ts');
+
   // Setup mock functions before importing the module
+  beforeAll(async () => {
+    // Import the module once after mocks are set up
+    streamModule = await import('../../src/lib/streamBridge.ts');
+  });
+
   beforeEach(() => {
+    // Reset mocks before each test
+    jest.clearAllMocks();
+    // Reset modules to ensure clean state if needed, though mocks should handle isolation
+    // jest.resetModules(); // Keep this commented unless clearAllMocks isn't enough
+
     // Setup DOM mocks
     document.getElementById = jest.fn().mockImplementation((id) => {
       if (id === 'toggle-audio' || id === 'toggle-video' || id === 'toggle-screen') {
@@ -193,10 +205,7 @@ describe('Stream Management', () => {
     jest.resetModules();
   });
 
-  test('normalizeStreamId should remove curly braces', async () => {
-    // Use dynamic import and point to .ts file
-    const streamModule = await import('../../src/lib/streamBridge.ts');
-
+  test('normalizeStreamId should remove curly braces', () => {
     // Test with curly braces
     expect(streamModule.normalizeStreamId('{test-id}')).toBe('test-id');
 
@@ -204,10 +213,7 @@ describe('Stream Management', () => {
     expect(streamModule.normalizeStreamId('test-id')).toBe('test-id');
   });
 
-  test('getStreamElemId should return correct element ID', async () => {
-    // Use dynamic import and point to .ts file
-    const streamModule = await import('../../src/lib/streamBridge.ts');
-
+  test('getStreamElemId should return correct element ID', () => {
     // Test with a stream ID
     expect(streamModule.getStreamElemId('test-id')).toBe('stream-test-id');
 
@@ -215,10 +221,7 @@ describe('Stream Management', () => {
     expect(streamModule.getStreamElemId('{test-id}')).toBe('stream-test-id');
   });
 
-  test('stream.end handler should remove elements and clean up', async () => {
-    // Use dynamic import and point to .ts file
-    const streamModule = await import('../../src/lib/streamBridge.ts');
-
+  test('stream.end handler should remove elements and clean up', () => {
     // Initialize the stream module
     streamModule.streamInit(app);
 
@@ -242,9 +245,6 @@ describe('Stream Management', () => {
   });
 
   test('setupTrackHandler should handle incoming tracks', async () => {
-    // Use dynamic import and point to .ts file
-    const streamModule = await import('../../src/lib/streamBridge.ts');
-
     // Create a mock media element
     const mockMediaElement = {
       srcObject: null,
