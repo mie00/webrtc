@@ -179,19 +179,40 @@ describe('WebRTC Peer Connection E2E Test', () => {
             // 2. Wait for and extract the invite URL from Browser A
             console.log('Waiting for invite URL element...');
             await pageA.waitForSelector(INVITE_URL_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT });
-            console.log('Invite URL element found.');
+            console.log('Invite URL element found. Clicking it to copy URL...');
+            await pageA.click(INVITE_URL_SELECTOR);
 
-            // Extract URL (adjust property based on element type: value, textContent, href)
-            // Ensure the element contains the *full* URL needed for the second browser
-            const inviteUrl = await pageA.$eval(INVITE_URL_SELECTOR, (el: Element) => (el as HTMLInputElement).value || el.textContent || (el as HTMLAnchorElement).href);
+            // Give clipboard a moment to update (might be needed in some environments)
+            // await pageA.waitForTimeout(100); // Optional: uncomment if facing timing issues
+
+            console.log('Reading invite URL from clipboard...');
+            // Grant clipboard read permission before trying to read.
+            // Ensure serverUrl is not null before using it.
+            if (!serverUrl) {
+                throw new Error("Server URL is null, cannot grant clipboard permissions.");
+            }
+            const context = pageA.browserContext();
+            // Grant permissions to the origin of the server URL
+            const origin = new URL(serverUrl).origin;
+            await context.overridePermissions(origin, ['clipboard-read', 'clipboard-write']);
+
+            const inviteUrl = await pageA.evaluate(async () => {
+                try {
+                    return await navigator.clipboard.readText();
+                } catch (err) {
+                    console.error('Failed to read clipboard:', err);
+                    return null; // Return null or throw an error as appropriate
+                }
+            });
+
             if (!inviteUrl) {
-                throw new Error('Could not extract invite URL from element.');
+                throw new Error('Could not read invite URL from clipboard.');
             }
-            // Basic validation: Check if it looks like a URL (might need refinement)
+            // Basic validation: Check if it looks like a URL
             if (!inviteUrl.startsWith('http://') && !inviteUrl.startsWith('https://')) {
-                 throw new Error(`Extracted invite content "${inviteUrl}" does not look like a valid URL.`);
+                 throw new Error(`Clipboard content "${inviteUrl}" does not look like a valid URL.`);
             }
-            console.log(`Extracted Invite URL: ${inviteUrl}`);
+            console.log(`Invite URL from clipboard: ${inviteUrl}`);
 
             // 3. Open Page B in the shared browser
             console.log('Opening Page B...');
