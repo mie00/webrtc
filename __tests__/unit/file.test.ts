@@ -2,9 +2,15 @@
  * @jest-environment jsdom
  */
 
-const file = require('../../src/lib/utils/file.js'); // Updated path
+// Use dynamic import and point to .ts file
+let file: typeof import('../../src/lib/utils/file.ts');
 
 describe('File Utilities', () => {
+  beforeAll(async () => {
+    // Import the module before tests run
+    file = await import('../../src/lib/utils/file.ts');
+  });
+
   beforeEach(() => {
     // Setup DOM mocks
     document.getElementById = jest.fn().mockReturnValue({

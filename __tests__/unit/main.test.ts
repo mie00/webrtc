@@ -301,10 +301,11 @@ describe('Main Application', () => {
     const clientObj = app.clients['test-cid'];
     const pcCloseSpy = clientObj.pc.close;
 
-    const mainModule = require('../../src/main');
+    // Use dynamic import for ESM compatibility in tests
+    const mainModule = await import('../../src/main.ts');
 
     // Access webRTCApp via rtcUtils and spy on the instance's method
-    mainModule.rtcUtils.webRTCApp.app = global.app; // Assign global app to the instance's app
+    // No need to assign global.app, the instance manages its own state
     jest.spyOn(mainModule.rtcUtils.webRTCApp, 'sendNego');
 
     // Call the function via rtcUtils
@@ -370,7 +371,7 @@ describe('Main Application', () => {
 
     // Reset inited flag if necessary before calling init
     // Access app via the instance's getter method
-    webRTCAppInstance.app.inited = false;
+    webRTCAppInstance.getApp().inited = false;
 
     // Call the function via rtcUtils
     await mainModule.rtcUtils.init();
