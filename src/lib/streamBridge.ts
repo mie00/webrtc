@@ -1,9 +1,7 @@
 import { 
   streamStore, 
   getStreamState, 
-  addStream, 
   addViewStream, 
-  removeStream, 
   removeViewStream,
   addLocalStream,
   removeLocalStream,
@@ -12,7 +10,7 @@ import {
   type StreamType
 } from '../stores/streamStore';
 import { get } from 'svelte/store';
-import { type AppWithStreamConfig, normalizeStreamId, createStreamElement, getStreamElemId } from './media/stream'
+import { type AppWithStreamConfig, normalizeStreamId, getStreamElemId } from './media/stream'
 
 // This module serves as a bridge between the WebRTC app and Svelte components
 
@@ -27,7 +25,6 @@ export function streamInit(originalApp: App): void {
   
   // Initialize app properties if they don't exist
   app.streams = app.streams || {};
-  app.viewStreams = app.viewStreams || {};
   app.streamConfig = app.streamConfig || {};
   
   // Set up handlers for stream events
@@ -36,9 +33,6 @@ export function streamInit(originalApp: App): void {
     
     // Remove from DOM (for backward compatibility)
     document.querySelectorAll(`.${getStreamElemId(streamId)}`).forEach(elem => elem.remove());
-    
-    // Remove from app object
-    delete app.viewStreams[streamId];
     
     // Remove from Svelte store (legacy)
     removeViewStream(streamId);
@@ -69,8 +63,6 @@ export function streamInit(originalApp: App): void {
         
         stream.getTracks().map((track) => track.stop());
         
-        // Remove from Svelte store (legacy)
-        removeStream(streamId);
         removeViewStream(normalizeStreamId(stream.id));
         
         // Remove from enhanced store structure
@@ -78,50 +70,9 @@ export function streamInit(originalApp: App): void {
       });
     }
   };
-  
-  // Sync initial state with Svelte store
-  const currentState = getStreamState();
-  
-  // Sync app.streams with store
-  Object.entries(app.streams || {}).forEach(([key, stream]) => {
-    if (!currentState.streams[key]) {
-      addStream(key, stream);
-      
-      // Also add to enhanced structure
-      // Determine stream type based on key
-      let streamType: StreamType = 'custom';
-      if (key === 'audio') streamType = 'audio';
-      else if (key === 'video') streamType = 'camera';
-      else if (key === 'screen') streamType = 'screen';
-      
-      addLocalStream(key, stream, streamType);
-    }
-  });
-  
-  // Sync app.viewStreams with store
-  Object.entries(app.viewStreams || {}).forEach(([key, stream]) => {
-    if (!currentState.viewStreams[key]) {
-      addViewStream(key, stream);
-      
-      // For remote streams, we need to determine which peer they belong to
-      // This is a best-effort approach since we don't have peer info in legacy structure
-      const matchingClient = Object.entries(app.clients).find(([_, client]) => {
-        return client.pc?.getReceivers().some(receiver => 
-          receiver.track && normalizeStreamId(receiver.track.id) === key
-        );
-      });
-      
-      if (matchingClient) {
-        addRemoteStream(matchingClient[0], key, stream);
-      }
-    }
-  });
-  
   // Set up a subscription to sync store changes back to app object
   streamStore.subscribe(state => {
     // This ensures the app object stays in sync with the store
-    app.streams = { ...state.streams };
-    app.viewStreams = { ...state.viewStreams };
     app.streamConfig = { ...state.streamConfig };
   });
 }
@@ -135,9 +86,6 @@ export function setupTrackHandler(app: App, cid: string): void {
     
     const streamId = normalizeStreamId(ev.streams[0].id);
     
-    // Add to app object (for backward compatibility)
-    app.viewStreams![streamId] = ev.streams[0];
-    
     // Add to Svelte store (legacy)
     addViewStream(streamId, ev.streams[0]);
     
@@ -146,8 +94,6 @@ export function setupTrackHandler(app: App, cid: string): void {
     
     // Create stream element (will be handled by Svelte component)
     // But also create a DOM element for backward compatibility
-    await createStreamElement(ev.streams[0], ev.track.kind as 'audio' | 'video', { muted: false });
-    
     ev.track.onended = (ev: Event) => {
       console.log(ev);
       const target = ev.target as MediaStreamTrack;
@@ -160,9 +106,6 @@ export function setupTrackHandler(app: App, cid: string): void {
       
       // Remove from DOM
       document.querySelectorAll(`.${getStreamElemId(targetId)}`).forEach(elem => elem.remove());
-      
-      // Remove from app object
-      delete app.viewStreams![targetId];
       
       // Remove from Svelte store (legacy)
       removeViewStream(targetId);
@@ -178,12 +121,7 @@ export function setupTrackHandler(app: App, cid: string): void {
     }
   });
   
-  // Add existing streams to new client
-  for (let stream of Object.values(app.viewStreams || {})) {
-    stream.getTracks().forEach(function (track) {
-      app.clients[cid].pc?.addTrack(track, stream);
-    });
-  }
+  // TODO: Add existing streams to new client
 }
 
 /**
@@ -205,6 +143,7 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
     if (changed === 'audio') streamType = 'audio';
     else if (changed === 'video') streamType = 'camera';
     else if (changed === 'screen') streamType = 'screen';
+    else if (changed === 'local') streamType = 'file';
     
     // Add to enhanced store structure
     addLocalStream(changed, app.streams[changed], streamType);
@@ -224,9 +163,8 @@ export {
   setupTrack, 
   setupStream, 
   getStreamsDims, 
-  refreshStreamViews, 
-  createStreamElement, 
-  setButton 
+  refreshStreamViews,
+  destroyLocalStream,
 } from './media/stream';
 
 // Helper function to send negotiation messages

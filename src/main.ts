@@ -7,6 +7,7 @@ window.WebRTCApp = WebRTCApp;
 
 // Create a single instance of the app
 const webRTCApp = new WebRTCApp(getConfig());
+window.webRTCApp = webRTCApp;
 
 // Expose it to the window for legacy code that might need it
 window.app = window.app || webRTCApp.getApp();

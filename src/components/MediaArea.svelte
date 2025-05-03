@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import { streamStore, updateStreamConfig, setViewLayout, type LayoutType } from '../stores/streamStore';
-  import { setupLocalStream, refreshStreamViews } from '../lib/streamBridge';
+  import { setupLocalStream, destroyLocalStream, refreshStreamViews } from '../lib/streamBridge';
   import { startRecording, stopRecording } from '../lib/media/recorder';
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig } from '../stores/configStore';
@@ -19,7 +19,6 @@
   const dispatch = createEventDispatcher();
   
   // References to DOM elements
-  let mediaContainer: HTMLElement;
   let uploadVideo: HTMLInputElement;
   let videoNode: HTMLVideoElement;
   let refreshInterval: number;
@@ -84,7 +83,11 @@
   async function handleToggleAudio() {
     const newValue = !$streamStore.streamConfig.audio;
     updateStreamConfig({ audio: newValue });
-    await setupLocalStream('audio', (arg) => instant = arg);
+    if (newValue) {
+      await setupLocalStream('audio', (arg) => instant = arg);
+    } else {
+      await destroyLocalStream('audio', (arg) => instant = arg);
+    }
   }
 
   async function handleContextMenu(type: 'audio'|'video', event: MouseEvent) {
@@ -128,13 +131,21 @@
   async function handleToggleVideo() {
     const newValue = !$streamStore.streamConfig.video;
     updateStreamConfig({ video: newValue });
-    await setupLocalStream('video');
+    if (newValue) {
+      await setupLocalStream('video');
+    } else {
+      await destroyLocalStream('video');
+    }
   }
   
   async function handleToggleScreen() {
     const newValue = !$streamStore.streamConfig.screen;
     updateStreamConfig({ screen: newValue });
-    await setupLocalStream('screen');
+    if (newValue) {
+      await setupLocalStream('screen');
+    } else {
+      await destroyLocalStream('screen');
+    }
   }
   
   async function handleStartForward() {
@@ -145,7 +156,12 @@
   
   function handleShareVideo() {
     // Trigger file upload dialog
-    uploadVideo?.click();
+    if (uploadVideo.files && uploadVideo.files.length > 0) {
+      uploadVideo.files = null;
+      destroyLocalStream('local');
+    } else {
+      uploadVideo?.click();
+    }
   }
   
   let isRecording = false;
@@ -164,28 +180,30 @@
   }
   
   async function handleVideoUpload(event: Event) {
-    const files = (event.target as HTMLInputElement)?.files;
-    if (files && files.length > 0) {
-      const file = files[0];
+    if (uploadVideo.files && uploadVideo.files.length > 0) {
+      const file = uploadVideo.files[0];
       const fileURL = URL.createObjectURL(file);
-      
+
       videoNode.src = fileURL;
       videoNode.autoplay = true;
       videoNode.controls = false;
       videoNode.loop = true;
-      
-      const videoStream = videoNode.captureStream ? 
-        videoNode.captureStream() : 
-        (videoNode as any).mozCaptureStream();
-      
-      updateStreamConfig({
-        videoNode,
-        videoStream,
-        local: true
-      });
-      
-      await setupLocalStream('local');
     }
+  }
+
+  async function handleFilePlay(event: Event) {
+    videoNode.play();
+    const videoStream = videoNode.captureStream ? 
+      videoNode.captureStream() : 
+      (videoNode as any).mozCaptureStream();
+
+    updateStreamConfig({
+      videoNode,
+      videoStream,
+      local: true
+    });
+    
+    await setupLocalStream('local');
   }
   
   function handleChangeLayout(layout: LayoutType) {
@@ -198,9 +216,8 @@
   }
 </script>
 
-<div id="media" bind:this={mediaContainer} class="w-full w-svw h-svh relative bg-black" style="width: 100svw; height: 100svh;">
+<div id="media" class="w-full w-svw h-svh relative bg-black" style="width: 100svw; height: 100svh;">
   <!-- Hidden video element for file uploads -->
-  <video muted bind:this={videoNode} autoplay loop class="hidden" />
   
   <!-- Dynamic stream rendering based on layout -->
   {#if currentLayout === 'grid'}
@@ -210,7 +227,7 @@
           <StreamView 
             stream={stream.stream} 
             type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
-            muted={stream.isLocal} 
+            muted={stream.isLocal && stream.type != 'file'} 
             mirrored={stream.isLocal && stream.type === 'camera'} 
             peerId={stream.peerId}
             on:focus={handleFocusStream}
@@ -226,7 +243,7 @@
           <StreamView 
             stream={stream.stream} 
             type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
-            muted={stream.isLocal} 
+            muted={stream.isLocal && stream.type != 'file'} 
             mirrored={stream.isLocal && stream.type === 'camera'} 
             peerId={stream.peerId}
             on:focus={handleFocusStream}
@@ -241,7 +258,7 @@
             <StreamView 
               stream={stream.stream} 
               type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
-              muted={stream.isLocal} 
+              muted={stream.isLocal && stream.type != 'file'} 
               mirrored={stream.isLocal && stream.type === 'camera'} 
               peerId={stream.peerId}
               on:focus={handleFocusStream}
@@ -258,7 +275,7 @@
           <StreamView 
             stream={stream.stream} 
             type="video" 
-            muted={stream.isLocal} 
+            muted={stream.isLocal && stream.type != 'file'} 
             peerId={stream.peerId}
             on:focus={handleFocusStream}
           />
@@ -272,7 +289,7 @@
             <StreamView 
               stream={stream.stream} 
               type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
-              muted={stream.isLocal} 
+              muted={stream.isLocal && stream.type != 'file'} 
               mirrored={stream.isLocal && stream.type === 'camera'} 
               peerId={stream.peerId}
               on:focus={handleFocusStream}
@@ -322,6 +339,7 @@
   <button on:click={handleHangup} class="hover:bg-red-600 bg-red-500 text-white p-3 rounded-full pointer-events-auto">
     📞
   </button>
+  <video on:loadeddata={handleFilePlay} muted bind:this={videoNode} autoplay loop class="hidden" />
   <input bind:this={uploadVideo} type="file" on:change={handleVideoUpload} accept="video/*" class="hidden">
 </div>
 

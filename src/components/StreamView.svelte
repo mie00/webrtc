@@ -104,7 +104,7 @@
   }
 </script>
 
-<div class="stream-container" on:click={handleClick}>
+<div class="stream-container" role="button" tabindex="0" on:click={handleClick} on:keypress|stopPropagation>
   {#if type === 'video'}
     <video 
       bind:this={mediaElement} 

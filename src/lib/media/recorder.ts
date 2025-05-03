@@ -58,7 +58,6 @@ async function setupStreams(merger: any): Promise<void> {
   }
 }
 
-import { createStreamElement } from './stream.js';
 async function startRecording(): Promise<void> {
   var merger = new window.VideoStreamMerger();
   window.app.recorder = window.setInterval(setupStreams.bind(null, merger), 1000);
@@ -72,7 +71,7 @@ async function startRecording(): Promise<void> {
   const result = merger.result;
   if (false) { // for debugging only
     window.app.viewStreams[result.id] = result;
-    await createStreamElement(result, 'video', { muted: false, controls: true });
+    // await createStreamElement(result, 'video', { muted: false, controls: true });
   }
 
   const options = { mimeType: "video/webm; codecs=vp9" };

@@ -11,7 +11,7 @@ export interface StreamConfig {
 }
 
 // Stream type definitions
-export type StreamType = 'camera' | 'screen' | 'audio' | 'custom';
+export type StreamType = 'camera' | 'screen' | 'audio' | 'file' | 'custom';
 export type LayoutType = 'grid' | 'focus' | 'presentation';
 
 // Local stream interface
@@ -29,8 +29,6 @@ export interface RemoteStreamData {
 
 // Stream state interface
 export interface StreamState {
-  // Legacy support
-  streams: Record<string, MediaStream>;
   viewStreams: Record<string, MediaStream>;
   
   // Enhanced structure
@@ -49,8 +47,6 @@ export interface StreamState {
 
 // Initial state
 const initialState: StreamState = {
-  // Legacy support
-  streams: {},
   viewStreams: {},
   
   // Enhanced structure
@@ -89,28 +85,11 @@ export function updateStreamConfig(config: Partial<StreamConfig>): void {
   }));
 }
 
-// Legacy support functions
-export function addStream(key: string, stream: MediaStream): void {
-  streamStore.update(state => {
-    const streams = { ...state.streams };
-    streams[key] = stream;
-    return { ...state, streams };
-  });
-}
-
 export function addViewStream(key: string, stream: MediaStream): void {
   streamStore.update(state => {
     const viewStreams = { ...state.viewStreams };
     viewStreams[key] = stream;
     return { ...state, viewStreams };
-  });
-}
-
-export function removeStream(key: string): void {
-  streamStore.update(state => {
-    const streams = { ...state.streams };
-    delete streams[key];
-    return { ...state, streams };
   });
 }
 

@@ -14,64 +14,6 @@ function getStreamElemId(id: string): string {
     return `stream-${normalizeStreamId(id)}`;
 }
 
-function streamInit(app: App): void {
-    const appWithConfig = app as AppWithStreamConfig;
-    appWithConfig.streams = {};
-    appWithConfig.streamConfig = {};
-    appWithConfig.viewStreams = {};
-    appWithConfig.nego_handlers['stream.end'] = (data: { stream: string }, cid: string) => {
-        document.querySelectorAll(`.${getStreamElemId(data.stream)}`).forEach(elem => elem.remove());
-        delete appWithConfig.viewStreams[data.stream];
-
-        for (let cid2 of Object.keys(appWithConfig.clients)) {
-            if (cid == cid2) {
-                continue;
-            }
-            sendNego(appWithConfig.clients[cid2], { type: 'stream.end', stream: data.stream });
-        }
-    };
-
-    appWithConfig.cleanups['stream'] = (cid?: string) => {
-        if (!cid) {
-            Object.keys(appWithConfig.streams || {}).forEach((streamId) => {
-                const stream = appWithConfig.streams![streamId];
-                delete appWithConfig.streams![streamId];
-                try {
-                    Object.values(appWithConfig.clients).forEach((client) => sendNego(client, { type: 'stream.end', stream: normalizeStreamId(stream.id) }));
-                } catch { }
-                stream.getTracks().map((track) => track.stop());
-            });
-        }
-    };
-}
-
-function setupTrackHandler(app: App, cid: string): void {
-    app.clients[cid].pc?.addEventListener("track", async (ev: RTCTrackEvent) => {
-        console.log("got track event", ev);
-        app.viewStreams![normalizeStreamId(ev.streams[0].id)] = ev.streams[0];
-        await createStreamElement(ev.streams[0], ev.track.kind as 'audio' | 'video', { muted: false });
-        ev.track.onended = (ev: Event) => {
-            console.log(ev);
-            const target = ev.target as MediaStreamTrack;
-            Object.values(app.clients).forEach((client) => sendNego(client, { type: 'stream.end', stream: normalizeStreamId(target.id) }));
-            document.querySelectorAll(`.${getStreamElemId(target.id)}`).forEach(elem => elem.remove());
-            delete app.viewStreams![normalizeStreamId(target.id)];
-        };
-
-        for (let cid2 of Object.keys(app.clients)) {
-            if (cid == cid2) {
-                continue;
-            }
-            app.clients[cid2].pc?.addTrack(ev.track, ev.streams[0]);
-        }
-    });
-    for (let stream of Object.values(app.viewStreams || {})) {
-        stream.getTracks().forEach(function (track) {
-            app.clients[cid].pc?.addTrack(track, stream);
-        });
-    }
-}
-
 interface AudioProcessingApp extends AppWithStreamConfig {
     context?: AudioContext;
     script?: ScriptProcessorNode;
@@ -121,19 +63,13 @@ const tearDownStream = async (stream: MediaStream): Promise<void> => {
                     transceiver.stop();
                 }
             });
-            sendNego(client, {
+            window.webRTCApp.sendNego(client, {
                 type: "stream.end",
                 stream: normalizeStreamId(stream.id),
             });
         }
     });
 };
-
-interface SetupTrackOptions {
-    priority: RTCPriorityType;
-    contentHint?: string;
-    simulcast?: boolean;
-}
 
 const setupTrack = (track: MediaStreamTrack, stream: MediaStream, priority: RTCPriorityType, contentHint?: string, simulcast?: boolean): void => {
     if (contentHint && 'contentHint' in track) {
@@ -173,28 +109,19 @@ interface StreamConfig {
 interface AppWithStreamConfig extends App {
     streamConfig: StreamConfig;
 }
-
-const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (number) => void): Promise<void> => {
-    if (window.app.streams && window.app.streams[changed]) {
-        const elems = document.querySelectorAll(`.${getStreamElemId(window.app.streams[changed].id)}`);
-        for (const elem of Array.from(elems)) {
-            const videoElem = elem as HTMLVideoElement & { 
-                substitueStream?: MediaStream;
-                substitueElement?: HTMLElement;
-            };
-            if (videoElem.substitueStream) {
-                tearDownStream(videoElem.substitueStream);
-            }
-            if (videoElem.substitueElement) {
-                videoElem.substitueElement.remove();
-            }
-            videoElem.srcObject = null;
-            elem.remove();
-        }
+const destroyLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (number) => void): Promise<void> => {
+    if (window.app.streams) {
         delete window.app.viewStreams![normalizeStreamId(window.app.streams[changed].id)];
         tearDownStream(window.app.streams[changed]);
         delete window.app.streams[changed];
     }
+    if (changed === 'audio') {
+            stopProcessingAudio(window.app as AudioProcessingApp);
+            audioCb?.(0);
+    }
+}
+
+const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (number) => void): Promise<void> => {
     let stream: MediaStream | undefined;
     const appWithConfig = window.app as AppWithStreamConfig;
     
@@ -211,9 +138,6 @@ const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local',
             processAudio(window.app as AudioProcessingApp, stream, (instant) => {
                 audioCb?.(instant);
             });
-        } else {
-            stopProcessingAudio(window.app as AudioProcessingApp);
-            audioCb?.(0);
         }
     } else if (changed === 'video') {
         if (appWithConfig.streamConfig.video) {
@@ -231,6 +155,9 @@ const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local',
         if (appWithConfig.streamConfig.local) {
             stream = appWithConfig.streamConfig.videoStream;
             if (stream) {
+                stream.getTracks().forEach(track => {
+                    setupTrack(track, stream!, "medium", undefined, false);
+                });
                 stream.onaddtrack = async (ev: MediaStreamTrackEvent) => {
                     setupTrack(ev.track, stream!, "medium", undefined, false);
                 };
@@ -248,15 +175,10 @@ const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local',
     if (stream) {
         window.app.streams![changed] = stream;
         if (changed === 'video' && appWithConfig.streamConfig.video) {
-            const elem = await createStreamElement(stream, 'video', { muted: true, controls: false, mirrored: true });
-            if (appWithConfig.config && appWithConfig.config['blur-video'] === 'yes') {
-                const substituteStream = await backgroundChange(elem as HTMLVideoElement);
-                setupStream(substituteStream, "low", "motion", true);
-            }
-        } else if (changed === 'screen' && appWithConfig.streamConfig.screen) {
-            await createStreamElement(stream, 'video', { muted: true, controls: false });
-        } else if (changed === 'local' && appWithConfig.streamConfig.local) {
-            await createStreamElement(stream, 'video', { muted: false, controls: true, passedElement: appWithConfig.streamConfig.videoNode });
+            // if (elem && appWithConfig.config && appWithConfig.config['blur-video'] === 'yes') {
+            //     const substituteStream = await backgroundChange(elem as HTMLVideoElement);
+            //     setupStream(substituteStream, "low", "motion", true);
+            // }
         }
         window.app.viewStreams![normalizeStreamId(stream.id)] = stream;
     }
@@ -386,69 +308,18 @@ window.addEventListener('resize', function (event) {
     refreshStreamViews();
 }, true);
 
-interface StreamElementOptions {
-    muted?: boolean;
-    controls?: boolean;
-    mirrored?: boolean;
-    passedElement?: HTMLVideoElement | HTMLAudioElement | null;
-}
-
-interface HTMLMediaElementWithSubstitute extends HTMLMediaElement {
-    substitueStream?: MediaStream;
-    substitueElement?: HTMLElement;
-}
-
-const createStreamElement = async (stream: MediaStream, tag: 'video' | 'audio', options: StreamElementOptions = {}): Promise<HTMLMediaElementWithSubstitute> => {
-    const { muted = false, controls = false, mirrored = false, passedElement = null } = options;
-    let mediaElement: HTMLMediaElementWithSubstitute;
-    if (passedElement) {
-        mediaElement = passedElement as HTMLMediaElementWithSubstitute;
-    } else {
-        mediaElement = document.createElement(tag) as HTMLMediaElementWithSubstitute;
-        mediaElement.srcObject = stream;
-    }
-    mediaElement.classList.add(getStreamElemId(stream.id));
-    if (mirrored) {
-        mediaElement.style.transform = 'scaleX(-1)';
-    }
-    mediaElement.muted = muted;
-    mediaElement.autoplay = true;
-    mediaElement.controls = controls;
-    (mediaElement as any).disablePictureInPicture = true;
-    (mediaElement as any).playsInline = true;
-    // mediaElement.classList.add('w-full')
-    const mediaContainer = document.getElementById('media');
-    if (mediaContainer) {
-        mediaContainer.appendChild(mediaElement);
-    }
-    await mediaElement.play();
-    return mediaElement;
-};
-
-const setButton = (target: HTMLElement, on: boolean): void => {
-    if (on) {
-        target.classList.add('bg-blue-500');
-    } else {
-        target.classList.remove('bg-blue-500');
-    }
-};
-
-
 // Export functions for use in other modules
 export {
     normalizeStreamId,
     getStreamElemId,
-    streamInit,
-    setupTrackHandler,
     processAudio,
     stopProcessingAudio,
     tearDownStream,
     setupTrack,
     setupLocalStream,
     getStreamsDims,
-    refreshStreamViews,
-    createStreamElement,
-    setButton,
     setupStream,
+    refreshStreamViews,
+    destroyLocalStream,
     type AppWithStreamConfig
 };
