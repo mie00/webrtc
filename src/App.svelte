@@ -9,7 +9,7 @@
   import { configStore, getAllConfig } from './stores/configStore.js';
   import { streamStore } from './stores/streamStore.js';
   import { compress, decompress } from './lib/utils/sdpCompress.js';
-  import type { WebRTCApp } from './lib/webrtc/WebRTCApp'; // Import the type
+  import type { WebRTCApp } from './lib/webrtc/WebRTCApp.js'; // Import the type
   
   // Props
   export let webRTCApp: WebRTCApp; // Add type annotation
@@ -294,7 +294,6 @@
   on:close={() => showCopyOverlay = false}
   on:openConfig={toggleConfigOverlay}
   on:reset={handleReset}
-  // Remove type assertions, types should now be inferred correctly
   on:accept={(e) => acceptHandler(e.detail.cid, e.detail.pasteValue)} 
   on:join={handleJoin}
 />
