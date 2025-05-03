@@ -9,8 +9,9 @@ global.backgroundChange = jest.fn().mockResolvedValue({
 
 describe('Stream Management', () => {
   let app;
-  
-  beforeEach(() => {
+
+  // Make beforeEach async to handle await import
+  beforeEach(async () => {
     // Reset DOM
     document.body.innerHTML = '<div id="media"></div>';
     
@@ -33,7 +34,8 @@ describe('Stream Management', () => {
       streamModule.streamInit(app);
     }
   });
-  
+
+  // Make test async
   test('normalizeStreamId should remove curly braces', async () => {
     const stream = await import('../../src/lib/streamBridge.ts'); // Use the bridge
     if (stream.normalizeStreamId) {
@@ -44,7 +46,8 @@ describe('Stream Management', () => {
       console.warn('normalizeStreamId function not found, skipping test');
     }
   });
-  
+
+  // Make test async
   test('getStreamElemId should return correct element ID', async () => {
     const stream = await import('../../src/lib/streamBridge.ts'); // Use the bridge
     if (stream.getStreamElemId) {
@@ -54,7 +57,8 @@ describe('Stream Management', () => {
       console.warn('getStreamElemId function not found, skipping test');
     }
   });
-  
+
+  // This test doesn't use await import, so it doesn't need to be async
   test('stream.end handler should remove elements and clean up', () => {
     // Skip if nego_handlers doesn't exist
     if (!app.nego_handlers['stream.end']) {

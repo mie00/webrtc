@@ -222,7 +222,7 @@ describe('Main Application', () => {
     global.clearInterval = jest.fn();
   });
 
-  test('sendNego should send data through negotiation channel', () => {
+  test('sendNego should send data through negotiation channel', async () => {
     // Clear the module cache to ensure a fresh require
     jest.resetModules();
     
@@ -259,7 +259,7 @@ describe('Main Application', () => {
     expect(JSON.parse(mockClient.nego_dc.send.mock.calls[0][0]).id).toBeDefined();
   });
 
-  test('destroyClient should clean up client resources', () => {
+  test('destroyClient should clean up client resources', async () => {
     // Clear the module cache to ensure a fresh require
     jest.resetModules();
     
@@ -339,7 +339,7 @@ describe('Main Application', () => {
     );
   });
 
-  test('uuidv4 should generate a valid UUID', async () => {
+  test('uuidv4 should generate a valid UUID', async () => { // Already async, no change needed here, but including for context if needed
     // Use dynamic import for ESM compatibility in tests
     const mainModule = await import('../../src/main.ts');
     
@@ -350,7 +350,7 @@ describe('Main Application', () => {
     expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
   });
 
-  test('init should set up the application state', async () => {
+  test('init should set up the application state', async () => { // Already async, no change needed here, but including for context if needed
     // Clear the module cache to ensure a fresh require
     jest.resetModules();
 
