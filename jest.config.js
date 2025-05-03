@@ -22,6 +22,10 @@ export default {
     // Handle .js extension in imports when importing .ts files (ESM needs explicit extensions)
     // '^(\\.{1,2}/.*)\\.js$': '$1' // This might not be needed with ESM preset, test carefully
   },
+  // Ensure svelte and potentially other ESM modules in node_modules are transformed
+  transformIgnorePatterns: [
+    "/node_modules/(?!svelte).+\\.js$" 
+  ],
   collectCoverageFrom: [
     'src/**/*.{js,ts,svelte}',
     '!**/node_modules/**',
