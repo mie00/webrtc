@@ -1,18 +1,26 @@
 export default {
-  preset: 'ts-jest/presets/default-esm', // Use ESM preset
-  testEnvironment: 'jsdom', // Use built-in jsdom environment
-  moduleFileExtensions: ['ts', 'js', 'svelte'],
+  // preset: 'ts-jest/presets/default-esm', // Remove preset, configure manually
+  testEnvironment: 'jsdom',
+  moduleFileExtensions: ['js', 'ts', 'svelte'], // Ensure 'js' is first or present
   transform: {
-    // Remove babel-jest transform
-    // '^.+\\.js$': 'babel-jest',
+    // Use ts-jest for .ts files, configured for ESM
     '^.+\\.ts$': ['ts-jest', {
-      // tsconfig: 'tsconfig.json', // Remove this line, ts-jest finds it by default
-      useESM: true, // Required by the ESM preset
-      // isolatedModules: true, // Keep if needed, often default/handled by tsconfig
+      useESM: true,
+      tsconfig: 'tsconfig.json' // Explicitly point to tsconfig
     }],
-    '^.+\\.svelte$': ['svelte-jester', { preprocess: true }] // Ensure svelte-jester uses preprocess
+    // Use svelte-jester for .svelte files
+    '^.+\\.svelte$': ['svelte-jester', {
+      preprocess: true
+    }]
+    // Note: No transform for .js files needed unless you have JS files using non-standard syntax
   },
-  testMatch: ['**/__tests__/**/*.test.(js|ts)'],
+  // Ignore transformations for node_modules, common for ESM setups
+  // Adjust if specific node_modules need transformation (e.g., are ESM)
+  transformIgnorePatterns: [
+    '/node_modules/',
+    '\\.pnp\\.[^\\/]+$' // Add default pattern from Jest docs
+  ],
+  testMatch: ['**/__tests__/**/*.test.(js|ts)'], // Keep this
   // Add this section to indicate which file extensions should be treated as ESM
   extensionsToTreatAsEsm: ['.ts', '.svelte'],
   // setupFiles runs before the environment is set up. Use setupFilesAfterEnv for mocks.
