@@ -17,6 +17,8 @@ export default {
   setupFiles: ['./jest.setup.js'],
   // globals section is deprecated for ts-jest config
   moduleNameMapper: {
+    // Mock svelte/store globally to avoid ESM parsing issues
+    '^svelte/store$': '<rootDir>/__mocks__/svelte/store.js',
     // Handle module aliases for ESM
     '^\\$lib/(.*)$': '<rootDir>/src/lib/$1',
     // Handle .js extension in imports when importing .ts files (ESM needs explicit extensions)

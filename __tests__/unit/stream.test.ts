@@ -7,24 +7,9 @@ global.backgroundChange = jest.fn().mockResolvedValue({
   getTracks: jest.fn().mockReturnValue([])
 });
 
-// Mock src/stores/streamStore to prevent issues with svelte imports
-jest.mock('../../src/stores/streamStore', () => ({
-  streamStore: { subscribe: jest.fn(), update: jest.fn(), set: jest.fn() }, // Mock store object
-  getStreamState: jest.fn().mockReturnValue({ // Mock state structure
-    viewStreams: {},
-    localStreams: {},
-    remoteStreams: {},
-    activeView: { layout: 'grid' },
-    streamConfig: { audio: false, video: false, screen: false, local: false }
-  }),
-  addViewStream: jest.fn(),
-  removeViewStream: jest.fn(),
-  addLocalStream: jest.fn(),
-  removeLocalStream: jest.fn(),
-  addRemoteStream: jest.fn(),
-  removeRemoteStream: jest.fn(),
-  // type StreamType is a type, no need to mock
-}));
+// Remove mocks for specific stores - relying on global svelte/store mock now
+// jest.mock('../../src/stores/streamStore', () => ({ ... }));
+// jest.mock('../../src/stores/configStore', () => ({ ... })); // Assuming you might have had one for configStore too
 
 
 describe('Stream Management', () => {
