@@ -147,7 +147,33 @@ const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local',
                     deviceId: getAllConfig()['video-device']?.split('|')[1] 
                 } 
             });
-            if (appWithConfig.config && appWithConfig.config['blur-video'] !== 'yes') {
+            
+            // Create a video element for the stream
+            const videoElem = document.createElement('video');
+            videoElem.autoplay = true;
+            videoElem.muted = true;
+            videoElem.srcObject = stream;
+            
+            // Wait for video to be ready
+            await new Promise<void>((resolve) => {
+                videoElem.onloadedmetadata = () => {
+                    videoElem.play().then(() => resolve());
+                };
+            });
+            
+            // Apply background blur if enabled
+            if (appWithConfig.config && appWithConfig.config['blur-video'] === 'yes') {
+                try {
+                    // Import the backgroundChange function
+                    const { backgroundChange } = await import('../utils/background');
+                    const blurredStream = await backgroundChange(videoElem);
+                    setupStream(blurredStream, "low", "motion", true);
+                    stream = blurredStream; // Replace the original stream with the blurred one
+                } catch (error) {
+                    console.error('Failed to apply background blur:', error);
+                    setupStream(stream, "low", "motion", true);
+                }
+            } else {
                 setupStream(stream, "low", "motion", true);
             }
         }

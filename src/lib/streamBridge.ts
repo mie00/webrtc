@@ -167,6 +167,9 @@ export {
   destroyLocalStream,
 } from './media/stream';
 
+// Export background utilities
+export { backgroundChange } from './utils/background';
+
 // Helper function to send negotiation messages
 function sendNego(client: WebRTCClient, data: any): void {
   try {

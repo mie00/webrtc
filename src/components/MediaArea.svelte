@@ -4,7 +4,7 @@
   import { setupLocalStream, destroyLocalStream, refreshStreamViews } from '../lib/streamBridge';
   import { startRecording, stopRecording } from '../lib/media/recorder';
   import ContextMenu from './ContextMenu.svelte';
-  import { updateConfig } from '../stores/configStore';
+  import { updateConfig, getAllConfig } from '../stores/configStore';
   import StreamView from './StreamView.svelte';
   
   // Context menu state
@@ -28,6 +28,7 @@
   $: isVideoEnabled = $streamStore.streamConfig.video;
   $: isScreenSharing = $streamStore.streamConfig.screen;
   $: isVideoShared = !!$streamStore.streamConfig.videoStream;
+  $: isBlurEnabled = getAllConfig()['blur-video'] === 'yes';
   
   // Stream layout state
   $: currentLayout = $streamStore.activeView.layout;
@@ -135,6 +136,17 @@
       await setupLocalStream('video');
     } else {
       await destroyLocalStream('video');
+    }
+  }
+  
+  async function handleToggleBlur() {
+    const newValue = isBlurEnabled ? 'no' : 'yes';
+    updateConfig('blur-video', newValue);
+    
+    // If video is already enabled, restart it to apply the blur effect
+    if (isVideoEnabled) {
+      await destroyLocalStream('video');
+      await setupLocalStream('video');
     }
   }
   
