@@ -1,8 +1,8 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import { streamStore, updateStreamConfig, setViewLayout, type LayoutType } from '../stores/streamStore';
-  import { setupLocalStream, destroyLocalStream, normalizeStreamId } from '../lib/streamBridge';
-  import { startRecording, stopRecording } from '../lib/media/recorder';
+  import { streamStore, updateStreamConfig, setViewLayout, type LayoutType } from '../stores/streamStore.js';
+  import { setupLocalStream, destroyLocalStream, normalizeStreamId } from '../lib/streamBridge.js';
+  import { startRecording, stopRecording } from '../lib/media/recorder.js';
   import { calculateStreamPositions } from '../lib/utils/streamLayout';
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, getAllConfig } from '../stores/configStore';
@@ -186,7 +186,7 @@
   
   async function handleStartForward() {
     // Import the toggleForwardHandler from our bridge
-    const { toggleForwardHandler } = await import('../lib/forwardBridge');
+    const { toggleForwardHandler } = await import('../lib/forwardBridge.js');
     await toggleForwardHandler();
   }
   
