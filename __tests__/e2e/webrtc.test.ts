@@ -1,5 +1,5 @@
-import puppeteer, { Browser, Page } from 'puppeteer';
-import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
+import puppeteer, { type Browser, type Page } from 'puppeteer'; // Use type imports for Browser/Page
+import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'; // Use type import
 import path from 'path'; // Needed for resolving project root potentially
 
 // --- Configuration ---
