@@ -8,10 +8,10 @@ import {
   addRemoteStream,
   removeRemoteStream,
   type StreamType
-} from '../stores/streamStore.js';
+} from '../stores/streamStore.ts';
 import {
   getAllConfig
-} from '../stores/configStore.js';
+} from '../stores/configStore.ts';
 import { get } from 'svelte/store';
 import {
   type AppWithStreamConfig,
@@ -22,9 +22,9 @@ import {
   stopProcessingAudio,
   setupTrack,
   tearDownStream,
-} from './media/stream.js'
+} from './media/stream.ts'
 // Export background utilities
-import { backgroundChange } from './utils/background.js';
+import { backgroundChange } from './utils/background.ts';
 
 // This module serves as a bridge between the WebRTC app and Svelte components
 

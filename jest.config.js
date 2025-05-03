@@ -23,9 +23,8 @@ export default {
     // '^(\\.{1,2}/.*)\\.js$': '$1' // This might not be needed with ESM preset, test carefully
   },
   // Ensure svelte and potentially other ESM modules in node_modules are transformed
-  // Allow transforming .js files from svelte and potentially others if needed
   transformIgnorePatterns: [
-    "/node_modules/(?!svelte|@?svelte).+\\.js$"
+    "/node_modules/(?!svelte)/" // Allow transforming svelte packages
   ],
   collectCoverageFrom: [
     'src/**/*.{js,ts,svelte}',

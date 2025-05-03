@@ -1,4 +1,4 @@
-import { WebRTCApp } from '../webrtc/WebRTCApp.js';
+import { WebRTCApp } from '../webrtc/WebRTCApp.ts';
 
 interface FileStuff {
   name: string;
