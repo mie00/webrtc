@@ -5,10 +5,36 @@ import type { App } from '../../types/global'; // Import App type
  * @jest-environment jsdom
  */
 
+// Declare module variable and mock functions at the top level of the describe block
+let mainModule: typeof import('../../src/main.js');
+const mockStreamInit = jest.fn();
+const mockForwardInit = jest.fn();
+const mockChatInit = jest.fn();
+const mockFileInit = jest.fn();
+
+// Mock dynamic imports before tests run
+jest.mock('../../src/lib/streamBridge.js', () => ({ streamInit: mockStreamInit, setupTrackHandler: jest.fn() }));
+jest.mock('../../src/lib/forwardBridge.js', () => ({ forwardInit: mockForwardInit, setupForwardChannel: jest.fn() }));
+jest.mock('../../src/lib/chatBridge.js', () => ({ chatInit: mockChatInit, setupChatChannel: jest.fn() }));
+jest.mock('../../src/lib/fileBridge.js', () => ({ fileInit: mockFileInit, setupFileChannel: jest.fn() }));
+
+
 describe('Main Application', () => {
-  beforeEach(() => {
+  beforeAll(async () => {
+    // Dynamically import the main module once before all tests
+    mainModule = await import('../../src/main.js');
+  });
+
+  beforeEach(async () => { // Make beforeEach async
+    // Reset mocks before each test
+    jest.clearAllMocks();
+    mockStreamInit.mockClear();
+    mockForwardInit.mockClear();
+    mockChatInit.mockClear();
+    mockFileInit.mockClear();
+
     // Setup DOM mocks
-    document.getElementById = jest.fn().mockImplementation((id) => {
+    (document as any).getElementById = jest.fn().mockImplementation((id) => { // Cast document
       if (id === 'toggle-controls') {
         return {
           addEventListener: jest.fn(),
