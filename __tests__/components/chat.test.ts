@@ -13,9 +13,9 @@ describe('Chat Functionality', () => {
 
   beforeAll(async () => {
     // Import modules before tests run
-    const rtcAppModule = await import('../../src/lib/webrtc/WebRTCApp');
+    const rtcAppModule = await import('../../src/lib/webrtc/WebRTCApp.js');
     WebRTCApp = rtcAppModule.WebRTCApp;
-    chatModule = await import('../../src/lib/chatBridge');
+    chatModule = await import('../../src/lib/chatBridge.js');
     jest.spyOn(WebRTCApp, 'log').mockImplementation(() => {});
   });
 
@@ -25,10 +25,6 @@ describe('Chat Functionality', () => {
       <div id="chat"></div>
       <div id="output"></div>
     `;
-
-    // Create mock elements and attach to window with type assertion
-    (window as any).chat = document.getElementById('chat');
-    (window as any).output = document.getElementById('output');
 
     // Create mock app object conforming to App type
     app = {
@@ -46,8 +42,6 @@ describe('Chat Functionality', () => {
       // Add other optional properties if needed by the test logic
     };
 
-    // Mock global app with type assertion
-    (global as any).app = app;
     // Re-spy after clearing mocks if needed
     jest.spyOn(WebRTCApp, 'log').mockImplementation(() => {});
   });

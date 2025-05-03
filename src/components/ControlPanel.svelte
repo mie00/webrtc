@@ -13,6 +13,7 @@
   let message = '';
   let chatInput: HTMLInputElement;
   let controlsPanel: HTMLDivElement;
+  let uploadField: HTMLInputElement;
   
   // Event handlers
   function togglePanel() {
@@ -39,17 +40,13 @@
   }
   
   async function handleFileUpload(event: Event) { // Add type annotation
-    const target = event.target as HTMLInputElement; // Cast target
-    const file = target.files?.[0]; // Use optional chaining
+    const file = uploadField.files?.[0]; // Use optional chaining
     if (!file) return;
     // Import the sendFile function from our bridge
     const { sendFile } = await import('../lib/fileBridge.js');
     sendFile(file);
 
-    // Reset file input safely
-    if (event.target instanceof HTMLInputElement) {
-      event.target.value = '';
-    }
+    uploadField.value = '';
   }
 </script>
 
@@ -85,7 +82,7 @@
         <div class="p-2">
           <label for="file-upload"
             class="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">📎</label>
-          <input id="file-upload" type="file" class="hidden" on:change={handleFileUpload}>
+          <input id="file-upload" type="file" class="hidden" on:change={handleFileUpload} bind:this={uploadField}>
         </div>
       </div>
     </div>
