@@ -5,9 +5,9 @@ import { describe, jest, beforeEach, test, expect } from '@jest/globals';
  */
 
 // Mock the backgroundChange function
-global.backgroundChange = jest.fn().mockResolvedValue({
+(global as any).backgroundChange = jest.fn().mockResolvedValue({ // Cast global
   getTracks: jest.fn().mockReturnValue([])
-});
+} as any); // Cast resolved value
 
 // Restore mocks for specific stores that import svelte/store
 jest.mock('../../src/stores/streamStore', () => ({
@@ -50,11 +50,11 @@ jest.mock('../../src/stores/configStore', () => ({
 
 
 describe('Stream Management', () => {
-  let streamModule: typeof import('../../src/lib/streamBridge'); // Define module variable
+  let streamModule: typeof import('../../src/lib/streamBridge.js'); // Add .js extension
 
   // Setup mock functions before importing the module
   beforeAll(async () => {
-    // Import the module once after mocks are set up, adding .js extension
+    // Import the module once after mocks are set up
     streamModule = await import('../../src/lib/streamBridge.js');
   });
 
@@ -65,44 +65,44 @@ describe('Stream Management', () => {
     // jest.resetModules(); // Keep this commented unless clearAllMocks isn't enough
 
     // Setup DOM mocks with type assertion
-    (document as any).getElementById = jest.fn().mockImplementation((id: string) => {
+    (document as any).getElementById = jest.fn().mockImplementation((id: string): HTMLElement | null => { // Add return type
       if (id === 'toggle-audio' || id === 'toggle-video' || id === 'toggle-screen') {
-        return {
+        return { // Cast return object to any to satisfy HTMLElement properties
           addEventListener: jest.fn(),
           classList: {
             add: jest.fn(),
             remove: jest.fn()
           },
-          style: {}
-        };
+          style: {},
+        } as any;
       } else if (id === 'media') {
-        return {
+        return { // Cast return object to any
           appendChild: jest.fn(),
           clientWidth: 1000,
-          clientHeight: 800
-        };
+          clientHeight: 800,
+        } as any;
       } else if (id === 'contextMenu') {
-        return {
+        return { // Cast return object to any
           classList: {
             add: jest.fn(),
             remove: jest.fn()
           },
           style: {},
-          contains: jest.fn().mockReturnValue(false)
-        };
+          contains: jest.fn().mockReturnValue(false),
+        } as any;
       } else if (id === 'ul-contextMenu') {
-        return {
+        return { // Cast return object to any
           firstChild: null,
           removeChild: jest.fn(),
-          appendChild: jest.fn()
-        };
+          appendChild: jest.fn(),
+        } as any;
       }
-      return null; // Return null for unhandled IDs
+      return null;
     });
 
     // Mock createElement with type assertion
-    (document as any).createElement = jest.fn().mockImplementation((tag: string) => {
-      return {
+    (document as any).createElement = jest.fn().mockImplementation((tag: string): HTMLElement => { // Add return type
+      return { // Cast return object to any to satisfy HTMLElement properties
         srcObject: null,
         classList: {
           add: jest.fn()
@@ -113,9 +113,9 @@ describe('Stream Management', () => {
         controls: false,
         disablePictureInPicture: false,
         playsInline: false,
-        play: jest.fn().mockResolvedValue(undefined as any), // Cast resolved value
-        appendChild: jest.fn()
-      };
+        play: jest.fn().mockResolvedValue(undefined as any),
+        appendChild: jest.fn(),
+      } as any;
     });
 
     // Mock createTextNode, querySelectorAll, querySelector with type assertions
@@ -144,9 +144,9 @@ describe('Stream Management', () => {
             addTransceiver: jest.fn(),
             addEventListener: jest.fn(),
             getTransceivers: jest.fn().mockReturnValue([]),
-            getStats: jest.fn().mockResolvedValue(new Map() as any) // Cast resolved value
-          },
-          forward: {}
+            getStats: jest.fn().mockResolvedValue(new Map() as any)
+          } as any, // Cast pc mock
+          forward: {} as any // Cast forward mock
         }
       },
       cleanups: {},
@@ -173,8 +173,8 @@ describe('Stream Management', () => {
                 dispatchEvent: jest.fn()
               }
             ]),
-            getVideoTracks: jest.fn().mockReturnValue([])
-          } as any), // Cast resolved value
+            getVideoTracks: jest.fn().mockReturnValue([]),
+          } as any),
           getDisplayMedia: jest.fn().mockResolvedValue({
             id: 'test-screen-id',
             getTracks: jest.fn().mockReturnValue([
@@ -185,14 +185,14 @@ describe('Stream Management', () => {
                 dispatchEvent: jest.fn()
               }
             ]),
-            getVideoTracks: jest.fn().mockReturnValue([])
-          } as any), // Cast resolved value
+            getVideoTracks: jest.fn().mockReturnValue([]),
+          } as any),
           enumerateDevices: jest.fn().mockResolvedValue([
             { kind: 'audioinput', label: 'Test Microphone', deviceId: 'audio-device-id', groupId: 'audio-group-id' },
-            { kind: 'videoinput', label: 'Test Camera', deviceId: 'video-device-id', groupId: 'video-group-id' }
-          ] as any) // Cast resolved value
+            { kind: 'videoinput', label: 'Test Camera', deviceId: 'video-device-id', groupId: 'video-group-id' },
+          ] as any)
         },
-        userAgent: 'test-user-agent'
+        userAgent: 'test-user-agent',
       },
       writable: true
     });
@@ -287,8 +287,8 @@ describe('Stream Management', () => {
       controls: false,
       disablePictureInPicture: false,
       playsInline: false,
-      play: jest.fn().mockResolvedValue(undefined as any) // Cast resolved value
-    };
+      play: jest.fn().mockResolvedValue(undefined as any)
+    } as any; // Cast mockMediaElement
 
     // Ensure media container exists using jest.spyOn
     const getElementByIdSpy = jest.spyOn(document, 'getElementById').mockReturnValueOnce({
@@ -306,8 +306,8 @@ describe('Stream Management', () => {
     const trackListenerCall = addEventListenerMock.mock.calls.find(
       (call: any) => call[0] === 'track' // Add type any to call
     );
-    const trackListener = trackListenerCall ? trackListenerCall[1] : undefined;
-    expect(trackListener).toBeDefined(); // Ensure listener was found
+    const trackListener = trackListenerCall ? trackListenerCall[1] : null; // Use null if not found
+    expect(trackListener).toBeDefined();
 
     // Create a mock track event
     const mockTrack = {
@@ -321,9 +321,9 @@ describe('Stream Management', () => {
       getTracks: jest.fn().mockReturnValue([mockTrack])
     };
 
-    // Call the listener if found
+    // Call the listener if found (cast listener to any)
     if (trackListener) {
-      await trackListener({ streams: [mockStream], track: mockTrack });
+      await (trackListener as any)({ streams: [mockStream], track: mockTrack });
     }
 
     // Verify the stream was added to viewStreams using global.app

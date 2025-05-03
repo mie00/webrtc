@@ -5,12 +5,20 @@ import { describe, jest, beforeEach, test, expect } from '@jest/globals';
  */
 
 // Mock the backgroundChange function
-global.backgroundChange = jest.fn().mockResolvedValue({
+(global as any).backgroundChange = jest.fn().mockResolvedValue({ // Cast global
   getTracks: jest.fn().mockReturnValue([])
-});
+} as any); // Cast resolved value
+
+// Declare module variable at the top level
+let streamModule: typeof import('../../src/lib/streamBridge.js');
 
 describe('Stream Management', () => {
-  let app;
+  let app: any; // Declare app with type any
+
+  // Import module before all tests
+  beforeAll(async () => {
+    streamModule = await import('../../src/lib/streamBridge.js');
+  });
 
   // Make beforeEach async to handle await import
   beforeEach(async () => {
@@ -26,43 +34,30 @@ describe('Stream Management', () => {
       nego_handlers: {},
       cleanups: {}
     };
-    
+
     // Mock global app object with type assertion
     (global as any).app = app;
 
-    // Initialize the module if needed (already imported in beforeAll)
-    if (streamModule.streamInit) {
-      streamModule.streamInit(app);
-    }
+    // Initialize the module using the imported variable
+    streamModule.streamInit(app);
   });
 
-  test('normalizeStreamId should remove curly braces', () => { // No longer needs async
+  test('normalizeStreamId should remove curly braces', () => {
     // Use the imported module variable
-    if (streamModule.normalizeStreamId) {
-      expect(streamModule.normalizeStreamId('{stream-id-123}')).toBe('stream-id-123');
-      expect(streamModule.normalizeStreamId('stream-id-123')).toBe('stream-id-123');
-    } else {
-      // Skip test if function doesn't exist
-      console.warn('normalizeStreamId function not found, skipping test');
-    }
+    expect(streamModule.normalizeStreamId('{stream-id-123}')).toBe('stream-id-123');
+    expect(streamModule.normalizeStreamId('stream-id-123')).toBe('stream-id-123');
   });
 
-  test('getStreamElemId should return correct element ID', () => { // No longer needs async
+  test('getStreamElemId should return correct element ID', () => {
     // Use the imported module variable
-    if (streamModule.getStreamElemId) {
-      expect(streamModule.getStreamElemId('{stream-id-123}')).toBe('stream-stream-id-123');
-    } else {
-      // Skip test if function doesn't exist
-      console.warn('getStreamElemId function not found, skipping test');
-    }
+    expect(streamModule.getStreamElemId('{stream-id-123}')).toBe('stream-stream-id-123');
   });
 
-  // This test doesn't use await import, so it doesn't need to be async
   test('stream.end handler should remove elements and clean up', () => {
-    // Skip if nego_handlers doesn't exist
-    if (!app.nego_handlers['stream.end']) {
-      console.warn('stream.end handler not found, skipping test');
-      return;
+    // Ensure the handler exists before testing
+    if (!app.nego_handlers || !app.nego_handlers['stream.end']) {
+      console.warn('stream.end handler not found, skipping test.');
+      return; // Skip test if handler is not registered
     }
     
     // Create mock elements
