@@ -17,18 +17,13 @@ export default {
   setupFiles: ['./jest.setup.js'],
   // globals section is deprecated for ts-jest config
   moduleNameMapper: {
-    // Mock svelte/store globally to avoid ESM parsing issues
-    '^svelte/store$': '<rootDir>/__mocks__/svelte/store.js',
     // Handle module aliases for ESM
     '^\\$lib/(.*)$': '<rootDir>/src/lib/$1',
     // Handle .js extension in imports when importing .ts files (ESM needs explicit extensions)
     // '^(\\.{1,2}/.*)\\.js$': '$1' // This might not be needed with ESM preset, test carefully
   },
-  // Ensure svelte and potentially other ESM modules in node_modules are transformed
-  transformIgnorePatterns: [
-    // Allow svelte and potentially @sveltejs packages to be transformed
-    '/node_modules/(?!(@?svelte|@?sveltejs)/)',
-  ],
+  // Remove transformIgnorePatterns - let the preset and transformers handle it
+  // transformIgnorePatterns: [ ... ],
   collectCoverageFrom: [
     'src/**/*.{js,ts,svelte}',
     '!**/node_modules/**',

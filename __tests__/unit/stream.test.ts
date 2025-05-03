@@ -7,9 +7,44 @@ global.backgroundChange = jest.fn().mockResolvedValue({
   getTracks: jest.fn().mockReturnValue([])
 });
 
-// Remove mocks for specific stores - relying on global svelte/store mock now
-// jest.mock('../../src/stores/streamStore', () => ({ ... }));
-// jest.mock('../../src/stores/configStore', () => ({ ... })); // Assuming you might have had one for configStore too
+// Restore mocks for specific stores that import svelte/store
+jest.mock('../../src/stores/streamStore', () => ({
+  streamStore: { subscribe: jest.fn(), update: jest.fn(), set: jest.fn() },
+  getStreamState: jest.fn().mockReturnValue({
+    viewStreams: {},
+    localStreams: {},
+    remoteStreams: {},
+    activeView: { layout: 'grid' },
+    streamConfig: { audio: false, video: false, screen: false, local: false }
+  }),
+  addViewStream: jest.fn(),
+  removeViewStream: jest.fn(),
+  addLocalStream: jest.fn(),
+  removeLocalStream: jest.fn(),
+  addRemoteStream: jest.fn(),
+  removeRemoteStream: jest.fn(),
+  // Add mocks for any other functions exported/used from streamStore if needed
+  updateStreamConfig: jest.fn(),
+  toggleLocalStream: jest.fn(),
+  setViewLayout: jest.fn(),
+  setGridSize: jest.fn(),
+}));
+
+jest.mock('../../src/stores/configStore', () => ({
+  configStore: { subscribe: jest.fn(), update: jest.fn(), set: jest.fn() },
+  getAllConfig: jest.fn().mockReturnValue({
+    'audio-device': 'default|default', // Match default value format
+    'video-device': 'default|default', // Match default value format
+    'blur-video': 'no'
+    // Add other default config values if streamBridge relies on them
+  }),
+  // Mock other exports if needed by streamBridge.ts
+  getConfigValue: jest.fn(),
+  updateConfig: jest.fn(),
+  resetConfig: jest.fn(),
+  isServerMode: { subscribe: jest.fn() }, // Mock derived store
+  rtcServers: { subscribe: jest.fn() }, // Mock derived store
+}));
 
 
 describe('Stream Management', () => {
