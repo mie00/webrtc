@@ -3,9 +3,9 @@
   import { streamStore, updateStreamConfig, setViewLayout, type LayoutType } from '../stores/streamStore.js';
   import { setupLocalStream, destroyLocalStream, normalizeStreamId } from '../lib/streamBridge.js';
   import { startRecording, stopRecording } from '../lib/media/recorder.js';
-  import { calculateStreamPositions } from '../lib/utils/streamLayout';
+  import { calculateStreamPositions } from '../lib/utils/streamLayout.js';
   import ContextMenu from './ContextMenu.svelte';
-  import { updateConfig, getAllConfig } from '../stores/configStore';
+  import { updateConfig, getAllConfig } from '../stores/configStore.js';
   import StreamView from './StreamView.svelte';
   
   // Context menu state
