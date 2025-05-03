@@ -1,3 +1,5 @@
+import { jest } from '@jest/globals';
+
 // Mock browser APIs that aren't available in Jest
 global.RTCPeerConnection = jest.fn().mockImplementation(() => ({
   createDataChannel: jest.fn().mockReturnValue({
