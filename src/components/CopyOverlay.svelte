@@ -12,7 +12,7 @@
   
   let pasteValue = '';
   let copyButtonText = 'Copy';
-  let qrCodeElement;
+  let qrCodeElement: HTMLElement;
   
   const dispatch = createEventDispatcher();
   
@@ -32,7 +32,7 @@
   }
   
   // Event handlers
-  function handleClose(event) {
+  function handleClose(event: Event) {
     if (event.target === event.currentTarget) {
       dispatch('close');
     }
