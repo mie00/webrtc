@@ -109,7 +109,7 @@ interface StreamConfig {
 interface AppWithStreamConfig extends App {
     streamConfig: StreamConfig;
 }
-const destroyLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (number) => void): Promise<void> => {
+const destroyLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (level: number) => void): Promise<void> => {
     if (window.app.streams) {
         delete window.app.viewStreams![normalizeStreamId(window.app.streams[changed].id)];
         tearDownStream(window.app.streams[changed]);
@@ -121,7 +121,7 @@ const destroyLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local
     }
 }
 
-const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (number) => void): Promise<void> => {
+const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (level: number) => void): Promise<void> => {
     let stream: MediaStream | undefined;
     const appWithConfig = window.app as AppWithStreamConfig;
     

@@ -315,7 +315,7 @@
   <button on:click={handleHangup} class="hover:bg-red-600 bg-red-500 text-white p-3 rounded-full pointer-events-auto">
     📞
   </button>
-  <video on:loadeddata={handleFilePlay} muted bind:this={videoNode} autoplay loop class="hidden" />
+  <video on:loadeddata={handleFilePlay} muted bind:this={videoNode} autoplay loop class="hidden"></video>
   <input bind:this={uploadVideo} type="file" on:change={handleVideoUpload} accept="video/*" class="hidden">
 </div>
 
