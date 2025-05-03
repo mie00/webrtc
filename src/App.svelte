@@ -280,7 +280,7 @@
 </script>
 
 <main class="flex-1 flex">
-  <MediaArea {webRTCApp} on:hangup={handleHangup} />
+  <MediaArea on:hangup={handleHangup} />
   <ControlPanel {webRTCApp} on:toggleConfig={toggleConfigOverlay} />
 </main>
 
