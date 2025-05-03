@@ -145,16 +145,10 @@
     const device = devices.find(d => d.label === item && d.kind === `${selectedButton}input`);
     
     if (device) {
+      await destroyLocalStream(selectedButton);
       updateConfig(`${selectedButton}-device`, `${device.groupId}|${device.deviceId}`);
       updateStreamConfig({ [selectedButton]: true });
       await setupLocalStream(selectedButton);
-      
-      // Update button state
-      if (selectedButton === 'audio') {
-        audioButton.classList.toggle('bg-blue-600', true);
-      } else {
-        videoButton.classList.toggle('bg-blue-600', true);
-      }
     }
   }
 
@@ -175,7 +169,7 @@
     
     // If video is already enabled, restart it to apply the blur effect
     if (isVideoEnabled) {
-      await destroyLocalStream('video');
+      // await destroyLocalStream('video');
       await setupLocalStream('video');
     }
   }

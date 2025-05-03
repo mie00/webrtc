@@ -9,8 +9,22 @@ import {
   removeRemoteStream,
   type StreamType
 } from '../stores/streamStore';
+import {
+  getAllConfig
+} from '../stores/configStore';
 import { get } from 'svelte/store';
-import { type AppWithStreamConfig, normalizeStreamId, getStreamElemId } from './media/stream'
+import {
+  type AppWithStreamConfig,
+  type AudioProcessingApp,
+  normalizeStreamId,
+  setupStream,
+  processAudio,
+  stopProcessingAudio,
+  setupTrack,
+  tearDownStream,
+} from './media/stream'
+// Export background utilities
+import { backgroundChange } from './utils/background';
 
 // This module serves as a bridge between the WebRTC app and Svelte components
 
@@ -67,9 +81,6 @@ export function streamInit(originalApp: App): void {
     // This ensures the app object stays in sync with the store
     app.streamConfig = { ...state.streamConfig };
   });
-  
-  // Import getAllConfig
-  const { getAllConfig } = require('../stores/configStore');
 }
 
 /**
@@ -78,12 +89,12 @@ export function streamInit(originalApp: App): void {
 export function setupTrackHandler(app: App, cid: string): void {
   app.clients[cid].pc?.addEventListener("track", async (ev: RTCTrackEvent) => {
     console.log("got track event", ev);
-    
+
     const streamId = normalizeStreamId(ev.streams[0].id);
-    
+
     // Add to enhanced store structure
     addRemoteStream(cid, streamId, ev.streams[0]);
-    
+
     ev.track.onended = (ev: Event) => {
       console.log(ev);
       const target = ev.target as MediaStreamTrack;
@@ -158,6 +169,7 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
           videoElem.autoplay = true;
           videoElem.muted = true;
           videoElem.srcObject = stream;
+          // document.getElementById('media')?.appendChild(videoElem);
           
           // Wait for video to be ready
           await new Promise<void>((resolve) => {
@@ -252,9 +264,6 @@ export {
   setupStream, 
   getStreamsDims,
 } from './media/stream';
-
-// Export background utilities
-export { backgroundChange } from './utils/background';
 
 // Helper function to send negotiation messages
 function sendNego(client: WebRTCClient, data: any): void {

@@ -8,7 +8,7 @@ async function backgroundChange(videoSource: HTMLVideoElement): Promise<MediaStr
     canvasElement.width = videoSource.videoWidth;
     canvasElement.height = videoSource.videoHeight;
     canvasElement.style.transform = 'scaleX(-1)';
-    document.getElementById('media')?.appendChild(canvasElement);
+    (document.getElementById('media') as HTMLElement).appendChild(canvasElement);
     videoSource.substitueElement = canvasElement;
 
     const ctx = canvasElement.getContext('2d');
@@ -18,6 +18,7 @@ async function backgroundChange(videoSource: HTMLVideoElement): Promise<MediaStr
 
     function onResults(results: any): void {
         if (!ctx) {
+            throw new Error("Could not get canvas context again");
             return;
         }       
         ctx.save();
@@ -58,6 +59,7 @@ async function backgroundChange(videoSource: HTMLVideoElement): Promise<MediaStr
             await ddo();
             const stream = canvasElement.captureStream();
             videoSource.substitueStream = stream;
+
             resolve(stream);
         });
     });

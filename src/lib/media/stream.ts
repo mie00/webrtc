@@ -347,5 +347,6 @@ export {
     setupStream,
     refreshStreamViews,
     destroyLocalStream,
-    type AppWithStreamConfig
+    type AppWithStreamConfig,
+    type AudioProcessingApp,
 };
