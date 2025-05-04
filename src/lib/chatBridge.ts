@@ -55,10 +55,6 @@ export function setupChatChannel(app: App, cid: string): void {
     app.clients[cid].dc = dc;
     
     dc.onopen = (): void => {
-      const chat = document.getElementById('chat') as HTMLInputElement;
-      if (chat) {
-        chat.select();
-      }
     };
     
     dc.onmessage = (e: MessageEvent): void => {

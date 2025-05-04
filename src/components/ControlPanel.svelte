@@ -16,7 +16,7 @@
   let chatInput: HTMLInputElement;
   let controlsPanel: HTMLDivElement;
   let uploadField: HTMLInputElement;
-  let chatOutputContainer: HTMLDivElement; // Reference for chat output div
+  let chatOutputContainer: HTMLDivElement;
 
   // Subscribe to connection store
   let connectionState: ConnectionState = { directClients: {}, participants: {} }; // Initialize with default structure
@@ -49,6 +49,9 @@
   // Event handlers
   function togglePanel() {
     isPanelOpen = !isPanelOpen;
+    if (isPanelOpen) {
+      chatInput.focus();
+    }
   }
   
   function handleKeyPress(event: KeyboardEvent) { // Add type annotation
@@ -171,7 +174,7 @@
 
       <!-- Message Input and Upload Button -->
       <div class="flex items-center space-x-2 p-2">
-        <input id="chat" type="text" placeholder="Type your message..."
+        <input type="text" placeholder="Type your message..."
           bind:value={message}
           bind:this={chatInput}
           class="flex-1 border border-gray-300 px-3 py-2 rounded-md"

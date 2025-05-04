@@ -1,6 +1,5 @@
 import { writable, get } from 'svelte/store';
 import { WebRTCApp } from './webrtc/WebRTCApp.js';
-import { updateProgressBar, splitArrayBuffer } from './utils/file.js';
 
 // File transfer state interface
 export interface FileTransfer {
@@ -22,6 +21,31 @@ export interface FileState {
 const initialState: FileState = {
   transfers: {}
 };
+
+function updateProgressBar(id: string, file_size: number, get_ready: () => number): void {
+  const bufferedAmount = get_ready();
+
+  // Calculate progress percentage (0 to 100)
+  const progressPercentage = (file_size - bufferedAmount) / file_size * 100;
+  const elem = document.getElementById(`file-${id}`) as HTMLProgressElement;
+  if (elem) {
+      elem.value = progressPercentage;
+      elem.innerHTML = `${progressPercentage}%`;
+  }
+}
+function splitArrayBuffer(arrayBuffer: ArrayBuffer, chunkSize: number): ArrayBuffer[] {
+  const uint8Array = new Uint8Array(arrayBuffer);
+  const chunks: ArrayBuffer[] = [];
+  let offset = 0;
+
+  while (offset < uint8Array.length) {
+      const chunk = uint8Array.slice(offset, offset + chunkSize);
+      chunks.push(chunk.buffer);  // Push the ArrayBuffer of the chunk
+      offset += chunkSize;
+  }
+
+  return chunks;
+}
 
 // Create the store
 export const fileStore = writable<FileState>(initialState);

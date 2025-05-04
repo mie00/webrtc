@@ -467,8 +467,8 @@ export class WebRTCApp {
           });
 
           if (transport) {
-              const remoteCertId = transport.remoteCertificateId;
-              const localCertId = transport.localCertificateId;
+              const remoteCertId = (transport as any).remoteCertificateId;
+              const localCertId = (transport as any).localCertificateId;
 
               if (localCertId && remoteCertId && certificates[localCertId] && certificates[remoteCertId]) {
                   // Ensure consistent ordering for fingerprint generation

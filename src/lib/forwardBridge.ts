@@ -126,8 +126,6 @@ export function setupForwardChannel(originalApp: App, cid: string): void {
   (app.clients[cid] as ForwardClient).forward = forward;
   
   forward.onopen = () => {
-    const chat = document.getElementById('chat') as HTMLInputElement;
-    if (chat) chat.select();
   };
   
   forward.onmessage = async (e: MessageEvent) => {
