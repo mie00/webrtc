@@ -224,10 +224,51 @@ export function sendFile(file: File): void {
   }
 }
 
+// Helper function to read a slice as ArrayBuffer using FileReader wrapped in a Promise
+function readFileSliceAsArrayBuffer(slice: Blob): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        resolve(event.target.result as ArrayBuffer);
+      } else {
+        reject(new Error("Failed to read file slice."));
+      }
+    };
+    reader.onerror = (event) => {
+      reject(reader.error || new Error("FileReader error"));
+    };
+    reader.readAsArrayBuffer(slice);
+  });
+}
+
+// Helper function to wait until the buffer amount is below a threshold
+async function waitForBufferDrain(dc: RTCDataChannel, threshold: number): Promise<void> {
+    // If buffer is already low, resolve immediately
+    if (dc.bufferedAmount < threshold) {
+        return;
+    }
+    // Otherwise, return a promise that resolves when bufferedamountlow fires
+    return new Promise((resolve) => {
+        const listener = () => {
+            if (dc.bufferedAmount < threshold) {
+                dc.removeEventListener("bufferedamountlow", listener);
+                resolve();
+            }
+        };
+        // Add listener only if buffer isn't already low
+        if (dc.bufferedAmount >= threshold) {
+            dc.addEventListener("bufferedamountlow", listener);
+        } else {
+            resolve(); // Resolve immediately if condition met before listener attached
+        }
+    });
+}
+
 /**
- * Read and send a file to a specific client
+ * Read and send a file to a specific client (Rewritten Version)
  */
-function readFile(file: File, cid: string, id: string): void {
+async function readFile(file: File, cid: string, id: string): Promise<void> {
   let offset = 0;
   const max_size = 2 * 1024 * 1024;
   const app = window.app;
