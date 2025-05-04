@@ -62,9 +62,13 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
         try {
             // --- File Transfer Steps (Starts immediately) ---
             // switch tabs to pageA
+
+            await pageB.waitForSelector('::-p-text(<)', { visible: true, timeout: PUPPETEER_TIMEOUT });
+            pageB.click('::-p-text(<)')
+
             await pageA.bringToFront();
 
-            await pageA.waitForSelector('::-p-text(<)', { visible: false, timeout: PUPPETEER_TIMEOUT });
+            await pageA.waitForSelector('::-p-text(<)', { visible: true, timeout: PUPPETEER_TIMEOUT });
             pageA.click('::-p-text(<)')
 
             // 1. Find the file input element on Page A (Sender)
