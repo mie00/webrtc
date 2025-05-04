@@ -243,14 +243,7 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
       const smallChunks = splitArrayBuffer(chunkBuffer, SEND_CHUNK_SIZE);
 
       for (const smallChunk of smallChunks) {
-        // Flow control: Wait if buffer is too full
-        while (dc_file.bufferedAmount > HIGH_WATER_MARK) {
-            // Set the threshold *before* waiting. Fires when buffer drops below this.
-            dc_file.bufferedAmountLowThreshold = HIGH_WATER_MARK / 2; // e.g., 8MB
-            // console.log(`Buffer full (${dc_file.bufferedAmount}), waiting...`);
-            await waitForBufferDrain(dc_file);
-            // console.log(`Buffer drained (${dc_file.bufferedAmount}), proceeding...`);
-        }
+        // Removed the pre-send buffer check loop
 
         // Send the small chunk
         try {
@@ -271,6 +264,16 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
 
         // Removed legacy progress bar update: updateProgressBar(...)
       }
+
+      // Flow control: After sending all small chunks from the large chunk,
+      // wait if the buffer is still full before reading the *next* large chunk.
+      while (dc_file.bufferedAmount > HIGH_WATER_MARK) {
+          dc_file.bufferedAmountLowThreshold = HIGH_WATER_MARK / 2;
+          // console.log(`Post-chunk buffer full (${dc_file.bufferedAmount}), waiting before next read...`);
+          await waitForBufferDrain(dc_file);
+          // console.log(`Post-chunk buffer drained (${dc_file.bufferedAmount}), proceeding to next read...`);
+      }
+
        // Optional: Yield to the event loop occasionally for very large files/chunks
        // await new Promise(resolve => setTimeout(resolve, 0));
     }
