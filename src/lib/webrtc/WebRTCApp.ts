@@ -419,14 +419,14 @@ export class WebRTCApp {
   public async handleChange(cid?: string): Promise<void> {
     const participantsElement = document.getElementById('participants');
     if (!participantsElement) return;
-    
+
     const parent = document.createElement('div');
 
     for (const [cid, client] of Object.entries(this.app.clients)) {
       const indicator = document.createElement('div');
       const toAdd = client.pc?.connectionState === 'connected' && client.pc?.iceConnectionState === 'connected' ? 'bg-green-400' :
           client.pc?.connectionState === 'failed' || client.pc?.iceConnectionState === 'failed' ? 'bg-red-400' : 'bg-gray=400';
-      indicator.classList.add(toAdd, 'rounded-full', 'h-4', 'w-4');
+      indicator.classList.add(toAdd, 'rounded-full', 'h-4', 'w-4', 'test-indicator');
 
       const textContainer = document.createElement('p');
       textContainer.classList.add('text-sm', 'font-medium', 'text-gray-700');

@@ -14,7 +14,7 @@
     "test:coverage": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest --coverage",
     "test:unit": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest __tests__/unit",
     "test:integration": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest __tests__/integration",
-    "test:e2e": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest --config jest.config.cjs --rootDir . --runInBand __tests__/e2e" // Added --rootDir .
+    "test:e2e": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest --config jest-puppeteer.config.cjs --rootDir . --runInBand __tests__/e2e"
   },
   "keywords": [
     "webrtc",

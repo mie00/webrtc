@@ -8,7 +8,7 @@ const DIR = path.join(os.tmpdir(), 'jest_puppeteer_global_setup');
 
 module.exports = async function () {
   console.log('\nJest Global Setup: Launching Puppeteer...');
-  const browser = await puppeteer.launch({ headless: 'new' });
+  const browser = await puppeteer.launch({ headless: false });
   // Store the browser instance in the global scope (only available in global teardown)
   global.__BROWSER_GLOBAL__ = browser;
 

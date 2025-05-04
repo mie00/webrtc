@@ -93,7 +93,7 @@ declare namespace NodeJS {
 // interface Window {
   //   // Add window specific mocks here if needed
   // }
-}
+// }
 
 // Export {} to make this file a module. This is necessary for augmentation.
 export {};

@@ -64,7 +64,8 @@
       try {
         await navigator.clipboard.writeText(copyText);
         copyButtonText = "Copied successfully";
-      } catch {
+      } catch (e) {
+        console.log("Copying error", e);
         copyButtonText = "Error copying, please copy manually";
       }
     } else {
@@ -106,7 +107,7 @@
       <textarea bind:value={pasteValue} class="bg-gray-200 px-4 py-2 rounded-md break-all block mt-2"></textarea>
     {/if}
     {#if showJoinButton}
-      <button on:click={handleJoin}
+      <button on:click={handleJoin} id="test-join"
         class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full mt-2">📞</button>
     {/if}
   </div>

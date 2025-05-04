@@ -24,7 +24,7 @@ module.exports = {
   },
   moduleFileExtensions: ['js', 'ts', 'svelte', 'json', 'cjs'], // Added cjs
   extensionsToTreatAsEsm: ['.ts', '.svelte'], // Treat .ts and .svelte as ES Modules
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'], // Keep your existing setup file if needed
+  // setupFilesAfterEnv: ['<rootDir>/jest.setup.js'], // Keep your existing setup file if needed
   testMatch: [ // Ensure it finds tests in all specified directories
     '**/__tests__/unit/**/*.test.[jt]s?(x)',
     '**/__tests__/integration/**/*.test.[jt]s?(x)',
