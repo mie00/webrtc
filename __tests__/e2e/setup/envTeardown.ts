@@ -7,7 +7,9 @@ export default async function envTeardown() {
         console.log('DEBUG_WAIT is set, keeping browser open until pageB is closed (or timeout)...');
         // Note: Teardown will close pages eventually. This wait might be less useful now.
         // Consider waiting for a specific condition or removing if teardown handles closure.
-        await new Promise(resolve => setTimeout(resolve, 3600 * 1000)); // Long wait for manual inspection
+        // get how much seconds to wait from DEBUG_WAIT and failback to 1h
+        const debugWaitSeconds = parseInt(process.env.DEBUG_WAIT) || 3600;
+        await new Promise(resolve => setTimeout(resolve, debugWaitSeconds * 1000)); // Long wait for manual inspection
     }
     // 'this' refers to the Jest environment instance
     console.log('\n--- Environment E2E Teardown (Pages) ---');

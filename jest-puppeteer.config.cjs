@@ -3,7 +3,7 @@ module.exports = {
   // Puppeteer launch options
   launch: {
     headless: process.env.DEBUG_WAIT?false:'new', // Set to false to run in non-headless mode
-    // slowMo: 50, // Optional: Slow down operations to observe better
+    slowMo: 50, // Optional: Slow down operations to observe better
     args: ['--window-size=1920,1080'], // Optional: Set window size
   },
   maxWorkers: 2,

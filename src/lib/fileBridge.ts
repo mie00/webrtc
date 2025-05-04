@@ -116,29 +116,26 @@ export function setupFileChannel(app: App, cid: string): void {
           name: fileData.name,
           type: fileData.type,
           size: fileData.size,
-          progress: 0,
+          progress: fileData.size===0 ? 100 : 0,
           status: 'receiving'
         });
-
-        // Removed legacy DOM injection: WebRTCApp.log(...)
-        return;
       }
+      console.log(e.data)
+      if (e.data.byteLength || e.data.size) {
+        // Subsequent messages contain file chunks
+        app.clients[cid].file_stuff.segments.push(e.data);
+        app.clients[cid].file_stuff.remaining_size -= e.data.byteLength || e.data.size;
 
-      // Subsequent messages contain file chunks
-      app.clients[cid].file_stuff.segments.push(e.data);
-      app.clients[cid].file_stuff.remaining_size -= e.data.byteLength || e.data.size;
-
-      // Calculate progress
-      const progress = ((app.clients[cid].file_stuff.size - app.clients[cid].file_stuff.remaining_size) / app.clients[cid].file_stuff.size) * 100;
-
-      // Update store
-      updateFileTransfer(app.clients[cid].file_stuff.id, {
-        progress,
-        status: 'receiving'
-      });
-
-      // Removed legacy progress bar update: updateProgressBar(...)
-
+        // Calculate progress
+        const progress = app.clients[cid].file_stuff.size === 0?1:((app.clients[cid].file_stuff.size - app.clients[cid].file_stuff.remaining_size) / app.clients[cid].file_stuff.size);
+        const progressReadable = Math.min(100, Math.round((progress) * 100));
+        // Update store
+        updateFileTransfer(app.clients[cid].file_stuff.id, {
+          progress: progressReadable,
+          status: 'receiving'
+        });
+      }
+      console.log("MMMAAAAAAAAA", app.clients[cid].file_stuff.remaining_size)
       // Check if file is complete
       if (app.clients[cid].file_stuff.remaining_size === 0) {
         const blob = new Blob(app.clients[cid].file_stuff.segments, { type: app.clients[cid].file_stuff.type });
@@ -286,12 +283,6 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
   let offset = 0;
   let totalBytesSent = 0; // Track total bytes *sent* (or queued)
 
-  // Disable file input during transfer
-  const fileUpload = document.getElementById('file-upload') as HTMLInputElement;
-  if (fileUpload) {
-    fileUpload.disabled = true;
-  }
-
   try {
     console.log(`Starting file transfer: ${file.name} (${file.size} bytes) to ${cid}`);
 
@@ -362,17 +353,8 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
 
     // Removed legacy DOM update
     // Ensure input is re-enabled even if error is caught within the loop
-    if (fileUpload) {
-      fileUpload.disabled = false;
-    }
+
     // Re-throw the error so Promise.allSettled catches it as rejected
     throw error;
-  } finally {
-    // Re-enable file input (redundant if error caught, but safe)
-    if (fileUpload && !fileUpload.disabled) { // Check if already enabled
-      fileUpload.disabled = false;
-    }
-    // Note: No interval to clear in this version.
-    // The bufferedamountlow listener in waitForBufferDrain removes itself.
   }
 }

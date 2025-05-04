@@ -18,6 +18,7 @@
   let controlsPanel: HTMLDivElement;
   let uploadField: HTMLInputElement;
   let chatOutputContainer: HTMLDivElement;
+  let canUpload = true;
 
   // Subscribe to connection store
   let connectionState: ConnectionState = { directClients: {}, participants: {} }; // Initialize with default structure
@@ -86,8 +87,12 @@
     if (!file) return;
     // Import the sendFile function from our bridge
     const { sendFile } = await import('../lib/fileBridge.js');
-    sendFile(file);
-
+    canUpload = false;
+    try{
+      sendFile(file);
+    } finally {
+      canUpload = true;
+    }
     uploadField.value = '';
   }
 </script>
@@ -189,8 +194,11 @@
           on:keypress={handleKeyPress}>
         <div class="p-2">
           <label for="file-upload"
-            class="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">📎</label>
-          <input id="file-upload" type="file" class="hidden" on:change={handleFileUpload} bind:this={uploadField}>
+            class="cursor-pointer hover:bg-blue-600 text-white px-4 py-2 rounded-md"
+            class:bg-blue-500={canUpload}
+            class:bg-gray-500={!canUpload}
+            >📎</label>
+          <input id="file-upload" disabled={!canUpload} type="file" class="hidden" on:change={handleFileUpload} bind:this={uploadField}>
         </div>
       </div>
     </div>
