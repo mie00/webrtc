@@ -35,6 +35,9 @@
     unsubscribeChat(); // Unsubscribe from chatStore
   });
 
+  // Get local user name for chat display comparison
+  $: localUserName = webRTCApp?.getApp()?.config?.['user-name'] || 'You';
+
   // Auto-scroll chat
   afterUpdate(() => {
     if (chatOutputContainer) {
@@ -158,8 +161,9 @@
           <p class="text-sm text-gray-500 italic">Chat messages will appear here...</p>
         {:else}
           {#each chatState.messages as message, i (message.timestamp + '-' + i)} <!-- Unique key using timestamp + index -->
+            {@const displayName = message.sender === localUserName ? 'You' : message.sender}
             <div class="mb-2 chat-message break-words"> <!-- Added break-words -->
-              <span class="font-bold">{message.sender}:</span> {message.text} <!-- Render as plain text -->
+              <span class="font-bold">{displayName}:</span> {message.text} <!-- Render conditional name -->
             </div>
           {/each}
         {/if}
