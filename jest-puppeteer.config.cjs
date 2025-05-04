@@ -6,6 +6,7 @@ module.exports = {
     // slowMo: 50, // Optional: Slow down operations to observe better
     args: ['--window-size=1920,1080'], // Optional: Set window size
   },
+  maxWorkers: 2,
   // Using jest-puppeteer preset is often simpler for E2E with Puppeteer
   preset: 'jest-puppeteer', // Recommended preset for Puppeteer tests
   // testEnvironment is usually handled by the preset, but keep if custom logic exists

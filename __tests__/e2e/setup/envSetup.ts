@@ -35,7 +35,7 @@ export default async function envSetup() {
 
     // --- 2. Setup Browser Pages ---
     // Browser A instance is provided by jest-environment-puppeteer and stored in this.global.browser
-    const browserA = this.global.browser as Browser;
+    const browserA = globalThis.__BROWSER_A__;
      if (!browserA) {
         throw new Error("Browser A instance (this.global.browser) not found. Ensure jest-puppeteer preset/environment is working.");
     }

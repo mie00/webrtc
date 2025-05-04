@@ -14,22 +14,6 @@ declare global {
 export default async function globalTeardown(globalConfig: Config.GlobalConfig, projectConfig: Config.ProjectConfig): Promise<void> {
     console.log('\n--- Global E2E Teardown ---');
 
-    // --- Close Second Browser (Browser B) ---
-    const browserB = globalThis.__BROWSER_B__;
-    if (browserB) {
-        console.log('Closing Browser B...');
-        try {
-            await browserB.close();
-            console.log('Browser B closed successfully.');
-        } catch (error) {
-            console.error('Error closing Browser B:', error);
-        }
-        globalThis.__BROWSER_B__ = undefined; // Clear global reference
-    } else {
-        console.log('Browser B instance not found in global scope for teardown.');
-    }
-
-
     // --- Kill Server ---
     // Note: Server killing logic remains the same
     const serverPid = globalThis.__SERVER_PID__;

@@ -3,6 +3,7 @@ import type { Config } from '@jest/types';
 import puppeteer, { type Browser } from 'puppeteer'; // Import puppeteer
 import { SERVER_STARTUP_TIMEOUT } from './testHelpers'; // Assuming this constant is defined here or imported
 import puppeteerGlobalSetup from 'jest-environment-puppeteer/setup'
+import myConfig from '../../../jest-puppeteer.config.cjs'
 
 // Use globalThis for broader compatibility
 declare global {
@@ -11,32 +12,19 @@ declare global {
     // Set by this setup
     var __SERVER_URL__: string | undefined;
     var __SERVER_PID__: number | undefined;
-    var __BROWSER_B__: Browser | undefined; // Second browser instance
+    var __BROWSER_A__: Browser | undefined;
+    var __BROWSER_B__: Browser | undefined;
 }
 
 
 export default async function globalSetup(globalConfig: Config.GlobalConfig, projectConfig: Config.ProjectConfig): Promise<void> {
     // Run the standard puppeteer setup for the first browser (browserA)
-    await puppeteerGlobalSetup(projectConfig);
+    await puppeteerGlobalSetup(myConfig);
     console.log('\n--- Global E2E Setup ---');
     console.log('Browser A (default) setup complete via jest-environment-puppeteer.');
 
-    // --- Launch Second Browser (browserB) ---
-    console.log('Launching Browser B...');
-    try {
-        console.log(globalConfig, projectConfig, this)
-        // You might want to customize launch options (e.g., headless: false for debugging)
-        const browserB = await puppeteer.launch();
-        globalThis.__BROWSER_B__ = browserB;
-        console.log(`Browser B launched successfully. Endpoint: ${browserB.wsEndpoint()}`);
-    } catch (error) {
-        console.error('Failed to launch Browser B:', error);
-        // Attempt cleanup if Browser A started
-        if (globalThis.browser) {
-            await globalThis.browser.close();
-        }
-        throw error; // Re-throw to fail the setup
-    }
+    globalThis.__BROWSER_A__ =  globalThis.__jestPptr.browsers[0];
+    globalThis.__BROWSER_B__ =  globalThis.__jestPptr.browsers[1];
 
     // --- Start Server ---
     console.log('Starting development server...');
