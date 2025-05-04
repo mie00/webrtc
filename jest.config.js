@@ -31,10 +31,6 @@ export default {
   // setupFiles runs before the environment is set up. Use setupFilesAfterEnv for mocks.
   setupFilesAfterEnv: ['./jest.setup.js'], // Keep this for unit/component test setup
 
-  // Global setup/teardown scripts for E2E
-  globalSetup: '<rootDir>/__tests__/e2e/setup/globalSetup.ts', // Adjust <rootDir> if needed
-  globalTeardown: '<rootDir>/__tests__/e2e/setup/globalTeardown.ts', // Adjust <rootDir> if needed
-
   // globals section is deprecated for ts-jest config
   moduleNameMapper: {
     // Handle module aliases for ESM

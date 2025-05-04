@@ -1,11 +1,12 @@
 // Using .cjs extension for CommonJS compatibility
 
 module.exports = {
-  // Inherit defaults from ts-jest, but override specific settings
-  preset: 'ts-jest/presets/default-esm', // Use ESM preset suitable for TypeScript and ES Modules
-  testEnvironment: './jest.puppeteer-environment.cjs', // Use our custom Puppeteer environment
-  globalSetup: './jest.global-setup.cjs',
-  globalTeardown: './jest.global-teardown.cjs',
+  // Using jest-puppeteer preset is often simpler for E2E with Puppeteer
+  preset: 'jest-puppeteer', // Recommended preset for Puppeteer tests
+  // testEnvironment is usually handled by the preset, but keep if custom logic exists
+  // testEnvironment: './jest.puppeteer-environment.cjs',
+  globalSetup: '<rootDir>/__tests__/e2e/setup/globalSetup.ts', // Point to the TS file
+  globalTeardown: '<rootDir>/__tests__/e2e/setup/globalTeardown.ts', // Point to the TS file
   moduleNameMapper: {
     // Handle module aliases (if you have them in tsconfig.json)
     // Example: '^@components/(.*)$': '<rootDir>/src/components/$1',
