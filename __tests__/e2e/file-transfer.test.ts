@@ -1,5 +1,5 @@
 import { describe, test, beforeAll, afterAll, expect, jest } from '@jest/globals';
-import type { Page } from 'puppeteer';
+import type { ElementHandle, Page } from 'puppeteer';
 import path, { dirname } from 'path'; // Import dirname
 import fs from 'fs';
 import { fileURLToPath } from 'url'; // Import fileURLToPath
@@ -58,6 +58,11 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
 
         try {
             // --- File Transfer Steps (Starts immediately) ---
+            // switch tabs to pageA
+            await pageA.bringToFront();
+
+            await pageA.waitForSelector('::-p-text(<)', { visible: false, timeout: PUPPETEER_TIMEOUT });
+            pageA.click('::-p-text(<)')
 
             // 1. Find the file input element on Page A (Sender)
             console.log('Waiting for file input element on Page A...');
@@ -68,7 +73,7 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
             // 2. Upload the test file using the input element
             console.log(`Uploading test file: ${TEST_FILE_PATH}`);
             // Use type assertion if needed after expect check
-            await (fileInputElement!).uploadFile(TEST_FILE_PATH);
+            await (fileInputElement as ElementHandle<HTMLInputElement>).uploadFile(TEST_FILE_PATH);
             console.log('File selected for upload.');
 
             // 3. Wait for transfer indicators
