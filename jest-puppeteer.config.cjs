@@ -1,5 +1,11 @@
 // Using .cjs extension for CommonJS compatibility
 module.exports = {
+  // Puppeteer launch options
+  launch: {
+    headless: false, // Set to false to run in non-headless mode
+    slowMo: 50, // Optional: Slow down operations to observe better
+    // args: ['--window-size=1920,1080'], // Optional: Set window size
+  },
   // Using jest-puppeteer preset is often simpler for E2E with Puppeteer
   preset: 'jest-puppeteer', // Recommended preset for Puppeteer tests
   // testEnvironment is usually handled by the preset, but keep if custom logic exists
