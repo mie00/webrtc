@@ -9,8 +9,8 @@ import {
     PUPPETEER_TIMEOUT,
     JEST_TIMEOUT,
     checkConnectionEstablished,
-    calculateSHA256             // Import the SHA helper
-} from './setup/testHelpers';
+    calculateSHA256
+} from './setup/testHelpers'; // Assuming calculateSHA256 is exported from here
 
 // --- Test Configuration ---
 const __filename = fileURLToPath(import.meta.url);
