@@ -6,13 +6,9 @@ export const INVITE_URL_SELECTOR = 'button ::-p-text(Copy)';
 export const INVITE_URL_COPIED_SELECTOR = 'button ::-p-text(Copied successfully)';
 export const CALL_BUTTON_SELECTOR = 'button#test-join';
 export const CONNECTION_INDICATOR_SELECTOR = '.test-indicator.bg-green-500';
-export const FILE_INPUT_SELECTOR = '#file-upload';
-// Selector for the container of a specific file transfer item (used by both sender and receiver)
-export const FILE_ITEM_CONTAINER_SELECTOR = (fileId: string) => `#f-${fileId}`;
-// Selector for the completion indicator (e.g., "Completed" text or final size span) - Assuming same structure for sender/receiver
-export const FILE_COMPLETE_INDICATOR = (fileId: string) => `${FILE_ITEM_CONTAINER_SELECTOR(fileId)} > span:last-child`;
-// Selector for the download link on the receiver side
-export const FILE_DOWNLOAD_LINK_RECEIVER = (fileId: string) => `${FILE_ITEM_CONTAINER_SELECTOR(fileId)} a[download]`;
+export const FILE_INPUT_SELECTOR = '#file-upload'; // Assuming this targets the actual <input type="file">
+// Removed ID-based selectors: FILE_ITEM_CONTAINER_SELECTOR, FILE_COMPLETE_INDICATOR, FILE_DOWNLOAD_LINK_RECEIVER
+// We will use text-based selectors directly in the test.
 
 
 export const PUPPETEER_TIMEOUT = 30000;
