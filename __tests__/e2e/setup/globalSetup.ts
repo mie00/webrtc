@@ -7,7 +7,6 @@ import puppeteerGlobalSetup from 'jest-environment-puppeteer/setup'
 // Use globalThis for broader compatibility
 declare global {
     // Set by puppeteerGlobalSetup
-    var browser: Browser | undefined; // Default browser instance
     var wsEndpoint: string | null | undefined;
     // Set by this setup
     var __SERVER_URL__: string | undefined;
@@ -18,13 +17,14 @@ declare global {
 
 export default async function globalSetup(globalConfig: Config.GlobalConfig, projectConfig: Config.ProjectConfig): Promise<void> {
     // Run the standard puppeteer setup for the first browser (browserA)
-    await puppeteerGlobalSetup(globalConfig);
+    await puppeteerGlobalSetup(projectConfig);
     console.log('\n--- Global E2E Setup ---');
     console.log('Browser A (default) setup complete via jest-environment-puppeteer.');
 
     // --- Launch Second Browser (browserB) ---
     console.log('Launching Browser B...');
     try {
+        console.log(globalConfig, projectConfig, this)
         // You might want to customize launch options (e.g., headless: false for debugging)
         const browserB = await puppeteer.launch();
         globalThis.__BROWSER_B__ = browserB;

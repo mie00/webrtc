@@ -61,24 +61,14 @@ export default async function globalTeardown(globalConfig: Config.GlobalConfig, 
              // Initial kill failed
             console.error(`Error sending SIGTERM to server process ${serverPid}:`, error);
              // Fallback for stubborn processes, especially on Windows
-            if (os.platform() === 'win32') {
-                console.log(`Attempting taskkill on Windows for PID ${serverPid}...`);
-                try {
-                    // /T kills child processes, /F forces termination
-                    execSync(`taskkill /PID ${serverPid} /F /T`);
-                    console.log(`taskkill command executed for PID ${serverPid}.`);
-                } catch (killError) {
-                    console.error(`taskkill failed for PID ${serverPid}:`, killError);
-                }
-            } else {
-                 // On Unix-like systems, SIGKILL might be needed if SIGTERM failed
-                 try {
-                     console.log(`Attempting SIGKILL for PID ${serverPid}...`);
-                     process.kill(serverPid, 'SIGKILL');
-                 } catch (killError) {
-                     console.error(`SIGKILL failed for PID ${serverPid}:`, killError);
-                 }
+            // On Unix-like systems, SIGKILL might be needed if SIGTERM failed
+            try {
+                console.log(`Attempting SIGKILL for PID ${serverPid}...`);
+                process.kill(serverPid, 'SIGKILL');
+            } catch (killError) {
+                console.error(`SIGKILL failed for PID ${serverPid}:`, killError);
             }
+            
         }
     } else {
         console.warn('Server PID not found in global scope for teardown.');

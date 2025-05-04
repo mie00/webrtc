@@ -9,8 +9,6 @@ import {
     checkConnectionEstablished // Assuming checkConnectionEstablished is available
 } from './testHelpers'; // Ensure .js extension if needed, or configure resolver
 
-import type { Browser } from 'puppeteer'; // Import Browser type
-
 // Use globalThis for broader compatibility
 declare global {
     // These are set in globalSetup.ts
@@ -18,7 +16,6 @@ declare global {
     var __SERVER_PID__: number | undefined;
     var __BROWSER_B__: Browser | undefined; // Added Browser B
     // These are set by jest-environment-puppeteer
-    var browser: Browser | undefined; // Default browser (Browser A)
     // These will be set by this envSetup
     var __PAGE_A__: Page | undefined;
     var __PAGE_B__: Page | undefined;

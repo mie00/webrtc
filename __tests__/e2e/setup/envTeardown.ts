@@ -2,6 +2,13 @@ import type { Page } from 'puppeteer';
 // Removed os and execSync as server is stopped globally
 
 export default async function envTeardown() {
+    // Keep debug wait if necessary
+    if (process.env.DEBUG_WAIT) {
+        console.log('DEBUG_WAIT is set, keeping browser open until pageB is closed (or timeout)...');
+        // Note: Teardown will close pages eventually. This wait might be less useful now.
+        // Consider waiting for a specific condition or removing if teardown handles closure.
+        await new Promise(resolve => setTimeout(resolve, 3600 * 1000)); // Long wait for manual inspection
+    }
     // 'this' refers to the Jest environment instance
     console.log('\n--- Environment E2E Teardown (Pages) ---');
 
