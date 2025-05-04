@@ -1,6 +1,11 @@
 export default {
+  // Use jest-puppeteer preset for browser management
+  preset: 'jest-puppeteer',
+
   // preset: 'ts-jest/presets/default-esm', // Remove preset, configure manually
-  testEnvironment: 'jsdom',
+  testEnvironment: 'jsdom', // Keep jsdom for component tests, puppeteer handles browser for E2E
+  // testEnvironment: 'jest-environment-puppeteer', // Use this if ONLY running E2E tests with this config
+
   moduleFileExtensions: ['js', 'ts', 'svelte'], // Ensure 'js' is first or present
   transform: {
     // Use ts-jest for .ts files, configured for ESM
@@ -24,7 +29,12 @@ export default {
   // Add this section to indicate which file extensions should be treated as ESM
   extensionsToTreatAsEsm: ['.ts', '.svelte'],
   // setupFiles runs before the environment is set up. Use setupFilesAfterEnv for mocks.
-  setupFilesAfterEnv: ['./jest.setup.js'],
+  setupFilesAfterEnv: ['./jest.setup.js'], // Keep this for unit/component test setup
+
+  // Global setup/teardown scripts for E2E
+  globalSetup: '<rootDir>/__tests__/e2e/setup/globalSetup.ts', // Adjust <rootDir> if needed
+  globalTeardown: '<rootDir>/__tests__/e2e/setup/globalTeardown.ts', // Adjust <rootDir> if needed
+
   // globals section is deprecated for ts-jest config
   moduleNameMapper: {
     // Handle module aliases for ESM

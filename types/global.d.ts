@@ -122,3 +122,17 @@ interface Window {
   uuidv4: () => string;
   VideoStreamMerger: any;
 }
+
+
+// Assuming you already have `declare global { ... }` for __BROWSER__
+// If not, wrap these in `declare global { ... }`
+declare global {
+  // From jest-puppeteer (ensure this is declared somewhere, often handled by preset types)
+  var __BROWSER__: import('puppeteer').Browser;
+
+  // Added for global setup/teardown
+  var __SERVER_URL__: string | undefined;
+  var __SERVER_PID__: number | undefined;
+  var __PAGE_A__: import('puppeteer').Page | undefined;
+  var __PAGE_B__: import('puppeteer').Page | undefined;
+}
