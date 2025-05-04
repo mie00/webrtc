@@ -206,13 +206,6 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
             // if (pageA) await pageA.screenshot({ path: 'error_transfer_pageA.png' });
             // if (pageB) await pageB.screenshot({ path: 'error_transfer_pageB.png' });
             throw error;
-        } finally {
-
-            // Keep debug wait if necessary
-            if (process.env.DEBUG_WAIT) {
-                console.log('DEBUG_WAIT is set, keeping browser open until pageB is closed (or timeout)...');
-                 await new Promise(resolve => setTimeout(resolve, 3600 * 1000));
-            }
         }
     });
 });

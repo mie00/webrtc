@@ -32,14 +32,6 @@ describe('WebRTC Peer Connection E2E Test (using global setup)', () => {
         await expect(checkConnectionEstablished(pageB, 'Page B (verify)')).resolves.toBeUndefined();
 
         console.log('--- TEST SUCCESS: Connection verified post-globalSetup ---');
-
-        // Keep debug wait if necessary
-        if (process.env.DEBUG_WAIT) {
-            console.log('DEBUG_WAIT is set, keeping browser open until pageB is closed (or timeout)...');
-            // Note: Teardown will close pages eventually. This wait might be less useful now.
-            // Consider waiting for a specific condition or removing if teardown handles closure.
-            await new Promise(resolve => setTimeout(resolve, 3600 * 1000)); // Long wait for manual inspection
-        }
     });
 
     // Add more tests here that rely on the existing connection if needed
