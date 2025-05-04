@@ -1,7 +1,8 @@
 import { describe, test, beforeAll, afterAll, expect, jest } from '@jest/globals';
 import type { Page } from 'puppeteer';
-import path from 'path';
+import path, { dirname } from 'path'; // Import dirname
 import fs from 'fs';
+import { fileURLToPath } from 'url'; // Import fileURLToPath
 import {
     FILE_INPUT_SELECTOR,
     FILE_PROGRESS_SELECTOR_SENDER,
@@ -13,6 +14,9 @@ import {
 
 // --- Test File Configuration ---
 const TEST_FILE_NAME = 'test-upload.txt';
+// Derive __dirname equivalent for ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const TEST_FILE_PATH = path.join(__dirname, TEST_FILE_NAME); // Place it near the test file
 const TEST_FILE_CONTENT = 'This is a test file for E2E transfer.';
 
