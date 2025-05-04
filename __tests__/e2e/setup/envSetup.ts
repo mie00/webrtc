@@ -1,99 +1,50 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
+// Removed spawn and SERVER_STARTUP_TIMEOUT as server is started globally
 import type { Browser, Page } from 'puppeteer';
-import path from 'path';
+// Removed path import as it wasn't used after server logic removal
 import {
     INVITE_URL_SELECTOR,
     CALL_BUTTON_SELECTOR,
     CONNECTION_INDICATOR_SELECTOR,
     PUPPETEER_TIMEOUT,
-    SERVER_STARTUP_TIMEOUT,
-    checkConnectionEstablished // Assuming checkConnectionEstablished is moved or copied here
-} from './testHelpers'; // Add .js extension for Node ESM resolution
-// Helper function (can be moved to testHelpers.ts) - Copied from connection.test.ts
-// Ensure this function is available here or imported
-// async function checkConnectionEstablished(page: Page, description: string): Promise<void> {
-//     console.log(`Waiting for connection indicator in ${description}...`);
-//     await page.waitForSelector(CONNECTION_INDICATOR_SELECTOR, { visible: false, timeout: PUPPETEER_TIMEOUT });
-//     console.log(`Connection indicator found in ${description}.`);
-// }
+    checkConnectionEstablished // Assuming checkConnectionEstablished is available
+} from './testHelpers'; // Ensure .js extension if needed, or configure resolver
+
+// Use globalThis for broader compatibility
+declare global {
+    // These are set in globalSetup.ts
+    var __SERVER_URL__: string;
+    var __SERVER_PID__: number;
+    // These are set by jest-environment-puppeteer
+    var browser: Browser;
+    // These will be set by this envSetup
+    var __PAGE_A__: Page;
+    var __PAGE_B__: Page;
+}
 
 
 export default async function envSetup() {
-    console.log('\n--- Global E2E Setup ---');
+    // 'this' refers to the Jest environment instance
+    console.log('\n--- Environment E2E Setup (Pages) ---');
 
-    // --- 1. Start Server ---
-    console.log('Starting development server...');
-    const serverInfo = await new Promise<{ process: ChildProcessWithoutNullStreams; url: string; }>((resolve, reject) => {
-        // Track if resolved to prevent race condition on exit
-        let resolved = false;
-        const serverProcess = spawn('npm', ['run', 'dev'], { shell: true, detached: false });
-        let output = '';
-        const urlRegex = /(?:Local|Network):\s+(http:\/\/\S+|https:\/\/\S+)/;
-
-        const timer = setTimeout(() => {
-            if (resolved) return;
-            console.error('Server startup timed out.');
-            try { serverProcess.kill('SIGTERM'); } catch (e) { console.warn("Failed to kill timed-out server", e); }
-            reject(new Error(`Server startup timed out after ${SERVER_STARTUP_TIMEOUT}ms`));
-        }, SERVER_STARTUP_TIMEOUT);
-
-        serverProcess.stdout.on('data', (data) => {
-            if (resolved) return;
-            const dataStr = data.toString();
-            console.log(`Server stdout: ${dataStr.trim()}`);
-            output += dataStr;
-            const match = output.match(urlRegex);
-            if (match && match[1]) {
-                const urls = output.match(new RegExp(urlRegex, 'g'));
-                const localUrl = urls?.find(u => u.includes('localhost') || u.includes('127.0.0.1'));
-                const serverUrl = localUrl ? localUrl.match(urlRegex)?.[1] : match[1];
-                console.log(`Development server started at: ${serverUrl}`);
-                clearTimeout(timer);
-                resolved = true;
-                resolve({ process: serverProcess, url: serverUrl || '' });
-            }
-        });
-
-        serverProcess.stderr.on('data', (data) => {
-            console.error(`Server stderr: ${data.toString().trim()}`);
-        });
-
-        serverProcess.on('error', (err) => {
-            if (resolved) return;
-            console.error('Failed to start server process:', err);
-            clearTimeout(timer);
-            reject(err);
-        });
-
-        serverProcess.on('exit', (code, signal) => {
-            // If it exits before resolving, it's an error
-            if (!resolved) {
-                 console.error(`Server process exited prematurely with code ${code}, signal ${signal}`);
-                 clearTimeout(timer);
-                 reject(new Error(`Server process exited prematurely (code ${code}, signal ${signal}) before URL was found.`));
-            }
-        });
-    });
-
-    if (!serverInfo || !serverInfo.url || !serverInfo.process?.pid) {
-        throw new Error("Server did not start correctly or PID is missing.");
+    // --- 1. Get Server URL from Global Scope ---
+    const serverUrl = globalThis.__SERVER_URL__;
+    if (!serverUrl) {
+        throw new Error("Server URL (__SERVER_URL__) not found in global scope. Ensure globalSetup ran successfully.");
     }
-
-    this.global.__SERVER_URL__ = serverInfo.url;
-    this.global.__SERVER_PID__ = serverInfo.process.pid; // Store PID for teardown
+    console.log(`Using server URL from global setup: ${serverUrl}`);
 
     // --- 2. Setup Browser Pages ---
-    // this.global.__BROWSER__ = (this.global.__jestPptr.browsers[0])
-    this.global.__BROWSER__ = this.global.browser;
-    const browser = this.global.__BROWSER__; // Provided by jest-puppeteer preset
+    // Browser instance is provided by jest-environment-puppeteer and stored in this.global.browser
+    const browser = this.global.browser as Browser;
      if (!browser) {
-        throw new Error("Puppeteer browser instance (__BROWSER__) not found in global scope. Ensure jest-puppeteer is configured.");
+        // This check might be redundant if jest-environment-puppeteer guarantees it, but safe to keep.
+        throw new Error("Puppeteer browser instance (this.global.browser) not found. Ensure jest-puppeteer preset/environment is working.");
     }
 
     console.log('Opening Page A...');
     const pageA = await browser.newPage();
-    console.log(`Page A navigating to: ${serverInfo.url}`);
-    await pageA.goto(serverInfo.url, { waitUntil: 'networkidle0', timeout: PUPPETEER_TIMEOUT });
+    console.log(`Page A navigating to: ${serverUrl}`);
+    await pageA.goto(serverUrl, { waitUntil: 'networkidle0', timeout: PUPPETEER_TIMEOUT });
     console.log('Page A navigation complete.');
 
     console.log('Waiting for invite URL element on Page A...');

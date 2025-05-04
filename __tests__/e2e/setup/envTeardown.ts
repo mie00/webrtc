@@ -1,73 +1,48 @@
 import type { Page } from 'puppeteer';
-import os from 'os';
-import { execSync } from 'child_process'; // For potential forceful kill
+// Removed os and execSync as server is stopped globally
+
+// Use globalThis for broader compatibility
+declare global {
+    // These are managed by envSetup / envTeardown
+    var __PAGE_A__: Page | undefined;
+    var __PAGE_B__: Page | undefined;
+}
 
 export default async function envTeardown() {
-    console.log('\n--- Global E2E Teardown ---');
+    // 'this' refers to the Jest environment instance
+    console.log('\n--- Environment E2E Teardown (Pages) ---');
 
     // --- 1. Close Pages ---
-    // Retrieve pages from global scope
+    // Retrieve pages from the environment's global scope
     const pageA = this.global.__PAGE_A__ as Page | undefined;
     const pageB = this.global.__PAGE_B__ as Page | undefined;
 
-    console.log('Closing pages...');
+    console.log('Closing pages specific to this environment...');
     try {
-        if (pageA && !pageA.isClosed()) await pageA.close();
-        if (pageB && !pageB.isClosed()) await pageB.close();
-        console.log('Pages closed.');
+        // Check if page exists and is not already closed before attempting to close
+        if (pageA && !pageA.isClosed()) {
+            await pageA.close();
+            console.log('Page A closed.');
+        } else if (pageA) {
+             console.log('Page A was already closed.');
+        }
+        if (pageB && !pageB.isClosed()) {
+            await pageB.close();
+            console.log('Page B closed.');
+         } else if (pageB) {
+             console.log('Page B was already closed.');
+         }
     } catch (error) {
-        console.warn('Warning: Error closing pages during teardown:', error);
+        // Log specifically which page failed if possible
+        console.warn('Warning: Error closing pages during environment teardown:', error);
     }
 
-    // Clear globals (optional, good practice)
+    // Clear environment-specific globals
     this.global.__PAGE_A__ = undefined;
     this.global.__PAGE_B__ = undefined;
 
-    // --- 2. Kill Server ---
-    const serverPid = this.global.__SERVER_PID__ as number | undefined;
-    if (serverPid) {
-        console.log(`Attempting to kill server process (PID: ${serverPid})...`);
-        try {
-            // process.kill is the preferred way for portability
-            process.kill(serverPid, 'SIGTERM');
-            console.log(`Sent SIGTERM to server process ${serverPid}.`);
+    // --- Server teardown is handled by globalTeardown.ts ---
 
-            // Optional: Add a small delay and check if the process is still alive, then SIGKILL
-            // This adds complexity but can handle stubborn processes.
-            // await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 sec
-            // try {
-            //     process.kill(serverPid, 0); // Check if process exists
-            //     console.warn(`Server process ${serverPid} still alive after SIGTERM, sending SIGKILL.`);
-            //     process.kill(serverPid, 'SIGKILL');
-            // } catch (e) {
-            //     // Expected error if process is gone
-            //     if (e.code === 'ESRCH') {
-            //         console.log(`Server process ${serverPid} terminated successfully.`);
-            //     } else {
-            //         throw e; // Re-throw unexpected errors
-            //     }
-            // }
-
-        } catch (error) {
-            console.error(`Error killing server process ${serverPid}:`, error);
-            // Fallback for stubborn processes, especially on Windows
-            if (os.platform() === 'win32') {
-                console.log(`Attempting taskkill on Windows for PID ${serverPid}...`);
-                try {
-                    execSync(`taskkill /PID ${serverPid} /F /T`); // /F = force, /T = kill child processes
-                    console.log(`taskkill command executed for PID ${serverPid}.`);
-                } catch (killError) {
-                    console.error(`taskkill failed for PID ${serverPid}:`, killError);
-                }
-            }
-        }
-    } else {
-        console.warn('Server PID not found in global scope for teardown.');
-    }
-
-     this.global.__SERVER_PID__ = undefined;
-     this.global.__SERVER_URL__ = undefined;
-
-    // Note: Browser closing is handled by jest-puppeteer's own teardown
-    console.log('--- Global E2E Teardown Complete ---');
+    // Note: Browser closing is handled by jest-puppeteer's environment teardown (super.teardown())
+    console.log('--- Environment E2E Teardown Complete ---');
 }
