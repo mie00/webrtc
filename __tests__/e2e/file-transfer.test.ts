@@ -1,24 +1,26 @@
 import { describe, test, beforeAll, afterAll, expect, jest } from '@jest/globals';
 import type { ElementHandle, Page } from 'puppeteer';
-import path, { dirname } from 'path'; // Import dirname
+import path, { dirname } from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url'; // Import fileURLToPath
+import { fileURLToPath } from 'url';
 import {
     FILE_INPUT_SELECTOR,
-    FILE_PROGRESS_SELECTOR_SENDER,
-    FILE_COMPLETE_INDICATOR_RECEIVER,
+    FILE_ITEM_CONTAINER_SELECTOR, // Use the container selector
+    FILE_COMPLETE_INDICATOR,      // Use the generic completion indicator
+    FILE_DOWNLOAD_LINK_RECEIVER,  // Use the download link selector
     PUPPETEER_TIMEOUT,
     JEST_TIMEOUT,
-    checkConnectionEstablished // Import if needed for verification, though setup should handle it
-} from './setup/testHelpers'; // Import helpers
+    checkConnectionEstablished,
+    calculateSHA256             // Import the SHA helper
+} from './setup/testHelpers';
 
 // --- Test File Configuration ---
 const TEST_FILE_NAME = 'test-upload.txt';
-// Derive __dirname equivalent for ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const TEST_FILE_PATH = path.join(__dirname, TEST_FILE_NAME); // Place it near the test file
+const TEST_FILE_PATH = path.join(__dirname, TEST_FILE_NAME);
 const TEST_FILE_CONTENT = 'This is a test file for E2E transfer.';
+let EXPECTED_SHA256: string; // To store the hash
 
 // --- Jest Test Suite ---
 describe('WebRTC File Transfer E2E Test (using global setup)', () => {
@@ -36,9 +38,12 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
         expect(pageA).toBeDefined();
         expect(pageB).toBeDefined();
 
-        // Create the dummy file needed *only* for this suite
+        // Create the dummy file
         console.log(`Creating test file for transfer test: ${TEST_FILE_PATH}`);
         fs.writeFileSync(TEST_FILE_PATH, TEST_FILE_CONTENT);
+        // Calculate expected hash
+        EXPECTED_SHA256 = calculateSHA256(TEST_FILE_CONTENT);
+        console.log(`Expected SHA256: ${EXPECTED_SHA256}`);
     });
 
     afterAll(() => {
@@ -76,37 +81,68 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
             await (fileInputElement as ElementHandle<HTMLInputElement>).uploadFile(TEST_FILE_PATH);
             console.log('File selected for upload.');
 
-            // 3. Wait for transfer indicators
-            console.log('Waiting for sender progress bar to appear...');
-            const senderProgressSelectorPattern = 'progress[id^="file-"]';
-            const senderProgressElement = await pageA.waitForSelector(senderProgressSelectorPattern, { visible: true, timeout: PUPPETEER_TIMEOUT });
-            expect(senderProgressElement).not.toBeNull();
+            // 3. Wait for the file item container to appear on the sender side
+            //    We need the file ID which is part of the container's ID (e.g., id="f-...")
+            console.log('Waiting for file item container on Page A (Sender)...');
+            // Use a selector that finds any element starting with id="f-" inside the relevant area
+            // Adjust '#files-container' if your file list has a specific parent ID
+            const fileItemSelectorPattern = `#files-container > div[id^="f-"]`; // Adjust parent selector if needed
+            const senderFileItemContainer = await pageA.waitForSelector(fileItemSelectorPattern, { visible: true, timeout: PUPPETEER_TIMEOUT });
+            expect(senderFileItemContainer).not.toBeNull();
 
-            const senderFileId = await senderProgressElement!.evaluate(el => el.id.replace('file-', ''));
+            const senderFileId = await senderFileItemContainer!.evaluate(el => el.id.replace('f-', ''));
             expect(senderFileId).toBeTruthy();
-            console.log(`Detected file transfer with ID: ${senderFileId}`);
+            console.log(`Detected file transfer with ID: ${senderFileId} on Sender`);
 
-            // 4. Wait for Sender's progress to complete
-            const senderProgressSelector = FILE_PROGRESS_SELECTOR_SENDER(senderFileId);
-            console.log(`Waiting for sender progress bar (${senderProgressSelector}) to reach 100%...`);
-            await pageA.waitForFunction(
-                (selector) => {
-                    const progress = document.querySelector(selector) as HTMLProgressElement | null;
-                    // Check for value >= max, as sometimes it might exceed 100 slightly or max isn't 100
-                    return progress && progress.value >= (progress.max || 100);
-                },
-                { timeout: PUPPETEER_TIMEOUT * 2 }, // Allow more time for transfer
-                senderProgressSelector
-            );
-            console.log('Sender progress reached 100%.');
+            // 4. Wait for Sender's completion indicator
+            const senderCompleteSelector = FILE_COMPLETE_INDICATOR(senderFileId);
+            console.log(`Waiting for sender completion indicator (${senderCompleteSelector})...`);
+            await pageA.waitForSelector(senderCompleteSelector, { visible: true, timeout: PUPPETEER_TIMEOUT * 2 }); // Allow more time
+            // Optionally check the text content if it's predictable (e.g., "Completed")
+            // const senderStatusText = await pageA.$eval(senderCompleteSelector, el => el.textContent);
+            // expect(senderStatusText).toContain('Completed'); // Or match the file size, etc.
+            console.log('Sender completion indicator found.');
 
-            // 5. Wait for Receiver's completion indicator
-            const receiverCompleteSelector = FILE_COMPLETE_INDICATOR_RECEIVER(senderFileId);
+            // 5. Wait for Receiver's completion indicator (confirms file entry exists)
+            const receiverCompleteSelector = FILE_COMPLETE_INDICATOR(senderFileId);
             console.log(`Waiting for receiver completion indicator (${receiverCompleteSelector}) on Page B...`);
             await pageB.waitForSelector(receiverCompleteSelector, { visible: true, timeout: PUPPETEER_TIMEOUT * 2 });
             console.log('Receiver completion indicator found.');
 
-            console.log('--- TEST SUCCESS: File transfer appears complete on both ends! ---');
+            // 6. Wait for Receiver's download link
+            const receiverDownloadSelector = FILE_DOWNLOAD_LINK_RECEIVER(senderFileId);
+            console.log(`Waiting for receiver download link (${receiverDownloadSelector}) on Page B...`);
+            const downloadLink = await pageB.waitForSelector(receiverDownloadSelector, { visible: true, timeout: PUPPETEER_TIMEOUT });
+            expect(downloadLink).not.toBeNull();
+            console.log('Receiver download link found.');
+
+            // 7. Get the blob URL and fetch content on Page B, then verify SHA
+            console.log('Fetching received file content from Page B...');
+            const receivedContent = await pageB.evaluate(async (selector) => {
+                const link = document.querySelector(selector) as HTMLAnchorElement | null;
+                if (!link || !link.href.startsWith('blob:')) {
+                    throw new Error(`Download link not found or invalid href: ${link?.href}`);
+                }
+                const blobUrl = link.href;
+                const response = await fetch(blobUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch blob: ${response.statusText}`);
+                }
+                // Assuming text file for simplicity, adjust if binary
+                const text = await response.text();
+                return text;
+            }, receiverDownloadSelector);
+
+            expect(receivedContent).toBeDefined();
+            console.log('Received content fetched.');
+
+            // 8. Calculate SHA of received content and compare
+            const receivedSha256 = calculateSHA256(receivedContent);
+            console.log(`Received SHA256: ${receivedSha256}`);
+            expect(receivedSha256).toEqual(EXPECTED_SHA256);
+            console.log('SHA256 hashes match.');
+
+            console.log('--- TEST SUCCESS: File transfer verified (sender complete, receiver viewable, content match)! ---');
 
             // Keep debug wait if necessary
             if (process.env.DEBUG_WAIT) {
