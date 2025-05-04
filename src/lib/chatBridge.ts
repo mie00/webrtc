@@ -66,11 +66,14 @@ export function setupChatChannel(app: App, cid: string): void {
         // Try to parse as JSON first (for structured messages)
         const data = JSON.parse(e.data);
         if (data.type === 'chat') {
+          // Determine sender name for storage. If the received sender is "You",
+          // use "Peer" instead to avoid confusion with the local user.
+          const senderNameToStore = data.sender === 'You' ? 'Peer' : data.sender;
           // Add to store
-          addMessage(data.message, data.sender);
+          addMessage(data.message, senderNameToStore);
         } else {
           // Legacy format or unknown format
-          addMessage(e.data, 'Peer');
+          addMessage(e.data, 'Peer'); // Keep 'Peer' for legacy
         }
       } catch (err) {
         // Legacy format (plain text)
