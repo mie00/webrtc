@@ -448,96 +448,59 @@ export class WebRTCApp {
     if (output) output.innerHTML += `<br>${msg}`;
   }
 
-  public async handleChange(cid?: string): Promise<void> {
-    const participantsElement = document.getElementById('participants');
-    if (!participantsElement) return;
+  // Removed handleChange method as UI updates are now driven by the Svelte store
 
-    const parent = document.createElement('div');
+  private async updateFingerprint(cid: string): Promise<void> {
+      const client = this.app.clients[cid];
+      if (!client || !client.pc) return;
 
-    for (const [cid, client] of Object.entries(this.app.clients)) {
-      const indicator = document.createElement('div');
-      const toAdd = client.pc?.connectionState === 'connected' && client.pc?.iceConnectionState === 'connected' ? 'bg-green-400' :
-          client.pc?.connectionState === 'failed' || client.pc?.iceConnectionState === 'failed' ? 'bg-red-400' : 'bg-gray=400';
-      indicator.classList.add(toAdd, 'rounded-full', 'h-4', 'w-4', 'test-indicator');
+      try {
+          const stats = await client.pc.getStats();
+          let transport: RTCTransportStats | null = null;
+          let certificates: Record<string, RTCCertificateStats> = {}; // Use specific type
+          stats.forEach(stat => {
+              if (stat.type === 'transport') {
+                  transport = stat as RTCTransportStats;
+              } else if (stat.type === 'certificate') {
+                  certificates[stat.id] = stat as RTCCertificateStats;
+              }
+          });
 
-      const textContainer = document.createElement('p');
-      textContainer.classList.add('text-sm', 'font-medium', 'text-gray-700');
-      textContainer.appendChild(document.createTextNode(cid));
-      textContainer.title = `Connection State: ${client.pc?.connectionState} Ice Connection State: ${client.pc?.iceConnectionState}`;
+          if (transport) {
+              const remoteCertId = transport.remoteCertificateId;
+              const localCertId = transport.localCertificateId;
 
-      const container = document.createElement('div');
-      container.classList.add('flex', 'items-center', 'space-x-2');
+              if (localCertId && remoteCertId && certificates[localCertId] && certificates[remoteCertId]) {
+                  // Ensure consistent ordering for fingerprint generation
+                  const firstCert = client.polite ? certificates[remoteCertId] : certificates[localCertId];
+                  const secondCert = !client.polite ? certificates[remoteCertId] : certificates[localCertId];
 
-      container.appendChild(indicator);
-      container.appendChild(textContainer);
-      parent.appendChild(container);
+                  if (firstCert?.fingerprint && secondCert?.fingerprint) {
+                      const fingerprints = firstCert.fingerprint + secondCert.fingerprint;
+                      const ejs = await this.genEmojis(fingerprints);
+                      updateDirectClientFingerprint(cid, ejs);
+                      console.log(`Fingerprint for ${cid}: ${ejs}`);
 
-      console.log('%c' + new Date().toISOString() + ': ConnectionState: %c' + client.pc?.connectionState + ' %cIceConnectionState: %c' + client.pc?.iceConnectionState,
-          'color:yellow', 'color:orange', 'color:yellow', 'color:orange');
-      if (client.pc?.connectionState === 'connected' && client.pc?.iceConnectionState === 'connected') {
-        const stats = await client.pc.getStats();
-        let transport: RTCTransportStats | null = null;
-        let certificates: Record<string, any> = {};
-        stats.forEach(stat => {
-          if (stat.type === 'transport') {
-            transport = stat;
-          } else if (stat.type === 'certificate') {
-            certificates[stat.id] = stat;
+                      // Optional: Hide overlay/update history (consider moving this UI logic elsewhere if possible)
+                      const copyOverlayElement = document.getElementById("copy-overlay");
+                      if (copyOverlayElement) copyOverlayElement.classList.add('hidden');
+                      if (!new URLSearchParams(window.location.search).has('r')) {
+                          history.replaceState('', '', window.location.origin + window.location.pathname);
+                      }
+                  } else {
+                      console.warn(`Missing fingerprint for one or both certificates for client ${cid}`);
+                  }
+              } else {
+                 console.warn(`Missing certificate IDs or certificate stats for client ${cid}`);
+              }
+          } else {
+             console.warn(`No transport stats found for client ${cid}`);
           }
-        });
-        if (transport) {
-          const remote = (transport as RTCTransportStats).remoteCertificateId
-          const local = (transport as RTCTransportStats).localCertificateId
-          if (local && remote) {
-            const firstCid = client.polite ? remote : local;
-            const secondCid = !client.polite ? remote : local;
-            const fingerprints = certificates[firstCid].fingerprint + certificates[secondCid].fingerprint;
-            const ejs = await this.genEmojis(fingerprints);
-            console.log('ejs', ejs);
-            textContainer.appendChild(document.createTextNode(ejs));
-          }
-        }
-        const copyOverlayElement = document.getElementById("copy-overlay");
-        if (copyOverlayElement) copyOverlayElement.classList.add('hidden');
-        if (!new URLSearchParams(window.location.search).has('r')) {
-          history.replaceState('', '', window.location.origin + window.location.pathname);
-        }
+      } catch (error) {
+          console.error(`Error getting stats/fingerprint for ${cid}:`, error);
       }
-    }
-    
-    if (this.app.participants) {
-      for (const [key, value] of Object.entries(this.app.participants)) {
-        const indicator = document.createElement('div');
-        indicator.classList.add('rounded-full', 'h-4', 'w-4');
-
-        const textContainer = document.createElement('p');
-        textContainer.classList.add('text-sm', 'font-medium', 'text-gray-700');
-        textContainer.appendChild(document.createTextNode(key));
-
-        const container = document.createElement('div');
-        container.classList.add('flex', 'items-center', 'space-x-2');
-
-        container.appendChild(indicator);
-        container.appendChild(textContainer);
-        parent.appendChild(container);
-        if (value.relay in this.app.clients) {
-          const client = this.app.clients[value.relay];
-          const toAdd = client.pc?.connectionState === 'connected' && client.pc?.iceConnectionState === 'connected' ? 'bg-green-400' :
-              client.pc?.connectionState === 'failed' || client.pc?.iceConnectionState === 'failed' ? 'bg-red-400' : 'bg-gray=400';
-          indicator.classList.add(toAdd);
-          textContainer.title = `Relay: ${value.relay} Connection State: ${client.pc?.connectionState} Ice Connection State: ${client.pc?.iceConnectionState}`;
-        } else {
-          indicator.classList.add('bg-red-400');
-          textContainer.title = `Relay: ${value.relay} Connection State: relay not found`;
-        }
-      }
-    }
-    
-    if (participantsElement.firstChild) {
-      participantsElement.firstChild.remove();
-    }
-    participantsElement.appendChild(parent);
   }
+
 
   // Getter for testing and backward compatibility
   public getApp(): App {
