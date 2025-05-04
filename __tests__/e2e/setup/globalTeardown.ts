@@ -7,8 +7,8 @@ export default async function globalTeardown() {
 
     // --- 1. Close Pages ---
     // Retrieve pages from global scope
-    const pageA = globalThis.__PAGE_A__ as Page | undefined;
-    const pageB = globalThis.__PAGE_B__ as Page | undefined;
+    const pageA = this.global.__PAGE_A__ as Page | undefined;
+    const pageB = this.global.__PAGE_B__ as Page | undefined;
 
     console.log('Closing pages...');
     try {
@@ -20,11 +20,11 @@ export default async function globalTeardown() {
     }
 
     // Clear globals (optional, good practice)
-    globalThis.__PAGE_A__ = undefined;
-    globalThis.__PAGE_B__ = undefined;
+    this.global.__PAGE_A__ = undefined;
+    this.global.__PAGE_B__ = undefined;
 
     // --- 2. Kill Server ---
-    const serverPid = globalThis.__SERVER_PID__ as number | undefined;
+    const serverPid = this.global.__SERVER_PID__ as number | undefined;
     if (serverPid) {
         console.log(`Attempting to kill server process (PID: ${serverPid})...`);
         try {
@@ -65,8 +65,8 @@ export default async function globalTeardown() {
         console.warn('Server PID not found in global scope for teardown.');
     }
 
-     globalThis.__SERVER_PID__ = undefined;
-     globalThis.__SERVER_URL__ = undefined;
+     this.global.__SERVER_PID__ = undefined;
+     this.global.__SERVER_URL__ = undefined;
 
     // Note: Browser closing is handled by jest-puppeteer's own teardown
     console.log('--- Global E2E Teardown Complete ---');

@@ -3,8 +3,8 @@ module.exports = {
   // Puppeteer launch options
   launch: {
     headless: false, // Set to false to run in non-headless mode
-    slowMo: 50, // Optional: Slow down operations to observe better
-    // args: ['--window-size=1920,1080'], // Optional: Set window size
+    // slowMo: 50, // Optional: Slow down operations to observe better
+    args: ['--window-size=1920,1080'], // Optional: Set window size
   },
   // Using jest-puppeteer preset is often simpler for E2E with Puppeteer
   preset: 'jest-puppeteer', // Recommended preset for Puppeteer tests
@@ -21,6 +21,7 @@ module.exports = {
         '<rootDir>/.svelte-kit/build/runtime/app/$1',
     ],
     '^\\$lib/(.*)$': '<rootDir>/src/lib/$1',
+    "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   transform: {
     // Use ts-jest for JS/TS files (needed for ts-jest preset)

@@ -9,7 +9,6 @@ import {
     SERVER_STARTUP_TIMEOUT,
     checkConnectionEstablished // Assuming checkConnectionEstablished is moved or copied here
 } from './testHelpers'; // Add .js extension for Node ESM resolution
-import defaultGlobalSetup from 'jest-environment-puppeteer/setup';
 // Helper function (can be moved to testHelpers.ts) - Copied from connection.test.ts
 // Ensure this function is available here or imported
 // async function checkConnectionEstablished(page: Page, description: string): Promise<void> {
@@ -19,8 +18,7 @@ import defaultGlobalSetup from 'jest-environment-puppeteer/setup';
 // }
 
 
-export default async function globalSetup(jestConfig) {
-    await defaultGlobalSetup(jestConfig);
+export default async function globalSetup() {
     console.log('\n--- Global E2E Setup ---');
 
     // --- 1. Start Server ---
@@ -52,7 +50,7 @@ export default async function globalSetup(jestConfig) {
                 console.log(`Development server started at: ${serverUrl}`);
                 clearTimeout(timer);
                 resolved = true;
-                resolve({ process: serverProcess, url: serverUrl });
+                resolve({ process: serverProcess, url: serverUrl || '' });
             }
         });
 
@@ -81,13 +79,14 @@ export default async function globalSetup(jestConfig) {
         throw new Error("Server did not start correctly or PID is missing.");
     }
 
-    globalThis.__SERVER_URL__ = serverInfo.url;
-    globalThis.__SERVER_PID__ = serverInfo.process.pid; // Store PID for teardown
+    console.log("MMM", this.global)
+    this.global.__SERVER_URL__ = serverInfo.url;
+    this.global.__SERVER_PID__ = serverInfo.process.pid; // Store PID for teardown
 
     // --- 2. Setup Browser Pages ---
-    console.log(globalThis)
-    globalThis.__BROWSER__ = globalThis.browser;
-    const browser = globalThis.__BROWSER__; // Provided by jest-puppeteer preset
+    // this.global.__BROWSER__ = (this.global.__jestPptr.browsers[0])
+    this.global.__BROWSER__ = this.global.browser;
+    const browser = this.global.__BROWSER__; // Provided by jest-puppeteer preset
      if (!browser) {
         throw new Error("Puppeteer browser instance (__BROWSER__) not found in global scope. Ensure jest-puppeteer is configured.");
     }
@@ -132,8 +131,8 @@ export default async function globalSetup(jestConfig) {
     // jest-puppeteer handles the browser instance. For pages, it might be better
     // to re-fetch them in tests if needed, but let's try storing them first.
     // A common pattern is to store IDs or minimal info if full objects cause issues.
-    globalThis.__PAGE_A__ = pageA;
-    globalThis.__PAGE_B__ = pageB;
+    this.global.__PAGE_A__ = pageA;
+    this.global.__PAGE_B__ = pageB;
 
     console.log('--- Global E2E Setup Complete ---');
 }
