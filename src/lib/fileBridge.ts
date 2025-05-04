@@ -191,26 +191,16 @@ function readFileSliceAsArrayBuffer(slice: Blob): Promise<ArrayBuffer> {
   });
 }
 
-// Helper function to wait until the buffer amount is below a threshold
-async function waitForBufferDrain(dc: RTCDataChannel, threshold: number): Promise<void> {
-    // If buffer is already low, resolve immediately
-    if (dc.bufferedAmount < threshold) {
-        return;
-    }
-    // Otherwise, return a promise that resolves when bufferedamountlow fires
+// Helper function to wait for the bufferedamountlow event
+async function waitForBufferDrain(dc: RTCDataChannel): Promise<void> {
+    // Return a promise that resolves when bufferedamountlow fires
     return new Promise((resolve) => {
         const listener = () => {
-            if (dc.bufferedAmount < threshold) {
-                dc.removeEventListener("bufferedamountlow", listener);
-                resolve();
-            }
+            dc.removeEventListener("bufferedamountlow", listener);
+            resolve();
         };
-        // Add listener only if buffer isn't already low
-        if (dc.bufferedAmount >= threshold) {
-            dc.addEventListener("bufferedamountlow", listener);
-        } else {
-            resolve(); // Resolve immediately if condition met before listener attached
-        }
+        // Always add the listener; the calling loop checks the condition
+        dc.addEventListener("bufferedamountlow", listener);
     });
 }
 
@@ -254,11 +244,26 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
 
       for (const smallChunk of smallChunks) {
         // Flow control: Wait if buffer is too full
-        await waitForBufferDrain(dc_file, HIGH_WATER_MARK);
+        while (dc_file.bufferedAmount > HIGH_WATER_MARK) {
+            // Set the threshold *before* waiting. Fires when buffer drops below this.
+            dc_file.bufferedAmountLowThreshold = HIGH_WATER_MARK / 2; // e.g., 8MB
+            // console.log(`Buffer full (${dc_file.bufferedAmount}), waiting...`);
+            await waitForBufferDrain(dc_file);
+            // console.log(`Buffer drained (${dc_file.bufferedAmount}), proceeding...`);
+        }
 
         // Send the small chunk
-        dc_file.send(smallChunk);
-        totalBytesSent += smallChunk.byteLength;
+        try {
+            dc_file.send(smallChunk);
+            totalBytesSent += smallChunk.byteLength;
+        } catch (error) {
+             console.error(`Error sending chunk for file ${file.name} to ${cid}:`, error);
+             const errorMessage = error instanceof Error ? error.message : String(error);
+             updateFileTransfer(id, { status: 'error', error: `Send error: ${errorMessage}` });
+             // Stop the transfer for this client by re-throwing
+             throw error;
+        }
+
 
         // Update progress (more frequently)
         const progress = Math.min(100, Math.round((totalBytesSent / file.size) * 100));
@@ -272,7 +277,14 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
 
     // 3. Final progress update and completion status
     // Ensure buffer is reasonably drained before marking as complete
-    await waitForBufferDrain(dc_file, SEND_CHUNK_SIZE); // Wait until buffer is less than one chunk size
+    while (dc_file.bufferedAmount > 0) {
+        // console.log(`Final drain: Buffer has (${dc_file.bufferedAmount}), waiting...`);
+        // Use a low threshold for the final drain
+        dc_file.bufferedAmountLowThreshold = SEND_CHUNK_SIZE;
+        await waitForBufferDrain(dc_file);
+        // console.log(`Final drain: Buffer drained (${dc_file.bufferedAmount}), checking again...`);
+    }
+
 
     console.log(`File transfer complete: ${file.name} to ${cid}`);
     updateFileTransfer(id, { progress: 100, status: 'complete' });
@@ -285,10 +297,13 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
     updateFileTransfer(id, { status: 'error', error: errorMessage });
 
     // Removed legacy DOM update
-
-  } finally {
-    // Re-enable file input
+    // Ensure input is re-enabled even if error is caught within the loop
     if (fileUpload) {
+      fileUpload.disabled = false;
+    }
+  } finally {
+    // Re-enable file input (redundant if error caught, but safe)
+    if (fileUpload && !fileUpload.disabled) { // Check if already enabled
       fileUpload.disabled = false;
     }
     // Note: No interval to clear in this version.
