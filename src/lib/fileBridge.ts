@@ -344,7 +344,7 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
     while (dc_file.bufferedAmount > 0) {
         // console.log(`Final drain: Buffer has (${dc_file.bufferedAmount}), waiting...`);
         // Use a low threshold for the final drain
-        dc_file.bufferedAmountLowThreshold = SEND_CHUNK_SIZE;
+        dc_file.bufferedAmountLowThreshold = 0;
         await waitForBufferDrain(dc_file);
         // console.log(`Final drain: Buffer drained (${dc_file.bufferedAmount}), checking again...`);
     }
