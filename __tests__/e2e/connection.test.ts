@@ -12,7 +12,6 @@ describe('WebRTC Peer Connection E2E Test (using global setup)', () => {
 
     // Optional: Add a beforeAll to get the pages, improving type safety within tests
     beforeAll(() => {
-        console.log(globalThis)
         // Retrieve pages created in globalSetup
         pageA = globalThis.__PAGE_A__!; // Use non-null assertion assuming setup succeeded
         pageB = globalThis.__PAGE_B__!;

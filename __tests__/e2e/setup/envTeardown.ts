@@ -2,7 +2,7 @@ import type { Page } from 'puppeteer';
 import os from 'os';
 import { execSync } from 'child_process'; // For potential forceful kill
 
-export default async function globalTeardown() {
+export default async function envTeardown() {
     console.log('\n--- Global E2E Teardown ---');
 
     // --- 1. Close Pages ---

@@ -18,7 +18,7 @@ import {
 // }
 
 
-export default async function globalSetup() {
+export default async function envSetup() {
     console.log('\n--- Global E2E Setup ---');
 
     // --- 1. Start Server ---
@@ -79,7 +79,6 @@ export default async function globalSetup() {
         throw new Error("Server did not start correctly or PID is missing.");
     }
 
-    console.log("MMM", this.global)
     this.global.__SERVER_URL__ = serverInfo.url;
     this.global.__SERVER_PID__ = serverInfo.process.pid; // Store PID for teardown
 
