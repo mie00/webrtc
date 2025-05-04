@@ -1,12 +1,8 @@
 import os from 'os';
 import { execSync } from 'child_process';
 import type { Config } from '@jest/types';
+import puppeteerGlobalTeardown from 'jest-environment-puppeteer/teardown'
 
-// Use globalThis for broader compatibility
-declare global {
-    var __SERVER_URL__: string | undefined;
-    var __SERVER_PID__: number | undefined;
-}
 
 
 export default async function globalTeardown(globalConfig: Config.GlobalConfig, projectConfig: Config.ProjectConfig): Promise<void> {
@@ -71,4 +67,5 @@ export default async function globalTeardown(globalConfig: Config.GlobalConfig, 
 
     // Note: Browser closing is handled by jest-puppeteer's own teardown
     console.log('--- Global E2E Teardown Complete ---');
+    await puppeteerGlobalTeardown(globalConfig);
 }

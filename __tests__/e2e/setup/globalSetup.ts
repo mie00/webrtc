@@ -1,14 +1,11 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 import type { Config } from '@jest/types';
 import { SERVER_STARTUP_TIMEOUT } from './testHelpers'; // Assuming this constant is defined here or imported
-
+import puppeteerGlobalSetup from 'jest-environment-puppeteer/setup'
 // Use globalThis for broader compatibility
-declare global {
-    var __SERVER_URL__: string;
-    var __SERVER_PID__: number;
-}
 
 export default async function globalSetup(globalConfig: Config.GlobalConfig, projectConfig: Config.ProjectConfig): Promise<void> {
+    await puppeteerGlobalSetup(globalConfig);
     console.log('\n--- Global E2E Setup ---');
 
     // --- Start Server ---

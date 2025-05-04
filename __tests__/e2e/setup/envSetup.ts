@@ -12,13 +12,12 @@ import {
 // Use globalThis for broader compatibility
 declare global {
     // These are set in globalSetup.ts
-    var __SERVER_URL__: string;
-    var __SERVER_PID__: number;
+    var __SERVER_URL__: string | undefined;
+    var __SERVER_PID__: number | undefined;
     // These are set by jest-environment-puppeteer
-    var browser: Browser;
     // These will be set by this envSetup
-    var __PAGE_A__: Page;
-    var __PAGE_B__: Page;
+    var __PAGE_A__: Page | undefined;
+    var __PAGE_B__: Page | undefined;
 }
 
 

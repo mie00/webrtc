@@ -1,13 +1,6 @@
 import type { Page } from 'puppeteer';
 // Removed os and execSync as server is stopped globally
 
-// Use globalThis for broader compatibility
-declare global {
-    // These are managed by envSetup / envTeardown
-    var __PAGE_A__: Page | undefined;
-    var __PAGE_B__: Page | undefined;
-}
-
 export default async function envTeardown() {
     // 'this' refers to the Jest environment instance
     console.log('\n--- Environment E2E Teardown (Pages) ---');
