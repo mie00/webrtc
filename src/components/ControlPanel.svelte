@@ -73,7 +73,7 @@
   <div class="bg-gray-200 p-4 flex flex-col space-y-4 w-full h-full overflow-y-auto"> <!-- Added overflow-y-auto -->
 
      <!-- Participants Panel -->
-     <div id="participants-panel" class="border-b border-gray-300 pb-4 mb-4">
+     <div class="border-b border-gray-300 pb-4 mb-4">
        <h3 class="text-lg font-semibold mb-2">Connections</h3>
        {#if Object.keys(connectionState.directClients).length === 0 && Object.keys(connectionState.participants).length === 0}
          <p class="text-sm text-gray-500">No active connections.</p>
@@ -81,23 +81,22 @@
 
        <!-- Direct Connections -->
        {#each Object.values(connectionState.directClients) as client (client.cid)}
+        {@const state = client.connectionState}
+        {@const iceState = client.iceConnectionState}
+        {@const isConnected = state === 'connected' && iceState === 'connected'}
+        {@const isFailed = state === 'failed' || iceState === 'failed' || state === 'closed' || iceState === 'closed' || state === 'disconnected' || iceState === 'disconnected'}
+        {@const isConnecting = !isConnected && !isFailed && (state !== null || iceState !== null)} <!-- Show yellow if not connected/failed but trying -->
          <div class="flex items-center space-x-2 mb-1">
-           {@const state = client.connectionState}
-           {@const iceState = client.iceConnectionState}
-           {@const isConnected = state === 'connected' && iceState === 'connected'}
-           {@const isFailed = state === 'failed' || iceState === 'failed' || state === 'closed' || iceState === 'closed' || state === 'disconnected' || iceState === 'disconnected'}
-           {@const isConnecting = !isConnected && !isFailed && (state !== null || iceState !== null)} <!-- Show yellow if not connected/failed but trying -->
-
            <div
-             class="rounded-full h-3 w-3 flex-shrink-0"
+             class="rounded-full h-3 w-3 flex-shrink-0 test-indicator"
              class:bg-green-500={isConnected}
              class:bg-red-500={isFailed}
              class:bg-yellow-400={isConnecting}
-             class:bg-gray-400={!isConnected && !isFailed && !isConnecting} /* Default gray if null state */
+             class:bg-gray-400={!isConnected && !isFailed && !isConnecting}
              title={`Direct: ${client.cid}\nState: ${state ?? 'N/A'}\nICE: ${iceState ?? 'N/A'}`}
            ></div>
-           <p class="text-sm font-medium text-gray-700 truncate" title={client.cid}>
-             {client.cid.substring(0, 8)}...
+           <p class="text-sm font-medium text-gray-700" title={client.cid}>
+             {client.cid}
              {#if client.fingerprint}
                <span class="ml-1" title="Connection Fingerprint">{client.fingerprint}</span>
              {/if}
@@ -121,7 +120,7 @@
                class:bg-green-300={isRelayConnected}
                class:bg-red-300={isRelayFailed}
                class:bg-yellow-200={isRelayConnecting}
-               class:bg-gray-200={!relayClient || (!isRelayConnected && !isRelayFailed && !isRelayConnecting)} /* Default gray if relay unknown or null state */
+               class:bg-gray-200={!relayClient || (!isRelayConnected && !isRelayFailed && !isRelayConnecting)}
                title={`Relayed: ${participant.cid}\nVia: ${participant.relayCid}\nRelay State: ${relayState ?? 'N/A'}\nRelay ICE: ${relayIceState ?? 'N/A'}`}
              ></div>
              <p class="text-sm font-medium text-gray-500 truncate" title={`${participant.cid} (via ${participant.relayCid})`}>

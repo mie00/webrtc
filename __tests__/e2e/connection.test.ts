@@ -16,7 +16,7 @@ const INVITE_URL_SELECTOR = 'button ::-p-text(Copy)'; // <-- Replace with select
 const INVITE_URL_COPIED_SELECTOR = 'button ::-p-text(Copied successfully)'; // <-- Replace with selector for the invite URL element (e.g., input, span)
 const CALL_BUTTON_SELECTOR = 'button#test-join'; // <-- Replace with selector for the green call button
 // TODO: make more robusts
-const CONNECTION_INDICATOR_SELECTOR = '.test-indicator.bg-green-400'; // <-- Replace with selector for element indicating connection success (must work in both pages)
+const CONNECTION_INDICATOR_SELECTOR = '.test-indicator.bg-green-500'; // <-- Replace with selector for element indicating connection success (must work in both pages)
 
 const PUPPETEER_TIMEOUT = 30000; // 30 seconds timeout for Puppeteer waits
 const SERVER_STARTUP_TIMEOUT = 45000; // Max time to wait for server to start and print URL
@@ -232,6 +232,14 @@ describe('WebRTC Peer Connection E2E Test', () => {
 
             console.log('--- TEST SUCCESS: WebRTC connection appears established in both browsers! ---');
             // Jest will automatically pass the test if no error is thrown
+
+            // if DEBUG_WAIT env var is set, wait until pageA is closed
+            if (process.env.DEBUG_WAIT) {
+                console.log('DEBUG_WAIT is set, keeping browser open until pageB is closed...');
+                try {
+                    await pageB.waitForFunction(() => false, { timeout: 0 });
+                } catch {}
+            }
 
         } catch (error) {
             console.error('--- TEST FAILED ---');

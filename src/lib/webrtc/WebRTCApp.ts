@@ -457,12 +457,12 @@ export class WebRTCApp {
       try {
           const stats = await client.pc.getStats();
           let transport: RTCTransportStats | null = null;
-          let certificates: Record<string, RTCCertificateStats> = {}; // Use specific type
+          let certificates: Record<string, any> = {}; // Use specific type
           stats.forEach(stat => {
               if (stat.type === 'transport') {
                   transport = stat as RTCTransportStats;
               } else if (stat.type === 'certificate') {
-                  certificates[stat.id] = stat as RTCCertificateStats;
+                  certificates[stat.id] = stat as any;
               }
           });
 
