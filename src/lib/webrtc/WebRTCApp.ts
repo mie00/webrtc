@@ -1,4 +1,14 @@
 import { EMOJIS } from '../utils/emojis.js';
+import {
+  addDirectClient,
+  updateDirectClientState,
+  updateDirectClientFingerprint,
+  removeDirectClient,
+  addParticipant,
+  removeParticipant,
+  resetConnectionStore
+} from '../../stores/connectionStore.js'; // Adjust path if needed
+
 
 // Type definitions for local use
 interface NegoMessage {
@@ -59,15 +69,14 @@ export class WebRTCApp {
         }
       },
       "participant": (data: any, cid: string) => {
-        if (!this.app.participants) this.app.participants = {};
-        this.app.participants[data.cid] = { relay: cid };
-        this.handleChange();
+        // cid here is the relaying client's cid
+        addParticipant(data.cid, cid);
+        // No need to call handleChange here, the store update is reactive
       },
       "participant.end": (data: any, cid: string) => {
-        if (this.app.participants) {
-          delete this.app.participants[data.cid];
-        }
-        this.handleChange();
+        // cid here is the relaying client's cid (though not strictly needed for removal)
+        removeParticipant(data.cid);
+         // No need to call handleChange here, the store update is reactive
       },
     };
   }
@@ -132,11 +141,14 @@ export class WebRTCApp {
       
       delete this.app.clients[cid];
     }
-    
-    this.handleChange();
+    // Store updates handle reactivity, no need for handleChange
+    removeDirectClient(cid);
+    // Also remove self from the participant list if present (might happen if announced before full cleanup)
+    removeParticipant(cid);
   }
 
   public cleanup(): void {
+    resetConnectionStore();
     for (const cid of Object.keys(this.app.clients)) {
       for (const cleanup of Object.values(this.app.cleanups)) {
         cleanup(cid);
@@ -160,7 +172,7 @@ export class WebRTCApp {
     const outputElement = document.getElementById('output');
     if (mediaElement) mediaElement.innerHTML = '';
     if (outputElement) outputElement.innerHTML = '';
-    this.handleChange();
+    // Store updates handle reactivity, no need for handleChange
     this.reset();
   }
 
@@ -178,7 +190,7 @@ export class WebRTCApp {
     if (this.app.inited) {
       return;
     }
-    this.app.participants = {};
+    // participants are now managed by the store
     this.app.cleanups = {};
     this.app.clients = {};
     this.app.inited = true;
@@ -224,14 +236,32 @@ export class WebRTCApp {
     const pc = new RTCPeerConnection(config);
     this.app.clients[cid].pc = pc;
 
-    this.app.clients[cid].pc.onconnectionstatechange = () => this.handleChange(cid);
+    this.app.clients[cid].pc.onconnectionstatechange = () => {
+      const currentPc = this.app.clients[cid]?.pc;
+      if (currentPc) {
+        updateDirectClientState(cid, currentPc.connectionState, currentPc.iceConnectionState);
+        // Trigger fingerprint update if connected
+        if (currentPc.connectionState === 'connected' && currentPc.iceConnectionState === 'connected') {
+          this.updateFingerprint(cid); // Call helper function
+        }
+      }
+    };
     this.app.clients[cid].pc.oniceconnectionstatechange = () => {
-      if (this.app.clients[cid].pc?.iceConnectionState === "failed") {
-        this.app.clients[cid].pc?.restartIce();
+      const currentPc = this.app.clients[cid]?.pc;
+      if (currentPc) {
+        updateDirectClientState(cid, currentPc.connectionState, currentPc.iceConnectionState);
+        if (currentPc.iceConnectionState === "failed") {
+          currentPc.restartIce();
+        }
+        // Trigger fingerprint update if connected
+        if (currentPc.connectionState === 'connected' && currentPc.iceConnectionState === 'connected') {
+          this.updateFingerprint(cid); // Call helper function
+        }
       }
     };
 
     this.app.clients[cid].polite = polite;
+    addDirectClient(cid, polite);
 
     const nego_dc = pc.createDataChannel("nego", {
       negotiated: true,
@@ -264,16 +294,18 @@ export class WebRTCApp {
     };
 
     nego_dc.onopen = () => {
-      Object.keys(this.app.clients).forEach(ncid => {
-        if (ncid !== cid) {
-          this.sendNego(this.app.clients[ncid], {type: "participant", cid: cid});
-        }
+      // Announce self to existing clients
+      Object.keys(this.app.clients).forEach(existingCid => {
+          if (existingCid !== cid) {
+              // Tell existing client about the new client (cid)
+              this.sendNego(this.app.clients[existingCid], { type: "participant", cid: cid });
+              // Tell the new client (cid) about the existing client
+              this.sendNego(this.app.clients[cid], { type: "participant", cid: existingCid });
+          }
       });
-      Object.keys(this.app.clients).forEach(ncid => {
-        if (ncid !== cid) {
-          this.sendNego(this.app.clients[ncid], { type: "participant", cid: ncid });
-        }
-      });
+      // Announce relayed participants known by this peer to the new client
+      // This relies on the participant messages received from other peers.
+      // The store state isn't directly used for signaling here.
     };
 
     // Import dynamically to avoid circular dependencies
