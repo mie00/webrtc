@@ -1,9 +1,10 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, afterUpdate } from 'svelte'; // Import onDestroy and afterUpdate
   import { tweened } from 'svelte/motion';
-  import type { WebRTCApp } from '../lib/webrtc/WebRTCApp.js'; // Import the type
-  import { connectionStore, type DirectClientState, type ParticipantState, type ConnectionState } from '../stores/connectionStore.js'; // Adjust path if needed
-  import { chatStore, type ChatState } from '../lib/chatBridge.js'; // Adjust path if needed
+  import type { WebRTCApp } from '../lib/webrtc/WebRTCApp.js';
+  import { connectionStore, type ConnectionState } from '../stores/connectionStore.js';
+  import { chatStore, type ChatState } from '../lib/chatBridge.js';
+  import { fileStore, type FileState, type FileTransfer } from '../lib/fileBridge.js'; // Import file store and types
 
   // Props
   export let webRTCApp: WebRTCApp; // Still needed for sending messages/files
@@ -25,14 +26,21 @@
   });
 
   // Subscribe to chat store
-  let chatState: ChatState = { messages: [] }; // Initialize
+  let chatState: ChatState = { messages: [] };
   const unsubscribeChat = chatStore.subscribe(value => {
     chatState = value;
+  });
+
+  // Subscribe to file store
+  let fileState: FileState = { transfers: {} };
+  const unsubscribeFile = fileStore.subscribe(value => {
+    fileState = value;
   });
 
   onDestroy(() => {
     unsubscribe(); // Unsubscribe from connectionStore
     unsubscribeChat(); // Unsubscribe from chatStore
+    unsubscribeFile(); // Unsubscribe from fileStore
   });
 
   // Get local user name for chat display comparison
@@ -186,5 +194,48 @@
         </div>
       </div>
     </div>
+
+    <!-- File Transfer Panel -->
+    <div class="border-t border-gray-300 pt-4 mt-4">
+      <h3 class="text-lg font-semibold mb-2">File Transfers</h3>
+      {#if Object.keys(fileState.transfers).length === 0}
+        <p class="text-sm text-gray-500 italic">No active file transfers.</p>
+      {:else}
+        <div class="space-y-3">
+          {#each Object.values(fileState.transfers) as transfer (transfer.id)}
+            <div class="p-2 border border-gray-300 rounded bg-white shadow-sm">
+              <p class="text-sm font-medium truncate mb-1" title={transfer.name}>{transfer.name}</p>
+              <div class="flex items-center space-x-2">
+                <progress class="w-full h-2 rounded" value={transfer.progress} max="100"></progress>
+                <span class="text-xs font-mono">{transfer.progress}%</span>
+              </div>
+              {#if transfer.status === 'sending'}
+                <p class="text-xs text-blue-600 mt-1">Sending...</p>
+              {:else if transfer.status === 'receiving'}
+                <p class="text-xs text-blue-600 mt-1">Receiving...</p>
+              {:else if transfer.status === 'complete'}
+                <div class="flex space-x-2 mt-2">
+                   {#if transfer.url}
+                     <a href={transfer.url} download={transfer.name}
+                        class="flex-1 text-center py-1 px-2 bg-green-500 text-white text-xs rounded shadow hover:bg-green-600">
+                       Download
+                     </a>
+                     <a href={transfer.url} target="_blank" rel="noopener noreferrer"
+                        class="flex-1 text-center py-1 px-2 bg-blue-500 text-white text-xs rounded shadow hover:bg-blue-600">
+                       View
+                     </a>
+                   {:else}
+                      <p class="text-xs text-green-600 mt-1">Completed (URL not available)</p>
+                   {/if}
+                </div>
+              {:else if transfer.status === 'error'}
+                <p class="text-xs text-red-600 mt-1" title={transfer.error}>Error: {transfer.error || 'Transfer failed'}</p>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
   </div>
 </div>

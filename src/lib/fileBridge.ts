@@ -22,17 +22,8 @@ const initialState: FileState = {
   transfers: {}
 };
 
-function updateProgressBar(id: string, file_size: number, get_ready: () => number): void {
-  const bufferedAmount = get_ready();
+// Removed updateProgressBar function
 
-  // Calculate progress percentage (0 to 100)
-  const progressPercentage = (file_size - bufferedAmount) / file_size * 100;
-  const elem = document.getElementById(`file-${id}`) as HTMLProgressElement;
-  if (elem) {
-      elem.value = progressPercentage;
-      elem.innerHTML = `${progressPercentage}%`;
-  }
-}
 function splitArrayBuffer(arrayBuffer: ArrayBuffer, chunkSize: number): ArrayBuffer[] {
   const uint8Array = new Uint8Array(arrayBuffer);
   const chunks: ArrayBuffer[] = [];
@@ -84,47 +75,7 @@ export function removeFileTransfer(id: string): void {
   });
 }
 
-/**
- * Initialize the file module with the app object
- */
-export function fileInit(app: App): void {
-  // Set up a subscription to sync store changes with DOM
-  fileStore.subscribe(state => {
-    // Update UI based on file transfers
-    Object.entries(state.transfers).forEach(([id, transfer]) => {
-      const progressElem = document.getElementById(`file-${id}`) as HTMLProgressElement;
-      if (progressElem) {
-        progressElem.value = transfer.progress;
-        progressElem.innerHTML = `${transfer.progress}%`;
-      }
-
-      if (transfer.status === 'complete' && transfer.url) {
-        const fileElement = document.getElementById(`f-${id}`);
-        if (fileElement && !document.getElementById(`download-${id}`)) {
-          fileElement.innerHTML = `
-            <a id="download-${id}" class="w-full py-2 px-4 bg-blue-500 text-white rounded shadow hover:bg-blue-700">Download</a>
-            <a id="view-${id}" class="w-full py-2 px-4 bg-blue-500 text-white rounded shadow hover:bg-blue-700" target="_blank">View</a>`;
-
-          const downloadLink = document.getElementById(`download-${id}`) as HTMLAnchorElement;
-          if (downloadLink) {
-            downloadLink.href = transfer.url;
-            downloadLink.download = transfer.name;
-          }
-
-          const viewLink = document.getElementById(`view-${id}`) as HTMLAnchorElement;
-          if (viewLink) {
-            viewLink.href = transfer.url;
-          }
-        }
-      } else if (transfer.status === 'error') {
-        const fileElement = document.getElementById(`f-${id}`);
-        if (fileElement) {
-          fileElement.innerHTML = `Error: ${transfer.error || 'Unknown error'}`;
-        }
-      }
-    });
-  });
-}
+// Removed fileInit function
 
 /**
  * Set up file channel for a client
@@ -158,8 +109,7 @@ export function setupFileChannel(app: App, cid: string): void {
           status: 'receiving'
         });
 
-        // Add to DOM for backward compatibility
-        WebRTCApp.log(`> <label for="file-${id}">${fileData.name}</label> <span id="f-${id}"><progress id="file-${id}" value="0" max="100"> 0% </progress></span>`);
+        // Removed legacy DOM injection: WebRTCApp.log(...)
         return;
       }
 
@@ -176,8 +126,7 @@ export function setupFileChannel(app: App, cid: string): void {
         status: 'receiving'
       });
 
-      // Update progress bar for backward compatibility
-      updateProgressBar(app.clients[cid].file_stuff.id, app.clients[cid].file_stuff.size, () => app.clients[cid].file_stuff.remaining_size);
+      // Removed legacy progress bar update: updateProgressBar(...)
 
       // Check if file is complete
       if (app.clients[cid].file_stuff.remaining_size === 0) {
@@ -215,8 +164,7 @@ export function sendFile(file: File): void {
     status: 'sending'
   });
 
-  // Add to DOM for backward compatibility
-  WebRTCApp.log(`<label for="file-${id}">${file.name}</label> <span id="f-${id}"><progress id="file-${id}" value="0" max="100"> 0% </progress></span>`);
+  // Removed legacy DOM injection: WebRTCApp.log(...)
 
   // Send to all connected clients
   for (const cid of Object.keys(app.clients)) {
@@ -315,9 +263,7 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
         const progress = Math.min(100, Math.round((totalBytesSent / file.size) * 100));
         updateFileTransfer(id, { progress, status: 'sending' });
 
-        // Update legacy progress bar if needed (optional)
-        // Note: The second arg calculates remaining size based on bytes sent
-        updateProgressBar(id, file.size, () => file.size - totalBytesSent);
+        // Removed legacy progress bar update: updateProgressBar(...)
       }
        // Optional: Yield to the event loop occasionally for very large files/chunks
        // await new Promise(resolve => setTimeout(resolve, 0));
@@ -330,22 +276,15 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
     console.log(`File transfer complete: ${file.name} to ${cid}`);
     updateFileTransfer(id, { progress: 100, status: 'complete' });
 
-    // Update DOM for backward compatibility (optional)
-    const fileElement = document.getElementById(`f-${id}`);
-    if (fileElement) {
-      fileElement.innerHTML = "Sent";
-    }
+    // Removed legacy DOM update
 
   } catch (error) {
     console.error(`Error sending file ${file.name} to ${cid}:`, error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     updateFileTransfer(id, { status: 'error', error: errorMessage });
 
-    // Update DOM for backward compatibility (optional)
-     const fileElement = document.getElementById(`f-${id}`);
-     if (fileElement) {
-       fileElement.innerHTML = `Error: ${errorMessage}`;
-     }
+    // Removed legacy DOM update
+
   } finally {
     // Re-enable file input
     if (fileUpload) {
