@@ -3,7 +3,7 @@ module.exports = {
   // Using jest-puppeteer preset is often simpler for E2E with Puppeteer
   preset: 'jest-puppeteer', // Recommended preset for Puppeteer tests
   // testEnvironment is usually handled by the preset, but keep if custom logic exists
-  testEnvironment: './jest.puppeteer-environment.cjs',
+  testEnvironment: './__tests__/e2e/setup/jest.puppeteer-environment.ts',
   // globalSetup: '<rootDir>/__tests__/e2e/setup/globalSetup.ts', // Point to the ts file
   // globalTeardown: '<rootDir>/__tests__/e2e/setup/globalTeardown.ts', // Point to the CJS file
   moduleNameMapper: {
