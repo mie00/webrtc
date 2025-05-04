@@ -50,13 +50,13 @@
   }
 </script>
 
-<div id="control" 
+<div
      bind:this={controlsPanel}
      class="w-11/12 lg:w-1/2 xl:w-1/4 2x:w-1/4 flex flex-col fixed bottom-0 top-0"
      class:left-full={!isPanelOpen}
      class:right-0={isPanelOpen}>
-  <div id="cc" class="absolute top-1/4">
-    <button id="toggle-controls" on:click={togglePanel} class="hover:bg-blue-600 w-5 h-16 bg-gray-300 text-black p-0 absolute border-solid rounded-l" style="left: -20px;">
+  <div class="absolute top-1/4">
+    <button on:click={togglePanel} class="hover:bg-blue-600 w-5 h-16 bg-gray-300 text-black p-0 absolute border-solid rounded-l" style="left: -20px;">
       {isPanelOpen ? '>' : '<'}
     </button>
   </div>
