@@ -38,6 +38,16 @@ function splitArrayBuffer(arrayBuffer: ArrayBuffer, chunkSize: number): ArrayBuf
   return chunks;
 }
 
+// Helper function to parse max-message-size from SDP
+function getMaxMessageSizeFromSdp(sdp: string): number | null {
+    if (!sdp) return null;
+    const match = sdp.match(/a=max-message-size:(\d+)/);
+    if (match && match[1]) {
+        return parseInt(match[1], 10);
+    }
+    return null;
+}
+
 // Create the store
 export const fileStore = writable<FileState>(initialState);
 
@@ -215,9 +225,34 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
   }
 
   // --- Configuration ---
-  const READ_CHUNK_SIZE = 1 * 1024 * 1024; // Read 1MB chunks from the file
-  const SEND_CHUNK_SIZE = 16 * 1024;      // Send 16KB chunks over WebRTC
-  const HIGH_WATER_MARK = 1 * 1024 * 1024; // Pause sending if buffered amount exceeds 16MB
+  const DEFAULT_SEND_CHUNK_SIZE = 16 * 1024;    // 16KB default
+  const MAX_SEND_CHUNK_SIZE = 64 * 1024;      // Cap at 64KB for safety/performance
+  const DEFAULT_READ_CHUNK_SIZE = 1 * 1024 * 1024; // Read 1MB chunks from the file
+  const HIGH_WATER_MARK = 1 * 1024 * 1024;    // Pause sending if buffered amount exceeds 1MB (tune as needed)
+
+  // Determine dynamic SEND_CHUNK_SIZE based on SDP
+  let SEND_CHUNK_SIZE = DEFAULT_SEND_CHUNK_SIZE;
+  const pc = app.clients[cid]?.pc;
+  if (pc && pc.localDescription && pc.remoteDescription) {
+      const localMax = getMaxMessageSizeFromSdp(pc.localDescription.sdp);
+      const remoteMax = getMaxMessageSizeFromSdp(pc.remoteDescription.sdp);
+
+      // Use the minimum of the two, if available, otherwise keep default Infinity
+      const effectiveMax = Math.min(localMax ?? Infinity, remoteMax ?? Infinity);
+
+      if (effectiveMax !== Infinity && effectiveMax > 0) {
+          // Use the effective max, but cap it at MAX_SEND_CHUNK_SIZE
+          SEND_CHUNK_SIZE = Math.min(effectiveMax, MAX_SEND_CHUNK_SIZE);
+          console.log(`Using dynamic SEND_CHUNK_SIZE: ${SEND_CHUNK_SIZE} bytes (based on SDP max: ${effectiveMax})`);
+      } else {
+           console.log(`Using default SEND_CHUNK_SIZE: ${SEND_CHUNK_SIZE} bytes (SDP max-message-size not found or invalid)`);
+      }
+  } else {
+       console.log(`Using default SEND_CHUNK_SIZE: ${SEND_CHUNK_SIZE} bytes (SDP not available)`);
+  }
+
+  // Keep READ_CHUNK_SIZE fixed for now
+  const READ_CHUNK_SIZE = DEFAULT_READ_CHUNK_SIZE;
 
   let offset = 0;
   let totalBytesSent = 0; // Track total bytes *sent* (or queued)
