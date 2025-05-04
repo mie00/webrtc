@@ -159,13 +159,13 @@ export function setupFileChannel(app: App, cid: string): void {
 }
 
 /**
- * Send a file to all connected clients
+ * Send a file to all connected clients and wait for all transfers to settle.
  */
-export function sendFile(file: File): void {
+export async function sendFile(file: File): Promise<void> { // Make async
   const app = window.app;
   const id = Math.random().toString(16).slice(2);
 
-  // Add to store
+  // Add to store immediately with 'sending' status
   addFileTransfer({
     id,
     name: file.name,
@@ -177,9 +177,38 @@ export function sendFile(file: File): void {
 
   // Removed legacy DOM injection: WebRTCApp.log(...)
 
-  // Send to all connected clients
+  const readFilePromises: Promise<void>[] = [];
+  // Send to all connected clients and collect promises
   for (const cid of Object.keys(app.clients)) {
-    readFile(file, cid, id);
+    // Only attempt to send if a file channel exists for the client
+    if (app.clients[cid]?.dc_file) {
+        readFilePromises.push(readFile(file, cid, id));
+    } else {
+        console.warn(`Skipping file send to client ${cid}: File data channel not initialized.`);
+    }
+  }
+
+  // Wait for all readFile operations to settle (complete or fail)
+  const results = await Promise.allSettled(readFilePromises);
+
+  // Check results to determine final status
+  const failedTransfers = results.filter(result => result.status === 'rejected');
+
+  if (failedTransfers.length > 0) {
+    // If any transfer failed, mark the overall status as error
+    console.error(`File transfer ${id} failed for some clients:`, failedTransfers);
+    const errorMessages = failedTransfers
+        .map(result => (result as PromiseRejectedResult).reason?.message || 'Unknown error')
+        .join(', ');
+    updateFileTransfer(id, { status: 'error', error: `Failed for ${failedTransfers.length} client(s): ${errorMessages}` });
+  } else if (readFilePromises.length > 0) {
+    // If all transfers succeeded (and there was at least one attempt), mark as complete
+    console.log(`File transfer ${id} completed successfully for all clients.`);
+    updateFileTransfer(id, { progress: 100, status: 'complete' }); // Ensure progress is 100
+  } else {
+    // If no clients had a file channel, mark as error or handle differently?
+    console.warn(`File transfer ${id}: No clients to send to.`);
+    updateFileTransfer(id, { status: 'error', error: 'No connected clients with file channel.' });
   }
 }
 
@@ -320,13 +349,14 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
         // console.log(`Final drain: Buffer drained (${dc_file.bufferedAmount}), checking again...`);
     }
 
-
-    console.log(`File transfer complete: ${file.name} to ${cid}`);
-    updateFileTransfer(id, { progress: 100, status: 'complete' });
+    // Final status update ('complete') is now handled by sendFile after Promise.allSettled
+    console.log(`readFile finished for ${file.name} to ${cid}`);
+    // Removed: updateFileTransfer(id, { progress: 100, status: 'complete' });
 
     // Removed legacy DOM update
 
   } catch (error) {
+    // Error status update is now handled by sendFile after Promise.allSettled
     console.error(`Error sending file ${file.name} to ${cid}:`, error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     updateFileTransfer(id, { status: 'error', error: errorMessage });
