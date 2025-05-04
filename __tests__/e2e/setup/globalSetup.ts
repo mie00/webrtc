@@ -1,12 +1,42 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 import type { Config } from '@jest/types';
+import puppeteer, { type Browser } from 'puppeteer'; // Import puppeteer
 import { SERVER_STARTUP_TIMEOUT } from './testHelpers'; // Assuming this constant is defined here or imported
 import puppeteerGlobalSetup from 'jest-environment-puppeteer/setup'
+
 // Use globalThis for broader compatibility
+declare global {
+    // Set by puppeteerGlobalSetup
+    var browser: Browser | undefined; // Default browser instance
+    var wsEndpoint: string | null | undefined;
+    // Set by this setup
+    var __SERVER_URL__: string | undefined;
+    var __SERVER_PID__: number | undefined;
+    var __BROWSER_B__: Browser | undefined; // Second browser instance
+}
+
 
 export default async function globalSetup(globalConfig: Config.GlobalConfig, projectConfig: Config.ProjectConfig): Promise<void> {
+    // Run the standard puppeteer setup for the first browser (browserA)
     await puppeteerGlobalSetup(globalConfig);
     console.log('\n--- Global E2E Setup ---');
+    console.log('Browser A (default) setup complete via jest-environment-puppeteer.');
+
+    // --- Launch Second Browser (browserB) ---
+    console.log('Launching Browser B...');
+    try {
+        // You might want to customize launch options (e.g., headless: false for debugging)
+        const browserB = await puppeteer.launch();
+        globalThis.__BROWSER_B__ = browserB;
+        console.log(`Browser B launched successfully. Endpoint: ${browserB.wsEndpoint()}`);
+    } catch (error) {
+        console.error('Failed to launch Browser B:', error);
+        // Attempt cleanup if Browser A started
+        if (globalThis.browser) {
+            await globalThis.browser.close();
+        }
+        throw error; // Re-throw to fail the setup
+    }
 
     // --- Start Server ---
     console.log('Starting development server...');
@@ -68,6 +98,10 @@ export default async function globalSetup(globalConfig: Config.GlobalConfig, pro
     });
 
     if (!globalThis.__SERVER_URL__ || !globalThis.__SERVER_PID__) {
+        // If server fails, close Browser B as well
+        if (globalThis.__BROWSER_B__) {
+            await globalThis.__BROWSER_B__.close();
+        }
         throw new Error("Server did not start correctly or PID/URL is missing.");
     }
 

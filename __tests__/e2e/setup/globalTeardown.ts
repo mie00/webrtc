@@ -1,14 +1,37 @@
-import os from 'os';
-import { execSync } from 'child_process';
+// Removed os and execSync imports as they are only used in the fallback kill logic
 import type { Config } from '@jest/types';
+import type { Browser } from 'puppeteer'; // Import Browser type
 import puppeteerGlobalTeardown from 'jest-environment-puppeteer/teardown'
 
+// Extend global declaration if needed (matching globalSetup)
+declare global {
+    var __SERVER_URL__: string | undefined;
+    var __SERVER_PID__: number | undefined;
+    var __BROWSER_B__: Browser | undefined; // Second browser instance
+}
 
 
 export default async function globalTeardown(globalConfig: Config.GlobalConfig, projectConfig: Config.ProjectConfig): Promise<void> {
     console.log('\n--- Global E2E Teardown ---');
 
+    // --- Close Second Browser (Browser B) ---
+    const browserB = globalThis.__BROWSER_B__;
+    if (browserB) {
+        console.log('Closing Browser B...');
+        try {
+            await browserB.close();
+            console.log('Browser B closed successfully.');
+        } catch (error) {
+            console.error('Error closing Browser B:', error);
+        }
+        globalThis.__BROWSER_B__ = undefined; // Clear global reference
+    } else {
+        console.log('Browser B instance not found in global scope for teardown.');
+    }
+
+
     // --- Kill Server ---
+    // Note: Server killing logic remains the same
     const serverPid = globalThis.__SERVER_PID__;
     if (serverPid) {
         console.log(`Attempting to kill server process (PID: ${serverPid})...`);
@@ -64,8 +87,10 @@ export default async function globalTeardown(globalConfig: Config.GlobalConfig, 
     // Clear globals
     globalThis.__SERVER_PID__ = undefined;
     globalThis.__SERVER_URL__ = undefined;
+    // globalThis.__BROWSER_B__ is cleared above
 
-    // Note: Browser closing is handled by jest-puppeteer's own teardown
-    console.log('--- Global E2E Teardown Complete ---');
+    // Call the standard puppeteer teardown to close Browser A (default)
+    console.log('Running standard puppeteer teardown for Browser A...');
     await puppeteerGlobalTeardown(globalConfig);
+    console.log('--- Global E2E Teardown Complete ---');
 }

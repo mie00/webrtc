@@ -9,12 +9,16 @@ import {
     checkConnectionEstablished // Assuming checkConnectionEstablished is available
 } from './testHelpers'; // Ensure .js extension if needed, or configure resolver
 
+import type { Browser } from 'puppeteer'; // Import Browser type
+
 // Use globalThis for broader compatibility
 declare global {
     // These are set in globalSetup.ts
     var __SERVER_URL__: string | undefined;
     var __SERVER_PID__: number | undefined;
+    var __BROWSER_B__: Browser | undefined; // Added Browser B
     // These are set by jest-environment-puppeteer
+    var browser: Browser | undefined; // Default browser (Browser A)
     // These will be set by this envSetup
     var __PAGE_A__: Page | undefined;
     var __PAGE_B__: Page | undefined;
@@ -33,15 +37,19 @@ export default async function envSetup() {
     console.log(`Using server URL from global setup: ${serverUrl}`);
 
     // --- 2. Setup Browser Pages ---
-    // Browser instance is provided by jest-environment-puppeteer and stored in this.global.browser
-    const browser = this.global.browser as Browser;
-     if (!browser) {
-        // This check might be redundant if jest-environment-puppeteer guarantees it, but safe to keep.
-        throw new Error("Puppeteer browser instance (this.global.browser) not found. Ensure jest-puppeteer preset/environment is working.");
+    // Browser A instance is provided by jest-environment-puppeteer and stored in this.global.browser
+    const browserA = this.global.browser as Browser;
+     if (!browserA) {
+        throw new Error("Browser A instance (this.global.browser) not found. Ensure jest-puppeteer preset/environment is working.");
+    }
+    // Browser B instance is retrieved from global scope set in globalSetup
+    const browserB = globalThis.__BROWSER_B__;
+     if (!browserB) {
+        throw new Error("Browser B instance (__BROWSER_B__) not found in global scope. Ensure globalSetup ran successfully and launched Browser B.");
     }
 
-    console.log('Opening Page A...');
-    const pageA = await browser.newPage();
+    console.log('Opening Page A in Browser A...');
+    const pageA = await browserA.newPage();
     console.log(`Page A navigating to: ${serverUrl}`);
     await pageA.goto(serverUrl, { waitUntil: 'networkidle0', timeout: PUPPETEER_TIMEOUT });
     console.log('Page A navigation complete.');
@@ -55,8 +63,8 @@ export default async function envSetup() {
     }
     console.log(`Invite URL from Page A: ${inviteUrl}`);
 
-    console.log('Opening Page B...');
-    const pageB = await browser.newPage();
+    console.log('Opening Page B in Browser B...');
+    const pageB = await browserB.newPage();
     console.log('Page B navigating to invite URL...');
     await pageB.goto(inviteUrl, { waitUntil: 'networkidle0', timeout: PUPPETEER_TIMEOUT });
     console.log('Page B navigation complete.');
