@@ -265,84 +265,93 @@ async function waitForBufferDrain(dc: RTCDataChannel, threshold: number): Promis
     });
 }
 
-/**
- * Read and send a file to a specific client (Rewritten Version)
- */
 async function readFile(file: File, cid: string, id: string): Promise<void> {
-  let offset = 0;
-  const max_size = 2 * 1024 * 1024;
   const app = window.app;
+  const dc_file = app.clients[cid]?.dc_file;
 
-  app.clients[cid].dc_file?.send(JSON.stringify({ name: file.name, type: file.type, size: file.size }));
-
-  const reader = new FileReader();
-  reader.onload = function (event: ProgressEvent<FileReader>) {
-    if (!event.target?.result) return;
-
-    const result = event.target.result as ArrayBuffer;
-    for (const chunk of splitArrayBuffer(result, 128 * 1024)) {
-      app.clients[cid].dc_file?.send(chunk);
-    }
-
-    if (app.file_progress_interval) {
-      clearInterval(app.file_progress_interval);
-      app.file_progress_interval = undefined;
-    }
-
-    app.file_progress_interval = window.setInterval(() => {
-      const getRemaining = () => ((app.clients[cid].dc_file?.bufferedAmount || 0) + (file.size - Math.min(offset, file.size)));
-      const progress = ((file.size - getRemaining()) / file.size) * 100;
-
-      // Update store
-      updateFileTransfer(id, {
-        progress,
-        status: 'sending'
-      });
-
-      // Update progress bar for backward compatibility
-      updateProgressBar(id, file.size, getRemaining);
-
-      if (getRemaining() === 0) {
-        if (app.file_progress_interval) {
-          clearInterval(app.file_progress_interval);
-          app.file_progress_interval = undefined;
-        }
-
-        // Update store
-        updateFileTransfer(id, {
-          progress: 100,
-          status: 'complete'
-        });
-
-        // Update DOM for backward compatibility
-        const fileElement = document.getElementById(`f-${id}`);
-        if (fileElement) {
-          fileElement.innerHTML = "Sent";
-        }
-      }
-    }, 100);
-  };
-
-  const buffer_cb = () => {
-    reader.readAsArrayBuffer(file.slice(offset, offset + max_size));
-    offset += max_size;
-    if (offset > file.size) {
-      app.clients[cid].dc_file?.removeEventListener("bufferedamountlow", buffer_cb);
-      const fileUpload = document.getElementById('file-upload') as HTMLInputElement;
-      if (fileUpload) {
-        fileUpload.disabled = false;
-      }
-    }
-  };
-
-  if (file.size > max_size) {
-    const fileUpload = document.getElementById('file-upload') as HTMLInputElement;
-    if (fileUpload) {
-      fileUpload.disabled = true;
-    }
-    app.clients[cid].dc_file?.addEventListener("bufferedamountlow", buffer_cb);
+  if (!dc_file) {
+    console.error(`File data channel not found for client ${cid}`);
+    updateFileTransfer(id, { status: 'error', error: 'Data channel not available' });
+    return;
   }
 
-  reader.readAsArrayBuffer(file.slice(offset, offset + max_size));
-  offset += max_size;
+  // --- Configuration ---
+  const READ_CHUNK_SIZE = 1 * 1024 * 1024; // Read 1MB chunks from the file
+  const SEND_CHUNK_SIZE = 16 * 1024;      // Send 16KB chunks over WebRTC
+  const HIGH_WATER_MARK = 16 * 1024 * 1024; // Pause sending if buffered amount exceeds 16MB
+
+  let offset = 0;
+  let totalBytesSent = 0; // Track total bytes *sent* (or queued)
+
+  // Disable file input during transfer
+  const fileUpload = document.getElementById('file-upload') as HTMLInputElement;
+  if (fileUpload) {
+    fileUpload.disabled = true;
+  }
+
+  try {
+    console.log(`Starting file transfer: ${file.name} (${file.size} bytes) to ${cid}`);
+
+    // 1. Send metadata
+    dc_file.send(JSON.stringify({ name: file.name, type: file.type, size: file.size }));
+
+    // 2. Read and send file in chunks
+    while (offset < file.size) {
+      const slice = file.slice(offset, offset + READ_CHUNK_SIZE);
+      const chunkBuffer = await readFileSliceAsArrayBuffer(slice);
+      offset += chunkBuffer.byteLength; // Update offset based on actual bytes read
+
+      const smallChunks = splitArrayBuffer(chunkBuffer, SEND_CHUNK_SIZE);
+
+      for (const smallChunk of smallChunks) {
+        // Flow control: Wait if buffer is too full
+        await waitForBufferDrain(dc_file, HIGH_WATER_MARK);
+
+        // Send the small chunk
+        dc_file.send(smallChunk);
+        totalBytesSent += smallChunk.byteLength;
+
+        // Update progress (more frequently)
+        const progress = Math.min(100, Math.round((totalBytesSent / file.size) * 100));
+        updateFileTransfer(id, { progress, status: 'sending' });
+
+        // Update legacy progress bar if needed (optional)
+        // Note: The second arg calculates remaining size based on bytes sent
+        updateProgressBar(id, file.size, () => file.size - totalBytesSent);
+      }
+       // Optional: Yield to the event loop occasionally for very large files/chunks
+       // await new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    // 3. Final progress update and completion status
+    // Ensure buffer is reasonably drained before marking as complete
+    await waitForBufferDrain(dc_file, SEND_CHUNK_SIZE); // Wait until buffer is less than one chunk size
+
+    console.log(`File transfer complete: ${file.name} to ${cid}`);
+    updateFileTransfer(id, { progress: 100, status: 'complete' });
+
+    // Update DOM for backward compatibility (optional)
+    const fileElement = document.getElementById(`f-${id}`);
+    if (fileElement) {
+      fileElement.innerHTML = "Sent";
+    }
+
+  } catch (error) {
+    console.error(`Error sending file ${file.name} to ${cid}:`, error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    updateFileTransfer(id, { status: 'error', error: errorMessage });
+
+    // Update DOM for backward compatibility (optional)
+     const fileElement = document.getElementById(`f-${id}`);
+     if (fileElement) {
+       fileElement.innerHTML = `Error: ${errorMessage}`;
+     }
+  } finally {
+    // Re-enable file input
+    if (fileUpload) {
+      fileUpload.disabled = false;
+    }
+    // Note: No interval to clear in this version.
+    // The bufferedamountlow listener in waitForBufferDrain removes itself.
+  }
 }
