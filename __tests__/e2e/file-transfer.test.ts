@@ -1,211 +1,308 @@
 import { describe, test, beforeAll, afterAll, expect, jest } from '@jest/globals';
 import type { ElementHandle, Page } from 'puppeteer';
 import path, { dirname } from 'path';
-import fs from 'fs';
+import fs from 'fs-extra'; // Using fs-extra for ensureDirSync and potentially async operations
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import {
     FILE_INPUT_SELECTOR,
-    // Removed unused ID-based selectors from import
     PUPPETEER_TIMEOUT,
     JEST_TIMEOUT,
     checkConnectionEstablished,
     calculateSHA256             // Import the SHA helper
 } from './setup/testHelpers';
 
-// --- Test File Configuration ---
-const TEST_FILE_NAME = 'test-upload.bin'; // Changed filename
+// --- Test Configuration ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const TEST_FILE_PATH = path.join(__dirname, TEST_FILE_NAME);
-// Create some binary content (e.g., 1KB of random-ish data)
-const TEST_FILE_CONTENT_BUFFER = Buffer.alloc(1024);
-for (let i = 0; i < TEST_FILE_CONTENT_BUFFER.length; i++) {
-    TEST_FILE_CONTENT_BUFFER[i] = i % 256;
+const TEST_FILES_DIR = path.join(__dirname, 'test-transfer-files');
+
+// Define test cases
+const testCases = [
+    { description: '0 Bytes', sizeBytes: 0, fileName: 'test-0B.bin' },
+    { description: '100 Bytes', sizeBytes: 100, fileName: 'test-100B.bin' },
+    { description: '1 MB', sizeBytes: 1 * 1024 * 1024, fileName: 'test-1MB.bin' },
+    // { description: '1 GB', sizeBytes: 1 * 1024 * 1024 * 1024, fileName: 'test-1GB.bin' }, // Uncomment carefully - very slow!
+];
+
+interface TestCaseData extends (typeof testCases)[0] {
+    filePath: string;
+    expectedSha256: string;
+    timeoutMultiplier: number; // To adjust timeouts per file size
 }
-let EXPECTED_SHA256: string; // To store the hash
+
+const preparedTestCases: TestCaseData[] = [];
+
+// Helper to create files efficiently, especially large ones
+async function createTestFile(filePath: string, sizeBytes: number): Promise<void> {
+    if (sizeBytes === 0) {
+        await fs.writeFile(filePath, '');
+        return;
+    }
+
+    // For non-zero files, use streams for potentially large files
+    return new Promise((resolve, reject) => {
+        const stream = fs.createWriteStream(filePath);
+        let writtenBytes = 0;
+        const chunkSize = 64 * 1024; // 64KB chunks
+        const buffer = Buffer.alloc(chunkSize);
+
+        // Fill buffer with some pattern (optional, could use random data)
+        for (let i = 0; i < chunkSize; i++) {
+            buffer[i] = i % 256;
+        }
+
+        function write() {
+            let ok = true;
+            do {
+                const bytesToWrite = Math.min(chunkSize, sizeBytes - writtenBytes);
+                if (bytesToWrite <= 0) {
+                    break; // Should not happen if loop condition is correct, but safety first
+                }
+                const chunk = bytesToWrite === chunkSize ? buffer : buffer.slice(0, bytesToWrite);
+                writtenBytes += bytesToWrite;
+                if (writtenBytes === sizeBytes) {
+                    stream.write(chunk, (err) => {
+                        if (err) reject(err);
+                        else stream.end(resolve); // End stream after last write
+                    });
+                    ok = false; // Last write, stop loop
+                } else {
+                    // If write returns false, wait for 'drain' before continuing
+                    ok = stream.write(chunk);
+                }
+            } while (writtenBytes < sizeBytes && ok);
+
+            if (writtenBytes < sizeBytes) {
+                // If the loop stopped because ok = false, wait for drain
+                stream.once('drain', write);
+            }
+        }
+
+        stream.on('error', reject);
+        write(); // Start the writing process
+    });
+}
+
+
+// Helper to calculate SHA256 from file path using streams
+async function calculateFileSHA256(filePath: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash('sha256');
+        const stream = fs.createReadStream(filePath);
+        stream.on('data', (data) => hash.update(data));
+        stream.on('end', () => resolve(hash.digest('hex')));
+        stream.on('error', reject);
+    });
+}
+
 
 // --- Jest Test Suite ---
-describe('WebRTC File Transfer E2E Test (using global setup)', () => {
-    jest.setTimeout(JEST_TIMEOUT * 1.5); // Allow slightly more time for file transfer
+describe('WebRTC File Transfer E2E Test (Multiple Sizes)', () => {
+    // Set a very long timeout for the entire suite, especially if testing 1GB
+    // 10 minutes = 600,000 ms. Adjust as needed.
+    jest.setTimeout(JEST_TIMEOUT * 20); // Increased significantly
 
     let pageA: Page;
     let pageB: Page;
 
-    // Suite-specific setup/teardown for the test file
-    beforeAll(() => {
-        // Retrieve pages created in globalSetup
+    beforeAll(async () => {
+        // Retrieve pages - Assuming connection is established by envSetup
+        // If envSetup was refactored out, connection logic needs to be here or in beforeEach
         pageA = globalThis.__PAGE_A__!;
-        pageB = globalThis.__PAGE_B__!;
+        pageB = globalThis.__PAGE_B__!; // This relies on the old setup or needs adjustment
 
-        expect(pageA).toBeDefined();
-        expect(pageB).toBeDefined();
-
-        // Create the dummy binary file
-        console.log(`Creating test binary file for transfer test: ${TEST_FILE_PATH}`);
-        fs.writeFileSync(TEST_FILE_PATH, TEST_FILE_CONTENT_BUFFER);
-        // Calculate expected hash from the buffer
-        EXPECTED_SHA256 = calculateSHA256(TEST_FILE_CONTENT_BUFFER);
-        console.log(`Expected SHA256: ${EXPECTED_SHA256}`);
-    });
-
-    afterAll(() => {
-        // Delete the dummy file created by *this* suite
-        if (fs.existsSync(TEST_FILE_PATH)) {
-            console.log(`Deleting test file: ${TEST_FILE_PATH}`);
-            fs.unlinkSync(TEST_FILE_PATH);
+        // Check if pages exist (basic sanity check)
+        if (!pageA || !pageB) {
+             throw new Error("Page A or Page B not found in global scope. Ensure E2E environment setup ran correctly and established connection.");
         }
+        console.log("Page A and Page B retrieved.");
+        // Optional: Quick connection check if needed
+        // await checkConnectionEstablished(pageA, 'Page A (beforeAll)');
+        // await checkConnectionEstablished(pageB, 'Page B (beforeAll)');
+
+        // Create test directory
+        fs.ensureDirSync(TEST_FILES_DIR);
+        console.log(`Ensured test file directory exists: ${TEST_FILES_DIR}`);
+
+        // Create test files and calculate hashes
+        console.log('Preparing test files...');
+        for (const testCase of testCases) {
+            const filePath = path.join(TEST_FILES_DIR, testCase.fileName);
+            console.log(`Creating test file: ${filePath} (${testCase.description})...`);
+            await createTestFile(filePath, testCase.sizeBytes);
+            console.log(`Calculating SHA256 for: ${filePath}...`);
+            const expectedSha256 = await calculateFileSHA256(filePath);
+            console.log(`  SHA256: ${expectedSha256}`);
+
+            // Determine timeout multiplier (more time for larger files)
+            let timeoutMultiplier = 1;
+            if (testCase.sizeBytes > 10 * 1024 * 1024) timeoutMultiplier = 10; // 10x for >10MB
+            if (testCase.sizeBytes > 500 * 1024 * 1024) timeoutMultiplier = 20; // 20x for >500MB
+
+            preparedTestCases.push({
+                ...testCase,
+                filePath,
+                expectedSha256,
+                timeoutMultiplier,
+            });
+        }
+        console.log('Test files prepared.');
     });
 
-    test('should successfully transfer a file between two peers', async () => {
-        console.log('--- Starting file transfer test (connection assumed established) ---');
+    afterAll(async () => {
+        // Delete the test files directory
+        if (fs.existsSync(TEST_FILES_DIR)) {
+            console.log(`Deleting test files directory: ${TEST_FILES_DIR}`);
+            try {
+                await fs.rm(TEST_FILES_DIR, { recursive: true, force: true });
+                console.log('Test files directory deleted.');
+            } catch (error) {
+                console.error(`Error deleting test files directory: ${error}`);
+            }
+        }
+        // Note: Pages are closed by envTeardown
+    });
 
-        // Optional: Verify connection again quickly if desired
-        // await checkConnectionEstablished(pageA, 'Page A (pre-transfer)');
+    // Use test.each to run the transfer logic for each prepared test case
+    test.each(preparedTestCases)(
+        'should successfully transfer: $description ($fileName)',
+        async ({ fileName, filePath, expectedSha256, timeoutMultiplier }) => {
+            console.log(`\n--- Starting file transfer test for: ${fileName} (${description}) ---`);
+
+            // Calculate dynamic timeouts based on multiplier
+            const dynamicPuppeteerTimeout = PUPPETEER_TIMEOUT * timeoutMultiplier;
+            const transferWaitTimeout = PUPPETEER_TIMEOUT * timeoutMultiplier * 2; // Even longer for actual transfer steps
+
+            // Optional: Verify connection again quickly if desired
+            // await checkConnectionEstablished(pageA, 'Page A (pre-transfer)');
         // await checkConnectionEstablished(pageB, 'Page B (pre-transfer)');
 
         try {
-            // --- File Transfer Steps (Starts immediately) ---
-            await pageB.waitForSelector('::-p-text(<)', { visible: true, timeout: PUPPETEER_TIMEOUT });
-            pageB.click('::-p-text(<)')
+            try {
+                // --- File Transfer Steps ---
+                // Ensure file transfer UI elements are ready if needed (e.g., click button to reveal input)
+                // These clicks might need adjustment based on your UI flow
+                console.log('Ensuring file transfer UI is ready...');
+                await pageB.waitForSelector('::-p-text(<)', { visible: true, timeout: dynamicPuppeteerTimeout });
+                await pageB.click('::-p-text(<)');
+                await pageA.bringToFront();
+                await pageA.waitForSelector('::-p-text(<)', { visible: true, timeout: dynamicPuppeteerTimeout });
+                await pageA.click('::-p-text(<)');
+                console.log('File transfer UI prepared.');
 
-            await pageA.bringToFront();
+                // 1. Find the file input element on Page A (Sender)
+                console.log('Waiting for file input element on Page A...');
+                const fileInputElement = await pageA.waitForSelector(FILE_INPUT_SELECTOR, { visible: false, timeout: dynamicPuppeteerTimeout }); // Input might be hidden
+                expect(fileInputElement).not.toBeNull();
+                console.log('File input element found.');
 
-            await pageA.waitForSelector('::-p-text(<)', { visible: true, timeout: PUPPETEER_TIMEOUT });
-            pageA.click('::-p-text(<)')
+                // 2. Upload the specific test file
+                console.log(`Uploading test file: ${filePath}`);
+                await (fileInputElement as ElementHandle<HTMLInputElement>).uploadFile(filePath);
+                console.log('File selected for upload.');
 
-            // 1. Find the file input element on Page A (Sender)
-            console.log('Waiting for file input element on Page A...');
-            const fileInputElement = await pageA.waitForSelector(FILE_INPUT_SELECTOR, { visible: false, timeout: PUPPETEER_TIMEOUT });
-            expect(fileInputElement).not.toBeNull();
-            console.log('File input element found.');
+                // --- Sender Verification ---
+                const senderFilenameSelector = `::-p-text(${fileName})`;
+                console.log(`Waiting for filename "${fileName}" to appear on Page A (Sender)...`);
+                await pageA.waitForSelector(senderFilenameSelector, { visible: true, timeout: dynamicPuppeteerTimeout });
+                console.log('Filename found on Sender.');
 
-            // 2. Upload the test file using the input element
-            console.log(`Uploading test file: ${TEST_FILE_PATH}`);
-            // Use type assertion if needed after expect check
-            await (fileInputElement as ElementHandle<HTMLInputElement>).uploadFile(TEST_FILE_PATH);
-            console.log('File selected for upload.');
+                // Wait for Sender's completion indicator ("Completed")
+                const senderCompleteSelector = `::-p-text(Completed)`; // Adjust if needed
+                console.log(`Waiting for sender completion indicator "Completed" on Page A...`);
+                await pageA.waitForSelector(senderCompleteSelector, { visible: true, timeout: transferWaitTimeout }); // Longer timeout
+                console.log('Sender completion indicator found.');
 
-            // --- Sender Verification ---
+                // --- Receiver Verification ---
+                const receiverFilenameSelector = `::-p-text(${fileName})`;
+                console.log(`Waiting for filename "${fileName}" to appear on Page B (Receiver)...`);
+                await pageB.waitForSelector(receiverFilenameSelector, { visible: true, timeout: transferWaitTimeout }); // Longer timeout
+                console.log('Filename found on Receiver.');
 
-            // 3. Wait for the filename to appear on Page A (Sender)
-            const senderFilenameSelector = `::-p-text(${TEST_FILE_NAME})`;
-            console.log(`Waiting for filename "${TEST_FILE_NAME}" to appear on Page A (Sender)...`);
-            await pageA.waitForSelector(senderFilenameSelector, { visible: true, timeout: PUPPETEER_TIMEOUT });
-            console.log('Filename found on Sender.');
+                // Wait for Receiver's download indicator ("Download")
+                const receiverDownloadSelector = `::-p-text(Download)`; // Adjust if needed
+                console.log(`Waiting for receiver download indicator "Download" on Page B...`);
+                await pageB.waitForSelector(receiverDownloadSelector, { visible: true, timeout: dynamicPuppeteerTimeout });
+                console.log('Receiver download indicator found.');
 
-            // 4. Wait for Sender's completion indicator text ("Completed")
-            //    Adjust "Completed" if the actual text is different (e.g., file size)
-            const senderCompleteSelector = `::-p-text(Completed)`; // Or use file size if that's the final state text
-            console.log(`Waiting for sender completion indicator text "Completed" near filename on Page A...`);
-            // We assume "Completed" appears near the filename. waitForSelector should find it anywhere initially.
-            // If needed, make the selector more specific using XPath relative to the filename.
-            await pageA.waitForSelector(senderCompleteSelector, { visible: true, timeout: PUPPETEER_TIMEOUT * 2 }); // Allow more time
-            console.log('Sender completion indicator text found.');
-
-
-            // --- Receiver Verification ---
-
-            // 5. Wait for the filename to appear on Page B (Receiver)
-            const receiverFilenameSelector = `::-p-text(${TEST_FILE_NAME})`;
-            console.log(`Waiting for filename "${TEST_FILE_NAME}" to appear on Page B (Receiver)...`);
-            await pageB.waitForSelector(receiverFilenameSelector, { visible: true, timeout: PUPPETEER_TIMEOUT * 2 }); // Allow more time for transfer
-            console.log('Filename found on Receiver.');
-
-            // 6. Wait for Receiver's completion indicator text ("Completed")
-            //    (Download link presence will be checked within evaluate)
-            const receiverCompleteSelector = `::-p-text(Download)`; // Or use file size
-            console.log(`Waiting for receiver completion indicator text "Download" near filename on Page B...`);
-            await pageB.waitForSelector(receiverCompleteSelector, { visible: true, timeout: PUPPETEER_TIMEOUT });
-            console.log('Receiver completion indicator text found.');
-
-
-            // 7. Get the blob URL from the correct "Download" link, fetch content as ArrayBuffer, convert to base64, and return
-            console.log('Finding download link and fetching received file content (as binary) from Page B...');
-            const receivedContentBase64 = await pageB.evaluate(async (filename) => {
-                // Helper function to convert ArrayBuffer to Base64 (runs in browser context)
-                function arrayBufferToBase64(buffer: ArrayBuffer): string {
-                    let binary = '';
-                    const bytes = new Uint8Array(buffer);
+                // Get the blob URL, fetch content, convert to base64
+                console.log('Finding download link and fetching received file content from Page B...');
+                const receivedContentBase64 = await pageB.evaluate(async (filenameToFind) => {
+                    // Helper function (remains the same)
+                    function arrayBufferToBase64(buffer: ArrayBuffer): string {
+                        let binary = '';
+                        const bytes = new Uint8Array(buffer);
                     const len = bytes.byteLength;
                     for (let i = 0; i < len; i++) {
                         binary += String.fromCharCode(bytes[i]);
+                        const len = bytes.byteLength;
+                        for (let i = 0; i < len; i++) {
+                            binary += String.fromCharCode(bytes[i]);
+                        }
+                        return window.btoa(binary);
                     }
-                    return window.btoa(binary);
-                }
 
-                // Find the element containing the filename text. Use XPath for robustness.
-                const filenameXpath = `//*[normalize-space()='${filename}']`; // Find exact match, ignoring surrounding whitespace
-                const filenameElementSnapshot = document.evaluate(filenameXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-                const filenameElement = filenameElementSnapshot.singleNodeValue as HTMLElement | null;
-                console.log("BASD", filenameElement)
-                if (!filenameElement) {
-                    // Fallback: try contains if exact match fails
-                    const filenameContainsXpath = `//*[contains(text(),'${filename}')]`;
-                    const filenameContainsSnapshot = document.evaluate(filenameContainsXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-                    const filenameContainsElement = filenameContainsSnapshot.singleNodeValue as HTMLElement | null;
-                    if (!filenameContainsElement) {
-                        throw new Error(`Element containing filename "${filename}" not found.`);
+                    // Find the element containing the filename text (using XPath as before)
+                    const filenameXpath = `//*[normalize-space()='${filenameToFind}']`;
+                    let filenameElement = document.evaluate(filenameXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue as HTMLElement | null;
+
+                    if (!filenameElement) {
+                        console.warn(`Exact match for "${filenameToFind}" not found, trying contains...`);
+                        const filenameContainsXpath = `//*[contains(text(),'${filenameToFind}')]`;
+                        filenameElement = document.evaluate(filenameContainsXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue as HTMLElement | null;
+                        if (!filenameElement) {
+                            throw new Error(`Element containing filename "${filenameToFind}" not found.`);
+                        }
+                        console.warn(`Found filename "${filenameToFind}" using 'contains'.`);
                     }
-                    // If found via contains, use this element for the next step
-                    // This assumes the first element found via contains is the correct one
-                    console.warn(`Found filename "${filename}" using 'contains', not exact match.`);
-                    // Re-assign filenameElement for clarity, though not strictly necessary if using filenameContainsElement directly
-                    // filenameElement = filenameContainsElement;
-                }
 
-                // Use the element found (either exact or contains)
-                const targetElement = filenameElement ?? (document.evaluate(`//*[contains(text(),'${filename}')]`, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue as HTMLElement | null);
-                if (!targetElement) {
-                    throw new Error(`Element containing filename "${filename}" not found even with fallback.`);
-                }
+                    // Find the container and download link (logic remains similar)
+                    // Adjust closest selector if needed (e.g., 'li', '.file-entry')
+                    const container = filenameElement.closest('div'); // Assuming div is the container
+                    if (!container) {
+                        throw new Error(`Could not find a container element near filename "${filenameToFind}".`);
+                    }
 
-                // Assume the "Download" link is within a nearby ancestor container (e.g., a parent div for the file item)
-                // Adjust '.file-item-container' to the actual class or structure of the parent
-                // Or use XPath axes like ancestor:: or following-sibling:: if structure is known
-                const container = targetElement.closest('div'); // Simple closest div, might need refinement
-                if (!container) {
-                    throw new Error(`Could not find a container element near filename "${filename}".`);
-                }
+                    const links = Array.from(container.querySelectorAll('a'));
+                    const downloadLink = links.find(a => a.textContent?.trim() === 'Download' && a.href.startsWith('blob:'));
 
-                // Find the "Download" link within that container using standard DOM methods
-                const links = Array.from(container.querySelectorAll('a'));
-                const downloadLink = links.find(a => a.textContent?.trim() === 'Download' && a.href.startsWith('blob:'));
+                    if (!downloadLink) {
+                        console.error(`Could not find "Download" link in container for "${filenameToFind}". Container HTML:`, container.innerHTML);
+                        throw new Error(`"Download" link associated with "${filenameToFind}" not found or invalid href.`);
+                    }
+                    const blobUrl = downloadLink.href;
+                    console.log(`Fetching blob URL: ${blobUrl}`);
+                    const response = await fetch(blobUrl);
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch blob: ${response.statusText}`);
+                    }
+                    const arrayBuffer = await response.arrayBuffer();
+                    return arrayBufferToBase64(arrayBuffer);
+                }, fileName); // Pass the correct filename
 
+                expect(receivedContentBase64).toBeDefined();
+                console.log('Received content fetched (as base64).');
 
-                if (!downloadLink) {
-                    // Add debug info if link not found
-                    console.error(`Could not find "Download" link in container for "${filename}". Container HTML:`, container.innerHTML);
-                    throw new Error(`"Download" link associated with "${filename}" not found or invalid href.`);
-                }
-                const blobUrl = downloadLink.href;
-                const response = await fetch(blobUrl);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch blob: ${response.statusText}`);
-                }
-                // Fetch as ArrayBuffer for binary data
-                const arrayBuffer = await response.arrayBuffer();
-                // Convert ArrayBuffer to Base64 string for returning from evaluate
-                return arrayBufferToBase64(arrayBuffer);
-            }, TEST_FILE_NAME); // Pass filename to evaluate
+                // Decode Base64, calculate SHA, and compare
+                const receivedContentBuffer = Buffer.from(receivedContentBase64, 'base64');
+                // Use the imported helper for consistency, though direct buffer hashing is fine too
+                const receivedSha256 = calculateSHA256(receivedContentBuffer);
+                console.log(`Received SHA256:  ${receivedSha256}`);
+                console.log(`Expected SHA256:  ${expectedSha256}`);
+                expect(receivedSha256).toEqual(expectedSha256);
+                console.log('SHA256 hashes match.');
 
-            expect(receivedContentBase64).toBeDefined();
-            console.log('Received content fetched (as base64).');
+                console.log(`--- TEST SUCCESS: ${fileName} transfer verified! ---`);
 
-            // 8. Decode Base64 content back to a Buffer and calculate SHA
-            const receivedContentBuffer = Buffer.from(receivedContentBase64, 'base64');
-            const receivedSha256 = calculateSHA256(receivedContentBuffer);
-            console.log(`Received SHA256: ${receivedSha256}`);
-            expect(receivedSha256).toEqual(EXPECTED_SHA256);
-            console.log('SHA256 hashes match.');
-
-            console.log('--- TEST SUCCESS: File transfer verified (sender complete, receiver viewable, content match)! ---');
-
-        } catch (error) {
-            console.error('--- FILE TRANSFER TEST FAILED ---');
-            // Consider screenshots
-            // if (pageA) await pageA.screenshot({ path: 'error_transfer_pageA.png' });
-            // if (pageB) await pageB.screenshot({ path: 'error_transfer_pageB.png' });
-            throw error;
+            } catch (error) {
+                console.error(`--- FILE TRANSFER TEST FAILED for ${fileName} ---`);
+                // Consider adding screenshots specific to the failed file
+                const errorFileName = fileName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                // if (pageA) await pageA.screenshot({ path: `error_transfer_${errorFileName}_pageA.png` });
+                // if (pageB) await pageB.screenshot({ path: `error_transfer_${errorFileName}_pageB.png` });
+                throw error; // Re-throw to fail the test
+            }
         }
-    });
-});
+    ); // End of test.each
+}); // End of describe
