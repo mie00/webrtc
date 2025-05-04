@@ -13,11 +13,15 @@ import {
 } from './setup/testHelpers';
 
 // --- Test File Configuration ---
-const TEST_FILE_NAME = 'test-upload.txt';
+const TEST_FILE_NAME = 'test-upload.bin'; // Changed filename
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const TEST_FILE_PATH = path.join(__dirname, TEST_FILE_NAME);
-const TEST_FILE_CONTENT = 'This is a test file for E2E transfer.';
+// Create some binary content (e.g., 1KB of random-ish data)
+const TEST_FILE_CONTENT_BUFFER = Buffer.alloc(1024);
+for (let i = 0; i < TEST_FILE_CONTENT_BUFFER.length; i++) {
+    TEST_FILE_CONTENT_BUFFER[i] = i % 256;
+}
 let EXPECTED_SHA256: string; // To store the hash
 
 // --- Jest Test Suite ---
@@ -36,11 +40,11 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
         expect(pageA).toBeDefined();
         expect(pageB).toBeDefined();
 
-        // Create the dummy file
-        console.log(`Creating test file for transfer test: ${TEST_FILE_PATH}`);
-        fs.writeFileSync(TEST_FILE_PATH, TEST_FILE_CONTENT);
-        // Calculate expected hash
-        EXPECTED_SHA256 = calculateSHA256(TEST_FILE_CONTENT);
+        // Create the dummy binary file
+        console.log(`Creating test binary file for transfer test: ${TEST_FILE_PATH}`);
+        fs.writeFileSync(TEST_FILE_PATH, TEST_FILE_CONTENT_BUFFER);
+        // Calculate expected hash from the buffer
+        EXPECTED_SHA256 = calculateSHA256(TEST_FILE_CONTENT_BUFFER);
         console.log(`Expected SHA256: ${EXPECTED_SHA256}`);
     });
 
@@ -115,10 +119,20 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
             console.log('Receiver completion indicator text found.');
 
 
-            // 7. Get the blob URL from the correct "Download" link and fetch content on Page B, then verify SHA
-            console.log('Finding download link and fetching received file content from Page B...');
-            const receivedContent = await pageB.evaluate(async (filename) => {
-                console.log("LLLLLLL")
+            // 7. Get the blob URL from the correct "Download" link, fetch content as ArrayBuffer, convert to base64, and return
+            console.log('Finding download link and fetching received file content (as binary) from Page B...');
+            const receivedContentBase64 = await pageB.evaluate(async (filename) => {
+                // Helper function to convert ArrayBuffer to Base64 (runs in browser context)
+                function arrayBufferToBase64(buffer: ArrayBuffer): string {
+                    let binary = '';
+                    const bytes = new Uint8Array(buffer);
+                    const len = bytes.byteLength;
+                    for (let i = 0; i < len; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    return window.btoa(binary);
+                }
+
                 // Find the element containing the filename text. Use XPath for robustness.
                 const filenameXpath = `//*[normalize-space()='${filename}']`; // Find exact match, ignoring surrounding whitespace
                 const filenameElementSnapshot = document.evaluate(filenameXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
@@ -141,10 +155,9 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
 
                 // Use the element found (either exact or contains)
                 const targetElement = filenameElement ?? (document.evaluate(`//*[contains(text(),'${filename}')]`, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue as HTMLElement | null);
-                 if (!targetElement) {
-                     throw new Error(`Element containing filename "${filename}" not found even with fallback.`);
-                 }
-
+                if (!targetElement) {
+                    throw new Error(`Element containing filename "${filename}" not found even with fallback.`);
+                }
 
                 // Assume the "Download" link is within a nearby ancestor container (e.g., a parent div for the file item)
                 // Adjust '.file-item-container' to the actual class or structure of the parent
@@ -169,16 +182,18 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
                 if (!response.ok) {
                     throw new Error(`Failed to fetch blob: ${response.statusText}`);
                 }
-                // Assuming text file for simplicity, adjust if binary
-                const text = await response.text();
-                return text;
+                // Fetch as ArrayBuffer for binary data
+                const arrayBuffer = await response.arrayBuffer();
+                // Convert ArrayBuffer to Base64 string for returning from evaluate
+                return arrayBufferToBase64(arrayBuffer);
             }, TEST_FILE_NAME); // Pass filename to evaluate
 
-            expect(receivedContent).toBeDefined();
-            console.log('Received content fetched.');
+            expect(receivedContentBase64).toBeDefined();
+            console.log('Received content fetched (as base64).');
 
-            // 8. Calculate SHA of received content and compare
-            const receivedSha256 = calculateSHA256(receivedContent);
+            // 8. Decode Base64 content back to a Buffer and calculate SHA
+            const receivedContentBuffer = Buffer.from(receivedContentBase64, 'base64');
+            const receivedSha256 = calculateSHA256(receivedContentBuffer);
             console.log(`Received SHA256: ${receivedSha256}`);
             expect(receivedSha256).toEqual(EXPECTED_SHA256);
             console.log('SHA256 hashes match.');
