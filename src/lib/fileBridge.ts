@@ -226,7 +226,7 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
 
   // --- Configuration ---
   const DEFAULT_SEND_CHUNK_SIZE = 16 * 1024;    // 16KB default
-  const MAX_SEND_CHUNK_SIZE = 64 * 1024;      // Cap at 64KB for safety/performance
+  const MAX_SEND_CHUNK_SIZE = 1 * 1024 * 1024;      // Cap at 1MB for safety/performance
   const DEFAULT_READ_CHUNK_SIZE = 1 * 1024 * 1024; // Read 1MB chunks from the file
   const HIGH_WATER_MARK = 1 * 1024 * 1024;    // Pause sending if buffered amount exceeds 1MB (tune as needed)
 
