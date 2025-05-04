@@ -41,7 +41,7 @@ export default async function envSetup() {
     }
 
     console.log('Opening Page A...');
-    const pageA = this.global.page;
+    const pageA = await browser.newPage();
     console.log(`Page A navigating to: ${serverUrl}`);
     await pageA.goto(serverUrl, { waitUntil: 'networkidle0', timeout: PUPPETEER_TIMEOUT });
     console.log('Page A navigation complete.');
