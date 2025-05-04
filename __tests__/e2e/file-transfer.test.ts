@@ -109,31 +109,61 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
             await pageB.waitForSelector(receiverFilenameSelector, { visible: true, timeout: PUPPETEER_TIMEOUT * 2 }); // Allow more time for transfer
             console.log('Filename found on Receiver.');
 
-            // 6. Wait for Receiver's download link (which should contain the filename)
-            //    We target an 'a' tag containing the filename text.
-            const receiverDownloadSelector = `a ::-p-text(${TEST_FILE_NAME})`;
-            console.log(`Waiting for receiver download link with text "${TEST_FILE_NAME}" on Page B...`);
-            const downloadLink = await pageB.waitForSelector(receiverDownloadSelector, { visible: true, timeout: PUPPETEER_TIMEOUT });
-            expect(downloadLink).not.toBeNull();
-            console.log('Receiver download link found.');
-
-            // 7. Wait for Receiver's completion indicator text ("Completed")
+            // 6. Wait for Receiver's completion indicator text ("Completed")
+            //    (Download link presence will be checked within evaluate)
             const receiverCompleteSelector = `::-p-text(Completed)`; // Or use file size
             console.log(`Waiting for receiver completion indicator text "Completed" near filename on Page B...`);
             await pageB.waitForSelector(receiverCompleteSelector, { visible: true, timeout: PUPPETEER_TIMEOUT });
             console.log('Receiver completion indicator text found.');
 
 
-            // 8. Get the blob URL from the download link and fetch content on Page B, then verify SHA
-            console.log('Fetching received file content from Page B...');
+            // 7. Get the blob URL from the correct "Download" link and fetch content on Page B, then verify SHA
+            console.log('Finding download link and fetching received file content from Page B...');
             const receivedContent = await pageB.evaluate(async (filename) => {
-                // Find the link again within evaluate using the filename
-                // This assumes the link text *is* the filename. Adjust if link text is different.
-                const links = Array.from(document.querySelectorAll('a'));
-                const link = links.find(a => a.textContent?.trim() === filename && a.href.startsWith('blob:'));
+                // Find the element containing the filename text. Use XPath for robustness.
+                const filenameXpath = `//*[normalize-space()='${filename}']`; // Find exact match, ignoring surrounding whitespace
+                const filenameElementSnapshot = document.evaluate(filenameXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+                const filenameElement = filenameElementSnapshot.singleNodeValue as HTMLElement | null;
 
-                if (!link) {
-                    throw new Error(`Download link with text "${filename}" not found or invalid href.`);
+                if (!filenameElement) {
+                    // Fallback: try contains if exact match fails
+                    const filenameContainsXpath = `//*[contains(text(),'${filename}')]`;
+                    const filenameContainsSnapshot = document.evaluate(filenameContainsXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+                    const filenameContainsElement = filenameContainsSnapshot.singleNodeValue as HTMLElement | null;
+                    if (!filenameContainsElement) {
+                        throw new Error(`Element containing filename "${filename}" not found.`);
+                    }
+                    // If found via contains, use this element for the next step
+                    // This assumes the first element found via contains is the correct one
+                    console.warn(`Found filename "${filename}" using 'contains', not exact match.`);
+                    // Re-assign filenameElement for clarity, though not strictly necessary if using filenameContainsElement directly
+                    // filenameElement = filenameContainsElement;
+                }
+
+                // Use the element found (either exact or contains)
+                const targetElement = filenameElement ?? (document.evaluate(`//*[contains(text(),'${filename}')]`, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue as HTMLElement | null);
+                 if (!targetElement) {
+                     throw new Error(`Element containing filename "${filename}" not found even with fallback.`);
+                 }
+
+
+                // Assume the "Download" link is within a nearby ancestor container (e.g., a parent div for the file item)
+                // Adjust '.file-item-container' to the actual class or structure of the parent
+                // Or use XPath axes like ancestor:: or following-sibling:: if structure is known
+                const container = targetElement.closest('div'); // Simple closest div, might need refinement
+                if (!container) {
+                    throw new Error(`Could not find a container element near filename "${filename}".`);
+                }
+
+                // Find the "Download" link within that container using standard DOM methods
+                const links = Array.from(container.querySelectorAll('a'));
+                const downloadLink = links.find(a => a.textContent?.trim() === 'Download' && a.href.startsWith('blob:'));
+
+
+                if (!downloadLink) {
+                    // Add debug info if link not found
+                    console.error(`Could not find "Download" link in container for "${filename}". Container HTML:`, container.innerHTML);
+                    throw new Error(`"Download" link associated with "${filename}" not found or invalid href.`);
                 }
                 const blobUrl = link.href;
                 const response = await fetch(blobUrl);
@@ -148,7 +178,7 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
             expect(receivedContent).toBeDefined();
             console.log('Received content fetched.');
 
-            // 9. Calculate SHA of received content and compare
+            // 8. Calculate SHA of received content and compare
             const receivedSha256 = calculateSHA256(receivedContent);
             console.log(`Received SHA256: ${receivedSha256}`);
             expect(receivedSha256).toEqual(EXPECTED_SHA256);
