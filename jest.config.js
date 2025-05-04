@@ -11,7 +11,7 @@ export default {
     // Use ts-jest for .ts files, configured for ESM
     '^.+\\.ts$': ['ts-jest', {
       useESM: true,
-      tsconfig: 'tsconfig.json' // Explicitly point to tsconfig
+      tsconfig: 'tsconfig.test.json' // Explicitly point to tsconfig
     }],
     // Use svelte-jester for .svelte files
     '^.+\\.svelte$': ['svelte-jester', {

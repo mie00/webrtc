@@ -1,12 +1,11 @@
 // Using .cjs extension for CommonJS compatibility
-
 module.exports = {
   // Using jest-puppeteer preset is often simpler for E2E with Puppeteer
   preset: 'jest-puppeteer', // Recommended preset for Puppeteer tests
   // testEnvironment is usually handled by the preset, but keep if custom logic exists
-  // testEnvironment: './jest.puppeteer-environment.cjs',
-  globalSetup: '<rootDir>/__tests__/e2e/setup/globalSetup.ts', // Point to the TS file
-  globalTeardown: '<rootDir>/__tests__/e2e/setup/globalTeardown.ts', // Point to the TS file
+  testEnvironment: './jest.puppeteer-environment.cjs',
+  // globalSetup: '<rootDir>/__tests__/e2e/setup/globalSetup.ts', // Point to the ts file
+  // globalTeardown: '<rootDir>/__tests__/e2e/setup/globalTeardown.ts', // Point to the CJS file
   moduleNameMapper: {
     // Handle module aliases (if you have them in tsconfig.json)
     // Example: '^@components/(.*)$': '<rootDir>/src/components/$1',
@@ -19,7 +18,10 @@ module.exports = {
   },
   transform: {
     // Use ts-jest for JS/TS files (needed for ts-jest preset)
-    '^.+\\.(t|j)sx?$': ['ts-jest', { useESM: true }],
+    '^.+\\.(t|j)sx?$': ['ts-jest', {
+      tsconfig: 'tsconfig.test.json', // Explicitly point to tsconfig
+      useESM: true
+    }],
     // Add transform for Svelte files if testing components directly elsewhere
     '^.+\\.svelte$': ['svelte-jester', { preprocess: true }],
   },

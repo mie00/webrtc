@@ -19,6 +19,6 @@
       "$lib/*": ["src/lib/*"]
     }
   },
-  "include": ["src/**/*.d.ts", "src/**/*.ts", "src/**/*.js", "src/**/*.svelte", "service-worker.ts", "types/**/*", "__tests__/**/*"],
+  "include": ["src/**/*.d.ts", "src/**/*.ts", "src/**/*.js", "src/**/*.svelte", "service-worker.ts", "types/**/*"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

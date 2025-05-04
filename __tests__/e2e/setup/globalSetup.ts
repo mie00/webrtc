@@ -8,8 +8,8 @@ import {
     PUPPETEER_TIMEOUT,
     SERVER_STARTUP_TIMEOUT,
     checkConnectionEstablished // Assuming checkConnectionEstablished is moved or copied here
-} from './testHelpers.js'; // Add .js extension for Node ESM resolution
-
+} from './testHelpers'; // Add .js extension for Node ESM resolution
+import defaultGlobalSetup from 'jest-environment-puppeteer/setup';
 // Helper function (can be moved to testHelpers.ts) - Copied from connection.test.ts
 // Ensure this function is available here or imported
 // async function checkConnectionEstablished(page: Page, description: string): Promise<void> {
@@ -19,7 +19,8 @@ import {
 // }
 
 
-export default async function globalSetup() {
+export default async function globalSetup(jestConfig) {
+    await defaultGlobalSetup(jestConfig);
     console.log('\n--- Global E2E Setup ---');
 
     // --- 1. Start Server ---
@@ -84,6 +85,8 @@ export default async function globalSetup() {
     globalThis.__SERVER_PID__ = serverInfo.process.pid; // Store PID for teardown
 
     // --- 2. Setup Browser Pages ---
+    console.log(globalThis)
+    globalThis.__BROWSER__ = globalThis.browser;
     const browser = globalThis.__BROWSER__; // Provided by jest-puppeteer preset
      if (!browser) {
         throw new Error("Puppeteer browser instance (__BROWSER__) not found in global scope. Ensure jest-puppeteer is configured.");
