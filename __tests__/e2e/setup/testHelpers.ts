@@ -1,10 +1,3 @@
-import type { Page } from 'puppeteer';
-
-// --- Configuration Constants ---
-export const INVITE_URL_SELECTOR = 'button ::-p-text(Copy)';
-export const INVITE_URL_COPIED_SELECTOR = 'button ::-p-text(Copied successfully)';
-export const CALL_BUTTON_SELECTOR = 'button#test-join';
-export const CONNECTION_INDICATOR_SELECTOR = '.test-indicator.bg-green-500';
 import crypto from 'crypto'; // Import crypto for hashing
 import type { Page } from 'puppeteer';
 
