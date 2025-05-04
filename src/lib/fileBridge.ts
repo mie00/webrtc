@@ -217,7 +217,7 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
   // --- Configuration ---
   const READ_CHUNK_SIZE = 1 * 1024 * 1024; // Read 1MB chunks from the file
   const SEND_CHUNK_SIZE = 16 * 1024;      // Send 16KB chunks over WebRTC
-  const HIGH_WATER_MARK = 16 * 1024 * 1024; // Pause sending if buffered amount exceeds 16MB
+  const HIGH_WATER_MARK = 1 * 1024 * 1024; // Pause sending if buffered amount exceeds 16MB
 
   let offset = 0;
   let totalBytesSent = 0; // Track total bytes *sent* (or queued)
@@ -269,15 +269,6 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
         updateFileTransfer(id, { progress, status: 'sending' });
 
         // Removed legacy progress bar update: updateProgressBar(...)
-      }
-
-      // Flow control: After sending all small chunks from the large chunk,
-      // wait if the buffer is still full before reading the *next* large chunk.
-      while (dc_file.bufferedAmount > HIGH_WATER_MARK) {
-          dc_file.bufferedAmountLowThreshold = HIGH_WATER_MARK / 2;
-          // console.log(`Post-chunk buffer full (${dc_file.bufferedAmount}), waiting before next read...`);
-          await waitForBufferDrain(dc_file);
-          // console.log(`Post-chunk buffer drained (${dc_file.bufferedAmount}), proceeding to next read...`);
       }
 
        // Optional: Yield to the event loop occasionally for very large files/chunks
