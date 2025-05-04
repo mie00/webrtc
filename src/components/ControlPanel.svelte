@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { createEventDispatcher, onDestroy } from 'svelte'; // Import onDestroy
+  import { createEventDispatcher, onDestroy, afterUpdate } from 'svelte'; // Import onDestroy and afterUpdate
   import { tweened } from 'svelte/motion';
   import type { WebRTCApp } from '../lib/webrtc/WebRTCApp.js'; // Import the type
   import { connectionStore, type DirectClientState, type ParticipantState, type ConnectionState } from '../stores/connectionStore.js'; // Adjust path if needed
+  import { chatStore, type ChatState } from '../lib/chatBridge.js'; // Adjust path if needed
 
   // Props
   export let webRTCApp: WebRTCApp; // Still needed for sending messages/files
@@ -15,6 +16,7 @@
   let chatInput: HTMLInputElement;
   let controlsPanel: HTMLDivElement;
   let uploadField: HTMLInputElement;
+  let chatOutputContainer: HTMLDivElement; // Reference for chat output div
 
   // Subscribe to connection store
   let connectionState: ConnectionState = { directClients: {}, participants: {} }; // Initialize with default structure
@@ -22,8 +24,24 @@
     connectionState = value;
   });
 
-  onDestroy(unsubscribe); // Unsubscribe when component is destroyed
+  // Subscribe to chat store
+  let chatState: ChatState = { messages: [] }; // Initialize
+  const unsubscribeChat = chatStore.subscribe(value => {
+    chatState = value;
+  });
 
+  onDestroy(() => {
+    unsubscribe(); // Unsubscribe from connectionStore
+    unsubscribeChat(); // Unsubscribe from chatStore
+  });
+
+  // Auto-scroll chat
+  afterUpdate(() => {
+    if (chatOutputContainer) {
+      // Scroll to the bottom instantly
+      chatOutputContainer.scrollTop = chatOutputContainer.scrollHeight;
+    }
+  });
 
   // Event handlers
   function togglePanel() {
@@ -135,8 +153,16 @@
     <!-- Make chat panel take remaining space, ensure outer div allows scrolling -->
     <div class="flex-1 flex flex-col min-h-0"> <!-- Added min-h-0 for flex child height calculation -->
       <!-- Messages Area -->
-      <div id="output" class="flex-1 overflow-y-auto px-4">
-        <!-- Chat messages will appear here -->
+      <div bind:this={chatOutputContainer} class="flex-1 overflow-y-auto px-4 py-2 border border-gray-300 rounded mb-2 bg-white shadow-inner"> <!-- Added styling and bind:this -->
+        {#if chatState.messages.length === 0}
+          <p class="text-sm text-gray-500 italic">Chat messages will appear here...</p>
+        {:else}
+          {#each chatState.messages as message, i (message.timestamp + '-' + i)} <!-- Unique key using timestamp + index -->
+            <div class="mb-2 chat-message break-words"> <!-- Added break-words -->
+              <span class="font-bold">{message.sender}:</span> {message.text} <!-- Render as plain text -->
+            </div>
+          {/each}
+        {/if}
       </div>
 
       <!-- Message Input and Upload Button -->

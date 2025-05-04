@@ -40,30 +40,7 @@ export function addMessage(text: string, sender: string): void {
  * Initialize the chat module with the app object
  */
 export function chatInit(app: App): void {
-  // Set up a subscription to sync store changes with DOM
-  chatStore.subscribe(state => {
-    const output = document.getElementById('output');
-    if (output) {
-      // This ensures the DOM stays in sync with the store
-      // Only append new messages that aren't already displayed
-      const currentMessages = output.querySelectorAll('.chat-message');
-      const currentCount = currentMessages.length;
-      
-      if (state.messages.length > currentCount) {
-        // Add new messages
-        for (let i = currentCount; i < state.messages.length; i++) {
-          const message = state.messages[i];
-          const messageElem = document.createElement('div');
-          messageElem.className = 'mb-2 chat-message';
-          messageElem.innerHTML = `<span class="font-bold">${message.sender}:</span> ${message.text}`;
-          output.appendChild(messageElem);
-        }
-        
-        // Scroll to bottom
-        output.scrollTop = output.scrollHeight;
-      }
-    }
-  });
+  // No longer need to subscribe here, Svelte component handles rendering
 }
 
 /**
