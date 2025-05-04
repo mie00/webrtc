@@ -8,7 +8,7 @@ import {
     PUPPETEER_TIMEOUT,
     SERVER_STARTUP_TIMEOUT,
     checkConnectionEstablished // Assuming checkConnectionEstablished is moved or copied here
-} from './testHelpers.js'; // Explicitly add .js extension for Node ESM resolution (ts-jest handles mapping)
+} from './testHelpers'; // Revert: Let ts-jest handle resolution via loader
 
 // Helper function (can be moved to testHelpers.ts) - Copied from connection.test.ts
 // Ensure this function is available here or imported
