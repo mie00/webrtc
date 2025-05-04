@@ -358,14 +358,15 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
   } catch (error) {
     // Error status update is now handled by sendFile after Promise.allSettled
     console.error(`Error sending file ${file.name} to ${cid}:`, error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    updateFileTransfer(id, { status: 'error', error: errorMessage });
+    // Removed: updateFileTransfer(id, { status: 'error', error: errorMessage });
 
     // Removed legacy DOM update
     // Ensure input is re-enabled even if error is caught within the loop
     if (fileUpload) {
       fileUpload.disabled = false;
     }
+    // Re-throw the error so Promise.allSettled catches it as rejected
+    throw error;
   } finally {
     // Re-enable file input (redundant if error caught, but safe)
     if (fileUpload && !fileUpload.disabled) { // Check if already enabled
