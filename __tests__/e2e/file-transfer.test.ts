@@ -123,7 +123,7 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
                 const filenameXpath = `//*[normalize-space()='${filename}']`; // Find exact match, ignoring surrounding whitespace
                 const filenameElementSnapshot = document.evaluate(filenameXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
                 const filenameElement = filenameElementSnapshot.singleNodeValue as HTMLElement | null;
-
+                console.log("BASD", filenameElement)
                 if (!filenameElement) {
                     // Fallback: try contains if exact match fails
                     const filenameContainsXpath = `//*[contains(text(),'${filename}')]`;
