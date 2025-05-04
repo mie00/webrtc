@@ -61,8 +61,6 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
 
         try {
             // --- File Transfer Steps (Starts immediately) ---
-            // switch tabs to pageA
-
             await pageB.waitForSelector('::-p-text(<)', { visible: true, timeout: PUPPETEER_TIMEOUT });
             pageB.click('::-p-text(<)')
 
@@ -111,8 +109,8 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
 
             // 6. Wait for Receiver's completion indicator text ("Completed")
             //    (Download link presence will be checked within evaluate)
-            const receiverCompleteSelector = `::-p-text(Completed)`; // Or use file size
-            console.log(`Waiting for receiver completion indicator text "Completed" near filename on Page B...`);
+            const receiverCompleteSelector = `::-p-text(Download)`; // Or use file size
+            console.log(`Waiting for receiver completion indicator text "Download" near filename on Page B...`);
             await pageB.waitForSelector(receiverCompleteSelector, { visible: true, timeout: PUPPETEER_TIMEOUT });
             console.log('Receiver completion indicator text found.');
 
@@ -120,6 +118,7 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
             // 7. Get the blob URL from the correct "Download" link and fetch content on Page B, then verify SHA
             console.log('Finding download link and fetching received file content from Page B...');
             const receivedContent = await pageB.evaluate(async (filename) => {
+                console.log("LLLLLLL")
                 // Find the element containing the filename text. Use XPath for robustness.
                 const filenameXpath = `//*[normalize-space()='${filename}']`; // Find exact match, ignoring surrounding whitespace
                 const filenameElementSnapshot = document.evaluate(filenameXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
@@ -165,7 +164,7 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
                     console.error(`Could not find "Download" link in container for "${filename}". Container HTML:`, container.innerHTML);
                     throw new Error(`"Download" link associated with "${filename}" not found or invalid href.`);
                 }
-                const blobUrl = link.href;
+                const blobUrl = downloadLink.href;
                 const response = await fetch(blobUrl);
                 if (!response.ok) {
                     throw new Error(`Failed to fetch blob: ${response.statusText}`);
@@ -186,18 +185,19 @@ describe('WebRTC File Transfer E2E Test (using global setup)', () => {
 
             console.log('--- TEST SUCCESS: File transfer verified (sender complete, receiver viewable, content match)! ---');
 
-            // Keep debug wait if necessary
-            if (process.env.DEBUG_WAIT) {
-                console.log('DEBUG_WAIT is set, keeping browser open until pageB is closed (or timeout)...');
-                 await new Promise(resolve => setTimeout(resolve, 3600 * 1000));
-            }
-
         } catch (error) {
             console.error('--- FILE TRANSFER TEST FAILED ---');
             // Consider screenshots
             // if (pageA) await pageA.screenshot({ path: 'error_transfer_pageA.png' });
             // if (pageB) await pageB.screenshot({ path: 'error_transfer_pageB.png' });
             throw error;
+        } finally {
+
+            // Keep debug wait if necessary
+            if (process.env.DEBUG_WAIT) {
+                console.log('DEBUG_WAIT is set, keeping browser open until pageB is closed (or timeout)...');
+                 await new Promise(resolve => setTimeout(resolve, 3600 * 1000));
+            }
         }
     });
 });
