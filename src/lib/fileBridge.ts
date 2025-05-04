@@ -243,7 +243,13 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
       const smallChunks = splitArrayBuffer(chunkBuffer, SEND_CHUNK_SIZE);
 
       for (const smallChunk of smallChunks) {
-        // Removed the pre-send buffer check loop
+        // Flow control: Wait if buffer is too full *before* sending the next small chunk
+        while (dc_file.bufferedAmount > HIGH_WATER_MARK) {
+            dc_file.bufferedAmountLowThreshold = HIGH_WATER_MARK / 2;
+            // console.log(`Pre-send buffer full (${dc_file.bufferedAmount}), waiting...`);
+            await waitForBufferDrain(dc_file);
+            // console.log(`Pre-send buffer drained (${dc_file.bufferedAmount}), proceeding to send...`);
+        }
 
         // Send the small chunk
         try {
