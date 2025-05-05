@@ -24,7 +24,8 @@
   let showJoinButton = false;
   let showCopyButton = true;
   let showPasteText = false;
-  
+  let currentOfferCid: string | null = null; // Store the CID for the manual offer
+
   // Socket.io connection
   let socket: Socket; // Add type annotation
   
@@ -177,24 +178,25 @@
           copyText = newUrl;
         }
       }, {sid: ''});
-      
+      currentOfferCid = cid; // Store the CID for the accept handler
+
       const bc = new BroadcastChannel("manual_rtc");
-      const app = webRTCApp.getApp(); // No longer needed for client access
-      app.bc = bc; // Assigning to app object might be unnecessary if bc is only used here
+      // Removed: const app = webRTCApp.getApp();
+      // Removed: app.bc = bc;
       bc.onmessage = async (event) => {
-        console.log("got a new message from boradcast channel");
-        let data = event.data;
+        console.log("got a new message from broadcast channel");
+        const data = event.data;
         const answer = await decompress(data.trim());
         const client = getDirectClient(cid); // Get client from store
         client?.pc?.setRemoteDescription({
           type: "answer",
           sdp: answer.trim() + '\n'
         });
-        // Maybe close bc after receiving the answer?
-        // bc.close();
+        bc.close(); // Close the channel after processing the message
       };
       // No need for DOM manipulation here since we're using Svelte events
       // The accept button click is handled by the on:accept event in the CopyOverlay component
+      // We pass the currentOfferCid to CopyOverlay now.
     } else if (urlParams.get('answer')) {
       const bc = new BroadcastChannel("manual_rtc");
       const answer = urlParams.get('answer');
@@ -307,6 +309,7 @@
   show={showCopyOverlay} 
   copyText={copyText}
   qrCodeUrl={qrCodeUrl}
+  cid={currentOfferCid}
   {showAcceptButton}
   {showJoinButton}
   {showCopyButton}

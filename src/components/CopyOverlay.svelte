@@ -10,7 +10,8 @@
   export let showJoinButton = false;
   export let showCopyButton = true;
   export let showPasteText = false;
-  
+  export let cid: string | null = null; // Receive CID as prop
+
   let pasteValue = '';
   let copyButtonText = 'Copy';
   let qrCodeElement: HTMLElement;
@@ -76,9 +77,10 @@
   
   function handleAccept() {
     // Ensure the dispatched object matches the AcceptEventDetail interface
+    // Use the cid prop directly
     const detail: AcceptEventDetail = {
       pasteValue,
-      cid: window.webRTCApp.app?.bc !== undefined ? Object.keys(getAllDirectClients())[0] : null 
+      cid: cid // Use the passed-in cid
     };
     dispatch('accept', detail);
   }
