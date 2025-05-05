@@ -15,6 +15,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const audioOutputPath = path.join(__dirname, 'setup', 'mic.wav'); // Output path in setup dir
 
+interface AudioAnalysisResult {
+    frequencies: (number | null)[];
+    peakAmplitudes: ( number | null )[];
+    err?: string | null;
+}
 
 // --- Reusable Browser-Side Audio Analysis Function ---
 // NOTE: This function is stringified and executed in the browser context via page.evaluate()
@@ -24,8 +29,8 @@ async function analyzeAudioInBrowser(
     options: {
         // numSamples and sampleIntervalMs are now controlled internally for frequency analysis
         silenceThresholdDb?: number
-    } = {}
-): Promise<{ frequencies: (number | null)[], peakAmplitudes: number[] }> {
+    } = {silenceThresholdDb: -80}
+): Promise<AudioAnalysisResult> {
 
     console.log(`--- Starting Audio Analysis in Browser --- Type: ${analysisType}`);
     const {
@@ -33,7 +38,7 @@ async function analyzeAudioInBrowser(
     } = options;
     const MAX_FREQ_SAMPLES = 4; // Max samples to take for frequency check
 
-    const results: { frequencies: (number | null)[], peakAmplitudes: number[] } = {
+    const results: AudioAnalysisResult = {
         frequencies: [],
         peakAmplitudes: []
     };
@@ -43,7 +48,7 @@ async function analyzeAudioInBrowser(
     let analyser: AnalyserNode | null = null;
 
     try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = analysisType === 'frequency' ? 4096 : 512; // Larger FFT for frequency
         const bufferLength = analyser.frequencyBinCount;
@@ -84,9 +89,8 @@ async function analyzeAudioInBrowser(
         if (!sourceNode) {
             console.error('Failed to find any suitable playing, unmuted audio stream source.');
             // Populate results with defaults indicating failure
-            results.peakAmplitudes = analysisType === 'amplitude' ? [-Infinity] : []; // Use -Infinity to indicate failure
-            results.frequencies = analysisType === 'frequency' ? Array(numSamples).fill(null) : [];
-            console.log(results);
+            results.peakAmplitudes = analysisType === 'amplitude' ? [null] : []; // Use -Infinity to indicate failure
+            results.frequencies = [];
             return results; // Early exit
         }
 
@@ -164,35 +168,10 @@ async function analyzeAudioInBrowser(
             console.log(` Taking amplitude sample 1/1...`);
             results.peakAmplitudes.push(getPeakAmplitude());
         }
-        /*
-        const samplesToTake = analysisType === 'frequency' ? numSamples : 1; // Only 1 sample needed for amplitude check usually
-        for (let i = 0; i < samplesToTake; i++) {
-            if (i > 0) {
-                console.log(` Waiting ${sampleIntervalMs}ms for next sample...`);
-                await new Promise(resolve => setTimeout(resolve, sampleIntervalMs));
-            } else {
-                 // Add a longer initial delay for analyser to stabilize
-                 console.log(' Initial 1000ms delay for analyser stabilization...');
-                 await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            console.log(` Taking sample ${i + 1}/${samplesToTake}...`);
-            if (analysisType === 'frequency') {
-                results.frequencies.push(getDominantFrequency());
-                // Optionally capture amplitude during frequency check too
-                // results.peakAmplitudes.push(getPeakAmplitude());
-            } else { // amplitude
-                // results.peakAmplitudes.push(getPeakAmplitude()); // Moved amplitude logic above
-            }
-        }
-        */
-
     } catch (error) {
         console.error(`Error during audio analysis in browser: ${error}`);
         // Populate results with defaults indicating failure
-        results.peakAmplitudes = analysisType === 'amplitude' ? [-Infinity] : [];
-        results.frequencies = analysisType === 'frequency' ? Array(numSamples).fill(null) : [];
-
+        results.err = error;
     } finally {
         // --- Cleanup ---
         console.log("Cleaning up audio analysis resources...");
@@ -283,7 +262,7 @@ describe('WebRTC Microphone E2E Test', () => {
             silenceThresholdDb: -80
         };
         // Call without 'target' argument
-        const analysisResultB = await pageB.evaluate(analyzeAudioInBrowser, 'frequency', analysisOptionsB);
+        const analysisResultB: AudioAnalysisResult = await pageB.evaluate(analyzeAudioInBrowser, 'frequency', analysisOptionsB);
 
         console.log('Frequency analysis on Page B complete:', analysisResultB);
 
@@ -304,8 +283,21 @@ describe('WebRTC Microphone E2E Test', () => {
         expect(uniqueFreqs.size).toBeGreaterThan(1);
         console.log(`--- Frequency difference on Page B verified (Found ${uniqueFreqs.size} unique frequencies: ${[...uniqueFreqs].map(f=>f?.toFixed(2)).join(', ')}) ---`);
 
+        // 4. Verify final audio state (no suitable source found) on Page A after muting
+        console.log('Verifying final audio state (no suitable source) on Page A...');
+        const analysisOptionsA = {
+             silenceThresholdDb: -80 // Keep threshold for internal logic if needed, but assertion changes
+        };
+        // Call without 'target' argument
+        const analysisResultA: AudioAnalysisResult = await pageA.evaluate(analyzeAudioInBrowser, 'amplitude', analysisOptionsA);
 
-        // 4. Turn off audio on Page A
+        console.log(`Final amplitude analysis attempt on Page A complete:`, analysisResultA);
+        // Assert that the analysis function could not find a suitable source,
+        // indicated by the default failure value (-Infinity).
+        expect(analysisResultA.peakAmplitudes.length).toBe(1);
+        expect(analysisResultA.peakAmplitudes[0]).toBe(null);
+
+        // 5. Turn off audio on Page A
         console.log('Turning off audio on Page A...');
         try {
             await pageA.click(audioButtonSelectorOn);
@@ -321,20 +313,6 @@ describe('WebRTC Microphone E2E Test', () => {
             // Optionally fail the test here if turning off is critical
             throw new Error("Failed to turn off audio on Page A, cannot proceed with silence check.");
         }
-
-        // 5. Verify final audio state (no suitable source found) on Page A after muting
-        console.log('Verifying final audio state (no suitable source) on Page A...');
-        const analysisOptionsA = {
-             silenceThresholdDb: -80 // Keep threshold for internal logic if needed, but assertion changes
-        };
-        // Call without 'target' argument
-        const analysisResultA = await pageA.evaluate(analyzeAudioInBrowser, 'amplitude', analysisOptionsA);
-
-        console.log(`Final amplitude analysis attempt on Page A complete:`, analysisResultA);
-        // Assert that the analysis function could not find a suitable source,
-        // indicated by the default failure value (-Infinity).
-        expect(analysisResultA.peakAmplitudes.length).toBe(1);
-        expect(analysisResultA.peakAmplitudes[0]).toBe(-Infinity);
 
         console.log('--- TEST SUCCESS: Verified audio stream frequency change on Page B & no suitable audio source found on Page A after mute ---');
 

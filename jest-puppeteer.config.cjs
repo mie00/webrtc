@@ -5,6 +5,7 @@ module.exports = {
     headless: process.env.DEBUG_WAIT?false:'new', // Set to false to run in non-headless mode
     slowMo: 50, // Optional: Slow down operations to observe better
     args: [
+      `--no-sandbox`,
       `--use-fake-device-for-media-stream`,
       `--use-fake-ui-for-media-stream`,
       // Use the generated MJPEG for fake video
@@ -13,6 +14,7 @@ module.exports = {
       `--use-file-for-fake-audio-capture=./__tests__/e2e/setup/mic.wav`,
       '--window-size=2540,1080',
     ],
+    ignoreDefaultArgs: ['--mute-audio'],
   },
   maxWorkers: 2,
   // Using jest-puppeteer preset is often simpler for E2E with Puppeteer
