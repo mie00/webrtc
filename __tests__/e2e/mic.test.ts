@@ -237,7 +237,7 @@ describe('WebRTC Microphone E2E Test', () => {
         // The core assertion: the frequencies measured at different times should be different
         expect(frequencies.freq2).not.toBe(frequencies.freq1); // Frequency at ~3s should be different from frequency at ~1s
 
-        console.log('--- TEST SUCCESS: Audio stream and different frequencies verified ---');
+        console.log('--- TEST SUCCESS: Initial silence verified & audio stream with different frequencies verified ---');
 
         // Optional: Turn off audio on Page A afterwards
         try {
