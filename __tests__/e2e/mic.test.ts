@@ -113,7 +113,8 @@ async function analyzeAudioInBrowser(
             }
             const nyquist = audioCtx!.sampleRate / 2;
             const frequency = maxIndex * nyquist / bufferLength;
-            console.log(` Freq Analysis: Max Amp ${maxAmp.toFixed(2)} dB at Index ${maxIndex}, Freq: ${frequency.toFixed(2)} Hz`);
+            // Log the calculated frequency before returning
+            console.log(` Freq Analysis: Max Amp ${maxAmp.toFixed(2)} dB at Index ${maxIndex}, Calculated Freq: ${frequency.toFixed(2)} Hz`);
             return frequency;
         }
 
@@ -138,8 +139,9 @@ async function analyzeAudioInBrowser(
                 console.log(` Waiting ${sampleIntervalMs}ms for next sample...`);
                 await new Promise(resolve => setTimeout(resolve, sampleIntervalMs));
             } else {
-                 // Add a small initial delay for analyser to stabilize
-                 await new Promise(resolve => setTimeout(resolve, 500));
+                 // Add a longer initial delay for analyser to stabilize
+                 console.log(' Initial 1000ms delay for analyser stabilization...');
+                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
 
             console.log(` Taking sample ${i + 1}/${samplesToTake}...`);
@@ -245,7 +247,7 @@ describe('WebRTC Microphone E2E Test', () => {
         console.log('Analyzing remote audio frequency on Page B...');
         const analysisOptionsB = {
             numSamples: 2,
-            sampleIntervalMs: 2000, // Time between samples
+            sampleIntervalMs: 4000, // Increased time between samples
             silenceThresholdDb: -80
         };
         // Call without 'target' argument
