@@ -70,10 +70,19 @@
     }));
 
     const fileItems: FeedItem[] = Object.values(fileState.transfers).map(transfer => {
-      // Determine sender display name: If senderCid is missing, it's a local file. Otherwise use remote info.
-      const senderDisplayName = !transfer.senderCid
-        ? localUserName // Local file (sending or completed)
-        : transfer.senderName || transfer.senderCid || 'Peer'; // Remote file: Use name, fallback to CID, then 'Peer'
+      // Determine sender display name:
+      let senderDisplayName: string;
+      if (!transfer.senderCid) {
+        // Local file (sending or completed)
+        senderDisplayName = localUserName;
+      } else {
+        // Remote file: Prioritize senderName, fallback explicitly to senderCid.
+        senderDisplayName = transfer.senderName || transfer.senderCid; // Use name or CID
+        // If both senderName and senderCid were somehow missing, fallback to 'Peer'
+        if (!senderDisplayName) {
+            senderDisplayName = 'Peer';
+        }
+      }
 
       return {
         id: `file-${transfer.id}`,

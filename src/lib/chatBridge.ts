@@ -65,11 +65,18 @@ export function setupChatChannel(app: App, cid: string): void {
         // Try to parse as JSON first (for structured messages)
         const data = JSON.parse(e.data);
         if (data.type === 'chat') {
-          // Determine sender name for storage. If the received sender is "You",
-          // use the actual sender name received, or fallback.
-          const senderName = data.sender || 'Peer'; // Use received name or fallback
-          // Add to store with sender's CID
-          addMessage(data.message, senderName, cid);
+          // Determine sender name. If the received name matches the receiver's name,
+          // use the CID instead to avoid confusion and ensure correct alignment.
+          const localUserName = app.config['user-name'] || 'You'; // Get receiver's name
+          let senderNameToStore = data.sender || 'Peer'; // Default to received name or 'Peer'
+
+          if (senderNameToStore === localUserName) {
+            // Received name matches receiver's name, use CID as identifier
+            senderNameToStore = cid;
+          }
+
+          // Add to store with sender's CID and the determined display name
+          addMessage(data.message, senderNameToStore, cid);
         } else {
           // Legacy format or unknown format - No CID available
           addMessage(e.data, 'Peer (Legacy)'); // Indicate legacy format
