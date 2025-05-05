@@ -17,7 +17,7 @@ interface QrCodeResult {
 }
 
 // convert qr.decode to a promise with a timeout
-const decodeQrCode = async (bitmap: Bitmap, timeoutMs: number = 5000): Promise<QrCodeResult | null> => {
+const decodeQrCode = async (bitmap: Bitmap, timeoutMs: number = 1000): Promise<QrCodeResult | null> => {
     const decodePromise = new Promise<QrCodeResult | null>((resolve, reject) => {
         qr.callback = (err, value: QrCodeResult | null) => {
             if (err) {
@@ -94,7 +94,7 @@ describe('WebRTC Camera E2E Test', () => {
         // 1. Enable video on Page A
         const videoButtonSelector = 'button.pointer-events-auto ::-p-text(📷)'; // Selector for the video button when OFF
         console.log('Waiting for video button on Page A...');
-        await pageA.waitForSelector(videoButtonSelector, { timeout: 5000 });
+        await pageA.waitForSelector(videoButtonSelector, { timeout: 1000 });
         console.log('Clicking video button on Page A...');
         await pageA.click(videoButtonSelector);
         console.log('Video button clicked.');
@@ -104,7 +104,7 @@ describe('WebRTC Camera E2E Test', () => {
         const remoteVideoSelector = 'div.stream-container video:not([muted])';
         console.log('Waiting for remote video element on Page B...');
         try {
-            await pageB.waitForSelector(remoteVideoSelector, { visible: true, timeout: 15000 }); // Increased timeout for stream setup
+            await pageB.waitForSelector(remoteVideoSelector, { visible: true, timeout: 11000 }); // Increased timeout for stream setup
             console.log('Remote video element found on Page B.');
              // Add a small delay to ensure video rendering has started
             await new Promise(resolve => setTimeout(resolve, 2000));
