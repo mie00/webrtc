@@ -70,10 +70,10 @@
     }));
 
     const fileItems: FeedItem[] = Object.values(fileState.transfers).map(transfer => {
-      // Determine sender display name: Local user if sending, otherwise use stored senderName or fallback
-      const senderDisplayName = transfer.status === 'sending'
-        ? localUserName
-        : transfer.senderName || transfer.senderCid || 'Remote'; // Use name, fallback to CID, then 'Remote'
+      // Determine sender display name: If senderCid is missing, it's a local file. Otherwise use remote info.
+      const senderDisplayName = !transfer.senderCid
+        ? localUserName // Local file (sending or completed)
+        : transfer.senderName || transfer.senderCid || 'Peer'; // Remote file: Use name, fallback to CID, then 'Peer'
 
       return {
         id: `file-${transfer.id}`,
@@ -221,18 +221,26 @@
           <p class="text-sm text-gray-500 italic">Messages and file transfers will appear here...</p>
         {:else}
           {#each combinedFeed as item (item.id)}
-            {@const isLocalUser = item.sender === localUserName}
+            <!-- Determine if the item is from the local user -->
+            {@const isLocalUser = item.type === 'chat'
+              ? item.sender === localUserName // Local chat message if sender matches
+              : !item.cid // Local file transfer if senderCid is missing
+            }
             <div class="flex" class:justify-end={isLocalUser} class:justify-start={!isLocalUser}>
               <div
                 class="p-3 rounded-lg shadow max-w-xs lg:max-w-md break-words"
                 class:bg-blue-100={isLocalUser}
                 class:bg-gray-100={!isLocalUser}
-                title={item.cid ? `Sender CID: ${item.cid}` : `Sender: ${item.sender}`}>
-                {#if !isLocalUser}
-                  <p class="text-xs font-semibold mb-1 text-gray-600" title={item.cid ? `CID: ${item.cid}` : ''}>
-                    {item.sender} <!-- Display name (could be name, CID, or 'Remote') -->
-                  </p>
-                {/if}
+                > <!-- Removed title from outer div -->
+                <!-- Always display sender name, use title for CID -->
+                <p
+                  class="text-xs font-semibold mb-1"
+                  class:text-blue-800={isLocalUser}
+                  class:text-gray-600={!isLocalUser}
+                  title={item.cid ? `CID: ${item.cid}` : 'Local Sender'} <!-- Tooltip shows CID or 'Local Sender' -->
+                >
+                  {item.sender} <!-- Always display sender name (localUserName, Peer, CID, etc.) -->
+                </p>
 
                 {#if item.type === 'chat'}
                   <p class="text-sm">{item.text}</p>
