@@ -3,9 +3,12 @@ import type { Page } from 'puppeteer';
 import { JEST_TIMEOUT } from './setup/testHelpers'; // Import helpers
 import QrCode from 'qrcode-reader';
 import { Jimp } from 'jimp';
-import {type Bitmap} from "@jimp/types";
+import { type Bitmap } from "@jimp/types";
 import { promisify } from 'util'; // To promisify qrCode.decode
 import { rejects } from 'assert';
+import { execSync } from 'child_process';
+import fs from 'fs/promises';
+import path from 'path';
 
 // --- Helper Function ---
 // Promisify the callback-based decode method
@@ -91,8 +94,63 @@ describe('WebRTC Camera E2E Test', () => {
     let pageA: Page;
     let pageB: Page;
 
-    // Optional: Add a beforeAll to get the pages, improving type safety within tests
-    beforeAll(() => {
+    // Video generation parameters
+    const videoWidth = 640;
+    const videoHeight = 480;
+    const videoFrames = 100; // Keep relatively low for faster generation
+    const qrSize = 100;
+    const qrContent = "book";
+    const videoOutput = path.join(__dirname, 'setup', 'camera.mjpeg'); // Place in setup dir
+    const tempFramesDir = path.join(__dirname, 'setup', 'temp_frames');
+    const qrImagePath = path.join(tempFramesDir, 'qr.png');
+    const qrResizedPath = path.join(tempFramesDir, 'qr_resized.png');
+    const bgColor = "white";
+
+    beforeAll(async () => {
+        console.log('--- Generating test video for camera feed ---');
+        try {
+            // 1. Create temporary directory
+            await fs.mkdir(tempFramesDir, { recursive: true });
+            console.log(`Created temporary directory: ${tempFramesDir}`);
+
+            // 2. Generate QR code
+            console.log(`Generating QR code (${qrImagePath})...`);
+            execSync(`qrencode -o ${qrImagePath} -s 10 "${qrContent}"`);
+
+            // 3. Resize QR code
+            console.log(`Resizing QR code (${qrResizedPath})...`);
+            execSync(`convert ${qrImagePath} -resize ${qrSize}x${qrSize} ${qrResizedPath}`);
+
+            // 4. Generate frames
+            console.log(`Generating ${videoFrames} frames...`);
+            for (let i = 0; i < videoFrames; i++) {
+                const frameNumber = String(i).padStart(3, '0');
+                const framePath = path.join(tempFramesDir, `frame_${frameNumber}.jpg`);
+                // Calculate x position (moves across the screen)
+                const x = Math.floor((i * (videoWidth - qrSize)) / videoFrames);
+                const y = Math.floor(videoHeight / 2 - qrSize / 2);
+
+                // Create blank background
+                execSync(`convert -size ${videoWidth}x${videoHeight} xc:${bgColor} ${framePath}`);
+                // Composite QR code
+                execSync(`composite -geometry +${x}+${y} ${qrResizedPath} ${framePath} ${framePath}`);
+                if ((i + 1) % 20 === 0) console.log(` Generated frame ${i + 1}/${videoFrames}`); // Progress indicator
+            }
+            console.log('All frames generated.');
+
+            // 5. Create MJPEG video using ffmpeg
+            console.log(`Creating MJPEG video (${videoOutput})...`);
+            // Use yuvj420p for wider compatibility if yuv420p causes issues, though yuv420p is standard.
+            execSync(`ffmpeg -y -framerate 25 -i ${path.join(tempFramesDir, 'frame_%03d.jpg')} -c:v mjpeg -q:v 5 -pix_fmt yuv420p ${videoOutput}`);
+            console.log('Video generation complete.');
+
+        } catch (error) {
+            console.error('Error during video generation:', error);
+            // Attempt cleanup even on error
+            await fs.rm(tempFramesDir, { recursive: true, force: true }).catch(e => console.error("Error during cleanup after generation error:", e));
+            throw new Error(`Failed to generate test video: ${error}`); // Fail fast
+        }
+
         // Retrieve pages created in globalSetup
         pageA = globalThis.__PAGE_A__!; // Use non-null assertion assuming setup succeeded
         pageB = globalThis.__PAGE_B__!;
@@ -167,6 +225,21 @@ describe('WebRTC Camera E2E Test', () => {
             console.log('Video turned off on Page A.');
         } catch (e) {
             console.warn("Could not find 'ON' video button to turn off video, maybe it failed to turn on?");
+        }
+    });
+
+    afterAll(async () => {
+        console.log('--- Cleaning up generated video and temporary files ---');
+        try {
+            // Remove the generated video file
+            await fs.rm(videoOutput, { force: true });
+            console.log(`Removed video file: ${videoOutput}`);
+            // Remove the temporary frames directory and its contents
+            await fs.rm(tempFramesDir, { recursive: true, force: true });
+            console.log(`Removed temporary directory: ${tempFramesDir}`);
+        } catch (error) {
+            console.error('Error during cleanup:', error);
+            // Don't fail the test run for cleanup errors, but log them.
         }
     });
 });
