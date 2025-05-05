@@ -198,10 +198,13 @@
       // The accept button click is handled by the on:accept event in the CopyOverlay component
       // We pass the currentOfferCid to CopyOverlay now.
     } else if (urlParams.get('answer')) {
-      const bc = new BroadcastChannel("manual_rtc");
       const answer = urlParams.get('answer');
-      if (answer) await bc.postMessage(answer);
-      bc.close();
+      if (answer) {
+          const bc = new BroadcastChannel("manual_rtc"); // Create locally
+          await bc.postMessage(answer);
+          bc.close(); // Close immediately after posting
+      }
+      // Removed redundant bc.close() from here
       showCopyOverlay = true;
       // Instead of manipulating the DOM directly, we'll use a variable to control the content
       copyText = 'Call started on another tab, please close this one';
