@@ -107,8 +107,8 @@ describe('WebRTC Camera E2E Test', () => {
         // 3. Take first screenshot and decode QR code
         console.log('Taking first screenshot on Page B...');
         const result1 = await takeScreenshotAndDecodeQR(pageB);
-        expect(result1).withContext('First QR code decoding failed').not.toBeNull();
-        expect(result1!.result).withContext('First QR code content mismatch').toBe('book');
+        expect(result1 /* First QR code decoding failed */).not.toBeNull();
+        expect(result1!.result /* First QR code content mismatch */).toBe('book');
         const minX1 = Math.min(...result1!.points.map(p => p.x));
         console.log(`First QR code decoded successfully. Min X: ${minX1}`);
 
@@ -118,13 +118,13 @@ describe('WebRTC Camera E2E Test', () => {
         // 5. Take second screenshot and decode QR code
         console.log('Taking second screenshot on Page B...');
         const result2 = await takeScreenshotAndDecodeQR(pageB);
-        expect(result2).withContext('Second QR code decoding failed').not.toBeNull();
-        expect(result2!.result).withContext('Second QR code content mismatch').toBe('book');
+        expect(result2 /* Second QR code decoding failed */).not.toBeNull();
+        expect(result2!.result /* Second QR code content mismatch */).toBe('book');
         const minX2 = Math.min(...result2!.points.map(p => p.x));
         console.log(`Second QR code decoded successfully. Min X: ${minX2}`);
 
         // 6. Assert that the QR code position changed (min X coordinate is different)
-        expect(minX1).withContext('QR code position (min X) did not change between screenshots').not.toBe(minX2);
+        expect(minX1 /* QR code position (min X) did not change between screenshots */).not.toBe(minX2);
         console.log(`QR code position changed: ${minX1} -> ${minX2}`);
 
         console.log('--- TEST SUCCESS: Video stream and QR code movement verified ---');
