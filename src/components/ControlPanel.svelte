@@ -227,9 +227,7 @@
                 class="p-3 rounded-lg shadow max-w-xs lg:max-w-md break-words"
                 class:bg-blue-100={isLocalUser}
                 class:bg-gray-100={!isLocalUser}
-                title={item.cid ? `Sender CID: ${item.cid}` : `Sender: ${item.sender}`} <!-- Show CID in title if available -->
-              >
-                <!-- Display Sender Name for non-local items -->
+                title={item.cid ? `Sender CID: ${item.cid}` : `Sender: ${item.sender}`}>
                 {#if !isLocalUser}
                   <p class="text-xs font-semibold mb-1 text-gray-600" title={item.cid ? `CID: ${item.cid}` : ''}>
                     {item.sender} <!-- Display name (could be name, CID, or 'Remote') -->
