@@ -1,4 +1,6 @@
 import { writable, get } from 'svelte/store';
+import { getDirectClient, getAllDirectClients } from '../stores/connectionStore.js'; // Adjust path if needed
+import { getAllConfig } from '../stores/configStore.js'; // Import config store
 
 // Chat state interface
 export interface ChatState {
@@ -49,25 +51,30 @@ export function chatInit(app: App): void {
 /**
  * Set up chat channel for a client
  */
-export function setupChatChannel(app: App, cid: string): void {
-  const dc = app.clients[cid].pc?.createDataChannel("chat", {
+export function setupChatChannel(app: App, cid: string): void { // app might be needed for global config
+  const client = getDirectClient(cid);
+  if (!client || !client.pc) {
+      console.error(`Client or PeerConnection not found for CID ${cid} in setupChatChannel`);
+      return;
+  }
+  const dc = client.pc.createDataChannel("chat", {
     negotiated: true,
     id: 1
   });
   if (dc) {
-    app.clients[cid].dc = dc;
-    
+    client.dc = dc; // Assign to client object from store
+
     dc.onopen = (): void => {
     };
-    
+
     dc.onmessage = (e: MessageEvent): void => {
       try {
         // Try to parse as JSON first (for structured messages)
         const data = JSON.parse(e.data);
         if (data.type === 'chat') {
-          // Determine sender name. If the received name matches the receiver's name,
-          // use the CID instead to avoid confusion and ensure correct alignment.
-          const localUserName = app.config['user-name'] || 'You'; // Get receiver's name
+          // Determine sender name.
+          const config = getAllConfig(); // Get current global config
+          const localUserName = config['user-name'] || 'You'; // Get receiver's name from global config
           let senderNameToStore = data.sender || 'Peer'; // Default to received name or 'Peer'
 
           if (senderNameToStore === localUserName) {
@@ -94,25 +101,28 @@ export function setupChatChannel(app: App, cid: string): void {
  */
 export function sendChatMessage(message: string, sender: string = 'You'): void {
   if (!message.trim()) return;
-  
-  const app = window.app;
-  
-  // Add to local store
+
+  // const app = window.app; // No longer need app object directly here
+
+  // Add to local store (sender is 'You' or the name from config)
   addMessage(message, sender);
-  
-  // Send to all connected clients
-  for (const cid in app.clients) {
-    if (app.clients[cid].dc && app.clients[cid].dc.readyState === 'open') {
+
+  // Send to all connected clients (from store)
+  const clients = getAllDirectClients();
+  for (const cid in clients) {
+    const client = clients[cid];
+    if (client.dc && client.dc.readyState === 'open') {
       try {
-        // Send structured message
-        app.clients[cid].dc.send(JSON.stringify({
+        // Send structured message including the sender's name from config
+        client.dc.send(JSON.stringify({
           type: 'chat',
           message,
-          sender
+          sender // Send the local user's name
         }));
       } catch (err) {
-        // Fallback to plain text
-        app.clients[cid].dc.send(message);
+        console.error(`Failed to send chat message to ${cid}:`, err);
+        // Fallback might not be useful if JSON stringify failed
+        // client.dc.send(message);
       }
     }
   }

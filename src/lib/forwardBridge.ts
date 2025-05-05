@@ -1,5 +1,6 @@
 import { writable, get } from 'svelte/store';
 import type { Writable } from 'svelte/store';
+import { getDirectClient, getAllDirectClients } from '../stores/connectionStore.js'; // Adjust path if needed
 
 // Forward state interface
 export interface ForwardState {
@@ -112,44 +113,50 @@ import {
 /**
  * Set up forward channel for a client
  */
-export function setupForwardChannel(originalApp: App, cid: string): void {
-  const app = originalApp as ForwardApp;
-  const pc = app.clients[cid]?.pc;
-  if (!pc) {
-    console.error(`PeerConnection not found for client ${cid} when setting up forward channel (bridge).`);
+export function setupForwardChannel(originalApp: App, cid: string): void { // originalApp might be needed for global config/state
+  // const app = originalApp as ForwardApp; // Less reliance on app object
+  const client = getDirectClient(cid);
+  const pc = client?.pc;
+  if (!client || !pc) {
+    console.error(`Client or PeerConnection not found for client ${cid} when setting up forward channel (bridge).`);
     return;
   }
   const forward = pc.createDataChannel("forward", {
     negotiated: true,
     id: 3
   });
-  (app.clients[cid] as ForwardClient).forward = forward;
-  
+  (client as ForwardClient).forward = forward; // Assign to the retrieved client object
+
   forward.onopen = () => {
   };
-  
+
   forward.onmessage = async (e: MessageEvent) => {
     const data = JSON.parse(e.data);
     console.log("got message in forward channel from peer", data);
-    
+
+    // Re-fetch client in case state changed
+    const currentClient = getDirectClient(cid);
+    if (!currentClient) return; // Client might have disconnected
+
     // Get the current state from the store
     const state = getForwardState();
-    
+
     switch (data.type) {
       case "offer":
         if (!('serviceWorker' in navigator)) {
           alert("cannot do service workers, won't be able to do forwarding");
-          (app.clients[cid] as ForwardClient).forward.send(JSON.stringify({
+          (currentClient as ForwardClient).forward?.send(JSON.stringify({ // Use currentClient
             type: "offer.error",
             error: "no service worker on peer"
           }));
           return;
         }
         
-        // Update the forward peer in both app and store
+        // Update the forward peer in the store
         setForwardPeer(cid);
-        
-        // add hosts_host to url params of current page, not iframe
+        // originalApp.forward_peer = cid; // Update app object if still needed elsewhere
+
+        // add hosts_host to url params of current page
         const url = new URL(window.location.href);
         url.searchParams.set('hosts_host', data.host);
         window.history.pushState(null, '', url.toString());
@@ -162,13 +169,14 @@ export function setupForwardChannel(originalApp: App, cid: string): void {
             });
           }
         };
-        
+
         sendHost();
-        if (app._send_host_interval) {
-          clearInterval(app._send_host_interval);
-          app._send_host_interval = null;
+        // Manage interval via app object if still necessary for global state
+        if (originalApp._send_host_interval) {
+          clearInterval(originalApp._send_host_interval);
+          originalApp._send_host_interval = null;
         }
-        app._send_host_interval = window.setInterval(sendHost, 10000);
+        originalApp._send_host_interval = window.setInterval(sendHost, 10000);
 
         const mediaElement = document.getElementById('media');
         if (mediaElement) {
@@ -180,9 +188,10 @@ export function setupForwardChannel(originalApp: App, cid: string): void {
           iframeElement.setAttribute('allowTransparency', 'false');
         }
         break;
-        
+
       case "request":
-        const logElement = document.getElementById(`log-${app.allowed_host}`);
+        // Use allowed_host from the store via state variable
+        const logElement = document.getElementById(`log-${state.allowedHost}`);
         if (logElement) {
           let logLine = document.createElement('p');
           logLine.id = `ll-${data.id}`;
@@ -193,15 +202,16 @@ export function setupForwardChannel(originalApp: App, cid: string): void {
           status.classList.add("right");
           status.innerHTML = '🌀';
           logLine.appendChild(status);
-          
-          if (!data.url.startsWith(app.allowed_host || '')) {
-            console.log("not allowed", app.allowed_host, data.url);
+
+          // Use allowed_host from the store via state variable
+          if (!data.url.startsWith(state.allowedHost || '')) {
+            console.log("not allowed", state.allowedHost, data.url);
             status.innerHTML = '❌';
             return;
           }
-          
+
           fetch(data.url, data).then(async response => {
-            (app.clients[cid] as ForwardClient).forward.send(JSON.stringify({
+            (currentClient as ForwardClient).forward?.send(JSON.stringify({ // Use currentClient
               type: "response",
               id: data.id,
               status: response.status,
@@ -211,18 +221,19 @@ export function setupForwardChannel(originalApp: App, cid: string): void {
             
             return (async function(): Promise<void> {
               if (response.body === null) {
-                (app.clients[cid] as ForwardClient).forward.send(JSON.stringify({
+                (currentClient as ForwardClient).forward?.send(JSON.stringify({ // Use currentClient
                   type: "end",
                   id: data.id,
                 }));
                 return; // Return void, not null
               }
               const reader = response.body.getReader();
-              await sendData(reader, data.id, cid);
+              // Pass currentClient's forward channel to sendData
+              await sendData(reader, data.id, cid, (currentClient as ForwardClient).forward);
               if (status) status.innerHTML = '✅';
             }());
           }).catch(err => {
-            (app.clients[cid] as ForwardClient).forward.send(JSON.stringify({
+            (currentClient as ForwardClient).forward?.send(JSON.stringify({ // Use currentClient
               type: "error",
               err: JSON.stringify(err, Object.getOwnPropertyNames(err)),
             }));
@@ -245,11 +256,12 @@ export function setupForwardChannel(originalApp: App, cid: string): void {
           removeInflight(data.id);
         }
         break;
-        
+
       case "offer.end":
-        if (app._send_host_interval) {
-          clearInterval(app._send_host_interval);
-          app._send_host_interval = null;
+        // Use originalApp for interval management if needed
+        if (originalApp._send_host_interval) {
+          clearInterval(originalApp._send_host_interval);
+          originalApp._send_host_interval = null;
         }
         const iframeElem = document.getElementById(`iframe-${data.host}`);
         if (iframeElem) iframeElem.remove();
@@ -270,9 +282,10 @@ export function setupForwardChannel(originalApp: App, cid: string): void {
  * Toggle forward handler - adapted to work with Svelte store
  */
 export const toggleForwardHandler = async (): Promise<void> => {
-  const forwardApp = window.app as ForwardApp;
+  const forwardApp = window.app as ForwardApp; // Keep for _last_forwarded for now
+  const clients = getAllDirectClients(); // Get clients from store
   const state = getForwardState();
-  
+
   if (!state.allowedHost) {
     let val = prompt("Please enter the url to forward",
       forwardApp._last_forwarded || "http://127.0.0.1:5001");
@@ -303,12 +316,12 @@ export const toggleForwardHandler = async (): Promise<void> => {
       }
     }
 
-    // Update both the app and the store
+    // Update the store (app object syncs via subscription if needed)
     setAllowedHost(val);
-    
-    for (const clientId in forwardApp.clients) {
-      const client = forwardApp.clients[clientId] as ForwardClient;
-      if (client.forward) {
+
+    for (const clientId in clients) { // Iterate over clients from store
+      const client = clients[clientId] as ForwardClient;
+      if (client.forward && client.forward.readyState === 'open') {
         client.forward.send(JSON.stringify({ type: "offer", host: val }));
       }
     }

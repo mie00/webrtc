@@ -8,9 +8,10 @@
   import ContextMenu from './components/ContextMenu.svelte';
   import { configStore, getAllConfig } from './stores/configStore.js';
   import { streamStore } from './stores/streamStore.js';
+  import { connectionStore, getDirectClient } from './stores/connectionStore.js'; // Import store and getter
   import { compress, decompress } from './lib/utils/sdpCompress.js';
   import type { WebRTCApp } from './lib/webrtc/WebRTCApp.js'; // Corrected import path if needed
-  
+
   // Props
   export let webRTCApp: WebRTCApp; // Add type annotation
   
@@ -94,12 +95,14 @@
         socket.emit('offer', sid, sdp);
       }
     });
-    
+
     socket.on('answer', async (sid: string, sdp: string) => { // Add types for sid and sdp
       console.log('got an answer', sid, sdp);
-      const app = webRTCApp.getApp();
-      if (app.sids && app.sids[sid] && app.clients[app.sids[sid]]) {
-        app.clients[app.sids[sid]].pc?.setRemoteDescription({
+      const app = webRTCApp.getApp(); // Keep for sids mapping for now
+      const cid = app.sids?.[sid];
+      if (cid) {
+        const client = getDirectClient(cid); // Get client from store
+        client?.pc?.setRemoteDescription({
           type: "answer",
           sdp: sdp.trim() + '\n'
         });
@@ -113,8 +116,9 @@
         console.log("got a candidate", sid, candidate);
         socket.emit('candidate', sid, JSON.stringify(candidate));
       }, {sid});
-      const app = webRTCApp.getApp();
-      const asdp = app.clients[cid].pc?.localDescription?.sdp;
+      // const app = webRTCApp.getApp(); // No longer needed for client access
+      const client = getDirectClient(cid); // Get client from store
+      const asdp = client?.pc?.localDescription?.sdp;
       if (asdp) {
         console.log("sending an answer", sid, asdp);
         socket.emit('answer', sid, asdp);
@@ -132,9 +136,15 @@
     
     socket.on('candidate', async (sid: string, candidate: string) => { // Add types for sid and candidate (stringified JSON)
       console.log('got a candidate from peer', sid, candidate);
-      const app = webRTCApp.getApp();
-      if (app.sids && app.sids[sid] && app.clients[app.sids[sid]]) {
-        app.clients[app.sids[sid]].pc?.addIceCandidate(JSON.parse(candidate));
+      const app = webRTCApp.getApp(); // Keep for sids mapping for now
+      const cid = app.sids?.[sid];
+       if (cid) {
+        const client = getDirectClient(cid); // Get client from store
+        try {
+            await client?.pc?.addIceCandidate(JSON.parse(candidate));
+        } catch (e) {
+            console.error("Error adding ICE candidate:", e);
+        }
       }
     });
   }
@@ -155,8 +165,9 @@
       let cid: string; // Add type for cid
       cid = await webRTCApp.getOffer(async (candidate: RTCIceCandidateInit | null) => { // Add type for candidate
         if (Date.now() - now > 10 * 1000) { return; }
-        const app = webRTCApp.getApp();
-        const sdp = app.clients[cid].pc?.localDescription?.sdp;
+        // const app = webRTCApp.getApp(); // No longer needed for client access
+        const client = getDirectClient(cid); // Get client from store
+        const sdp = client?.pc?.localDescription?.sdp;
         if (sdp) {
           const compressed = await compress(sdp);
           urlParams.set('offer', compressed);
@@ -167,15 +178,18 @@
       }, {sid: ''});
       
       const bc = new BroadcastChannel("manual_rtc");
-      const app = webRTCApp.getApp();
-      app.bc = bc;
+      // const app = webRTCApp.getApp(); // No longer needed for client access
+      // app.bc = bc; // Assigning to app object might be unnecessary if bc is only used here
       bc.onmessage = async (event) => {
         let data = event.data;
         const answer = await decompress(data.trim());
-        app.clients[cid].pc?.setRemoteDescription({
+        const client = getDirectClient(cid); // Get client from store
+        client?.pc?.setRemoteDescription({
           type: "answer",
           sdp: answer.trim() + '\n'
         });
+        // Maybe close bc after receiving the answer?
+        // bc.close();
       };
       
       // No need for DOM manipulation here since we're using Svelte events
@@ -202,8 +216,9 @@
         let cid: string; // Add type for cid
         cid = await webRTCApp.getAnswer(offer, async (candidate: RTCIceCandidateInit | null) => { // Add type for candidate
           if (Date.now() - now > 10 * 1000) { return; }
-          const app = webRTCApp.getApp();
-          const sdp = app.clients[cid].pc?.localDescription?.sdp;
+          // const app = webRTCApp.getApp(); // No longer needed for client access
+          const client = getDirectClient(cid); // Get client from store
+          const sdp = client?.pc?.localDescription?.sdp;
           if (sdp) {
             const compressed = await compress(sdp);
             urlParams.set('answer', compressed);
@@ -254,8 +269,9 @@
     
     let data = pasteValue;
     const answer = await decompress(data.trim());
-    const app = webRTCApp.getApp();
-    app.clients[cid].pc?.setRemoteDescription({
+    // const app = webRTCApp.getApp(); // No longer needed for client access
+    const client = getDirectClient(cid); // Get client from store
+    client?.pc?.setRemoteDescription({
       type: "answer",
       sdp: answer.trim() + '\n'
     });

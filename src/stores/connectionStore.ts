@@ -1,4 +1,5 @@
 import { writable, get } from 'svelte/store';
+import type { WebRTCClient } from '../../types/global.d.ts'; // Adjust path if needed
 
 // Define connection state types directly here or import if defined elsewhere
 export type RTCPeerConnectionState = globalThis.RTCPeerConnectionState; // Use built-in type
@@ -8,9 +9,10 @@ export type RTCIceConnectionState = globalThis.RTCIceConnectionState; // Use bui
 export interface DirectClientState {
   cid: string;
   polite: boolean;
-  connectionState: RTCPeerConnectionState | null; // Revert to allowing null initially
-  iceConnectionState: RTCIceConnectionState | null; // Revert to allowing null initially
-  fingerprint?: string; // Revert to optional
+  client: WebRTCClient; // Store the actual client object
+  connectionState: RTCPeerConnectionState; // Use client's state
+  iceConnectionState: RTCIceConnectionState; // Use client's state
+  fingerprint: string | null; // Added for fingerprint display
 }
 
 export interface ParticipantState {
@@ -32,18 +34,19 @@ const connectionStore = writable<ConnectionState>(initialState);
 
 // --- Store Actions ---
 
-export function addDirectClient(cid: string, polite: boolean): void {
+// Add or update a direct client
+export function addDirectClient(cid: string, client: WebRTCClient): void {
   connectionStore.update(state => {
-    if (!state.directClients[cid]) { // Only add if not existing
-      state.directClients[cid] = {
-        cid,
-        polite,
-        connectionState: null, // Initial state
-        iceConnectionState: null, // Initial state
-        // fingerprint is initially undefined
-      };
-    }
-    return state; // Return updated state
+    const directClients = { ...state.directClients };
+    directClients[cid] = {
+      cid,
+      client, // Store the client object
+      polite: client.polite ?? false, // Get polite from client object
+      connectionState: client.pc?.connectionState ?? 'new',
+      iceConnectionState: client.pc?.iceConnectionState ?? 'new',
+      fingerprint: null // Initialize fingerprint
+    };
+    return { ...state, directClients };
   });
 }
 
@@ -114,7 +117,20 @@ export function getConnectionState(): ConnectionState {
 }
 
 // --- Getters ---
-// Removed getDirectClient and getAllDirectClients as they are no longer needed
+
+export function getDirectClient(cid: string): WebRTCClient | undefined {
+  const state = get(connectionStore);
+  return state.directClients[cid]?.client;
+}
+
+export function getAllDirectClients(): Record<string, WebRTCClient> {
+  const state = get(connectionStore);
+  const clients: Record<string, WebRTCClient> = {};
+  for (const cid in state.directClients) {
+    clients[cid] = state.directClients[cid].client;
+  }
+  return clients;
+}
 
 export function getAllClientCids(): string[] {
   const state = get(connectionStore);

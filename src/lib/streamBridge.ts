@@ -13,6 +13,7 @@ import {
 import {
   getAllConfig
 } from '../stores/configStore.js';
+import { getDirectClient, getAllDirectClients, getAllClientCids } from '../stores/connectionStore.js'; // Adjust path if needed
 import { get } from 'svelte/store';
 import {
   // REMOVE AppWithStreamConfig, AudioProcessingApp imports
@@ -46,12 +47,13 @@ export function streamInit(originalApp: App): void {
     // Remove from enhanced store structure
     removeRemoteStream(cid, streamId);
 
-    // Forward to other clients
-    const clients = window.webRTCApp.getApp().clients;
-    for (let cid2 of Object.keys(clients)) {
+    // Forward to other clients (from store)
+    const clients = getAllDirectClients(); // Get clients from store
+    for (let cid2 of Object.keys(clients)) { // Iterate over CIDs
       if (cid == cid2) continue;
+      const client = clients[cid2]; // Get client object
       // Use window.webRTCApp.sendNego
-      window.webRTCApp.sendNego(clients[cid2], { type: 'stream.end', stream: streamId });
+      window.webRTCApp.sendNego(client, { type: 'stream.end', stream: streamId });
     }
   };
   // Set up cleanup handler
@@ -59,19 +61,22 @@ export function streamInit(originalApp: App): void {
     if (!cid) {
       // Clean up all local streams when the app is torn down globally
       const state = getStreamState(); // Get current stream state
-      const clients = window.webRTCApp.getApp().clients;
+      const clients = getAllDirectClients(); // Get clients from store
       Object.entries(state.localStreams).forEach(([key, localStreamData]) => {
         const stream = localStreamData.stream;
         const streamId = normalizeStreamId(stream.id);
 
         try {
-          Object.values(clients).forEach((client) =>
+          // Iterate over client objects from the store
+          Object.values(clients).forEach((client) => {
             // Use window.webRTCApp.sendNego
-            window.webRTCApp.sendNego(client as WebRTCClient, { type: 'stream.end', stream: streamId })
-          );
-        } catch { }
+            window.webRTCApp.sendNego(client, { type: 'stream.end', stream: streamId })
+          });
+        } catch (e) {
+            console.error("Error sending stream.end during global cleanup:", e);
+        }
 
-        stream.getTracks().map((track: MediaStreamTrack) => track.stop());
+        stream.getTracks().forEach((track: MediaStreamTrack) => track.stop()); // Use forEach for clarity
 
         // Remove from enhanced store structure
         removeLocalStream(key);
@@ -92,8 +97,8 @@ export function streamInit(originalApp: App): void {
 /**
  * Set up track handler for a client
  */
-export function setupTrackHandler(app: App, cid: string): void {
-  const client = window.webRTCApp.getApp().clients[cid]; // Get specific client
+export function setupTrackHandler(app: App, cid: string): void { // app might be needed for global config
+  const client = getDirectClient(cid); // Get specific client from store
   if (!client || !client.pc) return; // Add null check
 
   client.pc.addEventListener("track", async (ev: RTCTrackEvent) => {
@@ -121,28 +126,29 @@ export function setupTrackHandler(app: App, cid: string): void {
       }
 
 
-      // Notify other clients
-      const allClients = window.webRTCApp.getApp().clients;
-      Object.values(allClients).forEach((c) =>
+      // Notify other clients (from store)
+      const allClients = getAllDirectClients(); // Get clients from store
+      Object.values(allClients).forEach((c) => { // Iterate over client objects
         // Use window.webRTCApp.sendNego
         window.webRTCApp.sendNego(c, { type: 'stream.end', stream: associatedStreamId })
-      );
+      });
 
       // Remove from enhanced store structure using the correct stream ID
       removeRemoteStream(cid, associatedStreamId);
     };
 
-    // Forward to other clients
-    const allClients = window.webRTCApp.getApp().clients;
-    for (let cid2 of Object.keys(allClients)) {
+    // Forward to other clients (from store)
+    const allClients = getAllDirectClients(); // Get clients from store
+    for (let cid2 of Object.keys(allClients)) { // Iterate over CIDs
       if (cid == cid2) continue;
-      allClients[cid2].pc?.addTrack(ev.track, ev.streams[0]);
+      const otherClient = allClients[cid2]; // Get the client object
+      otherClient.pc?.addTrack(ev.track, ev.streams[0]);
     }
   });
 
   // Add existing LOCAL streams to new client
   const state = getStreamState();
-  const targetClient = window.webRTCApp.getApp().clients[cid]; // Get the client again
+  const targetClient = getDirectClient(cid); // Get the client again from store
   if (!targetClient || !targetClient.pc) return; // Add null check
 
   Object.values(state.localStreams).forEach((localStreamData) => {

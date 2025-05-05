@@ -1,5 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { WebRTCApp } from './webrtc/WebRTCApp.js';
+import { getDirectClient, getAllClientCids } from '../stores/connectionStore.js'; // Adjust path if needed
 
 // File transfer state interface
 export interface FileTransfer {
@@ -94,30 +95,37 @@ export function fileInit(app: App): void {
 /**
  * Set up file channel for a client
  */
-export function setupFileChannel(app: App, cid: string): void {
-  const dc_file = app.clients[cid].pc?.createDataChannel("file", {
+export function setupFileChannel(app: App, cid: string): void { // app might be needed for global config
+  const client = getDirectClient(cid);
+  if (!client || !client.pc) {
+      console.error(`Client or PeerConnection not found for CID ${cid} in setupFileChannel`);
+      return;
+  }
+  const dc_file = client.pc.createDataChannel("file", {
     negotiated: true,
     id: 2
   });
   if (dc_file) {
-    app.clients[cid].dc_file = dc_file;
+    client.dc_file = dc_file; // Assign to client object from store
 
     dc_file.onmessage = (e: MessageEvent) => {
-      if (!app.clients[cid].file_stuff) {
+      // Re-fetch client in case state changed
+      const currentClient = getDirectClient(cid);
+      if (!currentClient) return; // Client might have disconnected
+
+      if (!currentClient.file_stuff) {
         // First message contains file metadata
         const fileData = JSON.parse(e.data);
         const id = Math.random().toString(16).slice(2);
 
-        app.clients[cid].file_stuff = fileData;
-        app.clients[cid].file_stuff.segments = [];
-        app.clients[cid].file_stuff.remaining_size = fileData.size;
-        app.clients[cid].file_stuff.id = id;
+        currentClient.file_stuff = fileData;
+        currentClient.file_stuff.segments = [];
+        currentClient.file_stuff.remaining_size = fileData.size;
+        currentClient.file_stuff.id = id;
 
-        // Attempt to get sender name from app config (adjust path if needed)
-        // Assuming app.clients[cid] might hold peer-specific config or name
-        // Fallback to CID if name isn't readily available.
-        // TODO: Verify the correct way to access peer's user-name if available.
-        const senderName = app.clients[cid]?.config?.['user-name'] || cid; // Example path, adjust as needed
+        // Config is global now, not per-client in this structure
+        // TODO: Need a way to get peer's name, perhaps via negotiation?
+        const senderName = cid; // Use CID for now
 
         // Add to store with timestamp and sender info
         addFileTransfer({
@@ -132,34 +140,37 @@ export function setupFileChannel(app: App, cid: string): void {
           senderName: senderName // Add sender Name (or CID fallback)
         });
       }
+      // Ensure file_stuff exists before proceeding
+      if (!currentClient.file_stuff) return;
+
       if (e.data.byteLength || e.data.size) {
         // Subsequent messages contain file chunks
-        app.clients[cid].file_stuff.segments.push(e.data);
-        app.clients[cid].file_stuff.remaining_size -= e.data.byteLength || e.data.size;
+        currentClient.file_stuff.segments.push(e.data);
+        currentClient.file_stuff.remaining_size -= e.data.byteLength || e.data.size;
 
         // Calculate progress
-        const progress = app.clients[cid].file_stuff.size === 0?1:((app.clients[cid].file_stuff.size - app.clients[cid].file_stuff.remaining_size) / app.clients[cid].file_stuff.size);
+        const progress = currentClient.file_stuff.size === 0 ? 1 : ((currentClient.file_stuff.size - currentClient.file_stuff.remaining_size) / currentClient.file_stuff.size);
         const progressReadable = Math.min(100, Math.round((progress) * 100));
         // Update store
-        updateFileTransfer(app.clients[cid].file_stuff.id, {
+        updateFileTransfer(currentClient.file_stuff.id, {
           progress: progressReadable,
           status: 'receiving'
         });
       }
       // Check if file is complete
-      if (app.clients[cid].file_stuff.remaining_size === 0) {
-        const blob = new Blob(app.clients[cid].file_stuff.segments, { type: app.clients[cid].file_stuff.type });
+      if (currentClient.file_stuff.remaining_size === 0) {
+        const blob = new Blob(currentClient.file_stuff.segments, { type: currentClient.file_stuff.type });
         const url = URL.createObjectURL(blob);
 
         // Update store
-        updateFileTransfer(app.clients[cid].file_stuff.id, {
+        updateFileTransfer(currentClient.file_stuff.id, {
           progress: 100,
           status: 'complete',
           url
         });
 
         // Reset file_stuff
-        app.clients[cid].file_stuff = null;
+        currentClient.file_stuff = null;
       }
     };
   }
@@ -169,8 +180,8 @@ export function setupFileChannel(app: App, cid: string): void {
  * Send a file to all connected clients and wait for all transfers to settle.
  */
 export async function sendFile(file: File): Promise<void> { // Make async
-  const app = window.app;
-  const id = Math.random().toString(16).slice(2);
+  // const app = window.app; // No longer need app object directly here
+  const transferId = Math.random().toString(16).slice(2); // Use a more descriptive name
 
   // Add to store immediately with 'sending' status
   addFileTransfer({
@@ -183,16 +194,17 @@ export async function sendFile(file: File): Promise<void> { // Make async
     timestamp: Date.now() // Add timestamp on creation
   });
 
-  // Removed legacy DOM injection: WebRTCApp.log(...)
+  // Removed legacy DOM injection
 
   const readFilePromises: Promise<void>[] = [];
-  // Send to all connected clients and collect promises
-  for (const cid of Object.keys(app.clients)) {
-    // Only attempt to send if a file channel exists for the client
-    if (app.clients[cid]?.dc_file) {
-        readFilePromises.push(readFile(file, cid, id));
+  // Send to all connected clients (from store) and collect promises
+  for (const cid of getAllClientCids()) {
+    const client = getDirectClient(cid);
+    // Only attempt to send if a file channel exists and is open for the client
+    if (client?.dc_file && client.dc_file.readyState === 'open') {
+        readFilePromises.push(readFile(file, cid, transferId));
     } else {
-        console.warn(`Skipping file send to client ${cid}: File data channel not initialized.`);
+        console.warn(`Skipping file send to client ${cid}: File data channel not available or not open.`);
     }
   }
 
@@ -252,11 +264,12 @@ async function waitForBufferDrain(dc: RTCDataChannel): Promise<void> {
 }
 
 async function readFile(file: File, cid: string, id: string): Promise<void> {
-  const app = window.app;
-  const dc_file = app.clients[cid]?.dc_file;
+  // const app = window.app; // No longer need app object directly here
+  const client = getDirectClient(cid);
+  const dc_file = client?.dc_file;
 
   if (!dc_file) {
-    console.error(`File data channel not found for client ${cid}`);
+    console.error(`File data channel not found for client ${cid} in readFile`);
     updateFileTransfer(id, { status: 'error', error: 'Data channel not available' });
     return;
   }
@@ -269,7 +282,7 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
 
   // Determine dynamic SEND_CHUNK_SIZE based on SDP
   let SEND_CHUNK_SIZE = DEFAULT_SEND_CHUNK_SIZE;
-  const pc = app.clients[cid]?.pc;
+  const pc = client?.pc; // Use pc from the retrieved client
   if (pc && pc.localDescription && pc.remoteDescription) {
       const localMax = getMaxMessageSizeFromSdp(pc.localDescription.sdp);
       const remoteMax = getMaxMessageSizeFromSdp(pc.remoteDescription.sdp);

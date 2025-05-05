@@ -6,7 +6,10 @@ import {
   removeDirectClient,
   addParticipant,
   removeParticipant,
-  resetConnectionStore
+  resetConnectionStore,
+  getDirectClient,
+  getAllDirectClients,
+  getAllClientCids
 } from '../../stores/connectionStore.js'; // Adjust path if needed
 
 
@@ -19,8 +22,9 @@ interface NegoMessage {
 
 export class WebRTCApp {
   // Static reference to the app for static methods
+  // Note: 'clients' is removed, managed by connectionStore now
   private app: App = {
-    clients: {},
+    clients: {}, // This will be effectively unused, kept for App type compatibility if needed elsewhere temporarily
     nego_handlers: {},
     cleanups: {},
     nego_messages: {},
@@ -47,25 +51,27 @@ export class WebRTCApp {
   private setupNegoHandlers(): void {
     this.app.nego_handlers = {
       "answer": (data: any, cid: string) => {
-        this.app.clients[cid].pc?.setRemoteDescription(data);
+        getDirectClient(cid)?.pc?.setRemoteDescription(data);
       },
       "offer": async (data: any, cid: string) => {
-        const client = this.app.clients[cid];
+        const client = getDirectClient(cid);
+        if (!client || !client.pc) return; // Check if client exists
         if (!client.polite) {
           if (client.makingOffer) return;
-          if (client.pc?.signalingState != "stable") return;
+          if (client.pc.signalingState != "stable") return;
         }
-        await client.pc?.setRemoteDescription(data);
-        await client.pc?.setLocalDescription();
-        if (client.pc?.localDescription) {
+        await client.pc.setRemoteDescription(data);
+        await client.pc.setLocalDescription();
+        if (client.pc.localDescription) {
           this.sendNego(client, client.pc.localDescription);
         }
       },
       "hangup": (data: any, cid: string) => {
-        if (!this.app.clients[cid].polite) {
+        const client = getDirectClient(cid);
+        if (client && !client.polite) {
           this.destroyClient(cid);
         } else {
-          this.destroy();
+          this.destroy(); // Destroy self if polite or client not found (shouldn't happen)
         }
       },
       "participant": (data: any, cid: string) => {
@@ -98,72 +104,94 @@ export class WebRTCApp {
   }
 
   public destroyClient(cid: string): void {
-    if (!this.app.clients) {
-      this.app.clients = {};
-      return;
-    }
-    
-    Object.keys(this.app.clients).filter((key) => key !== cid).forEach((key) => {
-      this.sendNego(this.app.clients[key], {type: 'participant.end', cid: cid});
+    // Notify other clients about the departure
+    getAllClientCids().filter((key) => key !== cid).forEach((key) => {
+      const otherClient = getDirectClient(key);
+      if (otherClient) {
+          this.sendNego(otherClient, {type: 'participant.end', cid: cid});
+      }
     });
-    
-    if (this.app.clients[cid]) {
-      // Clear interval first to ensure it's stopped before any other cleanup
-      if (this.app.clients[cid]._transceiver_interval) {
-        clearInterval(this.app.clients[cid]._transceiver_interval);
-        this.app.clients[cid]._transceiver_interval = undefined;
+
+    const client = getDirectClient(cid);
+    if (client) {
+      // Clear interval first
+      if (client._transceiver_interval) {
+        clearInterval(client._transceiver_interval);
+        client._transceiver_interval = undefined;
       }
-      
-      if (this.app.clients[cid].nego_dc) {
-        this.app.clients[cid].nego_dc.onclose = null;
-        this.app.clients[cid].nego_dc.onmessage = null;
-        this.app.clients[cid].nego_dc.onclose = null;
+
+      // Clean up data channels
+      if (client.nego_dc) {
+        client.nego_dc.onclose = null;
+        client.nego_dc.onmessage = null;
       }
-      
-      if (this.app.clients[cid].pc) {
+      if (client.dc) {
+        client.dc.onclose = null;
+        client.dc.onmessage = null;
+      }
+       if (client.dc_file) {
+        client.dc_file.onclose = null;
+        client.dc_file.onmessage = null;
+      }
+       if (client.forward) {
+        client.forward.onclose = null;
+        client.forward.onmessage = null;
+      }
+
+      // Clean up PeerConnection
+      if (client.pc) {
+        // Run specific cleanups associated with this client
         if (this.app.cleanups) {
           for (const cleanup of Object.values(this.app.cleanups)) {
-            cleanup(cid);
+            cleanup(cid); // Pass cid to cleanup functions
           }
         }
-        this.app.clients[cid].pc.close();
-        this.app.clients[cid].pc = null;
-        
-        // Delete each property individually for type safety
-        this.app.clients[cid].dc = undefined;
-        this.app.clients[cid].dc_file = undefined;
-        this.app.clients[cid].forward = undefined;
-        this.app.clients[cid].nego_dc = undefined;
-        this.app.clients[cid].file_stuff = undefined;
-        this.app.clients[cid].polite = undefined;
-        this.app.clients[cid].makingOffer = undefined;
+        client.pc.close();
+        client.pc = null; // Nullify PC reference
+
+        // Clear other client properties (optional, helps GC)
+        client.dc = undefined;
+        client.dc_file = undefined;
+        client.forward = undefined;
+        client.nego_dc = undefined;
+        client.file_stuff = undefined;
+        client.polite = undefined;
+        client.makingOffer = undefined;
       }
-      
-      delete this.app.clients[cid];
     }
-    // Store updates handle reactivity, no need for handleChange
+    // Remove from the store last
     removeDirectClient(cid);
     // Also remove self from the participant list if present (might happen if announced before full cleanup)
     removeParticipant(cid);
   }
 
   public cleanup(): void {
-    resetConnectionStore();
-    for (const cid of Object.keys(this.app.clients)) {
-      for (const cleanup of Object.values(this.app.cleanups)) {
-        cleanup(cid);
-      }
-    }
+    // Get all CIDs before resetting the store
+    const cids = getAllClientCids();
+
+    // Run all general cleanup functions first
     for (const cleanup of Object.values(this.app.cleanups)) {
-      cleanup();
+      cleanup(); // Call without cid for global cleanup
     }
-    this.app.cleanups = {};
-    for (const cid of Object.keys(this.app.clients)) {
-      this.sendNego(this.app.clients[cid], {
-        type: "hangup",
-      });
+    this.app.cleanups = {}; // Clear cleanups
+
+    // Iterate through clients to send hangup and destroy
+    for (const cid of cids) {
+      const client = getDirectClient(cid);
+      if (client) {
+        // Run specific cleanups for this client *before* sending hangup/destroying
+        // (This might be redundant if destroyClient handles it, but ensures order)
+        // for (const cleanup of Object.values(this.app.cleanups)) {
+        //   cleanup(cid);
+        // }
+        this.sendNego(client, { type: "hangup" });
+      }
+      // Destroy client (which also removes from store)
       this.destroyClient(cid);
     }
+
+    // Reset the store after all clients are processed
+    resetConnectionStore();
   }
 
   public destroy(): void {
@@ -190,9 +218,10 @@ export class WebRTCApp {
     if (this.app.inited) {
       return;
     }
-    // participants are now managed by the store
+    // participants are managed by the store
+    // clients are managed by the store
     this.app.cleanups = {};
-    this.app.clients = {};
+    // this.app.clients = {}; // Remove this line
     this.app.inited = true;
     this.app.nego_messages = {};
 
@@ -224,50 +253,50 @@ export class WebRTCApp {
     const { sid, offer } = options;
     const cid = this.uuidv4();
     this.app.sids = this.app.sids || {};
-    if (sid in this.app.sids && this.app.sids[sid] in this.app.clients) {
-      this.app.clients[this.app.sids[sid]].pc?.restartIce();
+    // Check if a client for this sid already exists in the store
+    if (sid in this.app.sids && getDirectClient(this.app.sids[sid])) {
+      getDirectClient(this.app.sids[sid])?.pc?.restartIce();
       return this.app.sids[sid];
     }
     this.app.sids[sid] = cid;
-    this.app.clients[cid] = {
-      pc: new RTCPeerConnection(config)
-    };
 
+    // Create the PeerConnection
     const pc = new RTCPeerConnection(config);
-    this.app.clients[cid].pc = pc;
+    // Create the client object
+    const client: WebRTCClient = { pc, polite };
+    // Add client to the store immediately
+    addDirectClient(cid, client);
 
-    this.app.clients[cid].pc.onconnectionstatechange = () => {
-      const currentPc = this.app.clients[cid]?.pc;
-      if (currentPc) {
-        updateDirectClientState(cid, currentPc.connectionState, currentPc.iceConnectionState);
+    // Use the local 'client' variable for event handlers
+    client.pc.onconnectionstatechange = () => {
+      if (client.pc) { // Check if pc still exists
+        updateDirectClientState(cid, client.pc.connectionState, client.pc.iceConnectionState);
         // Trigger fingerprint update if connected
-        if (currentPc.connectionState === 'connected' && currentPc.iceConnectionState === 'connected') {
+        if (client.pc.connectionState === 'connected' && client.pc.iceConnectionState === 'connected') {
           this.updateFingerprint(cid); // Call helper function
         }
       }
     };
-    this.app.clients[cid].pc.oniceconnectionstatechange = () => {
-      const currentPc = this.app.clients[cid]?.pc;
-      if (currentPc) {
-        updateDirectClientState(cid, currentPc.connectionState, currentPc.iceConnectionState);
-        if (currentPc.iceConnectionState === "failed") {
-          currentPc.restartIce();
+    client.pc.oniceconnectionstatechange = () => {
+      if (client.pc) { // Check if pc still exists
+        updateDirectClientState(cid, client.pc.connectionState, client.pc.iceConnectionState);
+        if (client.pc.iceConnectionState === "failed") {
+          client.pc.restartIce();
         }
         // Trigger fingerprint update if connected
-        if (currentPc.connectionState === 'connected' && currentPc.iceConnectionState === 'connected') {
+        if (client.pc.connectionState === 'connected' && client.pc.iceConnectionState === 'connected') {
           this.updateFingerprint(cid); // Call helper function
         }
       }
     };
 
-    this.app.clients[cid].polite = polite;
-    addDirectClient(cid, polite);
+    // addDirectClient(cid, polite); // This is now handled above with the full client object
 
     const nego_dc = pc.createDataChannel("nego", {
       negotiated: true,
       id: 0
     });
-    this.app.clients[cid].nego_dc = nego_dc;
+    client.nego_dc = nego_dc; // Assign to local client object
     nego_dc.onclose = async e => {
       console.log(e);
       this.destroyClient(cid);
@@ -275,7 +304,7 @@ export class WebRTCApp {
 
     nego_dc.onerror = (error) => {
       console.error('Data channel error:', error);
-      this.app.clients[cid].pc?.restartIce();
+      client.pc?.restartIce();
     };
 
     nego_dc.onmessage = async e => {
@@ -294,16 +323,19 @@ export class WebRTCApp {
     };
 
     nego_dc.onopen = () => {
-      // Announce self to existing clients
-      Object.keys(this.app.clients).forEach(existingCid => {
+      // Announce self to existing clients (retrieved from store)
+      getAllClientCids().forEach(existingCid => {
           if (existingCid !== cid) {
-              // Tell existing client about the new client (cid)
-              this.sendNego(this.app.clients[existingCid], { type: "participant", cid: cid });
+              const existingClient = getDirectClient(existingCid);
+              if (existingClient) {
+                  // Tell existing client about the new client (cid)
+                  this.sendNego(existingClient, { type: "participant", cid: cid });
+              }
               // Tell the new client (cid) about the existing client
-              this.sendNego(this.app.clients[cid], { type: "participant", cid: existingCid });
+              this.sendNego(client, { type: "participant", cid: existingCid });
           }
       });
-      // Announce relayed participants known by this peer to the new client
+      // Announce relayed participants known by this peer (via store) to the new client
       // This relies on the participant messages received from other peers.
       // The store state isn't directly used for signaling here.
     };
@@ -315,45 +347,47 @@ export class WebRTCApp {
     const { setupFileChannel } = await import('../fileBridge.js');
     setupTrackHandler(this.app, cid);
     setupChatChannel(this.app, cid);
-    setupFileChannel(this.app, cid);
-    setupForwardChannel(this.app, cid);
+    setupFileChannel(this.app, cid); // Pass app for config/context if needed, but setup uses store for client
+    setupForwardChannel(this.app, cid); // Pass app for config/context if needed, but setup uses store for client
 
-    this.app.clients[cid]._transceiver_interval = window.setInterval(() => {
-      // app.clients[cid].pc.addTransceiver('audio', {direction: "recvonly"});
-      // app.clients[cid].pc.addTransceiver('video', {direction: "recvonly"});
+    client._transceiver_interval = window.setInterval(() => {
+      // client.pc?.addTransceiver('audio', {direction: "recvonly"});
+      // client.pc?.addTransceiver('video', {direction: "recvonly"});
     }, 10000);
 
     if (offer) {
-      await this.app.clients[cid].pc.setRemoteDescription({
+      await client.pc.setRemoteDescription({
         type: "offer",
         sdp: offer.trim() + '\n'
       });
-      let answer = await this.app.clients[cid].pc.createAnswer();
-      await this.app.clients[cid].pc.setLocalDescription(answer);
+      let answer = await client.pc.createAnswer();
+      await client.pc.setLocalDescription(answer);
     } else {
-      const offer = await this.app.clients[cid].pc.createOffer();
-      await this.app.clients[cid].pc.setLocalDescription(offer);
+      const offer = await client.pc.createOffer();
+      await client.pc.setLocalDescription(offer);
     }
-    this.app.clients[cid].pc.onnegotiationneeded = async () => {
-      this.app.clients[cid].makingOffer = true;
+    client.pc.onnegotiationneeded = async () => {
+      client.makingOffer = true;
       try {
-        await this.app.clients[cid].pc?.setLocalDescription();
-        if (this.app.clients[cid].pc?.currentLocalDescription && this.app.clients[cid].pc?.localDescription) {
-          this.logDiff(this.app.clients[cid].pc.currentLocalDescription.sdp, this.app.clients[cid].pc.localDescription.sdp);
+        await client.pc?.setLocalDescription();
+        if (client.pc?.currentLocalDescription && client.pc?.localDescription) {
+          this.logDiff(client.pc.currentLocalDescription.sdp, client.pc.localDescription.sdp);
         }
-        if (this.app.clients[cid].pc?.localDescription) {
-          this.sendNego(this.app.clients[cid], this.app.clients[cid].pc.localDescription);
+        if (client.pc?.localDescription) {
+          this.sendNego(client, client.pc.localDescription);
         }
       } catch (e) {
         console.log("renegotiation error", e);
       } finally {
-        this.app.clients[cid].makingOffer = false;
+        client.makingOffer = false;
       }
     };
 
     if (!offer) {
       setTimeout(() => {
-        if (this.app.clients[cid].pc?.signalingState === 'have-local-offer') {
+        // Re-fetch client from store in case it was destroyed
+        const currentClient = getDirectClient(cid);
+        if (currentClient?.pc?.signalingState === 'have-local-offer') {
           this.destroyClient(cid);
         }
       }, 60 * 1000);
@@ -362,25 +396,27 @@ export class WebRTCApp {
   }
 
   public async getOffer(cb: (candidate: RTCIceCandidate | null) => Promise<void>, options: {sid: string}): Promise<string> {
-    const cid = await this.initClient(false, options);
-    if (this.app.clients[cid].pc) {
-        this.app.clients[cid].pc.onicecandidate = async ({ candidate }) => {
-        console.log('Candidate found (offer)', candidate);
-        await cb(candidate);
-      };
-  }
-  return cid;
-}
-
-  public async getAnswer(offer: string, cb: (candidate: RTCIceCandidate | null) => Promise<void>, options: {sid: string}): Promise<string> {
-    const cid = await this.initClient(true, {sid: options.sid, offer});
-    if (this.app.clients[cid].pc) {
-      this.app.clients[cid].pc.onicecandidate = async ({ candidate }) => {
-        console.log('Candidate found (answer)', candidate);
-        await cb(candidate);
-      };
+      const cid = await this.initClient(false, options);
+      const client = getDirectClient(cid); // Retrieve client from store
+      if (client?.pc) {
+          client.pc.onicecandidate = async ({ candidate }) => {
+          console.log('Candidate found (offer)', candidate);
+          await cb(candidate);
+        };
     }
     return cid;
+  }
+
+  public async getAnswer(offer: string, cb: (candidate: RTCIceCandidate | null) => Promise<void>, options: {sid: string}): Promise<string> {
+      const cid = await this.initClient(true, {sid: options.sid, offer});
+      const client = getDirectClient(cid); // Retrieve client from store
+      if (client?.pc) {
+        client.pc.onicecandidate = async ({ candidate }) => {
+          console.log('Candidate found (answer)', candidate);
+          await cb(candidate);
+        };
+      }
+      return cid;
   }
 
   public async sha256(message: string): Promise<string> {
@@ -448,10 +484,10 @@ export class WebRTCApp {
     if (output) output.innerHTML += `<br>${msg}`;
   }
 
-  // Removed handleChange method as UI updates are now driven by the Svelte store
+  // Removed handleChange method
 
   private async updateFingerprint(cid: string): Promise<void> {
-      const client = this.app.clients[cid];
+      const client = getDirectClient(cid); // Get client from store
       if (!client || !client.pc) return;
 
       try {
@@ -503,7 +539,11 @@ export class WebRTCApp {
 
 
   // Getter for testing and backward compatibility
+  // Note: The 'clients' property within the returned App object is no longer the source of truth.
+  // Use connectionStore getters (getDirectClient, getAllDirectClients) for client information.
   public getApp(): App {
+    // Return a copy or a version without the actual client objects if needed
+    // For now, returning the internal app state, but warn about 'clients' usage.
     return this.app;
   }
 }
