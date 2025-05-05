@@ -4,10 +4,20 @@
   import type { WebRTCApp } from '../lib/webrtc/WebRTCApp.js';
   import { connectionStore, type ConnectionState } from '../stores/connectionStore.js';
   import { chatStore, type ChatState } from '../lib/chatBridge.js';
-  import { fileStore, type FileState, type FileTransfer } from '../lib/fileBridge.js'; // Import file store and types
+  import { fileStore, type FileState, type FileTransfer } from '../lib/fileBridge.js';
 
   // Props
-  export let webRTCApp: WebRTCApp; // Still needed for sending messages/files
+  export let webRTCApp: WebRTCApp;
+
+  // --- Types for Combined Feed ---
+  interface FeedItem {
+    id: string; // Unique ID for the #each block key
+    type: 'chat' | 'file';
+    sender: string;
+    timestamp: number; // For sorting
+    text?: string; // For chat
+    transfer?: FileTransfer; // For files
+  }
 
   const dispatch = createEventDispatcher();
 
@@ -44,10 +54,44 @@
     unsubscribeFile(); // Unsubscribe from fileStore
   });
 
-  // Get local user name for chat display comparison
+  // Get local user name for comparison
   $: localUserName = webRTCApp?.getApp()?.config?.['user-name'] || 'You';
 
-  // Auto-scroll chat
+  // --- Create Combined Feed ---
+  $: combinedFeed = (() => {
+    const chatItems: FeedItem[] = chatState.messages.map((msg, i) => ({
+      id: `chat-${msg.timestamp}-${i}`, // Use timestamp and index for key
+      type: 'chat',
+      sender: msg.sender,
+      timestamp: msg.timestamp,
+      text: msg.text,
+    }));
+
+    const fileItems: FeedItem[] = Object.values(fileState.transfers).map(transfer => {
+      // Placeholder timestamp logic: Use current time or attempt parsing ID.
+      // A real timestamp property on FileTransfer would be much better.
+      let timestamp = Date.now(); // Fallback timestamp
+      // Example: If ID format allows timestamp extraction, do it here.
+      // e.g., const parsedTs = parseInt(transfer.id.split('-')[0]);
+      // if (!isNaN(parsedTs)) { timestamp = parsedTs; }
+
+      return {
+        id: `file-${transfer.id}`,
+        type: 'file',
+        // Assume 'sending' means local user sent it. 'Remote' is a placeholder.
+        sender: transfer.status === 'sending' ? localUserName : 'Remote',
+        timestamp: timestamp, // Use placeholder timestamp for sorting
+        transfer: transfer,
+      };
+    });
+
+    // Combine and sort by timestamp
+    const allItems = [...chatItems, ...fileItems];
+    allItems.sort((a, b) => a.timestamp - b.timestamp);
+    return allItems;
+  })();
+
+  // Auto-scroll combined feed
   afterUpdate(() => {
     if (chatOutputContainer) {
       // Scroll to the bottom instantly
@@ -190,24 +234,25 @@
         <input type="text" placeholder="Type your message..."
           bind:value={message}
           bind:this={chatInput}
-          class="flex-1 border border-gray-300 px-3 py-2 rounded-md"
+          class="flex-1 border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
           on:keypress={handleKeyPress}>
-        <div class="p-2">
-          <label for="file-upload"
-            class="cursor-pointer hover:bg-blue-600 text-white px-4 py-2 rounded-md"
+        <div class="relative"> <!-- Use relative positioning for the button container -->
+          <button
+            type="button"
+            disabled={!canUpload}
+            on:click={() => uploadField.click()}
+            class="cursor-pointer text-white px-3 py-2 rounded-md text-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
             class:bg-blue-500={canUpload}
             class:bg-gray-500={!canUpload}
-            >📎</label>
+            title={canUpload ? "Attach file" : "File upload in progress"}
+          >📎</button>
           <input id="file-upload" disabled={!canUpload} type="file" class="hidden" on:change={handleFileUpload} bind:this={uploadField}>
         </div>
       </div>
-    </div>
+    </div> <!-- End Combined Feed -->
 
-    <!-- File Transfer Panel -->
-    <div class="border-t border-gray-300 pt-4 mt-4">
-      <h3 class="text-lg font-semibold mb-2">File Transfers</h3>
-      {#if Object.keys(fileState.transfers).length === 0}
-        <p class="text-sm text-gray-500 italic">No active file transfers.</p>
+  </div>
+</div>
       {:else}
         <div class="space-y-3">
           {#each Object.values(fileState.transfers) as transfer (transfer.id)}
