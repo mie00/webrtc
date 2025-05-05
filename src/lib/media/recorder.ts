@@ -10,7 +10,61 @@ interface StreamDimension {
 }
 
 // Import the function from stream.ts
-import { getStreamsDims } from './stream.js';
+import { normalizeStreamId } from './stream.js';
+
+interface StreamDimensions {
+  key: string;
+  ow?: number;
+  oh?: number;
+  width?: number;
+  height?: number;
+}
+
+function getStreamElemId(id: string): string {
+    return `stream-${normalizeStreamId(id)}`;
+}
+
+const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
+
+const getStreamsDims = async (): Promise<StreamDimensions[]> => {
+  // TODO: use videoHeight and width from element
+  let elems: StreamDimensions[] = [];
+  if (!window.app.viewStreams) return elems;
+  let statsDict: Record<string, { width?: number, height?: number }> = {};
+  for (const client of Object.values(window.app.clients) as WebRTCClient[]) {
+      (await client.pc?.getStats())?.forEach((stat: any) => {
+          if (stat.type === 'inbound-rtp' && stat.kind === 'video') {
+              statsDict[normalizeStreamId(stat.trackIdentifier)] = { width: stat.frameWidth, height: stat.frameHeight };
+          }
+      });
+  }
+  for (let [key, value] of Object.entries(window.app.viewStreams) as [string, MediaStream][]) {
+      if (value.getVideoTracks().length === 0) {
+          continue;
+      }
+      let width: number | undefined, height: number | undefined;
+      console.log(isFirefox, value.getVideoTracks()[0].label != 'remote video');
+      const settings = value.getVideoTracks()[0].getSettings();
+      width = settings.width;
+      height = settings.height;
+      if (!width || !height) {
+          if (normalizeStreamId(value.getVideoTracks()[0].id) in statsDict) {
+              const stats = statsDict[normalizeStreamId(value.getVideoTracks()[0].id)];
+              width = stats.width;
+              height = stats.height;
+          }
+      }
+      if (!width || !height) {
+          const videoElem = document.querySelector(`video.${getStreamElemId(key)}`) as HTMLVideoElement;
+          if (videoElem) {
+              height = videoElem.videoHeight;
+              width = videoElem.videoWidth;
+          }
+      }
+      elems.push({ key, ow: width, oh: height, width: width && height ? Math.sqrt(width / height) : undefined, height: width && height ? Math.sqrt(height / width) : undefined });
+  }
+  return elems;
+};
 
 async function setupStreams(merger: any): Promise<void> {
   const streams = (await getStreamsDims()).filter(({ width, height }) => width && height);

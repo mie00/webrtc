@@ -264,13 +264,6 @@ export const destroyLocalStream = async (changed: 'audio' | 'video' | 'screen' |
 // Export utility functions from the original stream.ts
 export { 
   normalizeStreamId, 
-  getStreamElemId, 
-  processAudio, 
-  stopProcessingAudio, 
-  tearDownStream, 
-  setupTrack, 
-  setupStream, 
-  getStreamsDims,
 } from './media/stream.js';
 
 // Helper function to send negotiation messages
