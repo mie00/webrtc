@@ -3,6 +3,7 @@
   import { tweened } from 'svelte/motion';
   import type { WebRTCApp } from '../lib/webrtc/WebRTCApp.js';
   import { connectionStore, type ConnectionState } from '../stores/connectionStore.js';
+  import { configStore } from '../stores/configStore.js'; // Import configStore
   import { chatStore, type ChatState } from '../lib/chatBridge.js';
   import { fileStore, type FileState, type FileTransfer } from '../lib/fileBridge.js';
 
@@ -55,8 +56,8 @@
     unsubscribeFile(); // Unsubscribe from fileStore
   });
 
-  // Get local user name for comparison
-  $: localUserName = webRTCApp?.getApp()?.config?.['user-name'] || 'You';
+  // Get local user name directly from the config store
+  $: localUserName = $configStore['user-name'] || 'You';
 
   // --- Create Combined Feed ---
   $: combinedFeed = (() => {
@@ -124,13 +125,14 @@
   
   async function sendMessage() {
     if (!message.trim()) return;
-    
-    const app = webRTCApp.getApp();
-    
+
+    // Get sender name from config store
+    const senderName = $configStore['user-name'] || 'You';
+
     // Import the sendChatMessage function from our bridge
     const { sendChatMessage } = await import('../lib/chatBridge.js');
-    sendChatMessage(message.trim(), app.config['user-name'] || 'You');
-    
+    sendChatMessage(message.trim(), senderName);
+
     // Clear input
     message = '';
   }

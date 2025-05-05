@@ -49,16 +49,15 @@
     } else {
       windowLoader = serverWindowLoader;
     }
-    
-    // Initialize WebRTC app with current config
-    // Cast to Record<string, string> to match expected type
-    webRTCApp.updateConfig(getAllConfig() as Record<string, string>);
+    // WebRTCApp now gets config directly from the store when needed (e.g., in initClient)
+    // No need to pass config to it here.
 
-    // Subscribe to config changes
+    // Subscribe to config changes (still useful if App.svelte needs to react)
     const unsubscribe = configStore.subscribe(newConfig => {
-      // Cast to Record<string, string> to match expected type
-      webRTCApp.updateConfig(newConfig as Record<string, string>);
+      // If App.svelte needs to react to config changes, do it here.
+      // Example: console.log('Config updated in App.svelte:', newConfig);
     });
+
     // Run the appropriate loader
     windowLoader();
     

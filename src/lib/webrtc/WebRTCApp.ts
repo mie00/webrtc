@@ -28,25 +28,16 @@ export class WebRTCApp {
     nego_handlers: {},
     cleanups: {},
     nego_messages: {},
-    config: {},
+    // config: {}, // Removed - Config is managed by configStore
     viewStreams: {},
   };
 
-  constructor(config?: Record<string, string>) {
-    // If config is provided, use it; otherwise it will be set later via updateConfig
-    if (config) {
-      this.app.config = config;
-    }
+  constructor() { // Removed config parameter
+    // Config is now managed solely by configStore
     this.setupNegoHandlers();
   }
-  
-  /**
-   * Updates the application configuration
-   * @param config New configuration object
-   */
-  public updateConfig(config: Record<string, string>): void {
-    this.app.config = config;
-  }
+
+  // Removed updateConfig method
 
   private setupNegoHandlers(): void {
     this.app.nego_handlers = {
@@ -238,13 +229,15 @@ export class WebRTCApp {
 
   public async initClient(polite: boolean, options: ClientInitOptions): Promise<string> {
     await this.init();
-    const config = {
+    // Get current config from the store
+    const currentConfig = getAllConfig();
+    const rtcConfig = {
       iceServers: [
-        ...this.app.config["stun-servers"].split(',').filter(link => link).map(link => ({ urls: "stun:" + link })),
-        ...(this.app.config["turn-server-v2"] && this.app.config["turn-username"] && this.app.config["turn-password"] ? [{
-          urls: "turn:" + this.app.config["turn-server-v2"],
-          username: this.app.config["turn-username"],
-          credential: this.app.config["turn-password"],
+        ...(currentConfig["stun-servers"]?.split(',').filter(link => link).map(link => ({ urls: "stun:" + link })) || []),
+        ...(currentConfig["turn-server-v2"] && currentConfig["turn-username"] && currentConfig["turn-password"] ? [{
+          urls: "turn:" + currentConfig["turn-server-v2"],
+          username: currentConfig["turn-username"],
+          credential: currentConfig["turn-password"],
         }] : [])
       ],
     };
@@ -259,8 +252,8 @@ export class WebRTCApp {
     }
     this.app.sids[sid] = cid;
 
-    // Create the PeerConnection
-    const pc = new RTCPeerConnection(config);
+    // Create the PeerConnection using config derived from the store
+    const pc = new RTCPeerConnection(rtcConfig);
     // Create the client object
     const client: WebRTCClient = { pc, polite };
     // Add client to the store immediately
