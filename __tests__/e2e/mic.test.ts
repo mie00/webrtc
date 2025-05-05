@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import path, { dirname } from 'path';
 
 // --- Constants ---
-const AUDIO_DURATION_SECONDS = 5;
+const AUDIO_DURATION_SECONDS = 10;
 const START_FREQ_HZ = 440; // A4 note
 const END_FREQ_HZ = 1000;
 const SAMPLE_RATE = 44100; // Standard CD quality sample rate
@@ -177,23 +177,6 @@ describe('WebRTC Microphone E2E Test', () => {
         console.log('--- Frequency difference on Page B verified ---');
 
 
-        // 4. Turn off audio on Page A and verify it's silent
-        console.log('Turning off audio on Page A...');
-        try {
-            await pageA.click(audioButtonSelectorOn);
-            console.log('Clicked audio button (ON state) on Page A.');
-            // Wait for the button state to change back to OFF
-            console.log('Waiting for audio button on Page A to indicate OFF state...');
-            await pageA.waitForSelector(audioButtonSelectorOff, { timeout: 5000 });
-            console.log('Audio button is OFF. Waiting a moment before checking silence...');
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s for stream to fully stop processing
-
-        } catch (e) {
-            console.warn("Could not find 'ON' audio button to turn off audio. Cannot verify silence.", e);
-            // Optionally fail the test here if turning off is critical
-            throw new Error("Failed to turn off audio on Page A, cannot proceed with silence check.");
-        }
-
         console.log('Verifying final audio state (silence) on Page A...');
         const finalPeakAmplitude = await pageA.evaluate(async () => {
             // This code runs in the browser context of Page A after attempting to mute
@@ -275,6 +258,23 @@ describe('WebRTC Microphone E2E Test', () => {
         console.log(`Final peak amplitude measured on Page A: ${finalPeakAmplitude}`);
         // Assert that the final audio level is below a silence threshold (e.g., -80 dB)
         expect(finalPeakAmplitude).toBeLessThan(-80); // Check that audio is effectively silent after muting
+
+        // 4. Turn off audio on Page A and verify it's silent
+        console.log('Turning off audio on Page A...');
+        try {
+            await pageA.click(audioButtonSelectorOn);
+            console.log('Clicked audio button (ON state) on Page A.');
+            // Wait for the button state to change back to OFF
+            console.log('Waiting for audio button on Page A to indicate OFF state...');
+            await pageA.waitForSelector(audioButtonSelectorOff, { timeout: 5000 });
+            console.log('Audio button is OFF. Waiting a moment before checking silence...');
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s for stream to fully stop processing
+
+        } catch (e) {
+            console.warn("Could not find 'ON' audio button to turn off audio. Cannot verify silence.", e);
+            // Optionally fail the test here if turning off is critical
+            throw new Error("Failed to turn off audio on Page A, cannot proceed with silence check.");
+        }
 
         console.log('--- TEST SUCCESS: Verified audio stream frequencies on Page B & final silence on Page A ---');
 
