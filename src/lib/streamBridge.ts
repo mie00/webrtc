@@ -58,24 +58,29 @@ export function streamInit(originalApp: App): void {
   // Set up cleanup handler
   app.cleanups['stream'] = (cid?: string) => {
     if (!cid) {
-      // Clean up all streams
-      Object.keys(app.streams || {}).forEach((streamId) => {
-        const stream = app.streams![streamId];
-        delete app.streams![streamId];
-        
+      // Clean up all local streams when the app is torn down globally
+      const state = getStreamState(); // Get current stream state
+      Object.entries(state.localStreams).forEach(([key, localStreamData]) => {
+        const stream = localStreamData.stream;
+        const streamId = normalizeStreamId(stream.id);
+
         try {
-          Object.values(app.clients).forEach((client) => 
+          Object.values(app.clients).forEach((client) =>
             // Add type assertion for clarity if needed, though Object.values should return WebRTCClient[]
-            sendNego(client as WebRTCClient, { type: 'stream.end', stream: normalizeStreamId(stream.id) })
+            sendNego(client as WebRTCClient, { type: 'stream.end', stream: streamId })
           );
         } catch { }
-        
+
         stream.getTracks().map((track: MediaStreamTrack) => track.stop()); // Add type MediaStreamTrack
-        
+
         // Remove from enhanced store structure
-        removeLocalStream(streamId);
+        removeLocalStream(key); // Use the key used in the store ('audio', 'video', etc.)
       });
+      // Clear the legacy app.streams just in case anything still references it
+      // app.streams = {}; // Optional: Keep or remove based on confidence level
     }
+    // Note: Cleanup for a specific client (when cid is provided) might need separate handling
+    // if remote streams associated with that client need explicit cleanup beyond connection closing.
   };
   
   // Set up a subscription to sync store changes back to app object
