@@ -59,76 +59,14 @@ describe('WebRTC Microphone E2E Test', () => {
         expect(pageB).toBeDefined();
     });
 
-    test('should stream audio from Page A to Page B and verify different frequencies', async () => {
-        console.log('--- Starting Audio Stream and Frequency Verification Test ---');
+    test('should stream audio from Page A to Page B, verify frequencies, then verify Page A is muted', async () => {
+        console.log('--- Starting Audio Stream, Frequency Verification, and Mute Check Test ---');
 
-        // 0. Verify Page A is initially silent/muted
-        console.log('Verifying initial audio state on Page A...');
-        const initialPeakAmplitude = await pageA.evaluate(async () => {
-            // This code runs in the browser context of Page A before interaction
-            console.log("--- Checking initial local audio state ---");
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 512;
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Float32Array(bufferLength);
-            let sourceNode: MediaStreamAudioSourceNode | null = null;
-
-            // Try to find *any* existing local audio stream
-            console.log('Searching for any initial local audio stream in Page A...');
-            if (window.app && window.app.localStreams) {
-                 console.log(` Initial local stream keys: ${Object.keys(window.app.localStreams).join(', ')}`);
-                 const streamId = Object.keys(window.app.localStreams).find(id => {
-                     const streamData = window.app.localStreams[id];
-                     console.log(`  Checking initial local stream ${id}: type=${streamData?.type}, active=${streamData?.stream?.active}, audio tracks=${streamData?.stream?.getAudioTracks()?.length}`);
-                     return streamData && streamData.stream?.active && streamData.stream.getAudioTracks().length > 0 && streamData.type === 'audio';
-                 });
-
-                 if (streamId) {
-                      const localStream = window.app.localStreams[streamId].stream;
-                      console.log(` Found an initial local audio stream: ${localStream.id}. Analyzing amplitude...`);
-                      sourceNode = audioCtx.createMediaStreamSource(localStream);
-                 } else {
-                     console.log('No active initial local audio stream found.');
-                 }
-            } else {
-                 console.log('window.app or window.app.localStreams not found initially.');
-            }
-
-            if (!sourceNode) {
-                console.log('No source node created, assuming silent.');
-                await audioCtx.close();
-                return -Infinity; // Indicate silence / no stream found
-            }
-
-            // If a stream was unexpectedly found, measure its amplitude
-            sourceNode.connect(analyser);
-            function getPeakAmplitude(): number {
-                analyser.getFloatFrequencyData(dataArray);
-                let maxAmp = -Infinity;
-                for (let i = 0; i < bufferLength; i++) {
-                    if (dataArray[i] > maxAmp && isFinite(dataArray[i])) {
-                        maxAmp = dataArray[i];
-                    }
-                }
-                console.log(`Initial Local Peak Amplitude (dB): ${maxAmp.toFixed(2)}`);
-                return maxAmp;
-            }
-
-            await new Promise(resolve => setTimeout(resolve, 500)); // Short wait
-            const peakAmp = getPeakAmplitude();
-            sourceNode.disconnect();
-            await audioCtx.close();
-            return peakAmp;
-        });
-
-        console.log(`Initial peak amplitude measured on Page A: ${initialPeakAmplitude}`);
-        // Assert that the initial audio level is below a silence threshold (e.g., -80 dB)
-        expect(initialPeakAmplitude).toBeLessThan(-80); // Check that audio is effectively silent initially
-
-        // 1. Enable audio on Page A
+        // Define selectors once
         const audioButtonSelectorOff = 'button.pointer-events-auto ::-p-text(🔇)'; // Selector for the audio button when OFF
         const audioButtonSelectorOn = 'button.pointer-events-auto ::-p-text(🎤)'; // Selector for the audio button when ON
+
+        // 1. Enable audio on Page A
         console.log('Waiting for audio button on Page A...');
         await pageA.waitForSelector(audioButtonSelectorOff, { timeout: 5000 });
         console.log('Clicking audio button on Page A...');
@@ -236,16 +174,110 @@ describe('WebRTC Microphone E2E Test', () => {
 
         // The core assertion: the frequencies measured at different times should be different
         expect(frequencies.freq2).not.toBe(frequencies.freq1); // Frequency at ~3s should be different from frequency at ~1s
+        console.log('--- Frequency difference on Page B verified ---');
 
-        console.log('--- TEST SUCCESS: Initial silence verified & audio stream with different frequencies verified ---');
 
-        // Optional: Turn off audio on Page A afterwards
+        // 4. Turn off audio on Page A and verify it's silent
+        console.log('Turning off audio on Page A...');
         try {
             await pageA.click(audioButtonSelectorOn);
-            console.log('Audio turned off on Page A.');
+            console.log('Clicked audio button (ON state) on Page A.');
+            // Wait for the button state to change back to OFF
+            console.log('Waiting for audio button on Page A to indicate OFF state...');
+            await pageA.waitForSelector(audioButtonSelectorOff, { timeout: 5000 });
+            console.log('Audio button is OFF. Waiting a moment before checking silence...');
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s for stream to fully stop processing
+
         } catch (e) {
-            console.warn("Could not find 'ON' audio button to turn off audio.");
+            console.warn("Could not find 'ON' audio button to turn off audio. Cannot verify silence.", e);
+            // Optionally fail the test here if turning off is critical
+            throw new Error("Failed to turn off audio on Page A, cannot proceed with silence check.");
         }
+
+        console.log('Verifying final audio state (silence) on Page A...');
+        const finalPeakAmplitude = await pageA.evaluate(async () => {
+            // This code runs in the browser context of Page A after attempting to mute
+            console.log("--- Checking final local audio state ---");
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 512;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Float32Array(bufferLength);
+            let sourceNode: MediaStreamAudioSourceNode | null = null;
+
+            // Try to find the local audio stream (it might still exist but be muted/inactive)
+            console.log('Searching for final local audio stream in Page A...');
+            if (window.app && window.app.localStreams) {
+                 console.log(` Final local stream keys: ${Object.keys(window.app.localStreams).join(', ')}`);
+                 // Find the stream associated with 'audio' type, even if inactive
+                 const streamId = Object.keys(window.app.localStreams).find(id => {
+                     const streamData = window.app.localStreams[id];
+                     console.log(`  Checking final local stream ${id}: type=${streamData?.type}, active=${streamData?.stream?.active}, audio tracks=${streamData?.stream?.getAudioTracks()?.length}`);
+                     return streamData && streamData.type === 'audio'; // Find the audio stream regardless of active state now
+                 });
+
+                 if (streamId) {
+                      const streamData = window.app.localStreams[streamId];
+                      const localStream = streamData.stream;
+                      // Check if stream or tracks are actually stopped/muted
+                      const audioTracks = localStream?.getAudioTracks() ?? [];
+                      const isTrackEnabled = audioTracks.length > 0 && audioTracks[0].enabled;
+                      const isStreamActive = localStream?.active;
+
+                      console.log(` Found final local audio stream: ${localStream?.id}. Active: ${isStreamActive}, Track Enabled: ${isTrackEnabled}. Analyzing amplitude...`);
+
+                      // Only analyze if the stream seems technically active (even if muted track)
+                      if (localStream && isStreamActive) {
+                          try {
+                              sourceNode = audioCtx.createMediaStreamSource(localStream);
+                          } catch (err) {
+                              console.warn(`Could not create source node from stream ${localStream.id} (perhaps inactive?): ${err}`);
+                              sourceNode = null; // Ensure sourceNode is null if creation fails
+                          }
+                      } else {
+                          console.log('Final local audio stream is inactive or has no tracks.');
+                      }
+                 } else {
+                     console.log('No local audio stream found in final check.');
+                 }
+            } else {
+                 console.log('window.app or window.app.localStreams not found in final check.');
+            }
+
+            if (!sourceNode) {
+                console.log('No source node created for final check, assuming silent.');
+                await audioCtx.close();
+                return -Infinity; // Indicate silence / no stream found or stream inactive
+            }
+
+            // If a stream was found and source created, measure its amplitude
+            sourceNode.connect(analyser);
+            function getPeakAmplitude(): number {
+                analyser.getFloatFrequencyData(dataArray);
+                let maxAmp = -Infinity;
+                for (let i = 0; i < bufferLength; i++) {
+                    if (dataArray[i] > maxAmp && isFinite(dataArray[i])) {
+                        maxAmp = dataArray[i];
+                    }
+                }
+                // A muted track should result in very low/negative infinity amplitude
+                console.log(`Final Local Peak Amplitude (dB): ${maxAmp.toFixed(2)}`);
+                return maxAmp;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 500)); // Short wait for analyser
+            const peakAmp = getPeakAmplitude();
+            sourceNode.disconnect();
+            await audioCtx.close();
+            return peakAmp;
+        });
+
+        console.log(`Final peak amplitude measured on Page A: ${finalPeakAmplitude}`);
+        // Assert that the final audio level is below a silence threshold (e.g., -80 dB)
+        expect(finalPeakAmplitude).toBeLessThan(-80); // Check that audio is effectively silent after muting
+
+        console.log('--- TEST SUCCESS: Verified audio stream frequencies on Page B & final silence on Page A ---');
+
     });
 
     afterAll(async () => {
