@@ -31,9 +31,13 @@ describe('WebRTC Microphone E2E Test', () => {
             // Calculate frequency change per second
             const freqChangePerSec = (END_FREQ_HZ - START_FREQ_HZ) / AUDIO_DURATION_SECONDS;
 
-            // Use ffmpeg to generate a sine wave chirp
-            // Formula: sine=frequency=START_FREQ+t*FREQ_CHANGE_PER_SEC
-            const ffmpegCommand = `ffmpeg -y -f lavfi -i "sine=frequency=${START_FREQ_HZ}+t*${freqChangePerSec}:sample_rate=${SAMPLE_RATE}:duration=${AUDIO_DURATION_SECONDS}" -ar ${SAMPLE_RATE} ${audioOutputPath}`;
+            // Use ffmpeg with aevalsrc to generate a sine wave chirp
+            // Expression for linear chirp: sin(2*PI*(f0*t + (f1-f0)/(2*D)*t^2))
+            // f0 = START_FREQ_HZ, f1 = END_FREQ_HZ, D = AUDIO_DURATION_SECONDS
+            const chirpExpression = `sin(2*PI*(${START_FREQ_HZ}*t + (${END_FREQ_HZ}-${START_FREQ_HZ})/(2*${AUDIO_DURATION_SECONDS})*t*t))`;
+            // Need to escape special characters like '*' and potentially ':' for the shell if not quoted properly.
+            // Using single quotes around the expression for aevalsrc is generally safer.
+            const ffmpegCommand = `ffmpeg -y -f lavfi -i "aevalsrc='${chirpExpression}':s=${SAMPLE_RATE}:d=${AUDIO_DURATION_SECONDS}" -ar ${SAMPLE_RATE} ${audioOutputPath}`;
 
             console.log(`Executing: ${ffmpegCommand}`);
             execSync(ffmpegCommand);
