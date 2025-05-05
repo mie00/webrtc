@@ -86,15 +86,7 @@ export function streamInit(originalApp: App): void {
     // Note: Cleanup for a specific client remains unchanged for now
   };
   
-  // Set up a subscription to sync store changes back to app object
-  streamStore.subscribe((state: StreamState) => { // Add type StreamState
-    // This ensures the app object stays in sync with the store
-    // Assuming state has streamConfig, adjust if StreamState structure is different
-    if (state.streamConfig) { 
-      app.streamConfig = { ...state.streamConfig };
-    }
-  });
-  // REMOVE streamStore.subscribe block syncing to app.streamConfig
+  // REMOVED streamStore.subscribe block that was syncing back to the removed 'app' object
 }
 
 /**
