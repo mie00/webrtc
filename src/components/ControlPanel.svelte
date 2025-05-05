@@ -237,7 +237,7 @@
                   class="text-xs font-semibold mb-1"
                   class:text-blue-800={isLocalUser}
                   class:text-gray-600={!isLocalUser}
-                  title={item.cid ? `CID: ${item.cid}` : 'Local Sender'} <!-- Tooltip shows CID or 'Local Sender' -->
+                  title={item.cid ? `CID: ${item.cid}` : 'Local Sender'}
                 >
                   {item.sender} <!-- Always display sender name (localUserName, Peer, CID, etc.) -->
                 </p>
