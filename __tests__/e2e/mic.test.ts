@@ -196,7 +196,7 @@ describe('WebRTC Microphone E2E Test', () => {
     afterAll(async () => {
         console.log('--- Cleaning up generated audio file ---');
         try {
-            await fs.rm(audioOutputPath, { force: true });
+            // await fs.rm(audioOutputPath, { force: true });
             console.log(`Removed audio file: ${audioOutputPath}`);
         } catch (error) {
             console.error('Error during audio file cleanup:', error);
