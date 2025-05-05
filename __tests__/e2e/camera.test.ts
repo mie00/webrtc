@@ -16,19 +16,32 @@ interface QrCodeResult {
   points: { x: number; y: number }[];
 }
 
-// convert qr.decode to a promise, qr.callback = the callback and then qr.decode is callled with the image only, not the cb since it's already assigned to qr.callback
-const decodeQrCode = async ( bitmap: Bitmap): Promise<QrCodeResult | null> => {
-    return new Promise((resolve, reject) => {
+// convert qr.decode to a promise with a timeout
+const decodeQrCode = async (bitmap: Bitmap, timeoutMs: number = 5000): Promise<QrCodeResult | null> => {
+    const decodePromise = new Promise<QrCodeResult | null>((resolve, reject) => {
         qr.callback = (err, value: QrCodeResult | null) => {
-            if (err || !value) {
-                rejects(err || "no value provided");
+            if (err) {
+                // Use reject instead of rejects for standard Promise behavior
+                reject(err);
+            } else if (!value) {
+                // Reject if value is null/undefined after successful callback
+                reject(new Error("QR code decoding returned no value"));
             } else {
-                resolve(value)
+                resolve(value);
             }
         };
+        // Start the decoding process
         qr.decode(bitmap);
     });
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(`QR code decoding timed out after ${timeoutMs}ms`)), timeoutMs);
+    });
+
+    // Race the decoding against the timeout
+    return Promise.race([decodePromise, timeoutPromise]);
 }
+
 
 async function takeScreenshotAndDecodeQR(page: Page): Promise<QrCodeResult | null> {
     console.log('Taking screenshot and attempting to decode QR code...');
