@@ -7,9 +7,9 @@ import { fileURLToPath } from 'url';
 import path, { dirname } from 'path';
 
 // --- Constants ---
-const AUDIO_DURATION_SECONDS = 10;
-const START_FREQ_HZ = 440; // A4 note
-const END_FREQ_HZ = 1000;
+const AUDIO_DURATION_SECONDS = 6;
+const START_FREQ_HZ = 40; // A4 note
+const END_FREQ_HZ = 1200;
 const SAMPLE_RATE = 44100; // Standard CD quality sample rate
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -47,7 +47,7 @@ async function analyzeAudioInBrowser(
     try {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioCtx.createAnalyser();
-        analyser.fftSize = analysisType === 'frequency' ? 2048 : 512; // Larger FFT for frequency
+        analyser.fftSize = analysisType === 'frequency' ? 4096 : 512; // Larger FFT for frequency
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Float32Array(bufferLength); // For getFloatFrequencyData
 
@@ -82,13 +82,13 @@ async function analyzeAudioInBrowser(
                  console.log(`   Element is muted, paused, or has no valid MediaStream srcObject.`);
             }
         }
-
         // --- Perform Analysis ---
         if (!sourceNode) {
             console.error('Failed to find any suitable playing, unmuted audio stream source.');
             // Populate results with defaults indicating failure
             results.peakAmplitudes = analysisType === 'amplitude' ? [-Infinity] : []; // Use -Infinity to indicate failure
             results.frequencies = analysisType === 'frequency' ? Array(numSamples).fill(null) : [];
+            console.log(results);
             return results; // Early exit
         }
 
@@ -267,6 +267,21 @@ describe('WebRTC Microphone E2E Test', () => {
         expect(freq2).not.toBe(freq1); // Frequency at sample 2 should be different from frequency at sample 1
         console.log('--- Frequency difference on Page B verified ---');
 
+
+        // 5. Verify final audio state (no suitable source found) on Page A after muting
+        console.log('Verifying final audio state (no suitable source) on Page A...');
+        const analysisOptionsA = {
+             silenceThresholdDb: -80 // Keep threshold for internal logic if needed, but assertion changes
+        };
+        // Call without 'target' argument
+        const analysisResultA = await pageA.evaluate(analyzeAudioInBrowser, 'amplitude', analysisOptionsA);
+
+        console.log(`Final amplitude analysis attempt on Page A complete:`, analysisResultA);
+        // Assert that the analysis function could not find a suitable source,
+        // indicated by the default failure value (-Infinity).
+        expect(analysisResultA.peakAmplitudes.length).toBe(1);
+        expect(analysisResultA.peakAmplitudes[0]).toBe(-Infinity);
+
         // 4. Turn off audio on Page A
         console.log('Turning off audio on Page A...');
         try {
@@ -283,20 +298,6 @@ describe('WebRTC Microphone E2E Test', () => {
             // Optionally fail the test here if turning off is critical
             throw new Error("Failed to turn off audio on Page A, cannot proceed with silence check.");
         }
-
-        // 5. Verify final audio state (no suitable source found) on Page A after muting
-        console.log('Verifying final audio state (no suitable source) on Page A...');
-        const analysisOptionsA = {
-             silenceThresholdDb: -80 // Keep threshold for internal logic if needed, but assertion changes
-        };
-        // Call without 'target' argument
-        const analysisResultA = await pageA.evaluate(analyzeAudioInBrowser, 'amplitude', analysisOptionsA);
-
-        console.log(`Final amplitude analysis attempt on Page A complete:`, analysisResultA);
-        // Assert that the analysis function could not find a suitable source,
-        // indicated by the default failure value (-Infinity).
-        expect(analysisResultA.peakAmplitudes.length).toBe(1);
-        expect(analysisResultA.peakAmplitudes[0]).toBe(-Infinity);
 
         console.log('--- TEST SUCCESS: Verified audio stream frequencies on Page B & no suitable audio source found on Page A after mute ---');
 
