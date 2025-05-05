@@ -8,9 +8,9 @@ export type RTCIceConnectionState = globalThis.RTCIceConnectionState; // Use bui
 export interface DirectClientState {
   cid: string;
   polite: boolean;
-  connectionState: RTCPeerConnectionState | null;
-  iceConnectionState: RTCIceConnectionState | null;
-  fingerprint?: string; // Optional emoji fingerprint
+  connectionState: RTCPeerConnectionState | null; // Revert to allowing null initially
+  iceConnectionState: RTCIceConnectionState | null; // Revert to allowing null initially
+  fingerprint?: string; // Revert to optional
 }
 
 export interface ParticipantState {
@@ -34,17 +34,16 @@ const connectionStore = writable<ConnectionState>(initialState);
 
 export function addDirectClient(cid: string, polite: boolean): void {
   connectionStore.update(state => {
-    if (!state.directClients[cid]) {
+    if (!state.directClients[cid]) { // Only add if not existing
       state.directClients[cid] = {
         cid,
         polite,
         connectionState: null, // Initial state
         iceConnectionState: null, // Initial state
+        // fingerprint is initially undefined
       };
-      // Also add self as a participant, relayed by 'self' (or maybe not needed if UI handles direct clients separately)
-      // Let's keep participants strictly for *other* peers for now.
     }
-    return state;
+    return state; // Return updated state
   });
 }
 
@@ -112,4 +111,12 @@ export { connectionStore };
 // Optional: Getter for non-Svelte contexts if necessary
 export function getConnectionState(): ConnectionState {
     return get(connectionStore);
+}
+
+// --- Getters ---
+// Removed getDirectClient and getAllDirectClients as they are no longer needed
+
+export function getAllClientCids(): string[] {
+  const state = get(connectionStore);
+  return Object.keys(state.directClients);
 }
