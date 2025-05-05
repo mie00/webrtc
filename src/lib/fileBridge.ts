@@ -185,7 +185,7 @@ export async function sendFile(file: File): Promise<void> { // Make async
 
   // Add to store immediately with 'sending' status
   addFileTransfer({
-    id,
+    id: transferId,
     name: file.name,
     type: file.type,
     size: file.size,
@@ -216,19 +216,19 @@ export async function sendFile(file: File): Promise<void> { // Make async
 
   if (failedTransfers.length > 0) {
     // If any transfer failed, mark the overall status as error
-    console.error(`File transfer ${id} failed for some clients:`, failedTransfers);
+    console.error(`File transfer ${transferId} failed for some clients:`, failedTransfers);
     const errorMessages = failedTransfers
         .map(result => (result as PromiseRejectedResult).reason?.message || 'Unknown error')
         .join(', ');
-    updateFileTransfer(id, { status: 'error', error: `Failed for ${failedTransfers.length} client(s): ${errorMessages}` });
+    updateFileTransfer(transferId, { status: 'error', error: `Failed for ${failedTransfers.length} client(s): ${errorMessages}` });
   } else if (readFilePromises.length > 0) {
     // If all transfers succeeded (and there was at least one attempt), mark as complete
-    console.log(`File transfer ${id} completed successfully for all clients.`);
-    updateFileTransfer(id, { progress: 100, status: 'complete' }); // Ensure progress is 100
+    console.log(`File transfer ${transferId} completed successfully for all clients.`);
+    updateFileTransfer(transferId, { progress: 100, status: 'complete' }); // Ensure progress is 100
   } else {
     // If no clients had a file channel, mark as error or handle differently?
-    console.warn(`File transfer ${id}: No clients to send to.`);
-    updateFileTransfer(id, { status: 'error', error: 'No connected clients with file channel.' });
+    console.warn(`File transfer ${transferId}: No clients to send to.`);
+    updateFileTransfer(transferId, { status: 'error', error: 'No connected clients with file channel.' });
   }
 }
 

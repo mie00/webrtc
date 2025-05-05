@@ -268,23 +268,23 @@ export class WebRTCApp {
     addDirectClient(cid, client);
 
     // Use the local 'client' variable for event handlers
-    client.pc.onconnectionstatechange = () => {
-      if (client.pc) { // Check if pc still exists
-        updateDirectClientState(cid, client.pc.connectionState, client.pc.iceConnectionState);
+    pc.onconnectionstatechange = () => {
+      if (pc) { // Check if pc still exists
+        updateDirectClientState(cid, pc.connectionState, pc.iceConnectionState);
         // Trigger fingerprint update if connected
-        if (client.pc.connectionState === 'connected' && client.pc.iceConnectionState === 'connected') {
+        if (pc.connectionState === 'connected' && pc.iceConnectionState === 'connected') {
           this.updateFingerprint(cid); // Call helper function
         }
       }
     };
-    client.pc.oniceconnectionstatechange = () => {
-      if (client.pc) { // Check if pc still exists
-        updateDirectClientState(cid, client.pc.connectionState, client.pc.iceConnectionState);
-        if (client.pc.iceConnectionState === "failed") {
-          client.pc.restartIce();
+    pc.oniceconnectionstatechange = () => {
+      if (pc) { // Check if pc still exists
+        updateDirectClientState(cid, pc.connectionState, pc.iceConnectionState);
+        if (pc.iceConnectionState === "failed") {
+          pc.restartIce();
         }
         // Trigger fingerprint update if connected
-        if (client.pc.connectionState === 'connected' && client.pc.iceConnectionState === 'connected') {
+        if (pc.connectionState === 'connected' && pc.iceConnectionState === 'connected') {
           this.updateFingerprint(cid); // Call helper function
         }
       }
@@ -356,25 +356,25 @@ export class WebRTCApp {
     }, 10000);
 
     if (offer) {
-      await client.pc.setRemoteDescription({
+      await pc.setRemoteDescription({
         type: "offer",
         sdp: offer.trim() + '\n'
       });
-      let answer = await client.pc.createAnswer();
-      await client.pc.setLocalDescription(answer);
+      let answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
     } else {
-      const offer = await client.pc.createOffer();
-      await client.pc.setLocalDescription(offer);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
     }
-    client.pc.onnegotiationneeded = async () => {
+    pc.onnegotiationneeded = async () => {
       client.makingOffer = true;
       try {
-        await client.pc?.setLocalDescription();
-        if (client.pc?.currentLocalDescription && client.pc?.localDescription) {
-          this.logDiff(client.pc.currentLocalDescription.sdp, client.pc.localDescription.sdp);
+        await pc?.setLocalDescription();
+        if (pc?.currentLocalDescription && pc?.localDescription) {
+          this.logDiff(pc.currentLocalDescription.sdp, pc.localDescription.sdp);
         }
-        if (client.pc?.localDescription) {
-          this.sendNego(client, client.pc.localDescription);
+        if (pc?.localDescription) {
+          this.sendNego(client, pc.localDescription);
         }
       } catch (e) {
         console.log("renegotiation error", e);

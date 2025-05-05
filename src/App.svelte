@@ -153,6 +153,7 @@
   let windowLoader: WindowLoader; // Use the defined type
   
   const clientWindowLoader: WindowLoader = async () => { // Add type annotation
+    const globalConfig = getAllConfig(); // Get global config
     console.log("client window loader");
     const urlParams = new URLSearchParams(window.location.search);
     
@@ -222,7 +223,7 @@
           if (sdp) {
             const compressed = await compress(sdp);
             urlParams.set('answer', compressed);
-            const newUrl = (app.config['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
+            const newUrl = (globalConfig['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
             qrCodeUrl = newUrl;
             copyText = compressed;
           }

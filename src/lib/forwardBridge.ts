@@ -229,7 +229,7 @@ export function setupForwardChannel(originalApp: App, cid: string): void { // or
               }
               const reader = response.body.getReader();
               // Pass currentClient's forward channel to sendData
-              await sendData(reader, data.id, cid, (currentClient as ForwardClient).forward);
+              await sendData(reader, data.id, (currentClient as ForwardClient).forward);
               if (status) status.innerHTML = '✅';
             }());
           }).catch(err => {

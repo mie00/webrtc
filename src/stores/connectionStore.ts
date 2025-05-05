@@ -1,5 +1,5 @@
 import { writable, get } from 'svelte/store';
-import type { WebRTCClient } from '../../types/global.d.ts'; // Adjust path if needed
+/// <reference path="../../../types/global.d.ts" />
 
 // Define connection state types directly here or import if defined elsewhere
 export type RTCPeerConnectionState = globalThis.RTCPeerConnectionState; // Use built-in type
@@ -10,8 +10,8 @@ export interface DirectClientState {
   cid: string;
   polite: boolean;
   client: WebRTCClient; // Store the actual client object
-  connectionState: RTCPeerConnectionState; // Use client's state
-  iceConnectionState: RTCIceConnectionState; // Use client's state
+  connectionState: RTCPeerConnectionState | null; // Use client's state
+  iceConnectionState: RTCIceConnectionState | null; // Use client's state
   fingerprint: string | null; // Added for fingerprint display
 }
 

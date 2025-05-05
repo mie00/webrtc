@@ -21,7 +21,7 @@ interface ForwardResponse {
   data: Uint8Array[];
 }
 
-async function sendData(reader: ReadableStreamDefaultReader<Uint8Array>, id: string, cid: string): Promise<void> {
+async function sendData(reader: ReadableStreamDefaultReader<Uint8Array>, id: string, forward: RTCDataChannel): Promise<void> {
   console.log("reader", reader);
   const max_size = 2 * 1024;
   let offset = 0;
@@ -36,8 +36,7 @@ async function sendData(reader: ReadableStreamDefaultReader<Uint8Array>, id: str
 
   // TODO: convert to proper promise
   const cb = async function(): Promise<void> {
-    const client = window.app.clients[cid] as ForwardClient;
-    client.forward.removeEventListener("bufferedamountlow", clearBufferAndCb);
+    forward.removeEventListener("bufferedamountlow", clearBufferAndCb);
     
     if (!gvalue) {
       const { done, value } = await reader.read();
@@ -49,7 +48,7 @@ async function sendData(reader: ReadableStreamDefaultReader<Uint8Array>, id: str
 
     while (gvalue && offset < gvalue.byteLength) {
       console.log("sending data", "length", gvalue.byteLength, "offset", offset, "sentOnBuffer", sentOnBuffer);
-      client.forward.send(JSON.stringify({
+      forward.send(JSON.stringify({
         type: "data",
         id: id,
         chunk: Array.from(gvalue.slice(offset, offset + 10 * 1024)),
@@ -57,13 +56,13 @@ async function sendData(reader: ReadableStreamDefaultReader<Uint8Array>, id: str
       sentOnBuffer += Math.min(gvalue.byteLength, offset + 10 * 1024) - offset;
       offset = Math.min(gvalue.byteLength, offset + 10 * 1024);
       if (sentOnBuffer > max_size) {
-        client.forward.addEventListener("bufferedamountlow", clearBufferAndCb);
+        forward.addEventListener("bufferedamountlow", clearBufferAndCb);
         return;
       }
     }
     gvalue = undefined; // Assign undefined instead of null
     if (gdone) {
-      client.forward.send(JSON.stringify({
+      forward.send(JSON.stringify({
         type: "end",
         id: id,
       }));
@@ -189,7 +188,7 @@ function setupForwardChannel(app: ForwardApp, cid: string): void {
                 return; // Return void, not null
               }
               const reader = response.body.getReader();
-              await sendData(reader, data.id, cid);
+              await sendData(reader, data.id, (app.clients[cid] as ForwardClient).forward);
               if (status) status.innerHTML = '✅';
             }());
           }).catch(err => {

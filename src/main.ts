@@ -40,7 +40,6 @@ export const rtcUtils = {
   getAnswer: (offer: string, cb: (candidate: RTCIceCandidate | null) => Promise<void>, options: {sid: string}) => webRTCApp.getAnswer(offer, cb, options),
   sha256: (message: string) => webRTCApp.sha256(message),
   genEmojis: (digest: string) => webRTCApp.genEmojis(digest),
-  handleChange: (cid?: string) => webRTCApp.handleChange(cid),
   logDiff: (d1: string, d2: string) => webRTCApp.logDiff(d1, d2),
   // Static methods
   log: (msg: string) => WebRTCApp.log(msg),
