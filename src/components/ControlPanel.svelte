@@ -212,26 +212,73 @@
        {/each}
      </div>
 
-    <!-- Chat Panel -->
-    <!-- Make chat panel take remaining space, ensure outer div allows scrolling -->
-    <div class="flex-1 flex flex-col min-h-0"> <!-- Added min-h-0 for flex child height calculation -->
-      <!-- Messages Area -->
-      <div bind:this={chatOutputContainer} class="flex-1 overflow-y-auto px-4 py-2 border border-gray-300 rounded mb-2 bg-white shadow-inner"> <!-- Added styling and bind:this -->
-        {#if chatState.messages.length === 0}
-          <p class="text-sm text-gray-500 italic">Chat messages will appear here...</p>
+    <!-- Combined Chat and File Transfer Feed -->
+    <div class="flex-1 flex flex-col min-h-0 border-t border-gray-300 pt-4 mt-4">
+      <h3 class="text-lg font-semibold mb-2 px-4">Activity Feed</h3>
+      <!-- Feed Area -->
+      <div bind:this={chatOutputContainer} class="flex-1 overflow-y-auto px-4 py-2 space-y-4">
+        {#if combinedFeed.length === 0}
+          <p class="text-sm text-gray-500 italic">Messages and file transfers will appear here...</p>
         {:else}
-          {#each chatState.messages as message, i (message.timestamp + '-' + i)} <!-- Unique key using timestamp + index -->
-            {@const displayName = message.sender === localUserName ? 'You' : message.sender}
-            <div class="mb-2 chat-message break-words"> <!-- Added break-words -->
-              <span class="font-bold">{displayName}:</span> {message.text} <!-- Render conditional name -->
+          {#each combinedFeed as item (item.id)}
+            {@const isLocalUser = item.sender === localUserName}
+            <div class="flex" class:justify-end={isLocalUser} class:justify-start={!isLocalUser}>
+              <div
+                class="p-3 rounded-lg shadow max-w-xs lg:max-w-md break-words"
+                class:bg-blue-100={isLocalUser}
+                class:bg-gray-100={!isLocalUser}
+              >
+                <!-- Sender Name (Optional, uncomment if needed) -->
+                <!-- <p class="text-xs font-semibold mb-1" class:text-blue-800={isLocalUser} class:text-gray-600={!isLocalUser}>
+                  {isLocalUser ? 'You' : item.sender}
+                </p> -->
+
+                {#if item.type === 'chat'}
+                  <p class="text-sm">{item.text}</p>
+                {:else if item.type === 'file' && item.transfer}
+                  {@const transfer = item.transfer}
+                  <div class="space-y-1">
+                     <p class="text-sm font-medium truncate" title={transfer.name}>{transfer.name}</p>
+                     {#if transfer.status !== 'complete' && transfer.status !== 'error'}
+                       <div class="flex items-center space-x-2">
+                         <progress class="w-full h-2 rounded" value={transfer.progress} max="100"></progress>
+                         <span class="text-xs font-mono flex-shrink-0">{transfer.progress}%</span>
+                       </div>
+                     {/if}
+                     {#if transfer.status === 'sending'}
+                       <p class="text-xs text-blue-600">Sending...</p>
+                     {:else if transfer.status === 'receiving'}
+                       <p class="text-xs text-blue-600">Receiving...</p>
+                     {:else if transfer.status === 'complete'}
+                       <p class="text-xs text-green-600">Completed</p>
+                       {#if transfer.url}
+                         <div class="flex space-x-2 mt-1">
+                           <a href={transfer.url} download={transfer.name}
+                              class="flex-1 text-center py-1 px-2 bg-green-500 text-white text-xs rounded shadow hover:bg-green-600">
+                             Download
+                           </a>
+                           <a href={transfer.url} target="_blank" rel="noopener noreferrer"
+                              class="flex-1 text-center py-1 px-2 bg-blue-500 text-white text-xs rounded shadow hover:bg-blue-600">
+                             View
+                           </a>
+                         </div>
+                       {:else}
+                         <p class="text-xs text-gray-500 mt-1">(URL not available)</p>
+                       {/if}
+                     {:else if transfer.status === 'error'}
+                       <p class="text-xs text-red-600" title={transfer.error}>Error: {transfer.error || 'Transfer failed'}</p>
+                     {/if}
+                  </div>
+                {/if}
+              </div>
             </div>
           {/each}
         {/if}
       </div>
 
-      <!-- Message Input and Upload Button -->
-      <div class="flex items-center space-x-2 p-2">
-        <input type="text" placeholder="Type your message..."
+      <!-- Message Input and Upload Button (Remains at the bottom) -->
+      <div class="flex items-center space-x-2 p-4 border-t border-gray-300 mt-2">
+        <input type="text" placeholder="Type message..."
           bind:value={message}
           bind:this={chatInput}
           class="flex-1 border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -250,45 +297,6 @@
         </div>
       </div>
     </div> <!-- End Combined Feed -->
-
-  </div>
-</div>
-      {:else}
-        <div class="space-y-3">
-          {#each Object.values(fileState.transfers) as transfer (transfer.id)}
-            <div class="p-2 border border-gray-300 rounded bg-white shadow-sm">
-              <p class="text-sm font-medium truncate mb-1" title={transfer.name}>{transfer.name}</p>
-              <div class="flex items-center space-x-2">
-                <progress class="w-full h-2 rounded" value={transfer.progress} max="100"></progress>
-                <span class="text-xs font-mono">{transfer.progress}%</span>
-              </div>
-              {#if transfer.status === 'sending'}
-                <p class="text-xs text-blue-600 mt-1">Sending...</p>
-              {:else if transfer.status === 'receiving'}
-                <p class="text-xs text-blue-600 mt-1">Receiving...</p>
-              {:else if transfer.status === 'complete'}
-                <div class="flex space-x-2 mt-2">
-                   {#if transfer.url}
-                     <a href={transfer.url} download={transfer.name}
-                        class="flex-1 text-center py-1 px-2 bg-green-500 text-white text-xs rounded shadow hover:bg-green-600">
-                       Download
-                     </a>
-                     <a href={transfer.url} target="_blank" rel="noopener noreferrer"
-                        class="flex-1 text-center py-1 px-2 bg-blue-500 text-white text-xs rounded shadow hover:bg-blue-600">
-                       View
-                     </a>
-                   {:else}
-                      <p class="text-xs text-green-600 mt-1">Completed (URL not available)</p>
-                   {/if}
-                </div>
-              {:else if transfer.status === 'error'}
-                <p class="text-xs text-red-600 mt-1" title={transfer.error}>Error: {transfer.error || 'Transfer failed'}</p>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </div>
 
   </div>
 </div>
