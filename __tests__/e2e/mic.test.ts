@@ -294,12 +294,14 @@ describe('WebRTC Microphone E2E Test', () => {
 
         // Check that all collected frequencies are non-null (audio should be playing)
         analysisResultB.frequencies.forEach((freq, index) => {
-            expect(freq).withContext(`Frequency sample ${index + 1} should not be null`).not.toBeNull();
+            console.log(`Checking frequency sample ${index + 1}...`);
+            expect(freq).not.toBeNull();
         });
 
         // The core assertion: check if there's more than one unique frequency value among the non-null results
         const uniqueFreqs = new Set(analysisResultB.frequencies.filter(f => f !== null));
-        expect(uniqueFreqs.size).withContext('Should have detected at least two different frequencies').toBeGreaterThan(1);
+        console.log('Checking if at least two different frequencies were detected...');
+        expect(uniqueFreqs.size).toBeGreaterThan(1);
         console.log(`--- Frequency difference on Page B verified (Found ${uniqueFreqs.size} unique frequencies: ${[...uniqueFreqs].map(f=>f?.toFixed(2)).join(', ')}) ---`);
 
 
