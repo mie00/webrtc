@@ -15,6 +15,221 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const audioOutputPath = path.join(__dirname, 'setup', 'mic.wav'); // Output path in setup dir
 
+
+// --- Reusable Browser-Side Audio Analysis Function ---
+// NOTE: This function is stringified and executed in the browser context via page.evaluate()
+// It cannot access variables from the Node.js scope directly.
+async function analyzeAudioInBrowser(
+    target: 'local' | 'remote',
+    analysisType: 'frequency' | 'amplitude',
+    options: {
+        numSamples?: number,
+        sampleIntervalMs?: number,
+        silenceThresholdDb?: number
+    } = {}
+): Promise<{ frequencies: (number | null)[], peakAmplitudes: number[] }> {
+
+    console.log(`--- Starting Audio Analysis in Browser --- Target: ${target}, Type: ${analysisType}`);
+    const {
+        numSamples = 2, // Default to 2 samples for frequency check
+        sampleIntervalMs = 2000, // Default interval between samples
+        silenceThresholdDb = -80 // Default silence threshold
+    } = options;
+
+    const results: { frequencies: (number | null)[], peakAmplitudes: number[] } = {
+        frequencies: [],
+        peakAmplitudes: []
+    };
+
+    let audioCtx: AudioContext | null = null;
+    let sourceNode: MediaStreamAudioSourceNode | null = null;
+    let analyser: AnalyserNode | null = null;
+
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = analysisType === 'frequency' ? 2048 : 512; // Larger FFT for frequency
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Float32Array(bufferLength); // For getFloatFrequencyData
+
+        // --- Find the Audio Stream Source ---
+        console.log(`Searching for ${target} audio stream...`);
+        let streamFound = false;
+
+        if (target === 'remote') {
+            // Method 1: Find <audio> element
+            const audioElements = document.querySelectorAll('audio');
+            console.log(` Found ${audioElements.length} <audio> elements.`);
+            for (const el of audioElements) {
+                console.log(`  Checking audio element: muted=${el.muted}, srcObject type=${typeof el.srcObject}`);
+                if (el.srcObject && el.srcObject instanceof MediaStream) {
+                    const stream = el.srcObject;
+                    console.log(`   Stream found: id=${stream.id}, active=${stream.active}, audio tracks=${stream.getAudioTracks().length}`);
+                    if (stream.active && stream.getAudioTracks().length > 0) {
+                        console.log('   Found suitable remote stream via <audio> element.');
+                        sourceNode = audioCtx.createMediaStreamSource(stream);
+                        streamFound = true;
+                        break;
+                    }
+                }
+            }
+            // Method 2: Fallback to window.app.viewStreams
+            if (!streamFound && window.app && window.app.viewStreams) {
+                console.warn(' Could not find suitable <audio> element. Trying window.app.viewStreams...');
+                console.log(` Available stream keys in window.app.viewStreams: ${Object.keys(window.app.viewStreams).join(', ')}`);
+                const streamId = Object.keys(window.app.viewStreams).find(id => {
+                    const stream = window.app.viewStreams[id];
+                    console.log(`  Checking viewStream ${id}: active=${stream?.active}, audio tracks=${stream?.getAudioTracks()?.length}`);
+                    return stream && stream.active && stream.getAudioTracks().length > 0;
+                });
+                if (streamId) {
+                    const remoteStream = window.app.viewStreams[streamId];
+                    console.log(` Found potential remote stream via viewStreams with ID: ${streamId}`);
+                    sourceNode = audioCtx.createMediaStreamSource(remoteStream);
+                    streamFound = true;
+                } else {
+                    console.warn(' No suitable stream found in window.app.viewStreams.');
+                }
+            }
+        } else { // target === 'local'
+            const MAX_RETRIES = 3;
+            const RETRY_DELAY_MS = 500;
+            for (let attempt = 1; attempt <= MAX_RETRIES && !streamFound; attempt++) {
+                console.log(` Attempt ${attempt}/${MAX_RETRIES} to find local audio stream...`);
+                if (window.app && window.app.localStreams) {
+                    console.log(`  Available stream keys in window.app.localStreams: ${Object.keys(window.app.localStreams).join(', ')}`);
+                    const streamId = Object.keys(window.app.localStreams).find(id => {
+                        const streamData = window.app.localStreams[id];
+                        console.log(`   Checking local stream ${id}: type=${streamData?.type}, active=${streamData?.stream?.active}, audio tracks=${streamData?.stream?.getAudioTracks()?.length}`);
+                        // Find the audio stream, active state might vary depending on when this is called
+                        return streamData && streamData.type === 'audio' && streamData.stream?.getAudioTracks().length > 0;
+                    });
+
+                    if (streamId) {
+                        const streamData = window.app.localStreams[streamId];
+                        const localStream = streamData.stream;
+                        const audioTracks = localStream?.getAudioTracks() ?? [];
+                        const isTrackEnabled = audioTracks.length > 0 && audioTracks[0].enabled;
+                        const isStreamActive = localStream?.active;
+                        console.log(`  Found local audio stream: ${localStream?.id}. Active: ${isStreamActive}, Track Enabled: ${isTrackEnabled}.`);
+
+                        // Need to handle cases where stream exists but might be inactive/muted for amplitude check
+                        if (localStream) {
+                             try {
+                                sourceNode = audioCtx.createMediaStreamSource(localStream);
+                                streamFound = true; // Found the stream container, analysis will determine level
+                                console.log(`   Created source node for local stream ${localStream.id}`);
+                                break; // Exit loop
+                             } catch (err) {
+                                 console.warn(`   Could not create source node from stream ${localStream.id} (attempt ${attempt}): ${err}`);
+                                 sourceNode = null;
+                             }
+                        }
+                    } else {
+                        console.warn(`  Attempt ${attempt}: No suitable stream found yet in window.app.localStreams.`);
+                    }
+                } else {
+                    console.warn(`  Attempt ${attempt}: window.app or window.app.localStreams not found.`);
+                }
+                if (!streamFound && attempt < MAX_RETRIES) {
+                    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+                }
+            }
+        }
+
+        // --- Perform Analysis ---
+        if (!sourceNode) {
+            console.error(`Failed to find ${target} audio stream source.`);
+            // Populate results with defaults indicating failure
+            results.peakAmplitudes = analysisType === 'amplitude' ? [-Infinity] : [];
+            results.frequencies = analysisType === 'frequency' ? Array(numSamples).fill(null) : [];
+            return results; // Early exit
+        }
+
+        console.log(`Successfully created sourceNode for ${target} analysis.`);
+        sourceNode.connect(analyser);
+
+        // Helper: Get Dominant Frequency
+        function getDominantFrequency(): number | null {
+            if (!analyser) return null;
+            analyser.getFloatFrequencyData(dataArray);
+            let maxAmp = -Infinity;
+            let maxIndex = -1;
+            for (let i = 0; i < bufferLength; i++) {
+                if (dataArray[i] > maxAmp && isFinite(dataArray[i])) {
+                    maxAmp = dataArray[i];
+                    maxIndex = i;
+                }
+            }
+            if (maxIndex === -1 || maxAmp < silenceThresholdDb) {
+                console.log(` Freq Analysis: Detected low amplitude (${maxAmp.toFixed(2)} dB), returning null.`);
+                return null;
+            }
+            const nyquist = audioCtx!.sampleRate / 2;
+            const frequency = maxIndex * nyquist / bufferLength;
+            console.log(` Freq Analysis: Max Amp ${maxAmp.toFixed(2)} dB at Index ${maxIndex}, Freq: ${frequency.toFixed(2)} Hz`);
+            return frequency;
+        }
+
+        // Helper: Get Peak Amplitude
+        function getPeakAmplitude(): number {
+             if (!analyser) return -Infinity;
+             analyser.getFloatFrequencyData(dataArray);
+             let maxAmp = -Infinity;
+             for (let i = 0; i < bufferLength; i++) {
+                 if (dataArray[i] > maxAmp && isFinite(dataArray[i])) {
+                     maxAmp = dataArray[i];
+                 }
+             }
+             console.log(` Amp Analysis: Peak Amplitude: ${maxAmp.toFixed(2)} dB`);
+             return maxAmp;
+        }
+
+        // Take samples
+        const samplesToTake = analysisType === 'frequency' ? numSamples : 1; // Only 1 sample needed for amplitude check usually
+        for (let i = 0; i < samplesToTake; i++) {
+            if (i > 0) {
+                console.log(` Waiting ${sampleIntervalMs}ms for next sample...`);
+                await new Promise(resolve => setTimeout(resolve, sampleIntervalMs));
+            } else {
+                 // Add a small initial delay for analyser to stabilize
+                 await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            console.log(` Taking sample ${i + 1}/${samplesToTake}...`);
+            if (analysisType === 'frequency') {
+                results.frequencies.push(getDominantFrequency());
+                // Optionally capture amplitude during frequency check too
+                // results.peakAmplitudes.push(getPeakAmplitude());
+            } else { // amplitude
+                results.peakAmplitudes.push(getPeakAmplitude());
+            }
+        }
+
+    } catch (error) {
+        console.error(`Error during audio analysis in browser: ${error}`);
+        // Populate results with defaults indicating failure
+        results.peakAmplitudes = analysisType === 'amplitude' ? [-Infinity] : [];
+        results.frequencies = analysisType === 'frequency' ? Array(numSamples).fill(null) : [];
+
+    } finally {
+        // --- Cleanup ---
+        console.log("Cleaning up audio analysis resources...");
+        if (sourceNode && analyser) {
+            sourceNode.disconnect(analyser);
+            console.log(" Disconnected source node.");
+        }
+        if (audioCtx) {
+            await audioCtx.close();
+            console.log(" Closed AudioContext.");
+        }
+    }
+
+    console.log("--- Audio Analysis Complete --- Results:", results);
+    return results;
+}
+
+
 // --- Jest Test Suite ---
 describe('WebRTC Microphone E2E Test', () => {
     jest.setTimeout(JEST_TIMEOUT * 2); // Allow time for audio generation and analysis
@@ -80,186 +295,30 @@ describe('WebRTC Microphone E2E Test', () => {
         // Add a delay for the stream to establish and audio to start playing
         await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
 
-        // 2. Analyze audio frequency on Page B
-        console.log('Analyzing audio frequency on Page B...');
-        const frequencies = await pageB.evaluate(async () => {
-            // This code runs in the browser context of Page B
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 2048; // Standard FFT size
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Float32Array(bufferLength); // For getFloatFrequencyData
+        // 2. Analyze audio frequency on Page B using the reusable function
+        console.log('Analyzing remote audio frequency on Page B...');
+        const analysisOptionsB = {
+            numSamples: 2,
+            sampleIntervalMs: 2000, // Time between samples
+            silenceThresholdDb: -80
+        };
+        const analysisResultB = await pageB.evaluate(analyzeAudioInBrowser, 'remote', 'frequency', analysisOptionsB);
 
-            let sourceNode: MediaStreamAudioSourceNode | null = null;
+        console.log('Frequency analysis on Page B complete:', analysisResultB);
 
-            // Try to find the remote audio stream via a playing <audio> element
-            const remoteAudioElement = document.querySelector('audio:not([muted])') as HTMLAudioElement | null;
-            if (remoteAudioElement && remoteAudioElement.srcObject && remoteAudioElement.srcObject instanceof MediaStream) {
-                console.log('Found remote audio stream via <audio> element.');
-                sourceNode = audioCtx.createMediaStreamSource(remoteAudioElement.srcObject);
-            } else {
-                // Fallback: Try finding a MediaStream in window.app.viewStreams (adjust if needed)
-                console.warn('Could not find <audio> element. Trying window.app.viewStreams...');
-                let remoteStream: MediaStream | null = null;
-                if (window.app && window.app.viewStreams) {
-                    // Find the first stream that has audio tracks and isn't obviously local
-                    // This logic is heuristic and might need adjustment based on your app
-                    const streamId = Object.keys(window.app.viewStreams).find(id => {
-                        const stream = window.app.viewStreams[id];
-                        // Basic check: has audio, maybe doesn't have video (if it's audio-only)
-                        // Or, if peerId is available, check if it's not the local peer
-                        return stream && stream.getAudioTracks().length > 0; // Simplistic check
-                    });
-                    if (streamId) {
-                         console.log(`Found potential remote stream with ID: ${streamId}`);
-                         remoteStream = window.app.viewStreams[streamId];
-                         sourceNode = audioCtx.createMediaStreamSource(remoteStream);
-                    }
-                }
+        // 3. Assertions for Page B
+        expect(analysisResultB.frequencies.length).toBe(analysisOptionsB.numSamples);
+        const freq1 = analysisResultB.frequencies[0];
+        const freq2 = analysisResultB.frequencies[1];
 
-                if (!sourceNode) {
-                    throw new Error("Could not find remote audio stream source for analysis.");
-                }
-            }
-
-            sourceNode.connect(analyser);
-
-            function getDominantFrequency(): number | null {
-                analyser.getFloatFrequencyData(dataArray);
-                let maxAmp = -Infinity;
-                let maxIndex = -1;
-                for (let i = 0; i < bufferLength; i++) {
-                    if (dataArray[i] > maxAmp && isFinite(dataArray[i])) { // Check for finite numbers
-                        maxAmp = dataArray[i];
-                        maxIndex = i;
-                    }
-                }
-
-                // Filter out silence or very low levels (adjust threshold as needed)
-                // -Infinity can happen if the stream hasn't started or is silent
-                if (maxIndex === -1 || maxAmp < -80) {
-                    console.log(`Detected low amplitude (${maxAmp}), returning null.`);
-                    return null;
-                }
-
-                const nyquist = audioCtx.sampleRate / 2;
-                const frequency = maxIndex * nyquist / bufferLength;
-                console.log(`Raw Freq Data: Max Amp ${maxAmp.toFixed(2)} at Index ${maxIndex}, Freq: ${frequency.toFixed(2)} Hz`);
-                return frequency;
-            }
-
-            // --- Measurements ---
-            // Wait ~1s into the chirp
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const freq1 = getDominantFrequency();
-            console.log(`Frequency at ~1s: ${freq1 ? freq1.toFixed(2) : 'null'} Hz`);
-
-            // Wait ~3s into the chirp (2s later)
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            const freq2 = getDominantFrequency();
-            console.log(`Frequency at ~3s: ${freq2 ? freq2.toFixed(2) : 'null'} Hz`);
-
-            // Disconnect analyser to free resources
-            sourceNode.disconnect();
-            await audioCtx.close(); // Close context
-
-            return { freq1, freq2 };
-        });
-
-        console.log('Frequency analysis complete:', frequencies);
-
-        // 3. Assertions
-        expect(frequencies.freq1).not.toBeNull(); // Frequency at ~1s should be detectable
-        expect(frequencies.freq2).not.toBeNull(); // Frequency at ~3s should be detectable
+        expect(freq1).not.toBeNull(); // Frequency at first sample should be detectable
+        expect(freq2).not.toBeNull(); // Frequency at second sample should be detectable
 
         // The core assertion: the frequencies measured at different times should be different
-        expect(frequencies.freq2).not.toBe(frequencies.freq1); // Frequency at ~3s should be different from frequency at ~1s
+        expect(freq2).not.toBe(freq1); // Frequency at sample 2 should be different from frequency at sample 1
         console.log('--- Frequency difference on Page B verified ---');
 
-
-        console.log('Verifying final audio state (silence) on Page A...');
-        const finalPeakAmplitude = await pageA.evaluate(async () => {
-            // This code runs in the browser context of Page A after attempting to mute
-            console.log("--- Checking final local audio state ---");
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 512;
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Float32Array(bufferLength);
-            let sourceNode: MediaStreamAudioSourceNode | null = null;
-
-            // Try to find the local audio stream (it might still exist but be muted/inactive)
-            console.log('Searching for final local audio stream in Page A...');
-            if (window.app && window.app.localStreams) {
-                 console.log(` Final local stream keys: ${Object.keys(window.app.localStreams).join(', ')}`);
-                 // Find the stream associated with 'audio' type, even if inactive
-                 const streamId = Object.keys(window.app.localStreams).find(id => {
-                     const streamData = window.app.localStreams[id];
-                     console.log(`  Checking final local stream ${id}: type=${streamData?.type}, active=${streamData?.stream?.active}, audio tracks=${streamData?.stream?.getAudioTracks()?.length}`);
-                     return streamData && streamData.type === 'audio'; // Find the audio stream regardless of active state now
-                 });
-
-                 if (streamId) {
-                      const streamData = window.app.localStreams[streamId];
-                      const localStream = streamData.stream;
-                      // Check if stream or tracks are actually stopped/muted
-                      const audioTracks = localStream?.getAudioTracks() ?? [];
-                      const isTrackEnabled = audioTracks.length > 0 && audioTracks[0].enabled;
-                      const isStreamActive = localStream?.active;
-
-                      console.log(` Found final local audio stream: ${localStream?.id}. Active: ${isStreamActive}, Track Enabled: ${isTrackEnabled}. Analyzing amplitude...`);
-
-                      // Only analyze if the stream seems technically active (even if muted track)
-                      if (localStream && isStreamActive) {
-                          try {
-                              sourceNode = audioCtx.createMediaStreamSource(localStream);
-                          } catch (err) {
-                              console.warn(`Could not create source node from stream ${localStream.id} (perhaps inactive?): ${err}`);
-                              sourceNode = null; // Ensure sourceNode is null if creation fails
-                          }
-                      } else {
-                          console.log('Final local audio stream is inactive or has no tracks.');
-                      }
-                 } else {
-                     console.log('No local audio stream found in final check.');
-                 }
-            } else {
-                 console.log('window.app or window.app.localStreams not found in final check.');
-            }
-
-            if (!sourceNode) {
-                console.log('No source node created for final check, assuming silent.');
-                await audioCtx.close();
-                return -Infinity; // Indicate silence / no stream found or stream inactive
-            }
-
-            // If a stream was found and source created, measure its amplitude
-            sourceNode.connect(analyser);
-            function getPeakAmplitude(): number {
-                analyser.getFloatFrequencyData(dataArray);
-                let maxAmp = -Infinity;
-                for (let i = 0; i < bufferLength; i++) {
-                    if (dataArray[i] > maxAmp && isFinite(dataArray[i])) {
-                        maxAmp = dataArray[i];
-                    }
-                }
-                // A muted track should result in very low/negative infinity amplitude
-                console.log(`Final Local Peak Amplitude (dB): ${maxAmp.toFixed(2)}`);
-                return maxAmp;
-            }
-
-            await new Promise(resolve => setTimeout(resolve, 500)); // Short wait for analyser
-            const peakAmp = getPeakAmplitude();
-            sourceNode.disconnect();
-            await audioCtx.close();
-            return peakAmp;
-        });
-
-        console.log(`Final peak amplitude measured on Page A: ${finalPeakAmplitude}`);
-        // Assert that the final audio level is below a silence threshold (e.g., -80 dB)
-        expect(finalPeakAmplitude).toBeLessThan(-80); // Check that audio is effectively silent after muting
-
-        // 4. Turn off audio on Page A and verify it's silent
+        // 4. Turn off audio on Page A
         console.log('Turning off audio on Page A...');
         try {
             await pageA.click(audioButtonSelectorOn);
@@ -275,6 +334,19 @@ describe('WebRTC Microphone E2E Test', () => {
             // Optionally fail the test here if turning off is critical
             throw new Error("Failed to turn off audio on Page A, cannot proceed with silence check.");
         }
+
+        // 5. Verify final audio state (silence) on Page A using the reusable function
+        console.log('Verifying final audio state (silence) on Page A...');
+        const analysisOptionsA = {
+             silenceThresholdDb: -80 // Use the threshold defined in the function
+        };
+        const analysisResultA = await pageA.evaluate(analyzeAudioInBrowser, 'local', 'amplitude', analysisOptionsA);
+
+        console.log(`Final amplitude analysis on Page A complete:`, analysisResultA);
+        // Assert that the final audio level is below the silence threshold
+        expect(analysisResultA.peakAmplitudes.length).toBe(1); // Should have one amplitude sample
+        const finalPeakAmplitude = analysisResultA.peakAmplitudes[0];
+        expect(finalPeakAmplitude).toBeLessThan(analysisOptionsA.silenceThresholdDb); // Check that audio is effectively silent after muting
 
         console.log('--- TEST SUCCESS: Verified audio stream frequencies on Page B & final silence on Page A ---');
 
