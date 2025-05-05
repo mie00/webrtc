@@ -181,10 +181,7 @@
       currentOfferCid = cid; // Store the CID for the accept handler
 
       const bc = new BroadcastChannel("manual_rtc");
-      // Removed: const app = webRTCApp.getApp();
-      // Removed: app.bc = bc;
       bc.onmessage = async (event) => {
-        console.log("got a new message from broadcast channel");
         const data = event.data;
         const answer = await decompress(data.trim());
         const client = getDirectClient(cid); // Get client from store
@@ -198,12 +195,9 @@
       // The accept button click is handled by the on:accept event in the CopyOverlay component
       // We pass the currentOfferCid to CopyOverlay now.
     } else if (urlParams.get('answer')) {
-      const answer = urlParams.get('answer');
-      if (answer) {
-          const bc = new BroadcastChannel("manual_rtc"); // Create locally
-          await bc.postMessage(answer);
-          bc.close(); // Close immediately after posting
-      }
+      const bc = new BroadcastChannel("manual_rtc"); // Create locally
+      await bc.postMessage(urlParams.get('answer'));
+      bc.close(); // Close immediately after posting
       // Removed redundant bc.close() from here
       showCopyOverlay = true;
       // Instead of manipulating the DOM directly, we'll use a variable to control the content

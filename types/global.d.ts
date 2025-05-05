@@ -70,7 +70,7 @@ interface App {
   participants?: Record<string, { relay: string }>;
   sids?: Record<string, string>;
   debug?: boolean;
-  bc?: BroadcastChannel;
+  bc?: BroadcastChannel | null;
   recorder?: number;
   merger?: any;
   mediaRecorder?: MediaRecorder;
