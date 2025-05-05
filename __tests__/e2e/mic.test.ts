@@ -59,8 +59,72 @@ describe('WebRTC Microphone E2E Test', () => {
         expect(pageB).toBeDefined();
     });
 
-    test('should stream audio from Page A to Page B and verify increasing frequency', async () => {
+    test('should stream audio from Page A to Page B and verify different frequencies', async () => {
         console.log('--- Starting Audio Stream and Frequency Verification Test ---');
+
+        // 0. Verify Page A is initially silent/muted
+        console.log('Verifying initial audio state on Page A...');
+        const initialPeakAmplitude = await pageA.evaluate(async () => {
+            // This code runs in the browser context of Page A before interaction
+            console.log("--- Checking initial local audio state ---");
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 512;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Float32Array(bufferLength);
+            let sourceNode: MediaStreamAudioSourceNode | null = null;
+
+            // Try to find *any* existing local audio stream
+            console.log('Searching for any initial local audio stream in Page A...');
+            if (window.app && window.app.localStreams) {
+                 console.log(` Initial local stream keys: ${Object.keys(window.app.localStreams).join(', ')}`);
+                 const streamId = Object.keys(window.app.localStreams).find(id => {
+                     const streamData = window.app.localStreams[id];
+                     console.log(`  Checking initial local stream ${id}: type=${streamData?.type}, active=${streamData?.stream?.active}, audio tracks=${streamData?.stream?.getAudioTracks()?.length}`);
+                     return streamData && streamData.stream?.active && streamData.stream.getAudioTracks().length > 0 && streamData.type === 'audio';
+                 });
+
+                 if (streamId) {
+                      const localStream = window.app.localStreams[streamId].stream;
+                      console.log(` Found an initial local audio stream: ${localStream.id}. Analyzing amplitude...`);
+                      sourceNode = audioCtx.createMediaStreamSource(localStream);
+                 } else {
+                     console.log('No active initial local audio stream found.');
+                 }
+            } else {
+                 console.log('window.app or window.app.localStreams not found initially.');
+            }
+
+            if (!sourceNode) {
+                console.log('No source node created, assuming silent.');
+                await audioCtx.close();
+                return -Infinity; // Indicate silence / no stream found
+            }
+
+            // If a stream was unexpectedly found, measure its amplitude
+            sourceNode.connect(analyser);
+            function getPeakAmplitude(): number {
+                analyser.getFloatFrequencyData(dataArray);
+                let maxAmp = -Infinity;
+                for (let i = 0; i < bufferLength; i++) {
+                    if (dataArray[i] > maxAmp && isFinite(dataArray[i])) {
+                        maxAmp = dataArray[i];
+                    }
+                }
+                console.log(`Initial Local Peak Amplitude (dB): ${maxAmp.toFixed(2)}`);
+                return maxAmp;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 500)); // Short wait
+            const peakAmp = getPeakAmplitude();
+            sourceNode.disconnect();
+            await audioCtx.close();
+            return peakAmp;
+        });
+
+        console.log(`Initial peak amplitude measured on Page A: ${initialPeakAmplitude}`);
+        // Assert that the initial audio level is below a silence threshold (e.g., -80 dB)
+        expect(initialPeakAmplitude).toBeLessThan(-80); // Check that audio is effectively silent initially
 
         // 1. Enable audio on Page A
         const audioButtonSelectorOff = 'button.pointer-events-auto ::-p-text(🔇)'; // Selector for the audio button when OFF
