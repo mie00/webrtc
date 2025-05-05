@@ -7,7 +7,10 @@ module.exports = {
     args: [
       `--use-fake-device-for-media-stream`,
       `--use-fake-ui-for-media-stream`,
+      // Use the generated MJPEG for fake video
       `--use-file-for-fake-video-capture=./__tests__/e2e/setup/camera.mjpeg`,
+      // Use a generated WAV for fake audio (path relative to project root)
+      `--use-file-for-fake-audio-capture=./__tests__/e2e/setup/mic.wav`,
       '--window-size=2540,1080',
     ],
   },
