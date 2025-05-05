@@ -128,7 +128,7 @@
     socket.on('error', async () => {
       history.replaceState(null, '', window.location.origin + window.location.pathname);
       const app = webRTCApp.getApp();
-      if (app.config['config-loader'] === 'client') {
+      if (getAllConfig()['config-loader'] === 'client') {
         windowLoader = clientWindowLoader;
       }
       windowLoader();
@@ -166,7 +166,7 @@
       let cid: string; // Add type for cid
       cid = await webRTCApp.getOffer(async (candidate: RTCIceCandidateInit | null) => { // Add type for candidate
         if (Date.now() - now > 10 * 1000) { return; }
-        // const app = webRTCApp.getApp(); // No longer needed for client access
+        const app = webRTCApp.getApp(); // No longer needed for client access
         const client = getDirectClient(cid); // Get client from store
         const sdp = client?.pc?.localDescription?.sdp;
         if (sdp) {
@@ -179,8 +179,8 @@
       }, {sid: ''});
       
       const bc = new BroadcastChannel("manual_rtc");
-      // const app = webRTCApp.getApp(); // No longer needed for client access
-      // app.bc = bc; // Assigning to app object might be unnecessary if bc is only used here
+      const app = webRTCApp.getApp(); // No longer needed for client access
+      app.bc = bc; // Assigning to app object might be unnecessary if bc is only used here
       bc.onmessage = async (event) => {
         let data = event.data;
         const answer = await decompress(data.trim());
@@ -266,12 +266,14 @@
   
   // Update acceptHandler signature to match the event detail type (cid can be null)
   const acceptHandler = async (cid: string | null, pasteValue: string) => { 
+    console.log("MIEMIE", cid, pasteValue)
     if (!pasteValue || !cid) return; // Add check for null cid
     
     let data = pasteValue;
     const answer = await decompress(data.trim());
     // const app = webRTCApp.getApp(); // No longer needed for client access
     const client = getDirectClient(cid); // Get client from store
+    console.log(client)
     client?.pc?.setRemoteDescription({
       type: "answer",
       sdp: answer.trim() + '\n'
@@ -298,7 +300,7 @@
 
 <main class="flex-1 flex">
   <MediaArea on:hangup={handleHangup} />
-  <ControlPanel {webRTCApp} on:toggleConfig={toggleConfigOverlay} />
+  <ControlPanel on:toggleConfig={toggleConfigOverlay} />
 </main>
 
 <CopyOverlay 

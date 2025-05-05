@@ -1,13 +1,12 @@
 import { mount } from 'svelte';
 import App from './App.svelte';
 import { WebRTCApp } from './lib/webrtc/WebRTCApp.js';
-import { getConfig } from './lib/utils/config.js';
 
 // Make WebRTCApp available globally
 window.WebRTCApp = WebRTCApp;
 
 // Create a single instance of the app
-const webRTCApp = new WebRTCApp(getConfig());
+const webRTCApp = new WebRTCApp();
 window.webRTCApp = webRTCApp;
 
 // Expose it to the window for legacy code that might need it

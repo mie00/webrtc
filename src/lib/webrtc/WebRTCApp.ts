@@ -11,6 +11,7 @@ import {
   getAllDirectClients,
   getAllClientCids
 } from '../../stores/connectionStore.js'; // Adjust path if needed
+import { getAllConfig } from '../../stores/configStore.js';
 
 
 // Type definitions for local use

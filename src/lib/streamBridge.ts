@@ -35,11 +35,6 @@ let audioProcessingContexts: Record<string, AudioNodes | null> = {};
  * Initialize the stream module with the app object
  */
 export function streamInit(originalApp: App): void {
-  // REMOVE const app = originalApp as AppWithStreamConfig;
-  // REMOVE window.app = app;
-
-  // REMOVE app.streamConfig initialization
-
   // Set up handlers for stream events
   originalApp.nego_handlers['stream.end'] = (data: { stream: string }, cid: string) => {
     const streamId = normalizeStreamId(data.stream);

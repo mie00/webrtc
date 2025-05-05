@@ -1,10 +1,10 @@
 {
   "extends": "@tsconfig/svelte/tsconfig.json",
   "compilerOptions": {
-    "target": "ESNext",
     "useDefineForClassFields": true,
     "module": "NodeNext",
-    "moduleResolution": "NodeNext", // Add this line
+    "target": "ESNext",
+    "moduleResolution": "NodeNext",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "sourceMap": true,
@@ -12,7 +12,6 @@
     "forceConsistentCasingInFileNames": true,
     "strictNullChecks": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext", "WebWorker"],
-    "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
       "$lib": ["src/lib"],

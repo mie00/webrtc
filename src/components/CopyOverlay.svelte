@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getAllDirectClients } from '../stores/connectionStore.js';
   import { createEventDispatcher, onMount } from 'svelte';
   
   // Props
@@ -77,11 +78,11 @@
     // Ensure the dispatched object matches the AcceptEventDetail interface
     const detail: AcceptEventDetail = {
       pasteValue,
-      cid: window.app?.bc ? Object.keys(window.app.clients)[0] : null 
+      cid: window.app?.bc ? Object.keys(getAllDirectClients())[0] : null 
     };
     dispatch('accept', detail);
   }
-  
+
   function handleJoin() {
     dispatch('join');
   }
@@ -99,12 +100,12 @@
       <button on:click={handleCopy}
         class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">{copyButtonText}</button>
     {/if}
+    {#if showPasteText}
+      <textarea bind:value={pasteValue} class="bg-gray-200 px-4 py-2 rounded-md break-all block mt-2"></textarea>
+    {/if}
     {#if showAcceptButton}
       <button on:click={handleAccept}
         class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Accept</button>
-    {/if}
-    {#if showPasteText}
-      <textarea bind:value={pasteValue} class="bg-gray-200 px-4 py-2 rounded-md break-all block mt-2"></textarea>
     {/if}
     {#if showJoinButton}
       <button on:click={handleJoin} id="test-join"

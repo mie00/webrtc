@@ -2,7 +2,7 @@
   "compilerOptions": {
     "composite": true,
     "skipLibCheck": true,
-    "module": "ESNext",
+    "module": "NodeNext",
     "moduleResolution": "NodeNext" // Change this to NodeNext
   },
   "include": ["vite.config.js"]

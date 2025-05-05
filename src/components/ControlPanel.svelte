@@ -1,14 +1,9 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, afterUpdate } from 'svelte'; // Import onDestroy and afterUpdate
-  import { tweened } from 'svelte/motion';
-  import type { WebRTCApp } from '../lib/webrtc/WebRTCApp.js';
   import { connectionStore, type ConnectionState } from '../stores/connectionStore.js';
   import { configStore } from '../stores/configStore.js'; // Import configStore
   import { chatStore, type ChatState } from '../lib/chatBridge.js';
   import { fileStore, type FileState, type FileTransfer } from '../lib/fileBridge.js';
-
-  // Props
-  export let webRTCApp: WebRTCApp;
 
   // --- Types for Combined Feed ---
   interface FeedItem {
