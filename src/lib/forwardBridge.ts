@@ -334,16 +334,17 @@ export const toggleForwardHandler = async (): Promise<void> => {
       logElement.classList.add('w-full', 'max-h-screen', 'bg-white', 'overflow-x-hidden', 'overflow-y-scroll');
     }
   } else {
-    for (const clientId in forwardApp.clients) {
-      const client = forwardApp.clients[clientId] as ForwardClient;
-      if (client.forward) {
-        client.forward.send(JSON.stringify({ 
-          type: "offer.end", 
-          host: state.allowedHost 
+    // Send offer.end to clients from store
+    for (const clientId in clients) {
+      const client = clients[clientId] as ForwardClient;
+      if (client.forward && client.forward.readyState === 'open') {
+        client.forward.send(JSON.stringify({
+          type: "offer.end",
+          host: state.allowedHost // Use host from store state
         }));
       }
     }
-    
+
     const logElement = document.getElementById(`log-${state.allowedHost}`);
     if (logElement) logElement.remove();
     
