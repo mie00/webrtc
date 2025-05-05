@@ -4,7 +4,7 @@ module.exports = {
   launch: {
     headless: process.env.DEBUG_WAIT?false:'new', // Set to false to run in non-headless mode
     slowMo: 50, // Optional: Slow down operations to observe better
-    args: ['--window-size=1920,1080'], // Optional: Set window size
+    args: ['--window-size=2540,1080'], // Optional: Set window size
   },
   maxWorkers: 2,
   // Using jest-puppeteer preset is often simpler for E2E with Puppeteer

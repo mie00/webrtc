@@ -26,11 +26,13 @@ interface TestCase {
 // Define test cases
 const testCases = [
     { description: '0 Bytes', sizeBytes: 0, fileName: 'test-0B.bin' },
-    // { description: '1 Bytes', sizeBytes: 1, fileName: 'test-1B-1.bin' },
-    // { description: '1 Bytes again', sizeBytes: 1, fileName: 'test-1B-2.bin' },
-    // { description: '100 Bytes', sizeBytes: 100, fileName: 'test-100B.bin' },
-    // { description: '1 MB', sizeBytes: 1 * 1024 * 1024, fileName: 'test-1MB.bin' },
+    { description: '1 Bytes', sizeBytes: 1, fileName: 'test-1B-1.bin' },
+    { description: '1 Bytes again', sizeBytes: 1, fileName: 'test-1B-2.bin' },
+    { description: '100 Bytes', sizeBytes: 100, fileName: 'test-100B.bin' },
+    { description: '1 MB', sizeBytes: 1 * 1024 * 1024, fileName: 'test-1MB.bin' },
+    // TODO: fix
     // { description: '100 MB', sizeBytes: 100 * 1024 * 1024, fileName: 'test-100MB.bin' },
+    // { description: '512 MB', sizeBytes: 512 * 1024 * 1024, fileName: 'test-512MB.bin' }, // Uncomment carefully - very slow!
     // { description: '1 GB', sizeBytes: 1 * 1024 * 1024 * 1024, fileName: 'test-1GB.bin' }, // Uncomment carefully - very slow!
 ];
 
@@ -120,8 +122,8 @@ describe('WebRTC File Transfer E2E Test (Multiple Sizes)', () => {
         const filePath = path.join(TEST_FILES_DIR, testCase.fileName);
         // Determine timeout multiplier (more time for larger files)
         let timeoutMultiplier = 1;
-        if (testCase.sizeBytes > 10 * 1024 * 1024) timeoutMultiplier = 10; // 10x for >10MB
-        if (testCase.sizeBytes > 500 * 1024 * 1024) timeoutMultiplier = 20; // 20x for >500MB
+        if (testCase.sizeBytes > 10 * 1024 * 1024) timeoutMultiplier = 8;
+        if (testCase.sizeBytes > 500 * 1024 * 1024) timeoutMultiplier = 16;
 
         preparedTestCases.push({
             ...testCase,

@@ -120,7 +120,6 @@ export function setupFileChannel(app: App, cid: string): void {
           status: 'receiving'
         });
       }
-      console.log(e.data)
       if (e.data.byteLength || e.data.size) {
         // Subsequent messages contain file chunks
         app.clients[cid].file_stuff.segments.push(e.data);
@@ -135,7 +134,6 @@ export function setupFileChannel(app: App, cid: string): void {
           status: 'receiving'
         });
       }
-      console.log("MMMAAAAAAAAA", app.clients[cid].file_stuff.remaining_size)
       // Check if file is complete
       if (app.clients[cid].file_stuff.remaining_size === 0) {
         const blob = new Blob(app.clients[cid].file_stuff.segments, { type: app.clients[cid].file_stuff.type });
@@ -254,7 +252,7 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
   const DEFAULT_SEND_CHUNK_SIZE = 16 * 1024;    // 16KB default
   const MAX_SEND_CHUNK_SIZE = 1 * 1024 * 1024;      // Cap at 1MB for safety/performance
   const DEFAULT_READ_CHUNK_SIZE = 1 * 1024 * 1024; // Read 1MB chunks from the file
-  const HIGH_WATER_MARK = 1 * 1024 * 1024;    // Pause sending if buffered amount exceeds 1MB (tune as needed)
+  const HIGH_WATER_MARK = 0.125 * 1024 * 1024;    // Pause sending if buffered amount exceeds 1MB (tune as needed)
 
   // Determine dynamic SEND_CHUNK_SIZE based on SDP
   let SEND_CHUNK_SIZE = DEFAULT_SEND_CHUNK_SIZE;

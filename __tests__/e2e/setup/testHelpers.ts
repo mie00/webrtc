@@ -11,7 +11,7 @@ export const FILE_INPUT_SELECTOR = '#file-upload'; // Assuming this targets the 
 // We will use text-based selectors directly in the test.
 
 
-export const PUPPETEER_TIMEOUT = 30000;
+export const PUPPETEER_TIMEOUT = 3000;
 export const SERVER_STARTUP_TIMEOUT = 45000;
 export const JEST_TIMEOUT = SERVER_STARTUP_TIMEOUT + PUPPETEER_TIMEOUT + 20000; // Adjusted timeout
 

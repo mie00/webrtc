@@ -15,7 +15,7 @@ class CustomPuppeteerEnvironment extends PuppeteerEnvironment {
     }
 
     async teardown() {
-        await envTeardown.bind(this)();
+        await envTeardown.call(this);
         await super.teardown();
     }
 }
