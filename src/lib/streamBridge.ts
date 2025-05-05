@@ -36,11 +36,11 @@ export function streamInit(originalApp: App): void {
   const app = originalApp as AppWithStreamConfig;
   // Store a reference to the app in the window for backward compatibility
   window.app = app;
-  
+
   // Initialize app properties if they don't exist
-  app.streams = app.streams || {};
-  app.streamConfig = app.streamConfig || {};
-  
+  // app.streams = app.streams || {}; // Removed: Store is the source of truth
+  app.streamConfig = app.streamConfig || {}; // Keep this for now if needed by non-refactored parts
+
   // Set up handlers for stream events
   app.nego_handlers['stream.end'] = (data: { stream: string }, cid: string) => {
     const streamId = normalizeStreamId(data.stream);
@@ -113,19 +113,26 @@ export function setupTrackHandler(app: App, cid: string): void {
       // Remove from enhanced store structure
       removeRemoteStream(cid, targetId);
     };
-    
+
     // Forward to other clients
     for (let cid2 of Object.keys(app.clients)) {
       if (cid == cid2) continue;
       app.clients[cid2].pc?.addTrack(ev.track, ev.streams[0]);
     }
   });
-  
-  // Add existing streams to new client
-  Object.entries(app.streams || {}).forEach(([_, stream]) => {
-    stream.getTracks().forEach(track => {
-      app.clients[cid].pc?.addTrack(track, stream);
-    });
+
+  // Add existing LOCAL streams to new client
+  const state = getStreamState();
+  Object.values(state.localStreams).forEach((localStreamData) => {
+    if (localStreamData.active) { // Only add active streams
+        localStreamData.stream.getTracks().forEach(track => {
+            try {
+                app.clients[cid].pc?.addTrack(track, localStreamData.stream);
+            } catch (e) {
+                console.error("Error adding track to new client:", e, track, localStreamData.stream);
+            }
+        });
+    }
   });
 }
 
@@ -216,12 +223,12 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
       }
     }
   }
-  
+
   if (stream) {
-    // Store in app object for backward compatibility
-    app.streams = app.streams || {};
-    app.streams[changed] = stream;
-    
+    // Store in app object for backward compatibility - REMOVED
+    // app.streams = app.streams || {};
+    // app.streams[changed] = stream;
+
     // Map the stream type
     let streamType: StreamType = 'custom';
     if (changed === 'audio') streamType = 'audio';
@@ -232,7 +239,8 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
     // Add to enhanced store structure
     addLocalStream(changed, stream, streamType);
   } else {
-    // If the stream was removed, remove it from our enhanced store too
+    // If the stream was removed (e.g., toggled off), remove it from our enhanced store too
+    // This case might be handled better by destroyLocalStream, but keep for completeness
     removeLocalStream(changed);
   }
 };
@@ -241,15 +249,17 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
  * Destroy a local stream
  */
 export const destroyLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (instant: number) => void): Promise<void> => {
-  const app = window.app as AppWithStreamConfig;
-  
-  if (app.streams && app.streams[changed]) {
-    // Stop all tracks
-    tearDownStream(app.streams[changed]);
-    
-    // Remove from app object
-    delete app.streams[changed];
-    
+  const app = window.app as AppWithStreamConfig; // Keep access to app for tearDownStream context if needed
+  const state = getStreamState(); // Get state from store
+  const localStreamData = state.localStreams[changed];
+
+  if (localStreamData) {
+    // Stop all tracks using the utility function
+    await tearDownStream(localStreamData.stream); // Pass the actual stream
+
+    // Remove from app object - REMOVED
+    // delete app.streams[changed];
+
     // Handle audio processing if needed
     if (changed === 'audio' && audioCb) {
       stopProcessingAudio(app as AudioProcessingApp);
