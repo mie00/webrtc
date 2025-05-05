@@ -221,7 +221,6 @@ export class WebRTCApp {
     // participants are managed by the store
     // clients are managed by the store
     this.app.cleanups = {};
-    // this.app.clients = {}; // Remove this line
     this.app.inited = true;
     this.app.nego_messages = {};
 

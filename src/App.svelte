@@ -89,7 +89,8 @@
         socket.emit('candidate', sid, JSON.stringify(candidate));
       }, {sid});
       const app = webRTCApp.getApp();
-      const sdp = app.clients[cid].pc?.localDescription?.sdp;
+      const client = getDirectClient(cid); // Get client from store
+      const sdp = client?.pc?.localDescription?.sdp;
       if (sdp) {
         console.log("sending an offer", sid, sdp);
         socket.emit('offer', sid, sdp);

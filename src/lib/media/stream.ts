@@ -3,7 +3,7 @@
 
 import { getAllConfig } from '../../stores/configStore.js';
 import { getStreamState } from '../../stores/streamStore.js'; // Import store getter
-
+import { getAllDirectClients } from '../../stores/connectionStore.js';
 // Use type assertion to handle vendor prefixes
 window.AudioContext = window.AudioContext || (window as any).webkitAudioContext;
 
@@ -62,7 +62,7 @@ function stopProcessingAudio(nodes: AudioNodes | null): void {
 }
 
 const tearDownStream = async (stream: MediaStream): Promise<void> => {
-    const clients = window.webRTCApp.getApp().clients; // Get clients via webRTCApp
+    const clients = getAllDirectClients(); // Get clients via webRTCApp
     stream.getTracks().forEach(function (track) {
         track.stop();
         track.dispatchEvent(new Event("ended"));
@@ -82,7 +82,7 @@ const tearDownStream = async (stream: MediaStream): Promise<void> => {
 };
 
 const setupTrack = (track: MediaStreamTrack, stream: MediaStream, priority: RTCPriorityType, contentHint?: string, simulcast?: boolean): void => {
-    const clients = window.webRTCApp.getApp().clients; // Get clients via webRTCApp
+    const clients = getAllDirectClients(); // Get clients via webRTCApp
     if (contentHint && 'contentHint' in track) {
         track.contentHint = contentHint;
     }
