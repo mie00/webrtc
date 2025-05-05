@@ -2,6 +2,7 @@
 /// <reference path="../../../types/global.d.ts" />
 
 import { getAllConfig } from '../../stores/configStore.js';
+import { getStreamState } from '../../stores/streamStore.js'; // Import store getter
 
 // Use type assertion to handle vendor prefixes
 window.AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -10,17 +11,26 @@ function normalizeStreamId(id: string): string {
     return id.replace('{', '').replace('}', '');
 }
 
-interface AudioProcessingApp extends AppWithStreamConfig {
-    context?: AudioContext;
-    script?: ScriptProcessorNode;
-    mic?: MediaStreamAudioSourceNode;
+// Define a type for the returned audio processing objects
+interface AudioNodes {
+    context: AudioContext;
+    script: ScriptProcessorNode;
+    mic: MediaStreamAudioSourceNode;
 }
 
-function processAudio(app: AudioProcessingApp, stream: MediaStream, cb: (instant: number) => void): void {
-    app.context = new window.AudioContext();
-    app.script = app.context.createScriptProcessor(2048, 1, 1);
-    app.script.onaudioprocess = function (event) {
-        if (app.streamConfig && !app.streamConfig.audio) {
+// REMOVE AppWithStreamConfig and AudioProcessingApp interfaces
+
+function processAudio(stream: MediaStream, cb: (instant: number) => void): AudioNodes | null {
+    const streamConfig = getStreamState().streamConfig;
+    if (!streamConfig.audio) {
+        return null; // Don't process if audio is disabled in config
+    }
+
+    const context = new window.AudioContext();
+    const script = context.createScriptProcessor(2048, 1, 1);
+    script.onaudioprocess = function (event) {
+        // Re-check config in case it changed
+        if (!getStreamState().streamConfig.audio) {
             return;
         }
         const input = event.inputBuffer.getChannelData(0);
@@ -36,29 +46,33 @@ function processAudio(app: AudioProcessingApp, stream: MediaStream, cb: (instant
         const instant = Math.sqrt(Math.sqrt(sum / input.length)) * 100;
         cb(instant);
     };
-    app.mic = app.context.createMediaStreamSource(stream);
-    app.mic.connect(app.script);
-    app.script.connect(app.context.destination);
+    const mic = context.createMediaStreamSource(stream);
+    mic.connect(script);
+    script.connect(context.destination);
+
+    return { context, script, mic };
 }
 
-function stopProcessingAudio(app: AudioProcessingApp): void {
-    if (app.mic) app.mic.disconnect();
-    if (app.script) app.script.disconnect();
-    app.mic = undefined;
-    app.script = undefined;
-    app.context = undefined;
+function stopProcessingAudio(nodes: AudioNodes | null): void {
+    if (!nodes) return;
+    const { context, script, mic } = nodes;
+    if (mic) mic.disconnect();
+    if (script) script.disconnect();
+    // context?.close(); // Closing context might be too aggressive if reused
 }
 
 const tearDownStream = async (stream: MediaStream): Promise<void> => {
+    const clients = window.webRTCApp.getApp().clients; // Get clients via webRTCApp
     stream.getTracks().forEach(function (track) {
         track.stop();
         track.dispatchEvent(new Event("ended"));
-        for (var client of Object.values(window.app.clients) as WebRTCClient[]) {
+        for (var client of Object.values(clients) as WebRTCClient[]) { // Use clients variable
             client.pc?.getTransceivers().forEach((transceiver: RTCRtpTransceiver) => {
                 if (transceiver.sender.track?.id === track.id) {
                     transceiver.stop();
                 }
             });
+            // Assuming sendNego is available on window.webRTCApp
             window.webRTCApp.sendNego(client, {
                 type: "stream.end",
                 stream: normalizeStreamId(stream.id),
@@ -68,11 +82,11 @@ const tearDownStream = async (stream: MediaStream): Promise<void> => {
 };
 
 const setupTrack = (track: MediaStreamTrack, stream: MediaStream, priority: RTCPriorityType, contentHint?: string, simulcast?: boolean): void => {
+    const clients = window.webRTCApp.getApp().clients; // Get clients via webRTCApp
     if (contentHint && 'contentHint' in track) {
-        // TODO: make configurable
         track.contentHint = contentHint;
     }
-    for (var client of Object.values(window.app.clients) as WebRTCClient[]) {
+    for (var client of Object.values(clients) as WebRTCClient[]) { // Use clients variable
         client.pc?.addTransceiver(track, {
             streams: [stream], sendEncodings: [
                 { priority: priority, rid: "o" },
@@ -93,19 +107,9 @@ const setupStream = (stream: MediaStream, priority: RTCPriorityType, contentHint
     });
 };
 
-interface StreamConfig {
-    audio?: boolean;
-    video?: boolean;
-    screen?: boolean;
-    local?: boolean;
-    videoStream?: MediaStream;
-    videoNode?: HTMLVideoElement;
-}
+// setupStream remains the same as it calls setupTrack
 
-interface AppWithStreamConfig extends App {
-    streamConfig: StreamConfig;
-}
-
+// REMOVE StreamConfig interface
 
 // Export functions for use in other modules
 export {
@@ -115,6 +119,6 @@ export {
     tearDownStream,
     setupTrack,
     setupStream,
-    type AppWithStreamConfig,
-    type AudioProcessingApp,
+    type AudioNodes, // Export the new type
+    // REMOVE AppWithStreamConfig, AudioProcessingApp exports
 };

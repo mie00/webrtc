@@ -15,8 +15,8 @@ import {
 } from '../stores/configStore.js';
 import { get } from 'svelte/store';
 import {
-  type AppWithStreamConfig,
-  type AudioProcessingApp,
+  // REMOVE AppWithStreamConfig, AudioProcessingApp imports
+  type AudioNodes, // Import new type
   normalizeStreamId,
   setupStream,
   processAudio,
@@ -27,7 +27,8 @@ import {
 // Export background utilities
 import { backgroundChange } from './utils/background.js';
 
-// This module serves as a bridge between the WebRTC app and Svelte components
+// Module-level storage for audio processing contexts/nodes
+let audioProcessingContexts: Record<string, AudioNodes | null> = {};
 
 /**
  * Initialize the stream module with the app object
@@ -96,8 +97,11 @@ export function streamInit(originalApp: App): void {
 /**
  * Set up track handler for a client
  */
-export function setupTrackHandler(app: App, cid: string): void {
-  app.clients[cid].pc?.addEventListener("track", async (ev: RTCTrackEvent) => {
+export function setupTrackHandler(app: App, cid: string): void { // Keep app parameter for now if needed elsewhere, or change to use window.webRTCApp directly
+  const client = window.webRTCApp.getApp().clients[cid]; // Get specific client
+  if (!client || !client.pc) return; // Add null check
+
+  client.pc.addEventListener("track", async (ev: RTCTrackEvent) => {
     console.log("got track event", ev);
 
     const streamId = normalizeStreamId(ev.streams[0].id);
@@ -230,10 +234,6 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
   }
 
   if (stream) {
-    // Store in app object for backward compatibility - REMOVED
-    // app.streams = app.streams || {};
-    // app.streams[changed] = stream;
-
     // Map the stream type
     let streamType: StreamType = 'custom';
     if (changed === 'audio') streamType = 'audio';
@@ -244,9 +244,13 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
     // Add to enhanced store structure
     addLocalStream(changed, stream, streamType);
   } else {
-    // If the stream was removed (e.g., toggled off), remove it from our enhanced store too
-    // This case might be handled better by destroyLocalStream, but keep for completeness
+    // If the stream was removed (e.g., toggled off), ensure it's removed from the store
     removeLocalStream(changed);
+    // Also clean up any associated audio context
+    if (changed === 'audio' && audioProcessingContexts[changed]) {
+        stopProcessingAudio(audioProcessingContexts[changed]);
+        delete audioProcessingContexts[changed];
+    }
   }
 };
 
@@ -254,23 +258,25 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
  * Destroy a local stream
  */
 export const destroyLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (instant: number) => void): Promise<void> => {
-  const app = window.app as AppWithStreamConfig; // Keep access to app for tearDownStream context if needed
-  const state = getStreamState(); // Get state from store
+  // REMOVE const app = window.app as AppWithStreamConfig;
+  const state = getStreamState();
   const localStreamData = state.localStreams[changed];
 
   if (localStreamData) {
     // Stop all tracks using the utility function
-    await tearDownStream(localStreamData.stream); // Pass the actual stream
+    await tearDownStream(localStreamData.stream);
 
-    // Remove from app object - REMOVED
-    // delete app.streams[changed];
-
-    // Handle audio processing if needed
-    if (changed === 'audio' && audioCb) {
-      stopProcessingAudio(app as AudioProcessingApp);
-      audioCb(0);
+    // Handle audio processing cleanup if needed
+    if (changed === 'audio') {
+      // Retrieve and stop the specific audio context
+      const audioNodes = audioProcessingContexts[changed];
+      stopProcessingAudio(audioNodes);
+      delete audioProcessingContexts[changed]; // Remove from tracking
+      if (audioCb) {
+        audioCb(0); // Reset visualization
+      }
     }
-    
+
     // Remove from store
     removeLocalStream(changed);
   }
