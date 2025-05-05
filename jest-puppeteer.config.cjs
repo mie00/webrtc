@@ -5,7 +5,9 @@ module.exports = {
     headless: process.env.DEBUG_WAIT?false:'new', // Set to false to run in non-headless mode
     slowMo: 50, // Optional: Slow down operations to observe better
     args: [
-      `--no-sandbox`,
+      '--mute-audio',
+      // Essential on macOS for the fake audio file:
+      process.platform === 'darwin' ? '--no-sandbox' : '',
       `--use-fake-device-for-media-stream`,
       `--use-fake-ui-for-media-stream`,
       // Use the generated MJPEG for fake video
