@@ -4,8 +4,9 @@ import { writable, get } from 'svelte/store';
 export interface ChatState {
   messages: Array<{
     text: string;
-    sender: string;
+    sender: string; // Display name
     timestamp: number;
+    cid?: string; // Added: CID of the sender (for received messages)
   }>;
 }
 
@@ -22,7 +23,8 @@ export function getChatState() {
   return get(chatStore);
 }
 
-export function addMessage(text: string, sender: string): void {
+// Add optional cid parameter
+export function addMessage(text: string, sender: string, cid?: string): void {
   chatStore.update(state => ({
     ...state,
     messages: [
@@ -63,17 +65,17 @@ export function setupChatChannel(app: App, cid: string): void {
         const data = JSON.parse(e.data);
         if (data.type === 'chat') {
           // Determine sender name for storage. If the received sender is "You",
-          // use "Peer" instead to avoid confusion with the local user.
-          const senderNameToStore = data.sender === 'You' ? 'Peer' : data.sender;
-          // Add to store
-          addMessage(data.message, senderNameToStore);
+          // use the actual sender name received, or fallback.
+          const senderName = data.sender || 'Peer'; // Use received name or fallback
+          // Add to store with sender's CID
+          addMessage(data.message, senderName, cid);
         } else {
-          // Legacy format or unknown format
-          addMessage(e.data, 'Peer'); // Keep 'Peer' for legacy
+          // Legacy format or unknown format - No CID available
+          addMessage(e.data, 'Peer (Legacy)'); // Indicate legacy format
         }
       } catch (err) {
-        // Legacy format (plain text)
-        addMessage(e.data, 'Peer');
+        // Legacy format (plain text) - No CID available
+        addMessage(e.data, 'Peer (Legacy)');
       }
     };
   }

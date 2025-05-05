@@ -9,6 +9,9 @@ export interface FileTransfer {
   size: number;
   progress: number;
   status: 'sending' | 'receiving' | 'complete' | 'error';
+  timestamp: number; // Added for sorting
+  senderCid?: string; // Added: CID of the sender (for received files)
+  senderName?: string; // Added: Display name of the sender (for received files)
   url?: string;
   error?: string;
 }
@@ -110,14 +113,23 @@ export function setupFileChannel(app: App, cid: string): void {
         app.clients[cid].file_stuff.remaining_size = fileData.size;
         app.clients[cid].file_stuff.id = id;
 
-        // Add to store
+        // Attempt to get sender name from app config (adjust path if needed)
+        // Assuming app.clients[cid] might hold peer-specific config or name
+        // Fallback to CID if name isn't readily available.
+        // TODO: Verify the correct way to access peer's user-name if available.
+        const senderName = app.clients[cid]?.config?.['user-name'] || cid; // Example path, adjust as needed
+
+        // Add to store with timestamp and sender info
         addFileTransfer({
           id,
           name: fileData.name,
           type: fileData.type,
           size: fileData.size,
-          progress: fileData.size===0 ? 100 : 0,
-          status: 'receiving'
+          progress: fileData.size === 0 ? 100 : 0,
+          status: 'receiving',
+          timestamp: Date.now(), // Add timestamp on receive
+          senderCid: cid,        // Add sender CID
+          senderName: senderName // Add sender Name (or CID fallback)
         });
       }
       if (e.data.byteLength || e.data.size) {
@@ -167,7 +179,8 @@ export async function sendFile(file: File): Promise<void> { // Make async
     type: file.type,
     size: file.size,
     progress: 0,
-    status: 'sending'
+    status: 'sending',
+    timestamp: Date.now() // Add timestamp on creation
   });
 
   // Removed legacy DOM injection: WebRTCApp.log(...)

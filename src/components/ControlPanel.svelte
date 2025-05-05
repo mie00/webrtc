@@ -17,6 +17,7 @@
     timestamp: number; // For sorting
     text?: string; // For chat
     transfer?: FileTransfer; // For files
+    cid?: string; // Added: Original sender CID (if available)
   }
 
   const dispatch = createEventDispatcher();
