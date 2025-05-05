@@ -182,6 +182,7 @@
       const app = webRTCApp.getApp(); // No longer needed for client access
       app.bc = bc; // Assigning to app object might be unnecessary if bc is only used here
       bc.onmessage = async (event) => {
+        console.log("got a new message from boradcast channel");
         let data = event.data;
         const answer = await decompress(data.trim());
         const client = getDirectClient(cid); // Get client from store
@@ -192,7 +193,6 @@
         // Maybe close bc after receiving the answer?
         // bc.close();
       };
-      
       // No need for DOM manipulation here since we're using Svelte events
       // The accept button click is handled by the on:accept event in the CopyOverlay component
     } else if (urlParams.get('answer')) {

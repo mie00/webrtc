@@ -78,7 +78,7 @@
     // Ensure the dispatched object matches the AcceptEventDetail interface
     const detail: AcceptEventDetail = {
       pasteValue,
-      cid: window.app?.bc ? Object.keys(getAllDirectClients())[0] : null 
+      cid: window.webRTCApp.app?.bc !== undefined ? Object.keys(getAllDirectClients())[0] : null 
     };
     dispatch('accept', detail);
   }
