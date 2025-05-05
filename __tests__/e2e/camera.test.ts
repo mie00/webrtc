@@ -2,8 +2,10 @@ import { describe, test, expect, jest, beforeAll, afterAll } from '@jest/globals
 import type { Page } from 'puppeteer';
 import { JEST_TIMEOUT } from './setup/testHelpers'; // Import helpers
 import QrCode from 'qrcode-reader';
-import Jimp from 'jimp';
+import { Jimp } from 'jimp';
+import {type Bitmap} from "@jimp/types";
 import { promisify } from 'util'; // To promisify qrCode.decode
+import { rejects } from 'assert';
 
 // --- Helper Function ---
 // Promisify the callback-based decode method
@@ -13,14 +15,32 @@ interface QrCodeResult {
   result: string;
   points: { x: number; y: number }[];
 }
-const decodeQrCode = promisify((bitmap: Jimp['bitmap'], cb: (err: Error | null, result: QrCodeResult | undefined) => void) => qr.decode(bitmap, cb));
+
+// convert qr.decode to a promise, qr.callback = the callback and then qr.decode is callled with the image only, not the cb since it's already assigned to qr.callback
+const decodeQrCode = async ( bitmap: Bitmap): Promise<QrCodeResult | null> => {
+    return new Promise((resolve, reject) => {
+        qr.callback = (err, value: QrCodeResult | null) => {
+            if (err || !value) {
+                rejects(err || "no value provided");
+            } else {
+                resolve(value)
+            }
+        };
+        qr.decode(bitmap);
+    });
+}
 
 async function takeScreenshotAndDecodeQR(page: Page): Promise<QrCodeResult | null> {
     console.log('Taking screenshot and attempting to decode QR code...');
     try {
         const screenshotBuffer = await page.screenshot({ type: 'png' });
+        console.log(' Screenshot taken, buffer size:', screenshotBuffer.length);
+        // Save the screenshot for debugging if needed
+        // fs.writeFileSync('./debug-screenshot.png', screenshotBuffer, { encoding: 'base64' });
         const image = await Jimp.read(screenshotBuffer);
+        console.log(' Screenshot read into Jimp image.');
         const result = await decodeQrCode(image.bitmap);
+        console .log(' QR code decoding attempt complete.');
         if (result) {
             console.log(`QR Code decoded: ${result.result}`);
             return { result: result.result, points: result.points };
@@ -82,6 +102,7 @@ describe('WebRTC Camera E2E Test', () => {
             throw error; // Re-throw to fail the test
         }
 
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
 
         // 3. Take first screenshot and decode QR code
         console.log('Taking first screenshot on Page B...');
@@ -115,25 +136,6 @@ describe('WebRTC Camera E2E Test', () => {
             console.log('Video turned off on Page A.');
         } catch (e) {
             console.warn("Could not find 'ON' video button to turn off video, maybe it failed to turn on?");
-        }
-    });
-
-    // Add more camera/video related tests here
-
-    // Optional: Add afterAll to ensure video is off if tests fail mid-way
-    afterAll(async () => {
-        // Attempt to turn off video on Page A if it's still on
-        try {
-            const videoButtonOnSelector = 'button.pointer-events-auto ::-p-text(🎥)';
-            // Use evaluate to check if the element exists without throwing
-            const isVideoOn = await pageA.evaluate((selector) => !!document.querySelector(selector), videoButtonOnSelector);
-            if (isVideoOn) {
-                console.log('Cleaning up: Turning off video on Page A in afterAll...');
-                await pageA.click(videoButtonOnSelector);
-            }
-        } catch (error) {
-            // Ignore errors during cleanup
-            console.warn('Could not ensure video cleanup in afterAll:', error);
         }
     });
 });
