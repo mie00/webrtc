@@ -10,7 +10,7 @@ import path, { dirname } from 'path';
 const AUDIO_DURATION_SECONDS = 5;
 const START_FREQ_HZ = 440; // A4 note
 const END_FREQ_HZ = 1000;
-const SAMPLE_RATE = 48000;
+const SAMPLE_RATE = 44100; // Standard CD quality sample rate
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const audioOutputPath = path.join(__dirname, 'setup', 'mic.wav'); // Output path in setup dir
@@ -37,7 +37,8 @@ describe('WebRTC Microphone E2E Test', () => {
             const chirpExpression = `sin(2*PI*(${START_FREQ_HZ}*t + (${END_FREQ_HZ}-${START_FREQ_HZ})/(2*${AUDIO_DURATION_SECONDS})*t*t))`;
             // Need to escape special characters like '*' and potentially ':' for the shell if not quoted properly.
             // Using single quotes around the expression for aevalsrc is generally safer.
-            const ffmpegCommand = `ffmpeg -y -f lavfi -i "aevalsrc='${chirpExpression}':s=${SAMPLE_RATE}:d=${AUDIO_DURATION_SECONDS}" -ar ${SAMPLE_RATE} ${audioOutputPath}`;
+            // Outputting Stereo (ac 2), 44.1kHz (ar ${SAMPLE_RATE}), 16-bit PCM (acodec pcm_s16le)
+            const ffmpegCommand = `ffmpeg -y -f lavfi -i "aevalsrc='${chirpExpression}':s=${SAMPLE_RATE}:d=${AUDIO_DURATION_SECONDS}" -ar ${SAMPLE_RATE} -ac 2 -acodec pcm_s16le ${audioOutputPath}`;
 
             console.log(`Executing: ${ffmpegCommand}`);
             execSync(ffmpegCommand);
