@@ -8,7 +8,8 @@ import { promisify } from 'util'; // To promisify qrCode.decode
 import { rejects } from 'assert';
 import { execSync } from 'child_process';
 import fs from 'fs/promises';
-import path from 'path';
+import { fileURLToPath } from 'url';
+import path, { dirname } from 'path';
 
 // --- Helper Function ---
 // Promisify the callback-based decode method
@@ -100,6 +101,8 @@ describe('WebRTC Camera E2E Test', () => {
     const videoFrames = 100; // Keep relatively low for faster generation
     const qrSize = 100;
     const qrContent = "book";
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
     const videoOutput = path.join(__dirname, 'setup', 'camera.mjpeg'); // Place in setup dir
     const tempFramesDir = path.join(__dirname, 'setup', 'temp_frames');
     const qrImagePath = path.join(tempFramesDir, 'qr.png');
