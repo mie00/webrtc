@@ -32,7 +32,8 @@ export function addMessage(text: string, sender: string, cid?: string): void {
       {
         text,
         sender,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        cid // Add the cid to the message object
       }
     ]
   }));
