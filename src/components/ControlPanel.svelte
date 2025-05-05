@@ -61,28 +61,27 @@
   // --- Create Combined Feed ---
   $: combinedFeed = (() => {
     const chatItems: FeedItem[] = chatState.messages.map((msg, i) => ({
-      id: `chat-${msg.timestamp}-${i}`, // Use timestamp and index for key
+      id: `chat-${msg.timestamp}-${i}`,
       type: 'chat',
-      sender: msg.sender,
+      sender: msg.sender, // Display name
       timestamp: msg.timestamp,
       text: msg.text,
+      cid: msg.cid, // Pass CID for chat messages
     }));
 
     const fileItems: FeedItem[] = Object.values(fileState.transfers).map(transfer => {
-      // Placeholder timestamp logic: Use current time or attempt parsing ID.
-      // A real timestamp property on FileTransfer would be much better.
-      let timestamp = Date.now(); // Fallback timestamp
-      // Example: If ID format allows timestamp extraction, do it here.
-      // e.g., const parsedTs = parseInt(transfer.id.split('-')[0]);
-      // if (!isNaN(parsedTs)) { timestamp = parsedTs; }
+      // Determine sender display name: Local user if sending, otherwise use stored senderName or fallback
+      const senderDisplayName = transfer.status === 'sending'
+        ? localUserName
+        : transfer.senderName || transfer.senderCid || 'Remote'; // Use name, fallback to CID, then 'Remote'
 
       return {
         id: `file-${transfer.id}`,
         type: 'file',
-        // Assume 'sending' means local user sent it. 'Remote' is a placeholder.
-        sender: transfer.status === 'sending' ? localUserName : 'Remote',
-        timestamp: timestamp, // Use placeholder timestamp for sorting
+        sender: senderDisplayName, // Use determined display name
+        timestamp: transfer.timestamp, // Use the timestamp from the transfer object
         transfer: transfer,
+        cid: transfer.senderCid, // Pass sender CID for files (will be undefined for local sends)
       };
     });
 
@@ -228,11 +227,14 @@
                 class="p-3 rounded-lg shadow max-w-xs lg:max-w-md break-words"
                 class:bg-blue-100={isLocalUser}
                 class:bg-gray-100={!isLocalUser}
+                title={item.cid ? `Sender CID: ${item.cid}` : `Sender: ${item.sender}`} <!-- Show CID in title if available -->
               >
-                <!-- Sender Name (Optional, uncomment if needed) -->
-                <!-- <p class="text-xs font-semibold mb-1" class:text-blue-800={isLocalUser} class:text-gray-600={!isLocalUser}>
-                  {isLocalUser ? 'You' : item.sender}
-                </p> -->
+                <!-- Display Sender Name for non-local items -->
+                {#if !isLocalUser}
+                  <p class="text-xs font-semibold mb-1 text-gray-600" title={item.cid ? `CID: ${item.cid}` : ''}>
+                    {item.sender} <!-- Display name (could be name, CID, or 'Remote') -->
+                  </p>
+                {/if}
 
                 {#if item.type === 'chat'}
                   <p class="text-sm">{item.text}</p>
