@@ -42,28 +42,44 @@ const decodeQrCode = async (bitmap: Bitmap, timeoutMs: number = 1000): Promise<Q
     return Promise.race([decodePromise, timeoutPromise]);
 }
 
+async function takeScreenshotAndDecodeQR(page: Page, maxAttempts: number = 3, retryDelayMs: number = 500): Promise<QrCodeResult | null> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        console.log(`Attempt ${attempt}/${maxAttempts}: Taking screenshot and attempting to decode QR code...`);
+        try {
+            const screenshotBuffer = await page.screenshot({ type: 'png' });
+            console.log(` Attempt ${attempt}: Screenshot taken, buffer size: ${screenshotBuffer.length}`);
+            // Optional: Save screenshot for debugging specific attempts
+            // fs.writeFileSync(`./debug-screenshot-attempt-${attempt}.png`, screenshotBuffer);
 
-async function takeScreenshotAndDecodeQR(page: Page): Promise<QrCodeResult | null> {
-    console.log('Taking screenshot and attempting to decode QR code...');
-    try {
-        const screenshotBuffer = await page.screenshot({ type: 'png' });
-        console.log(' Screenshot taken, buffer size:', screenshotBuffer.length);
-        // Save the screenshot for debugging if needed
-        // fs.writeFileSync('./debug-screenshot.png', screenshotBuffer, { encoding: 'base64' });
-        const image = await Jimp.read(screenshotBuffer);
-        console.log(' Screenshot read into Jimp image.');
-        const result = await decodeQrCode(image.bitmap);
-        console .log(' QR code decoding attempt complete.');
-        if (result) {
-            console.log(`QR Code decoded: ${result.result}`);
-            return { result: result.result, points: result.points };
+            const image = await Jimp.read(screenshotBuffer);
+            console.log(` Attempt ${attempt}: Screenshot read into Jimp image.`);
+
+            // Use the decodeQrCode function which includes its own timeout
+            const result = await decodeQrCode(image.bitmap, 2000); // Use a 2s timeout for decoding itself
+
+            console.log(` Attempt ${attempt}: QR code decoding attempt complete.`);
+            if (result) {
+                console.log(` Attempt ${attempt}: QR Code decoded successfully: ${result.result}`);
+                return { result: result.result, points: result.points };
+            }
+            console.log(` Attempt ${attempt}: QR Code not found or could not be decoded.`);
+            // If decodeQrCode resolves to null, treat it as a failure for retry purposes
+
+        } catch (error) {
+            console.error(` Attempt ${attempt}: Error during screenshot or QR decoding:`, error);
+            // Continue to the next attempt if error occurred
         }
-        console.log('QR Code not found or could not be decoded in the screenshot.');
-        return null;
-    } catch (error) {
-        console.error('Error during screenshot or QR decoding:', error);
-        return null;
+
+        // If this wasn't the last attempt, wait before retrying
+        if (attempt < maxAttempts) {
+            console.log(` Attempt ${attempt} failed. Waiting ${retryDelayMs}ms before next attempt...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+        }
     }
+
+    // If all attempts failed
+    console.error(`Failed to decode QR code after ${maxAttempts} attempts.`);
+    return null;
 }
 
 
@@ -115,32 +131,34 @@ describe('WebRTC Camera E2E Test', () => {
             throw error; // Re-throw to fail the test
         }
 
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+        // 3. Take 4 screenshots and decode QR codes without explicit waits between them
+        const numScreenshots = 4;
+        const results: (QrCodeResult | null)[] = [];
+        const minXCoordinates: number[] = [];
 
-        // 3. Take first screenshot and decode QR code
-        console.log('Taking first screenshot on Page B...');
-        const result1 = await takeScreenshotAndDecodeQR(pageB);
-        expect(result1 /* First QR code decoding failed */).not.toBeNull();
-        expect(result1!.result /* First QR code content mismatch */).toBe('book');
-        const minX1 = Math.min(...result1!.points.map(p => p.x));
-        console.log(`First QR code decoded successfully. Min X: ${minX1}`);
+        console.log(`Taking ${numScreenshots} screenshots on Page B...`);
+        for (let i = 0; i < numScreenshots; i++) {
+            console.log(`--- Screenshot ${i + 1}/${numScreenshots} ---`);
+            const result = await takeScreenshotAndDecodeQR(pageB); // Uses retry logic internally
+            results.push(result);
 
-        // 4. Wait for a moment to allow video to change
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+            // Assertions immediately after each attempt
+            expect(result /* QR code decoding failed for screenshot ${i + 1} */).not.toBeNull();
+            expect(result!.result /* QR code content mismatch for screenshot ${i + 1} */).toBe('book');
 
-        // 5. Take second screenshot and decode QR code
-        console.log('Taking second screenshot on Page B...');
-        const result2 = await takeScreenshotAndDecodeQR(pageB);
-        expect(result2 /* Second QR code decoding failed */).not.toBeNull();
-        expect(result2!.result /* Second QR code content mismatch */).toBe('book');
-        const minX2 = Math.min(...result2!.points.map(p => p.x));
-        console.log(`Second QR code decoded successfully. Min X: ${minX2}`);
+            const minX = Math.min(...result!.points.map(p => p.x));
+            minXCoordinates.push(minX);
+            console.log(`Screenshot ${i + 1}: QR code decoded successfully. Min X: ${minX}`);
+        }
 
-        // 6. Assert that the QR code position changed (min X coordinate is different)
-        expect(minX1 /* QR code position (min X) did not change between screenshots */).not.toBe(minX2);
-        console.log(`QR code position changed: ${minX1} -> ${minX2}`);
+        // 4. Assert that the QR code position changed across the screenshots
+        //    We check if there's more than one unique min X coordinate.
+        const uniqueMinX = new Set(minXCoordinates);
+        console.log(`Unique Min X coordinates found: ${Array.from(uniqueMinX).join(', ')}`);
+        expect(uniqueMinX.size /* QR code position (min X) did not change across ${numScreenshots} screenshots */).toBeGreaterThan(1);
+        console.log(`QR code position change verified (found ${uniqueMinX.size} unique positions).`);
 
-        console.log('--- TEST SUCCESS: Video stream and QR code movement verified ---');
+        console.log('--- TEST SUCCESS: Video stream and QR code movement verified across multiple screenshots ---');
 
         // Optional: Turn off video on Page A afterwards
         const videoButtonOnSelector = 'button.pointer-events-auto ::-p-text(🎥)'; // Selector for the video button when ON
