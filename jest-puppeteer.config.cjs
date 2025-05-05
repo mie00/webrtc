@@ -4,7 +4,12 @@ module.exports = {
   launch: {
     headless: process.env.DEBUG_WAIT?false:'new', // Set to false to run in non-headless mode
     slowMo: 50, // Optional: Slow down operations to observe better
-    args: ['--window-size=2540,1080'], // Optional: Set window size
+    args: [
+      `--use-fake-device-for-media-stream`,
+      `--use-fake-ui-for-media-stream`,
+      `--use-file-for-fake-video-capture=./__tests__/e2e/setup/camera.mjpeg`,
+      '--window-size=2540,1080',
+    ],
   },
   maxWorkers: 2,
   // Using jest-puppeteer preset is often simpler for E2E with Puppeteer
