@@ -1,6 +1,8 @@
 import { describe, test, expect, jest, beforeAll, afterAll } from '@jest/globals';
 import type { Page } from 'puppeteer';
-import { JEST_TIMEOUT } from './setup/testHelpers'; // Import helpers
+import { JEST_TIMEOUT } from './setup/testHelpers';
+import { standardSetup } from './setup/envSetup'; // Import standardSetup
+import { standardTeardown } from './setup/envTeardown'; // Import standardTeardown
 import { execSync } from 'child_process';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
@@ -226,12 +228,24 @@ describe('WebRTC Microphone E2E Test', () => {
             throw new Error(`Failed to generate test audio: ${error}`); // Fail fast
         }
 
-        // Retrieve pages created in globalSetup
-        pageA = globalThis.__PAGE_A__!;
-        pageB = globalThis.__PAGE_B__!;
+        // Run the standard setup
+        const setupResult = await standardSetup();
+        pageA = setupResult.pageA;
+        pageB = setupResult.pageB;
+    });
 
-        expect(pageA).toBeDefined();
-        expect(pageB).toBeDefined();
+    afterAll(async () => {
+        // Run the standard teardown first
+        await standardTeardown({ pageA, pageB });
+
+        // Then cleanup generated files
+        console.log('--- Cleaning up generated audio file ---');
+        try {
+            await fs.rm(audioOutputPath, { force: true });
+            console.log(`Removed audio file: ${audioOutputPath}`);
+        } catch (error) {
+            console.error('Error during audio file cleanup:', error);
+        }
     });
 
     test('should stream audio from Page A to Page B, verify frequencies, then verify Page A is muted', async () => {
@@ -318,13 +332,5 @@ describe('WebRTC Microphone E2E Test', () => {
 
     });
 
-    afterAll(async () => {
-        console.log('--- Cleaning up generated audio file ---');
-        try {
-            await fs.rm(audioOutputPath, { force: true });
-            console.log(`Removed audio file: ${audioOutputPath}`);
-        } catch (error) {
-            console.error('Error during audio file cleanup:', error);
-        }
-    });
+    // afterAll moved up to ensure teardown runs before file cleanup
 });

@@ -1,25 +1,25 @@
 import type { Page } from 'puppeteer';
-// Removed os and execSync as server is stopped globally
 
-export default async function envTeardown() {
+interface TeardownArgs {
+    pageA?: Page; // Make pages optional in case setup failed partially
+    pageB?: Page;
+}
+
+// No longer default export, accepts pages as arguments
+export async function standardTeardown({ pageA, pageB }: TeardownArgs): Promise<void> {
     // Keep debug wait if necessary
     if (process.env.DEBUG_WAIT) {
-        console.log('DEBUG_WAIT is set, keeping browser open until pageB is closed (or timeout)...');
+        console.log('DEBUG_WAIT is set, keeping pages open until timeout...');
         // Note: Teardown will close pages eventually. This wait might be less useful now.
         // Consider waiting for a specific condition or removing if teardown handles closure.
         // get how much seconds to wait from DEBUG_WAIT and failback to 1h
         const debugWaitSeconds = parseInt(process.env.DEBUG_WAIT) || 3600;
         await new Promise(resolve => setTimeout(resolve, debugWaitSeconds * 1000)); // Long wait for manual inspection
     }
-    // 'this' refers to the Jest environment instance
-    console.log('\n--- Environment E2E Teardown (Pages) ---');
+    console.log('\n--- Standard E2E Teardown (Pages) ---');
 
-    // --- 1. Close Pages ---
-    // Retrieve pages from the environment's global scope
-    const pageA = this.global.__PAGE_A__ as Page | undefined;
-    const pageB = this.global.__PAGE_B__ as Page | undefined;
-
-    console.log('Closing pages specific to this environment...');
+    // --- 1. Close Pages (passed as arguments) ---
+    console.log('Closing pages specific to this test suite...');
     try {
         // Check if page exists and is not already closed before attempting to close
         if (pageA && !pageA.isClosed()) {
@@ -36,15 +36,13 @@ export default async function envTeardown() {
          }
     } catch (error) {
         // Log specifically which page failed if possible
-        console.warn('Warning: Error closing pages during environment teardown:', error);
+        console.warn('Warning: Error closing pages during standard teardown:', error);
     }
 
-    // Clear environment-specific globals
-    this.global.__PAGE_A__ = undefined;
-    this.global.__PAGE_B__ = undefined;
+    // No need to clear globals as they weren't set by standardSetup
 
     // --- Server teardown is handled by globalTeardown.ts ---
 
-    // Note: Browser closing is handled by jest-puppeteer's environment teardown (super.teardown())
-    console.log('--- Environment E2E Teardown Complete ---');
+    // Note: Browser closing is handled by jest-puppeteer's environment teardown
+    console.log('--- Standard E2E Teardown Complete ---');
 }

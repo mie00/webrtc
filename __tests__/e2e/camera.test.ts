@@ -1,6 +1,8 @@
 import { describe, test, expect, jest, beforeAll, afterAll } from '@jest/globals';
 import type { Page } from 'puppeteer';
-import { JEST_TIMEOUT } from './setup/testHelpers'; // Import helpers
+import { JEST_TIMEOUT } from './setup/testHelpers';
+import { standardSetup } from './setup/envSetup'; // Import standardSetup
+import { standardTeardown } from './setup/envTeardown'; // Import standardTeardown
 import QrCode from 'qrcode-reader';
 import { Jimp } from 'jimp';
 import { type Bitmap } from "@jimp/types";
@@ -154,16 +156,31 @@ describe('WebRTC Camera E2E Test', () => {
             throw new Error(`Failed to generate test video: ${error}`); // Fail fast
         }
 
-        // Retrieve pages created in globalSetup
-        pageA = globalThis.__PAGE_A__!; // Use non-null assertion assuming setup succeeded
-        pageB = globalThis.__PAGE_B__!;
-
-        // Basic check that pages were passed correctly
-        expect(pageA).toBeDefined();
-        expect(pageB).toBeDefined();
-        expect(pageA.url()).toContain('http'); // Basic check
-        expect(pageB.url()).toContain('http'); // Basic check
+        // Run the standard setup
+        const setupResult = await standardSetup();
+        pageA = setupResult.pageA;
+        pageB = setupResult.pageB;
     });
+
+    afterAll(async () => {
+        // Run the standard teardown first
+        await standardTeardown({ pageA, pageB });
+
+        // Then cleanup generated files
+        console.log('--- Cleaning up generated video and temporary files ---');
+        try {
+            // Remove the generated video file
+            await fs.rm(videoOutput, { force: true });
+            console.log(`Removed video file: ${videoOutput}`);
+            // Remove the temporary frames directory and its contents
+            await fs.rm(tempFramesDir, { recursive: true, force: true });
+            console.log(`Removed temporary directory: ${tempFramesDir}`);
+        } catch (error) {
+            console.error('Error during cleanup:', error);
+            // Don't fail the test run for cleanup errors, but log them.
+        }
+    });
+
 
     test('should stream video from Page A to Page B and verify QR code movement', async () => {
         console.log('--- Starting Video Stream and QR Code Verification Test ---');
@@ -231,18 +248,5 @@ describe('WebRTC Camera E2E Test', () => {
         }
     });
 
-    afterAll(async () => {
-        console.log('--- Cleaning up generated video and temporary files ---');
-        try {
-            // Remove the generated video file
-            await fs.rm(videoOutput, { force: true });
-            console.log(`Removed video file: ${videoOutput}`);
-            // Remove the temporary frames directory and its contents
-            await fs.rm(tempFramesDir, { recursive: true, force: true });
-            console.log(`Removed temporary directory: ${tempFramesDir}`);
-        } catch (error) {
-            console.error('Error during cleanup:', error);
-            // Don't fail the test run for cleanup errors, but log them.
-        }
-    });
+    // afterAll moved up to ensure teardown runs before file cleanup
 });

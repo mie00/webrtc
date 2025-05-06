@@ -18,15 +18,19 @@ declare global {
     // These are set by jest-environment-puppeteer
     // These will be set by this envSetup
     var __PAGE_A__: Page | undefined;
-    var __PAGE_B__: Page | undefined;
+    var __PAGE_B__: Page | undefined; // This global var will no longer be set by envSetup
 }
 
+interface SetupResult {
+    pageA: Page;
+    pageB: Page;
+}
 
-export default async function envSetup() {
-    // 'this' refers to the Jest environment instance
-    console.log('\n--- Environment E2E Setup (Pages) ---');
+// No longer default export, and doesn't need 'this' context
+export async function standardSetup(): Promise<SetupResult> {
+    console.log('\n--- Standard E2E Setup (Pages & Connection) ---');
 
-    // --- 1. Get Server URL from Global Scope ---
+    // --- 1. Get Server URL from Global Scope (still needed from globalSetup) ---
     const serverUrl = globalThis.__SERVER_URL__;
     if (!serverUrl) {
         throw new Error("Server URL (__SERVER_URL__) not found in global scope. Ensure globalSetup ran successfully.");
@@ -83,10 +87,7 @@ export default async function envSetup() {
     // Store pages globally *after* connection is established
     // Note: Storing non-serializable objects like Page instances globally can be tricky.
     // jest-puppeteer handles the browser instance. For pages, it might be better
-    // to re-fetch them in tests if needed, but let's try storing them first.
-    // A common pattern is to store IDs or minimal info if full objects cause issues.
-    this.global.__PAGE_A__ = pageA;
-    this.global.__PAGE_B__ = pageB;
-
-    console.log('--- Global E2E Setup Complete ---');
+    // Return the created pages instead of storing globally
+    console.log('--- Standard E2E Setup Complete ---');
+    return { pageA, pageB };
 }

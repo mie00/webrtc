@@ -10,12 +10,12 @@ class CustomPuppeteerEnvironment extends PuppeteerEnvironment {
     }
 
     async setup() {
+        // envSetup is no longer called globally here
         await super.setup();
-        await envSetup.call(this);
     }
 
     async teardown() {
-        await envTeardown.call(this);
+        // envTeardown is no longer called globally here
         await super.teardown();
     }
 }

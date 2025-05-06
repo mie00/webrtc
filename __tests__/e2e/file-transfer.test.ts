@@ -1,16 +1,18 @@
 import { describe, test, beforeAll, afterAll, expect, jest } from '@jest/globals';
 import type { ElementHandle, Page } from 'puppeteer';
 import path, { dirname } from 'path';
-import fs from 'fs-extra'; // Using fs-extra for ensureDirSync and potentially async operations
+import fs from 'fs-extra';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import {
     FILE_INPUT_SELECTOR,
     PUPPETEER_TIMEOUT,
     JEST_TIMEOUT,
-    checkConnectionEstablished,
+    // checkConnectionEstablished, // No longer needed here, setup handles it
     calculateSHA256
-} from './setup/testHelpers'; // Assuming calculateSHA256 is exported from here
+} from './setup/testHelpers';
+import { standardSetup } from './setup/envSetup'; // Import standardSetup
+import { standardTeardown } from './setup/envTeardown'; // Import standardTeardown
 
 // --- Test Configuration ---
 const __filename = fileURLToPath(import.meta.url);
@@ -163,8 +165,8 @@ describe('WebRTC File Transfer E2E Test (Multiple Sizes)', () => {
                 console.error(`Error deleting test files directory: ${error}`);
             }
         }
-        // Note: Pages are closed by envTeardown
     });
+
     // Use test.each to run the transfer logic for each prepared test case
     test.each(preparedTestCases)(
         'should successfully transfer: $description ($fileName)',
