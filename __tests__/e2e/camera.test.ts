@@ -204,8 +204,6 @@ describe('WebRTC Camera E2E Test', () => {
             await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (error) {
             console.error("Remote video element did not appear on Page B within timeout.");
-            // Capture final state for debugging
-            await pageB.screenshot({ path: 'debug_screenshot_pageB_no_video.png' });
             throw error; // Re-throw to fail the test
         }
 
