@@ -7,6 +7,7 @@ import { execSync } from 'child_process';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import path, { dirname } from 'path';
+import { TOGGLE_AUDIO_BUTTON_SELECTOR } from './setup/testHelpers'; // Import selector
 
 // --- Constants ---
 const AUDIO_DURATION_SECONDS = 6;
@@ -251,19 +252,16 @@ describe('WebRTC Microphone E2E Test', () => {
     test('should stream audio from Page A to Page B, verify frequencies, then verify Page A is muted', async () => {
         console.log('--- Starting Audio Stream, Frequency Verification, and Mute Check Test ---');
 
-        // Define selectors once
-        const audioButtonSelectorOff = 'button.pointer-events-auto ::-p-text(🔇)'; // Selector for the audio button when OFF
-        const audioButtonSelectorOn = 'button.pointer-events-auto ::-p-text(🎤)'; // Selector for the audio button when ON
-
-        // 1. Enable audio on Page A
-        console.log('Waiting for audio button on Page A...');
-        await pageA.waitForSelector(audioButtonSelectorOff, { timeout: 5000 });
+        // 1. Enable audio on Page A using the test ID selector
+        console.log(`Waiting for audio button (${TOGGLE_AUDIO_BUTTON_SELECTOR}) on Page A...`);
+        const audioButton = await pageA.waitForSelector(TOGGLE_AUDIO_BUTTON_SELECTOR, { timeout: 5000 });
         console.log('Clicking audio button on Page A...');
-        await pageA.click(audioButtonSelectorOff);
+        await audioButton?.click();
 
-        // Wait for the button state to change, indicating (hopefully) the stream started
-        console.log('Waiting for audio button on Page A to indicate ON state...');
-        await pageA.waitForSelector(audioButtonSelectorOn, { timeout: 5000 });
+        // Wait for the button state to change (e.g., background style or class)
+        // This assumes the button gets a specific style/class when active
+        console.log('Waiting for audio button on Page A to indicate ON state (checking style/class)...');
+        await pageA.waitForSelector(`${TOGGLE_AUDIO_BUTTON_SELECTOR}[class*="bg-blue-600"]`, { timeout: 5000 });
         console.log('Audio button is ON. Waiting for stream propagation...');
 
         // Add a delay for the stream to establish and audio to start playing
@@ -311,21 +309,24 @@ describe('WebRTC Microphone E2E Test', () => {
         expect(analysisResultA.peakAmplitudes.length).toBe(1);
         expect(analysisResultA.peakAmplitudes[0]).toBe(null);
 
-        // 5. Turn off audio on Page A
+        // 5. Turn off audio on Page A using the same test ID selector
         console.log('Turning off audio on Page A...');
         try {
-            await pageA.click(audioButtonSelectorOn);
-            console.log('Clicked audio button (ON state) on Page A.');
-            // Wait for the button state to change back to OFF
+            await pageA.click(TOGGLE_AUDIO_BUTTON_SELECTOR);
+            console.log(`Clicked audio button (${TOGGLE_AUDIO_BUTTON_SELECTOR}) on Page A.`);
+            // Wait for the button state to change back to OFF (e.g., class/style removed)
             console.log('Waiting for audio button on Page A to indicate OFF state...');
-            await pageA.waitForSelector(audioButtonSelectorOff, { timeout: 5000 });
+            await pageA.waitForFunction(
+                (selector) => !document.querySelector(selector)?.matches('[class*="bg-blue-600"]'),
+                { timeout: 5000 },
+                TOGGLE_AUDIO_BUTTON_SELECTOR
+            );
             console.log('Audio button is OFF. Waiting a moment before checking silence...');
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s for stream to fully stop processing
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s
 
         } catch (e) {
-            console.warn("Could not find 'ON' audio button to turn off audio. Cannot verify silence.", e);
-            // Optionally fail the test here if turning off is critical
-            throw new Error("Failed to turn off audio on Page A, cannot proceed with silence check.");
+            console.warn(`Could not click audio button (${TOGGLE_AUDIO_BUTTON_SELECTOR}) to turn off audio, or state did not revert.`, e);
+            throw new Error("Failed to turn off audio on Page A.");
         }
 
         console.log('--- TEST SUCCESS: Verified audio stream frequency change on Page B & no suitable audio source found on Page A after mute ---');

@@ -2,13 +2,14 @@ import { describe, test, beforeAll, afterAll, expect, jest } from '@jest/globals
 import type { Page } from 'puppeteer';
 import { standardSetup } from './setup/standardSetup';
 import { standardTeardown } from './setup/standardTeardown';
-import { JEST_TIMEOUT, PUPPETEER_TIMEOUT } from './setup/testHelpers';
-
-// --- Selectors ---
-const CONTROL_PANEL_SELECTOR = 'div.w-11\\/12'; // Main panel container
-const CONTROL_PANEL_TOGGLE_SELECTOR = 'button ::-p-text(<)'; // Button to open/close panel (text changes)
-const CHAT_INPUT_SELECTOR = 'input[placeholder="Type message..."]';
-const CHAT_OUTPUT_CONTAINER_SELECTOR = '#test-chat-container'; // Container for messages
+import {
+    JEST_TIMEOUT,
+    PUPPETEER_TIMEOUT,
+    CONTROL_PANEL_SELECTOR,
+    CONTROL_PANEL_TOGGLE_SELECTOR,
+    CHAT_INPUT_SELECTOR,
+    CHAT_OUTPUT_CONTAINER_SELECTOR
+} from './setup/testHelpers'; // Import selectors from helpers
 
 // --- Jest Test Suite ---
 describe('WebRTC Chat E2E Test', () => {
@@ -38,11 +39,12 @@ describe('WebRTC Chat E2E Test', () => {
 
         if (panelIsClosed) {
             console.log(`Control panel is closed on ${pageName}, opening...`);
+            // Use the imported selector constant
             const toggleButton = await page.waitForSelector(CONTROL_PANEL_TOGGLE_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT });
             await toggleButton?.click();
-            // Wait for the panel to slide open (check class change)
+            // Wait for the panel to slide open (check class change on the panel itself)
             await page.waitForFunction(
-                (selector) => !document.querySelector(selector)?.classList.contains('left-full'),
+                (panelSelector) => !document.querySelector(panelSelector)?.classList.contains('left-full'),
                 { timeout: PUPPETEER_TIMEOUT },
                 CONTROL_PANEL_SELECTOR
             );
@@ -70,16 +72,21 @@ describe('WebRTC Chat E2E Test', () => {
         // 3. Ensure panel is open on receiver
         await ensurePanelOpen(receiverPage, receiverName);
 
-        // 4. Wait for the message to appear on the receiver's side
-        console.log(`Waiting for message to appear on ${receiverName}...`);
-        // Use a selector that finds the message text within the output container
-        const messageSelector = `${CHAT_OUTPUT_CONTAINER_SELECTOR} ::-p-text("${message}")`;
-        await receiverPage.waitForSelector(messageSelector, { visible: true, timeout: PUPPETEER_TIMEOUT });
-        console.log(`Message "${message}" found on ${receiverName}.`);
+        // 4. Wait for the message to appear on the receiver's side by checking container content
+        console.log(`Waiting for message "${message}" to appear in ${CHAT_OUTPUT_CONTAINER_SELECTOR} on ${receiverName}...`);
+        await receiverPage.waitForFunction(
+            (containerSelector, expectedText) => {
+                const container = document.querySelector(containerSelector);
+                // Check if the container exists and its text content includes the message
+                return container?.textContent?.includes(expectedText) ?? false;
+            },
+            { timeout: PUPPETEER_TIMEOUT }, // Use appropriate timeout
+            CHAT_OUTPUT_CONTAINER_SELECTOR,
+            message
+        );
+        console.log(`Message "${message}" found in container on ${receiverName}.`);
 
-        // 5. Verify the message content (redundant with waitForSelector, but good practice)
-        const messageElement = await receiverPage.$(messageSelector);
-        expect(messageElement).not.toBeNull();
+        // 5. Verification is implicitly done by waitForFunction succeeding
 
         // Optional: Verify sender name (might need more specific selectors depending on structure)
         // const senderNameSelector = `...selector for sender name near the message...`;

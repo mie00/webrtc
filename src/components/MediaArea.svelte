@@ -277,42 +277,42 @@
 <div class="fixed bottom-0 left-0 right-0 bg-transparent p-4 flex justify-center space-x-0 lg:space-x-4 pointer-events-none">
   <!-- Layout controls -->
   <div class="layout-controls pointer-events-auto flex mr-4">
-    <button on:click={() => handleChangeLayout('grid')} class="p-2 rounded-l-full {currentLayout === 'grid' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
+    <button id="test-layout-grid-button" on:click={() => handleChangeLayout('grid')} class="p-2 rounded-l-full {currentLayout === 'grid' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
       Grid
     </button>
-    <button on:click={() => handleChangeLayout('focus')} class="p-2 {currentLayout === 'focus' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
+    <button id="test-layout-focus-button" on:click={() => handleChangeLayout('focus')} class="p-2 {currentLayout === 'focus' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
       Focus
     </button>
-    <button on:click={() => handleChangeLayout('presentation')} class="p-2 rounded-r-full {currentLayout === 'presentation' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
+    <button id="test-layout-present-button" on:click={() => handleChangeLayout('presentation')} class="p-2 rounded-r-full {currentLayout === 'presentation' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
       Present
     </button>
   </div>
 
-  <button on:click={handleOpenQr} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+  <button id="test-open-qr-button" on:click={handleOpenQr} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
     ▩ <!-- QR Code -->
   </button>
-  <button bind:this={audioButton} on:click={handleToggleAudio} on:contextmenu={e => handleContextMenu('audio', e)} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isAudioEnabled} style={isAudioEnabled?`background: linear-gradient(0deg, rgb(59 130 246) ${instant}%, white ${instant}%)`:""}>
+  <button id="test-toggle-audio-button" bind:this={audioButton} on:click={handleToggleAudio} on:contextmenu={e => handleContextMenu('audio', e)} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isAudioEnabled} style={isAudioEnabled?`background: linear-gradient(0deg, rgb(59 130 246) ${instant}%, white ${instant}%)`:""}>
     {isAudioEnabled ? '🎤' : '🔇'} <!-- Microphone -->
   </button>
-  <button bind:this={videoButton} on:click={handleToggleVideo} on:contextmenu={e => handleContextMenu('video', e)} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoEnabled}>
+  <button id="test-toggle-video-button" bind:this={videoButton} on:click={handleToggleVideo} on:contextmenu={e => handleContextMenu('video', e)} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoEnabled}>
     {isVideoEnabled ? '🎥' : '📷'} <!-- Video Camera -->
   </button>
-  <button on:click={handleToggleBlur} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isBlurEnabled}>
+  <button id="test-toggle-blur-button" on:click={handleToggleBlur} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isBlurEnabled}>
     🌫️ <!-- Blur effect -->
   </button>
-  <button on:click={handleToggleScreen} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isScreenSharing}>
+  <button id="test-toggle-screen-button" on:click={handleToggleScreen} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isScreenSharing}>
     🖥️ <!-- Monitor for Share Screen -->
   </button>
-  <button on:click={handleStartForward} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+  <button id="test-start-forward-button" on:click={handleStartForward} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
     ⏩ <!-- Forward -->
   </button>
-  <button on:click={handleShareVideo} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoShared}>
+  <button id="test-share-video-button" on:click={handleShareVideo} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoShared}>
     📹 <!-- Share Video -->
   </button>
-  <button on:click={handleRecord} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-red-600={isRecording}>
+  <button id="test-record-button" on:click={handleRecord} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-red-600={isRecording}>
     {isRecording ? '⏹' : '⏺'}
   </button>
-  <button on:click={handleHangup} class="hover:bg-red-600 bg-red-500 text-white p-3 rounded-full pointer-events-auto">
+  <button id="test-hangup-button" on:click={handleHangup} class="hover:bg-red-600 bg-red-500 text-white p-3 rounded-full pointer-events-auto">
     📞
   </button>
   <video on:loadeddata={handleFilePlay} muted bind:this={videoNode} autoplay loop class="hidden"></video>

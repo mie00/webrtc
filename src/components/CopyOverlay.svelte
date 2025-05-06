@@ -94,13 +94,13 @@
 {#if show}
 <div id="copy-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-30 cursor-default" on:click={handleClose} role="button" tabindex="0" on:keydown={(e) => e.key === 'Escape' && handleClose(e)} aria-label="Close overlay">
   <div class="bg-white p-4 rounded-md shadow-md text-center">
-    <button id="open-config" on:click={handleOpenConfig} class="right">⚙️</button>
-    <button id="reset" on:click={handleReset}>↺</button>
+    <button id="test-open-config-button" on:click={handleOpenConfig} class="right">⚙️</button>
+    <button id="test-reset-button" on:click={handleReset}>↺</button>
     <div id="test-qr" bind:this={qrCodeElement}></div>
     <p class="text-lg font-semibold mb-2">Copy this:</p>
     <textarea readonly value={copyText} id="test-copy" class="bg-gray-200 px-4 py-2 rounded-md break-all block"></textarea>
     {#if showCopyButton}
-      <button on:click={handleCopy}
+      <button id="test-copy-button" on:click={handleCopy}
         class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">{copyButtonText}</button>
     {/if}
     {#if showPasteText}

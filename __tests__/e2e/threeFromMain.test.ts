@@ -2,16 +2,17 @@ import { describe, test, expect, beforeAll, afterAll, jest } from '@jest/globals
 import type { Page } from 'puppeteer';
 import { threeClientSetup } from './setup/threeClientSetup';
 import { threeClientTeardown } from './setup/threeClientTeardown';
-import { JEST_TIMEOUT, PUPPETEER_TIMEOUT } from './setup/testHelpers';
-
-// Selectors needed for chat functionality (similar to chat.test.ts)
-const CONTROL_PANEL_SELECTOR = 'div.w-11\\/12'; // Main panel container
-const CONTROL_PANEL_TOGGLE_SELECTOR = 'button ::-p-text(<)'; // Button to open/close panel (text changes)
-const CHAT_INPUT_SELECTOR = 'input[placeholder="Type message..."]';
-const CHAT_OUTPUT_CONTAINER_SELECTOR = '#test-chat-container'; // Container for messages
+import {
+    JEST_TIMEOUT,
+    PUPPETEER_TIMEOUT,
+    CONTROL_PANEL_SELECTOR,
+    CONTROL_PANEL_TOGGLE_SELECTOR,
+    CHAT_INPUT_SELECTOR,
+    CHAT_OUTPUT_CONTAINER_SELECTOR
+} from './setup/testHelpers'; // Import selectors
 
 describe('Three Client Chat E2E Test (A sends, B & C receive)', () => {
-    jest.setTimeout(JEST_TIMEOUT); // Use timeout from helpers
+    jest.setTimeout(JEST_TIMEOUT);
 
     let pageA: Page;
     let pageB: Page;
@@ -40,20 +41,20 @@ describe('Three Client Chat E2E Test (A sends, B & C receive)', () => {
 
         if (panelIsClosed) {
             console.log(`Control panel is closed on ${pageName}, attempting to open...`);
-            // Find and click the toggle button using the defined selector
+            // Find and click the toggle button using the imported selector
             const toggleButton = await page.waitForSelector(CONTROL_PANEL_TOGGLE_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT });
             if (!toggleButton) {
                 throw new Error(`Control panel toggle button (${CONTROL_PANEL_TOGGLE_SELECTOR}) not found on ${pageName}`);
             }
             await toggleButton.click();
-            // Wait for panel to be open by checking that 'left-full' class is removed
+            // Wait for panel to be open by checking that 'left-full' class is removed from the panel
             await page.waitForFunction(
-                (selector) => {
-                    const el = document.querySelector(selector);
+                (panelSelector) => {
+                    const el = document.querySelector(panelSelector);
                     return el && !el.classList.contains('left-full'); // Check class is removed
                 },
                 { timeout: PUPPETEER_TIMEOUT },
-                CONTROL_PANEL_SELECTOR // Pass the panel selector itself
+                CONTROL_PANEL_SELECTOR // Pass the panel selector ID
             );
             console.log(`Control panel opened on ${pageName}.`);
         } else {
@@ -63,21 +64,27 @@ describe('Three Client Chat E2E Test (A sends, B & C receive)', () => {
 
     // Helper function to verify message reception
     async function verifyMessageReceived(receiverPage: Page, receiverName: string, expectedMessage: string) {
-        console.log(`Verifying message "${expectedMessage}" on ${receiverName}...`);
-        await ensurePanelOpen(receiverPage, receiverName); // Ensure panel is open to see messages
-
-        const messageSelector = `${CHAT_OUTPUT_CONTAINER_SELECTOR} ::-p-text(${expectedMessage})`; // Use Puppeteer's text selector
+        console.log(`Verifying message "${expectedMessage}" appears in ${CHAT_OUTPUT_CONTAINER_SELECTOR} on ${receiverName}...`);
+        await ensurePanelOpen(receiverPage, receiverName); // Ensure panel is open
 
         try {
-            await receiverPage.waitForSelector(messageSelector, { visible: true, timeout: PUPPETEER_TIMEOUT * 2 }); // Increased timeout for message arrival
-            console.log(`Message found on ${receiverName}.`);
-            // Optional: Add more specific checks if needed (e.g., sender ID)
+            // Wait for the message text to appear within the container
+            await receiverPage.waitForFunction(
+                (containerSelector, expectedText) => {
+                    const container = document.querySelector(containerSelector);
+                    return container?.textContent?.includes(expectedText) ?? false;
+                },
+                { timeout: PUPPETEER_TIMEOUT * 2 }, // Increased timeout
+                CHAT_OUTPUT_CONTAINER_SELECTOR,
+                expectedMessage
+            );
+            console.log(`Message "${expectedMessage}" found in container on ${receiverName}.`);
         } catch (error) {
-            console.error(`Error finding message "${expectedMessage}" on ${receiverName}:`, error);
+            console.error(`Error waiting for message "${expectedMessage}" in container on ${receiverName}:`, error);
             // Capture page state for debugging
             const messagesHtml = await receiverPage.$eval(CHAT_OUTPUT_CONTAINER_SELECTOR, el => el.innerHTML).catch(() => 'Could not get chat messages HTML');
             console.error(`Current messages on ${receiverName}:\n${messagesHtml}`);
-            throw new Error(`Message "${expectedMessage}" not found on ${receiverName} within timeout.`);
+            throw new Error(`Message "${expectedMessage}" not found in container on ${receiverName} within timeout.`);
         }
     }
 

@@ -5,11 +5,11 @@ import fs from 'fs-extra';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import {
-    FILE_INPUT_SELECTOR,
+    FILE_INPUT_SELECTOR, // Use #test-file-upload
     PUPPETEER_TIMEOUT,
     JEST_TIMEOUT,
-    // checkConnectionEstablished, // No longer needed here, setup handles it
-    calculateSHA256
+    calculateSHA256,
+    CONTROL_PANEL_TOGGLE_SELECTOR // Use #test-toggle-panel-button
 } from './setup/testHelpers';
 import { standardSetup } from './setup/standardSetup'; // Import standardSetup
 import { standardTeardown } from './setup/standardTeardown'; // Import standardTeardown
@@ -178,14 +178,16 @@ describe('WebRTC File Transfer E2E Test (Multiple Sizes)', () => {
             const dynamicPuppeteerTimeout = PUPPETEER_TIMEOUT * timeoutMultiplier;
             const transferWaitTimeout = PUPPETEER_TIMEOUT * timeoutMultiplier * 2; // Even longer for actual transfer steps
 
-            // only for first element
+            // Ensure control panels are open on both pages for the first test case
             if (fileName === preparedTestCases[0].fileName) {
-                console.log('Ensuring file transfer UI is ready...');
-                await pageB.waitForSelector('::-p-text(<)', { visible: true, timeout: dynamicPuppeteerTimeout });
-                await pageB.click('::-p-text(<)');
-                await pageA.waitForSelector('::-p-text(<)', { visible: true, timeout: dynamicPuppeteerTimeout });
-                await pageA.click('::-p-text(<)');
-                console.log('File transfer UI prepared.');
+                console.log('Ensuring control panels are open...');
+                await Promise.all([
+                    pageA.waitForSelector(CONTROL_PANEL_TOGGLE_SELECTOR, { visible: true, timeout: dynamicPuppeteerTimeout }).then(btn => btn?.click()),
+                    pageB.waitForSelector(CONTROL_PANEL_TOGGLE_SELECTOR, { visible: true, timeout: dynamicPuppeteerTimeout }).then(btn => btn?.click())
+                ]);
+                // Add a short wait for panels to animate open if needed
+                await new Promise(resolve => setTimeout(resolve, 500));
+                console.log('Control panels opened.');
             }
 
             // 1. Find the file input element on Page A (Sender)
@@ -199,70 +201,57 @@ describe('WebRTC File Transfer E2E Test (Multiple Sizes)', () => {
             await (fileInputElement as ElementHandle<HTMLInputElement>).uploadFile(filePath);
             console.log('File selected for upload.');
 
-            // --- Sender Verification ---
-            const senderFilenameSelector = `::-p-text(${fileName})`;
-            console.log(`Waiting for filename "${fileName}" to appear on Page A (Sender)...`);
-            await pageA.waitForSelector(senderFilenameSelector, { visible: true, timeout: dynamicPuppeteerTimeout });
-            console.log('Filename found on Sender.');
+            // --- Verification using data attributes ---
+            const fileContainerSelector = `div[data-filename="${fileName}"]`;
 
-            // Wait for Sender's completion indicator ("Completed")
-            const senderCompleteSelector = `::-p-text(Completed)`; // Adjust if needed
-            console.log(`Waiting for sender completion indicator "Completed" on Page A...`);
-            await pageA.waitForSelector(senderCompleteSelector, { visible: true, timeout: transferWaitTimeout }); // Longer timeout
-            console.log('Sender completion indicator found.');
+            // --- Sender Verification ---
+            console.log(`Waiting for file container [data-filename="${fileName}"] on Page A (Sender)...`);
+            await pageA.waitForSelector(fileContainerSelector, { visible: true, timeout: dynamicPuppeteerTimeout });
+            console.log('File container found on Sender.');
+
+            // Wait for Sender's completion indicator (Download link appears)
+            const senderDownloadLinkSelector = `${fileContainerSelector} [data-testid="download-link"]`;
+            console.log(`Waiting for sender download link indicator on Page A...`);
+            await pageA.waitForSelector(senderDownloadLinkSelector, { visible: true, timeout: transferWaitTimeout }); // Longer timeout
+            console.log('Sender download link found (implies completion).');
 
             // --- Receiver Verification ---
-            const receiverFilenameSelector = `::-p-text(${fileName})`;
-            console.log(`Waiting for filename "${fileName}" to appear on Page B (Receiver)...`);
-            await pageB.waitForSelector(receiverFilenameSelector, { visible: true, timeout: transferWaitTimeout }); // Longer timeout
-            console.log('Filename found on Receiver.');
+            console.log(`Waiting for file container [data-filename="${fileName}"] on Page B (Receiver)...`);
+            await pageB.waitForSelector(fileContainerSelector, { visible: true, timeout: transferWaitTimeout }); // Longer timeout
+            console.log('File container found on Receiver.');
 
-            // Wait for Receiver's download indicator ("Download") with download attribute equals to file name
-            const receiverDownloadSelector = `::-p-text(Download)[download="${fileName}"]`;
-            console.log(`Waiting for receiver download indicator "Download" on Page B...`);
-            await pageB.waitForSelector(receiverDownloadSelector, { visible: true, timeout: dynamicPuppeteerTimeout });
-            console.log('Receiver download indicator found.');
+            // Wait for Receiver's download link
+            const receiverDownloadLinkSelector = `${fileContainerSelector} [data-testid="download-link"]`;
+            console.log(`Waiting for receiver download link on Page B...`);
+            await pageB.waitForSelector(receiverDownloadLinkSelector, { visible: true, timeout: dynamicPuppeteerTimeout });
+            console.log('Receiver download link found.');
 
-            // Get the blob URL, fetch content, convert to base64
+            // Get the blob URL, fetch content, convert to base64 using new selectors
             console.log('Finding download link and fetching received file content from Page B...');
             const receivedContentBase64 = await pageB.evaluate(async (filenameToFind) => {
                 // Helper function (remains the same)
                 function arrayBufferToBase64(buffer: ArrayBuffer): string {
-                    // build a string array of the same length
                     const bytes = new Uint8Array(buffer);
                     let binary = Array.from({ length: buffer.byteLength }, (_, i) => String.fromCharCode(bytes[i]));
-                    const len = bytes.byteLength;
                     return window.btoa(binary.join(""));
                 }
 
-                // Find the element containing the filename text (using XPath as before)
-                const filenameXpath = `//*[normalize-space()='${filenameToFind}']`;
-                let filenameElement = document.evaluate(filenameXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue as HTMLElement | null;
-
-                if (!filenameElement) {
-                    console.warn(`Exact match for "${filenameToFind}" not found, trying contains...`);
-                    const filenameContainsXpath = `//*[contains(text(),'${filenameToFind}')]`;
-                    filenameElement = document.evaluate(filenameContainsXpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue as HTMLElement | null;
-                    if (!filenameElement) {
-                        throw new Error(`Element containing filename "${filenameToFind}" not found.`);
-                    }
-                    console.warn(`Found filename "${filenameToFind}" using 'contains'.`);
-                }
-
-                // Find the container and download link (logic remains similar)
-                // Adjust closest selector if needed (e.g., 'li', '.file-entry')
-                const container = filenameElement.closest('div'); // Assuming div is the container
+                // Find the container using the data-filename attribute
+                const containerSelector = `div[data-filename="${filenameToFind}"]`;
+                const container = document.querySelector(containerSelector);
                 if (!container) {
-                    throw new Error(`Could not find a container element near filename "${filenameToFind}".`);
+                    throw new Error(`Container element with selector "${containerSelector}" not found.`);
                 }
 
-                const links = Array.from(container.querySelectorAll('a'));
-                const downloadLink = links.find(a => a.textContent?.trim() === 'Download' && a.href.startsWith('blob:'));
+                // Find the download link within the container using data-testid
+                const downloadLinkSelector = `[data-testid="download-link"]`;
+                const downloadLink = container.querySelector(downloadLinkSelector) as HTMLAnchorElement | null;
 
-                if (!downloadLink) {
-                    console.error(`Could not find "Download" link in container for "${filenameToFind}". Container HTML:`, container.innerHTML);
+                if (!downloadLink || !downloadLink.href || !downloadLink.href.startsWith('blob:')) {
+                    console.error(`Could not find valid "Download" link in container for "${filenameToFind}". Container HTML:`, container.innerHTML);
                     throw new Error(`"Download" link associated with "${filenameToFind}" not found or invalid href.`);
                 }
+
                 const blobUrl = downloadLink.href;
                 console.log(`Fetching blob URL: ${blobUrl}`);
                 const response = await fetch(blobUrl);

@@ -7,11 +7,12 @@ import QrCode from 'qrcode-reader';
 import { Jimp } from 'jimp';
 import { type Bitmap } from "@jimp/types";
 import { promisify } from 'util'; // To promisify qrCode.decode
-import { rejects } from 'assert';
+// Removed 'rejects' import as it's not used
 import { execSync } from 'child_process';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import path, { dirname } from 'path';
+import { TOGGLE_VIDEO_BUTTON_SELECTOR } from './setup/testHelpers'; // Import selector
 
 // --- Helper Function ---
 // Promisify the callback-based decode method
@@ -185,22 +186,26 @@ describe('WebRTC Camera E2E Test', () => {
     test('should stream video from Page A to Page B and verify QR code movement', async () => {
         console.log('--- Starting Video Stream and QR Code Verification Test ---');
 
-        // 1. Enable video on Page A
-        const videoButtonSelector = 'button.pointer-events-auto ::-p-text(📷)'; // Selector for the video button when OFF
-        console.log('Waiting for video button on Page A...');
-        await pageA.waitForSelector(videoButtonSelector, { timeout: 1000 });
+        // 1. Enable video on Page A using the test ID selector
+        console.log(`Waiting for video button (${TOGGLE_VIDEO_BUTTON_SELECTOR}) on Page A...`);
+        const videoButton = await pageA.waitForSelector(TOGGLE_VIDEO_BUTTON_SELECTOR, { timeout: 5000 }); // Use imported selector
         console.log('Clicking video button on Page A...');
-        await pageA.click(videoButtonSelector);
+        await videoButton?.click();
         console.log('Video button clicked.');
+        // Optional: Wait for button state change if needed (e.g., class change)
 
-        // 2. Wait for the remote video stream to appear on Page B
-        //    Selector assumes remote video is the first one NOT muted.
-        const remoteVideoSelector = 'div.stream-container video:not([muted])';
-        console.log('Waiting for remote video element on Page B...');
+        // 2. Wait for the remote video stream container to appear on Page B using the new ID pattern
+        const remoteVideoContainerSelector = 'div.stream-container[id^="test-remote-video-"]';
+        console.log(`Waiting for remote video container (${remoteVideoContainerSelector}) on Page B...`);
         try {
-            await pageB.waitForSelector(remoteVideoSelector, { visible: true, timeout: 11000 }); // Increased timeout for stream setup
-            console.log('Remote video element found on Page B.');
-             // Add a small delay to ensure video rendering has started
+            await pageB.waitForSelector(remoteVideoContainerSelector, { visible: true, timeout: 11000 }); // Increased timeout for stream setup
+            console.log('Remote video container found on Page B.');
+            // Wait for the video element *within* the container
+            const remoteVideoElementSelector = `${remoteVideoContainerSelector} video`;
+            console.log(`Waiting for video element (${remoteVideoElementSelector}) within container...`);
+            await pageB.waitForSelector(remoteVideoElementSelector, { visible: true, timeout: 2000 });
+            console.log('Remote video element found.');
+            // Add a small delay to ensure video rendering has started
             await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (error) {
             console.error("Remote video element did not appear on Page B within timeout.");
@@ -236,13 +241,13 @@ describe('WebRTC Camera E2E Test', () => {
 
         console.log('--- TEST SUCCESS: Video stream and QR code movement verified across multiple screenshots ---');
 
-        // Optional: Turn off video on Page A afterwards
-        const videoButtonOnSelector = 'button.pointer-events-auto ::-p-text(🎥)'; // Selector for the video button when ON
+        // Optional: Turn off video on Page A afterwards using the same test ID selector
         try {
-            await pageA.click(videoButtonOnSelector);
+            console.log(`Clicking video button (${TOGGLE_VIDEO_BUTTON_SELECTOR}) again to turn off...`);
+            await pageA.click(TOGGLE_VIDEO_BUTTON_SELECTOR);
             console.log('Video turned off on Page A.');
         } catch (e) {
-            console.warn("Could not find 'ON' video button to turn off video, maybe it failed to turn on?");
+            console.warn("Could not click video button to turn off video, maybe it failed to turn on or selector issue?", e);
         }
     });
 

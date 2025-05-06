@@ -53,16 +53,16 @@ export async function standardClientSetup(): Promise<SetupResult> {
     console.log(`Page A navigating to: ${serverUrl}`);
     await pageA.goto(serverUrl, { waitUntil: 'networkidle0', timeout: PUPPETEER_TIMEOUT });
     console.log('Page A navigation complete.');
-    await pageA.waitForSelector('::-p-text(⚙️)', { visible: true, timeout: PUPPETEER_TIMEOUT });
-    await pageA.click('::-p-text(⚙️)');
-    await pageA.waitForSelector('#config-loader', { visible: true, timeout: PUPPETEER_TIMEOUT });
-    await pageA.select('#config-loader', 'client');
+    await pageA.waitForSelector('#test-open-config-button', { visible: true, timeout: PUPPETEER_TIMEOUT });
+    await pageA.click('#test-open-config-button');
+    await pageA.waitForSelector('#test-config-loader-select', { visible: true, timeout: PUPPETEER_TIMEOUT });
+    await pageA.select('#test-config-loader-select', 'client');
     await Promise.all([
         pageA.waitForNavigation(), // The promise resolves after navigation has finished
-        pageA.click('#save-button'), // Clicking the link will indirectly cause a navigation
+        pageA.click('#test-save-config-button'), // Clicking the link will indirectly cause a navigation
       ]);
 
-    console.log('Waiting for invite URL element on Page A...');
+    console.log('Waiting for invite URL copy button on Page A...');
     await pageA.waitForSelector(INVITE_URL_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT });
     console.log('Invite URL element found. Evaluating window location...');
     const inviteUrl = await pageA.$eval('textarea#test-copy', (el) => el.value);
@@ -78,11 +78,11 @@ export async function standardClientSetup(): Promise<SetupResult> {
     console.log('Page B navigation complete.');
 
     // --- 3. Establish Connection ---
-    console.log('Waiting for call button in Page B...');
-    await pageB.waitForSelector('::-p-text(Copy)', { visible: true, timeout: PUPPETEER_TIMEOUT });
+    console.log('Waiting for copy button in Page B...'); // Client mode shows Copy button initially
+    await pageB.waitForSelector('#test-copy-button', { visible: true, timeout: PUPPETEER_TIMEOUT });
     // wait for a bit
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    // get the content of #test-copy element
+    // get the content of #test-copy textarea
     const copyText = await pageB.$eval('textarea#test-copy', (el) => el.value);
     console.log(`Copy text from Page B: ${copyText}`);
     // type text into #text-paste in pageA

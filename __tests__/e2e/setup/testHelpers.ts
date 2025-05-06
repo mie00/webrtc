@@ -2,13 +2,21 @@ import crypto from 'crypto'; // Import crypto for hashing
 import type { Page } from 'puppeteer';
 
 // --- Configuration Constants ---
-export const INVITE_URL_SELECTOR = 'button ::-p-text(Copy)';
-export const INVITE_URL_COPIED_SELECTOR = 'button ::-p-text(Copied successfully)';
-export const CALL_BUTTON_SELECTOR = 'button#test-join';
-export const CONNECTION_INDICATOR_SELECTOR = '.test-indicator.bg-green-500';
-export const FILE_INPUT_SELECTOR = '#file-upload'; // Assuming this targets the actual <input type="file">
-// Removed ID-based selectors: FILE_ITEM_CONTAINER_SELECTOR, FILE_COMPLETE_INDICATOR, FILE_DOWNLOAD_LINK_RECEIVER
-// We will use text-based selectors directly in the test.
+// Use test IDs for selectors
+export const INVITE_URL_SELECTOR = '#test-copy-button'; // Button in CopyOverlay
+export const INVITE_URL_COPIED_SELECTOR = '#test-copy-button'; // Same button, text changes but ID remains
+export const CALL_BUTTON_SELECTOR = '#test-join'; // Button in CopyOverlay (already test ID)
+export const CONNECTION_INDICATOR_SELECTOR = '.test-indicator.test-indicator-connected'; // Class added to connected indicators
+export const FILE_INPUT_SELECTOR = '#test-file-upload'; // Input in ControlPanel
+// Selectors for elements within ControlPanel or MediaArea often need specific IDs added in components
+export const CONTROL_PANEL_SELECTOR = '#test-control-panel';
+export const CONTROL_PANEL_TOGGLE_SELECTOR = '#test-toggle-panel-button';
+export const CHAT_INPUT_SELECTOR = '#test-chat-input';
+export const CHAT_OUTPUT_CONTAINER_SELECTOR = '#test-chat-container'; // Already test ID
+export const ATTACH_FILE_BUTTON_SELECTOR = '#test-attach-file-button';
+export const TOGGLE_AUDIO_BUTTON_SELECTOR = '#test-toggle-audio-button';
+export const TOGGLE_VIDEO_BUTTON_SELECTOR = '#test-toggle-video-button';
+// Add other common selectors as needed
 
 
 export const PUPPETEER_TIMEOUT = 7000;

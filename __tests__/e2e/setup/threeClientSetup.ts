@@ -60,12 +60,13 @@ export async function threeClientSetup(): Promise<SetupResult> {
     await pageA.goto(serverUrl, { waitUntil: 'networkidle0', timeout: PUPPETEER_TIMEOUT });
     console.log('Page A navigation complete.');
 
-    console.log('Waiting for invite URL element on Page A...');
+    console.log('Waiting for invite URL copy button on Page A...');
     await pageA.waitForSelector(INVITE_URL_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT });
-    console.log('Invite URL element found. Evaluating window location...');
+    console.log('Invite URL copy button found. Evaluating window location...');
+    // The invite URL is the page URL for the host in threeClient setup
     const inviteUrl = await pageA.evaluate(() => window.location.toString());
     if (!inviteUrl || (!inviteUrl.startsWith('http://') && !inviteUrl.startsWith('https://'))) {
-        throw new Error(`Failed to get a valid invite URL from Page A: ${inviteUrl}`);
+        throw new Error(`Failed to get a valid invite URL (page location) from Page A: ${inviteUrl}`);
     }
     console.log(`Invite URL from Page A: ${inviteUrl}`);
 

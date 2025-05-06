@@ -149,11 +149,12 @@
 
 <div
      bind:this={controlsPanel}
+     id="test-control-panel"
      class="w-11/12 lg:w-1/2 xl:w-1/4 2x:w-1/4 flex flex-col fixed bottom-0 top-0"
      class:left-full={!isPanelOpen}
      class:right-0={isPanelOpen}>
   <div class="absolute top-1/4">
-    <button on:click={togglePanel} class="hover:bg-blue-600 w-5 h-16 bg-gray-300 text-black p-0 absolute border-solid rounded-l" style="left: -20px;">
+    <button id="test-toggle-panel-button" on:click={togglePanel} class="hover:bg-blue-600 w-5 h-16 bg-gray-300 text-black p-0 absolute border-solid rounded-l" style="left: -20px;">
       {isPanelOpen ? '>' : '<'}
     </button>
   </div>
@@ -175,7 +176,9 @@
         {@const isConnecting = !isConnected && !isFailed && (state !== null || iceState !== null)} <!-- Show yellow if not connected/failed but trying -->
          <div class="flex items-center space-x-2 mb-1">
            <div
+             id="test-indicator-{client.cid}"
              class="rounded-full h-3 w-3 flex-shrink-0 test-indicator"
+             class:test-indicator-connected={isConnected}
              class:bg-green-500={isConnected}
              class:bg-red-500={isFailed}
              class:bg-yellow-400={isConnecting}
@@ -203,6 +206,7 @@
            {@const isRelayConnecting = relayClient && !isRelayConnected && !isRelayFailed && (relayState !== null || relayIceState !== null)}
             <div class="flex items-center space-x-2 mb-1 opacity-75">
              <div
+               id="test-indicator-relayed-{participant.cid}"
                class="rounded-full h-3 w-3 flex-shrink-0 border border-gray-400"
                class:bg-green-300={isRelayConnected}
                class:bg-red-300={isRelayFailed}
@@ -232,7 +236,8 @@
               ? item.sender === localUserName // Local chat message if sender matches
               : !item.cid // Local file transfer if senderCid is missing
             }
-            <div class="flex" class:justify-end={isLocalUser} class:justify-start={!isLocalUser}>
+            <!-- Add data-filename for file transfers to help test selectors -->
+            <div class="flex" class:justify-end={isLocalUser} class:justify-start={!isLocalUser} data-filename={item.type === 'file' ? item.transfer?.name : null}>
               <div
                 class="p-3 rounded-lg shadow max-w-xs lg:max-w-md break-words"
                 class:bg-blue-100={isLocalUser}
@@ -240,6 +245,7 @@
                 > <!-- Removed title from outer div -->
                 <!-- Always display sender name, use title for CID -->
                 <p
+                  data-testid="sender-name"
                   class="text-xs font-semibold mb-1"
                   class:text-blue-800={isLocalUser}
                   class:text-gray-600={!isLocalUser}
@@ -249,30 +255,30 @@
                 </p>
 
                 {#if item.type === 'chat'}
-                  <p class="text-sm">{item.text}</p>
+                  <p data-testid="chat-message" class="text-sm">{item.text}</p>
                 {:else if item.type === 'file' && item.transfer}
                   {@const transfer = item.transfer}
                   <div class="space-y-1">
-                     <p class="text-sm font-medium truncate" title={transfer.name}>{transfer.name}</p>
+                     <p data-testid="filename" class="text-sm font-medium truncate" title={transfer.name}>{transfer.name}</p>
                      {#if transfer.status !== 'complete' && transfer.status !== 'error'}
                        <div class="flex items-center space-x-2">
-                         <progress class="w-full h-2 rounded" value={transfer.progress} max="100"></progress>
+                         <progress data-testid="progress-bar" class="w-full h-2 rounded" value={transfer.progress} max="100"></progress>
                          <span class="text-xs font-mono flex-shrink-0">{transfer.progress}%</span>
                        </div>
                      {/if}
                      {#if transfer.status === 'sending'}
-                       <p class="text-xs text-blue-600">Sending...</p>
+                       <p data-testid="status" class="text-xs text-blue-600">Sending...</p>
                      {:else if transfer.status === 'receiving'}
-                       <p class="text-xs text-blue-600">Receiving...</p>
+                       <p data-testid="status" class="text-xs text-blue-600">Receiving...</p>
                      {:else if transfer.status === 'complete'}
-                       <p class="text-xs text-green-600">Completed</p>
+                       <p data-testid="status" class="text-xs text-green-600">Completed</p>
                        {#if transfer.url}
                          <div class="flex space-x-2 mt-1">
-                           <a href={transfer.url} download={transfer.name}
+                           <a data-testid="download-link" href={transfer.url} download={transfer.name}
                               class="flex-1 text-center py-1 px-2 bg-green-500 text-white text-xs rounded shadow hover:bg-green-600">
                              Download
                            </a>
-                           <a href={transfer.url} target="_blank" rel="noopener noreferrer"
+                           <a data-testid="view-link" href={transfer.url} target="_blank" rel="noopener noreferrer"
                               class="flex-1 text-center py-1 px-2 bg-blue-500 text-white text-xs rounded shadow hover:bg-blue-600">
                              View
                            </a>
@@ -293,13 +299,14 @@
 
       <!-- Message Input and Upload Button (Remains at the bottom) -->
       <div class="flex items-center space-x-2 p-4 border-t border-gray-300 mt-2">
-        <input type="text" placeholder="Type message..."
+        <input id="test-chat-input" type="text" placeholder="Type message..."
           bind:value={message}
           bind:this={chatInput}
           class="flex-1 border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
           on:keypress={handleKeyPress}>
         <div class="relative"> <!-- Use relative positioning for the button container -->
           <button
+            id="test-attach-file-button"
             type="button"
             disabled={!canUpload}
             on:click={() => uploadField.click()}
@@ -308,7 +315,7 @@
             class:bg-gray-500={!canUpload}
             title={canUpload ? "Attach file" : "File upload in progress"}
           >📎</button>
-          <input id="file-upload" disabled={!canUpload} type="file" class="hidden" on:change={handleFileUpload} bind:this={uploadField}>
+          <input id="test-file-upload" disabled={!canUpload} type="file" class="hidden" on:change={handleFileUpload} bind:this={uploadField}>
         </div>
       </div>
     </div> <!-- End Combined Feed -->
