@@ -9,6 +9,7 @@ const CONTROL_PANEL_SELECTOR = '#control-panel'; // Adjust if your ID is differe
 const CHAT_INPUT_SELECTOR = '#chat-input'; // Adjust if your ID is different
 const CHAT_MESSAGES_SELECTOR = '#chat-messages'; // Adjust if your ID is different
 const CHAT_MESSAGE_SELECTOR = `${CHAT_MESSAGES_SELECTOR} > div`; // Selector for individual messages
+const CONTROL_PANEL_TOGGLE_SELECTOR = '#toggle-control-panel'; // Selector for the panel toggle button
 
 describe('Three Client Chat E2E Test (A sends, B & C receive)', () => {
     jest.setTimeout(JEST_TIMEOUT); // Use timeout from helpers
@@ -35,26 +36,25 @@ describe('Three Client Chat E2E Test (A sends, B & C receive)', () => {
         if (!panel) {
             throw new Error(`Control panel element (${CONTROL_PANEL_SELECTOR}) not found on ${pageName}`);
         }
-        // Check if the panel is visually hidden (adjust class/style as needed)
-        const panelIsClosed = await panel.evaluate(el => el.classList.contains('left-full') || el.style.transform !== 'translateX(0px)'); // Example checks
+        // Check if the panel is visually hidden using the 'left-full' class (like in chat.test.ts)
+        const panelIsClosed = await panel.evaluate(el => el.classList.contains('left-full'));
 
         if (panelIsClosed) {
             console.log(`Control panel is closed on ${pageName}, attempting to open...`);
-            // Find and click the toggle button - *You might need to add a selector for the toggle*
-            const toggleButtonSelector = '#toggle-control-panel'; // Example selector
-            const toggleButton = await page.waitForSelector(toggleButtonSelector, { visible: true, timeout: PUPPETEER_TIMEOUT });
+            // Find and click the toggle button using the defined selector
+            const toggleButton = await page.waitForSelector(CONTROL_PANEL_TOGGLE_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT });
             if (!toggleButton) {
-                throw new Error(`Control panel toggle button (${toggleButtonSelector}) not found on ${pageName}`);
+                throw new Error(`Control panel toggle button (${CONTROL_PANEL_TOGGLE_SELECTOR}) not found on ${pageName}`);
             }
             await toggleButton.click();
-            // Wait for panel to be open (e.g., check class/style again)
+            // Wait for panel to be open by checking that 'left-full' class is removed
             await page.waitForFunction(
                 (selector) => {
                     const el = document.querySelector(selector);
-                    return el && !el.classList.contains('left-full') && el.style.transform === 'translateX(0px)'; // Adjust condition
+                    return el && !el.classList.contains('left-full'); // Check class is removed
                 },
                 { timeout: PUPPETEER_TIMEOUT },
-                CONTROL_PANEL_SELECTOR
+                CONTROL_PANEL_SELECTOR // Pass the panel selector itself
             );
             console.log(`Control panel opened on ${pageName}.`);
         } else {
