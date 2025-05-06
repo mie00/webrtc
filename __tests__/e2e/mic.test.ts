@@ -64,12 +64,15 @@ async function analyzeAudioInBrowser(
 
         for (const el of mediaElements) {
             const mediaElement = el as HTMLAudioElement | HTMLVideoElement; // Type assertion
-            console.log(`  Checking element: Tag=${mediaElement.tagName}, Muted=${mediaElement.muted}, Paused=${mediaElement.paused}, SrcObject Type=${typeof mediaElement.srcObject}`);
+            // Look for elements within our test containers
+            const container = mediaElement.closest('div[id^="test-local-video-"], div[id^="test-remote-video-"]');
+            console.log(`  Checking element: Tag=${mediaElement.tagName}, Muted=${mediaElement.muted}, Paused=${mediaElement.paused}, SrcObject Type=${typeof mediaElement.srcObject}, In Test Container=${!!container}`);
 
-            if (!mediaElement.muted && !mediaElement.paused && mediaElement.srcObject instanceof MediaStream) {
+            // Only consider elements within our designated stream containers
+            if (container && !mediaElement.muted && !mediaElement.paused && mediaElement.srcObject instanceof MediaStream) {
                 const stream = mediaElement.srcObject;
                 const audioTracks = stream.getAudioTracks();
-                console.log(`   Stream found: ID=${stream.id}, Active=${stream.active}, Audio Tracks=${audioTracks.length}`);
+                console.log(`   Stream found in container ${container.id}: StreamID=${stream.id}, Active=${stream.active}, Audio Tracks=${audioTracks.length}`);
 
                 if (stream.active && audioTracks.length > 0 && audioTracks.some(track => track.enabled)) {
                     console.log(`   Found suitable playing stream in ${mediaElement.tagName} element.`);

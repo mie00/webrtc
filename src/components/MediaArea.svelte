@@ -259,11 +259,12 @@
   {#each activeStreams as stream (stream.id)}
     {#if streamPositions.find(pos => pos.id === stream.id)}
       {@const position = streamPositions.find(pos => pos.id === stream.id)}
-      <div class="stream-container absolute" 
+      <div class="stream-container absolute"
+           id={stream.isLocal ? `test-local-video-${stream.streamKey}` : `test-remote-video-${stream.peerId}-${stream.id}`}
            style="left: {position?.x}px; top: {position?.y}px; width: {position?.width}px; height: {position?.height}px;">
-        <StreamView 
+        <StreamView
           stream={stream.stream}
-          type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'} 
+          type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'}
           muted={stream.isLocal && stream.type !== 'file'} 
           mirrored={stream.isLocal && stream.type === 'camera'} 
           peerId={stream.peerId}

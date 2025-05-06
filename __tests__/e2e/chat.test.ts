@@ -46,7 +46,7 @@ describe('WebRTC Chat E2E Test', () => {
             await page.waitForFunction(
                 (panelSelector) => !document.querySelector(panelSelector)?.classList.contains('left-full'),
                 { timeout: PUPPETEER_TIMEOUT },
-                CONTROL_PANEL_SELECTOR
+                CONTROL_PANEL_SELECTOR // Pass the panel selector ID
             );
             console.log(`Control panel opened on ${pageName}.`);
         } else {

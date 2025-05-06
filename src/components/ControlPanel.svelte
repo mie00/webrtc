@@ -284,10 +284,10 @@
                            </a>
                          </div>
                        {:else}
-                         <p class="text-xs text-gray-500 mt-1">(URL not available)</p>
+                         <p data-testid="status" class="text-xs text-gray-500 mt-1">(URL not available)</p>
                        {/if}
                      {:else if transfer.status === 'error'}
-                       <p class="text-xs text-red-600" title={transfer.error}>Error: {transfer.error || 'Transfer failed'}</p>
+                       <p data-testid="status" class="text-xs text-red-600" title={transfer.error}>Error: {transfer.error || 'Transfer failed'}</p>
                      {/if}
                   </div>
                 {/if}
