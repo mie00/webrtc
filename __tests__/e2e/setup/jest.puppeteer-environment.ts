@@ -1,8 +1,6 @@
 import { TestEnvironment as PuppeteerEnvironment } from 'jest-environment-puppeteer';
 import type { Config } from '@jest/types';
 import type { EnvironmentContext, JestEnvironmentConfig } from '@jest/environment';
-import envSetup from './envSetup';
-import envTeardown from './envTeardown';
 
 class CustomPuppeteerEnvironment extends PuppeteerEnvironment {
     constructor(config: JestEnvironmentConfig, context: EnvironmentContext) {
@@ -10,12 +8,10 @@ class CustomPuppeteerEnvironment extends PuppeteerEnvironment {
     }
 
     async setup() {
-        // envSetup is no longer called globally here
         await super.setup();
     }
 
     async teardown() {
-        // envTeardown is no longer called globally here
         await super.teardown();
     }
 }
