@@ -1,5 +1,6 @@
 // Similar to standardTeardown, but for three clients (A, B, C)
 import type { Page } from 'puppeteer';
+import { closePage } from './testHelpers'; // Import the helper
 
 interface TeardownArgs {
     pageA?: Page;
@@ -17,35 +18,12 @@ export async function threeClientTeardown({ pageA, pageB, pageC }: TeardownArgs)
     console.log('\n--- Three Client E2E Teardown (Pages) ---');
 
     // --- Close Pages ---
-    console.log('Closing pages specific to this three-client test suite...');
-    const closePage = async (page: Page | undefined, name: string) => {
-        if (page && !page.isClosed()) {
-            try {
-                // Clear storage before closing
-                await page.evaluate(() => {
-                    window.localStorage.clear();
-                    // Attempt to delete IndexedDB, handle potential errors gracefully
-                    try {
-                        indexedDB.deleteDatabase('firebaseLocalStorageDb');
-                    } catch (dbError) {
-                        console.warn(`Warning: Could not delete IndexedDB for ${name}:`, dbError);
-                    }
-                });
-                await page.close();
-                console.log(`${name} closed.`);
-            } catch (error) {
-                console.warn(`Warning: Error closing ${name} during teardown:`, error);
-            }
-        } else if (page) {
-            console.log(`${name} was already closed.`);
-        }
-    };
-
-    // Close pages concurrently
+    console.log('Closing pages specific to this three-client test suite using helper...');
+    // Close pages concurrently using the imported helper
     await Promise.all([
         closePage(pageA, 'Page A'),
         closePage(pageB, 'Page B'),
-        closePage(pageC, 'Page C') // Add closing logic for Page C
+        closePage(pageC, 'Page C')
     ]);
 
     // Server teardown is handled by globalTeardown.ts

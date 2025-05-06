@@ -27,3 +27,32 @@ export async function checkConnectionEstablished(page: Page, description: string
 export function calculateSHA256(content: string | Buffer): string {
     return crypto.createHash('sha256').update(content).digest('hex');
 }
+
+// --- Page Teardown Helper ---
+/**
+ * Closes a Puppeteer page gracefully, clearing storage and handling errors.
+ * @param page The Puppeteer Page instance to close.
+ * @param name A descriptive name for the page (for logging).
+ */
+export async function closePage(page: Page | undefined, name: string): Promise<void> {
+    if (page && !page.isClosed()) {
+        try {
+            // Clear storage before closing
+            await page.evaluate(() => {
+                window.localStorage.clear();
+                // Attempt to delete IndexedDB, handle potential errors gracefully
+                try {
+                    indexedDB.deleteDatabase('firebaseLocalStorageDb');
+                } catch (dbError) {
+                    console.warn(`Warning: Could not delete IndexedDB for ${name}:`, dbError);
+                }
+            });
+            await page.close();
+            console.log(`${name} closed.`);
+        } catch (error) {
+            console.warn(`Warning: Error closing ${name} during teardown:`, error);
+        }
+    } else if (page) {
+        console.log(`${name} was already closed.`);
+    }
+}

@@ -1,4 +1,5 @@
 import type { Page } from 'puppeteer';
+import { closePage } from './testHelpers'; // Import the helper
 
 interface TeardownArgs {
     pageA?: Page; // Make pages optional in case setup failed partially
@@ -19,33 +20,11 @@ export async function standardTeardown({ pageA, pageB }: TeardownArgs): Promise<
     console.log('\n--- Standard E2E Teardown (Pages) ---');
 
     // --- 1. Close Pages (passed as arguments) ---
-    console.log('Closing pages specific to this test suite...');
-    try {
-        // Check if page exists and is not already closed before attempting to close
-        if (pageA && !pageA.isClosed()) {
-            await pageA.evaluate(() => {
-                window.localStorage.clear();
-                indexedDB.deleteDatabase('firebaseLocalStorageDb');
-            });
-            await pageA.close();
-            console.log('Page A closed.');
-        } else if (pageA) {
-             console.log('Page A was already closed.');
-        }
-        if (pageB && !pageB.isClosed()) {
-            await pageB.evaluate(() => {
-                window.localStorage.clear();
-                indexedDB.deleteDatabase('firebaseLocalStorageDb');
-            });
-            await pageB.close();
-            console.log('Page B closed.');
-         } else if (pageB) {
-             console.log('Page B was already closed.');
-         }
-    } catch (error) {
-        // Log specifically which page failed if possible
-        console.warn('Warning: Error closing pages during standard teardown:', error);
-    }
+    console.log('Closing pages specific to this test suite using helper...');
+    await Promise.all([
+        closePage(pageA, 'Page A'),
+        closePage(pageB, 'Page B')
+    ]);
 
     // No need to clear globals as they weren't set by standardSetup
 
