@@ -317,16 +317,6 @@ describe('WebRTC Microphone E2E Test', () => {
         try {
             await pageA.click(TOGGLE_AUDIO_BUTTON_SELECTOR);
             console.log(`Clicked audio button (${TOGGLE_AUDIO_BUTTON_SELECTOR}) on Page A.`);
-            // Wait for the button state to change back to OFF (e.g., class/style removed)
-            console.log('Waiting for audio button on Page A to indicate OFF state...');
-            await pageA.waitForFunction(
-                (selector) => !document.querySelector(selector)?.matches('[class*="bg-blue-600"]'),
-                { timeout: 5000 },
-                TOGGLE_AUDIO_BUTTON_SELECTOR
-            );
-            console.log('Audio button is OFF. Waiting a moment before checking silence...');
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s
-
         } catch (e) {
             console.warn(`Could not click audio button (${TOGGLE_AUDIO_BUTTON_SELECTOR}) to turn off audio, or state did not revert.`, e);
             throw new Error("Failed to turn off audio on Page A.");

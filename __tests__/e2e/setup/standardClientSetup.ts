@@ -55,11 +55,11 @@ export async function standardClientSetup(): Promise<SetupResult> {
     console.log('Page A navigation complete.');
     await pageA.waitForSelector('#test-open-config-button', { visible: true, timeout: PUPPETEER_TIMEOUT });
     await pageA.click('#test-open-config-button');
-    await pageA.waitForSelector('#test-config-loader-select', { visible: true, timeout: PUPPETEER_TIMEOUT });
-    await pageA.select('#test-config-loader-select', 'client');
+    await pageA.waitForSelector('#config-loader', { visible: true, timeout: PUPPETEER_TIMEOUT });
+    await pageA.select('#config-loader', 'client');
     await Promise.all([
         pageA.waitForNavigation(), // The promise resolves after navigation has finished
-        pageA.click('#test-save-config-button'), // Clicking the link will indirectly cause a navigation
+        pageA.click('#save-button'), // Clicking the link will indirectly cause a navigation
       ]);
 
     console.log('Waiting for invite URL copy button on Page A...');

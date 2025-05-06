@@ -14,6 +14,7 @@ declare global {
     var __SERVER_PID__: number | undefined;
     var __BROWSER_A__: Browser | undefined;
     var __BROWSER_B__: Browser | undefined;
+    var __BROWSER_C__: Browser | undefined;
 }
 
 
@@ -25,6 +26,7 @@ export default async function globalSetup(globalConfig: Config.GlobalConfig, pro
 
     globalThis.__BROWSER_A__ =  globalThis.__jestPptr.browsers[0];
     globalThis.__BROWSER_B__ =  globalThis.__jestPptr.browsers[1];
+    globalThis.__BROWSER_C__ =  globalThis.__jestPptr.browsers[2];
 
     // --- Start Server ---
     console.log('Starting development server...');

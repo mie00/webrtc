@@ -18,7 +18,7 @@ module.exports = {
     ],
     ignoreDefaultArgs: ['--mute-audio'],
   },
-  maxWorkers: 2,
+  maxWorkers: 3,
   // Using jest-puppeteer preset is often simpler for E2E with Puppeteer
   preset: 'jest-puppeteer', // Recommended preset for Puppeteer tests
   // testEnvironment is usually handled by the preset, but keep if custom logic exists

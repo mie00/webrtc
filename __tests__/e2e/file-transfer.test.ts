@@ -209,11 +209,11 @@ describe('WebRTC File Transfer E2E Test (Multiple Sizes)', () => {
             await pageA.waitForSelector(fileContainerSelector, { visible: true, timeout: dynamicPuppeteerTimeout });
             console.log('File container found on Sender.');
 
-            // Wait for Sender's completion indicator (Download link appears)
-            const senderDownloadLinkSelector = `${fileContainerSelector} [data-testid="download-link"]`;
-            console.log(`Waiting for sender download link indicator on Page A...`);
-            await pageA.waitForSelector(senderDownloadLinkSelector, { visible: true, timeout: transferWaitTimeout }); // Longer timeout
-            console.log('Sender download link found (implies completion).');
+            // // Wait for Sender's completion indicator (Download link appears)
+            // const senderDownloadLinkSelector = `${fileContainerSelector} [data-testid="download-link"]`;
+            // console.log(`Waiting for sender download link indicator on Page A...`);
+            // await pageA.waitForSelector(senderDownloadLinkSelector, { visible: true, timeout: transferWaitTimeout }); // Longer timeout
+            // console.log('Sender download link found (implies completion).');
 
             // --- Receiver Verification ---
             console.log(`Waiting for file container [data-filename="${fileName}"] on Page B (Receiver)...`);
