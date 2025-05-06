@@ -157,7 +157,8 @@
     const globalConfig = getAllConfig(); // Get global config
     console.log("client window loader");
     const urlParams = new URLSearchParams(window.location.search);
-    
+    let localCompressedOffer: string | null = null; // Variable to store the offer this tab generated
+
     if (!urlParams.get('offer')) {
       const now = Date.now();
       showCopyOverlay = true;
@@ -172,6 +173,7 @@
         const sdp = client?.pc?.localDescription?.sdp;
         if (sdp) {
           const compressed = await compress(sdp);
+          localCompressedOffer = compressed; // Store the compressed offer locally
           urlParams.set('offer', compressed);
           const newUrl = ($configStore['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
           qrCodeUrl = newUrl;
@@ -183,21 +185,44 @@
       const bc = new BroadcastChannel("manual_rtc");
       bc.onmessage = async (event) => {
         const data = event.data;
-        const answer = await decompress(data.trim());
-        const client = getDirectClient(cid); // Get client from store
-        client?.pc?.setRemoteDescription({
-          type: "answer",
-          sdp: answer.trim() + '\n'
-        });
-        bc.close(); // Close the channel after processing the message
+        // Check if data is structured as expected and if the offer matches the one we generated
+        if (typeof data === 'object' && data !== null && data.offer && data.answer && data.offer === localCompressedOffer) {
+            console.log("Received matching answer via broadcast channel for offer:", data.offer);
+            const answer = await decompress(data.answer.trim());
+            const client = getDirectClient(cid); // Get client from store
+            if (client?.pc) {
+                try {
+                    await client.pc.setRemoteDescription({
+                        type: "answer",
+                        sdp: answer.trim() + '\n'
+                    });
+                    console.log("Successfully set remote description from broadcast answer.");
+                    bc.close(); // Close the channel ONLY after successful processing
+                } catch (e) {
+                    console.error("Error setting remote description from broadcast answer:", e);
+                    // Keep channel open on error
+                }
+            } else {
+                console.warn("Client or PeerConnection not found when processing broadcast answer.");
+                // Keep channel open
+            }
+        } else {
+            console.warn("Received broadcast message with non-matching offer or invalid format. Ignoring.", { receivedData: data, expectedOffer: localCompressedOffer });
+            // Keep channel open and listening for the correct message
+        }
       };
       // No need for DOM manipulation here since we're using Svelte events
       // The accept button click is handled by the on:accept event in the CopyOverlay component
       // We pass the currentOfferCid to CopyOverlay now.
     } else if (urlParams.get('answer')) {
-      const bc = new BroadcastChannel("manual_rtc"); // Create locally
-      await bc.postMessage(urlParams.get('answer'));
-      bc.close(); // Close immediately after posting
+      const answerParam = urlParams.get('answer');
+      const offerParamForAnswer = urlParams.get('offer'); // Get the offer this answer corresponds to
+      if (answerParam && offerParamForAnswer) {
+          const bc = new BroadcastChannel("manual_rtc"); // Create locally
+          // Send an object containing both the offer and the answer
+          await bc.postMessage({ offer: offerParamForAnswer, answer: answerParam });
+          bc.close(); // Close immediately after posting
+      }
       // Removed redundant bc.close() from here
       showCopyOverlay = true;
       // Instead of manipulating the DOM directly, we'll use a variable to control the content
