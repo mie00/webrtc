@@ -277,7 +277,7 @@ describe('WebRTC Microphone E2E Test', () => {
             silenceThresholdDb: -80
         };
         // Call without 'target' argument
-        const analysisResultB: AudioAnalysisResult = await pageB.evaluate(analyzeAudioInBrowser, 'frequency', analysisOptionsB);
+        const analysisResultB: AudioAnalysisResult = await pageB.evaluate(analyzeAudioInBrowser as any, 'frequency', analysisOptionsB);
 
         console.log('Frequency analysis on Page B complete:', analysisResultB);
 
@@ -304,7 +304,7 @@ describe('WebRTC Microphone E2E Test', () => {
              silenceThresholdDb: -80 // Keep threshold for internal logic if needed, but assertion changes
         };
         // Call without 'target' argument
-        const analysisResultA: AudioAnalysisResult = await pageA.evaluate(analyzeAudioInBrowser, 'amplitude', analysisOptionsA);
+        const analysisResultA: AudioAnalysisResult = await pageA.evaluate(analyzeAudioInBrowser as any, 'amplitude', analysisOptionsA);
 
         console.log(`Final amplitude analysis attempt on Page A complete:`, analysisResultA);
         // Assert that the analysis function could not find a suitable source,
