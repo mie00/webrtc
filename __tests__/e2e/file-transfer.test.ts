@@ -134,20 +134,12 @@ describe('WebRTC File Transfer E2E Test (Multiple Sizes)', () => {
         });
         console.log('Test files prepared.');
     }
-    beforeAll(async () => {
-        // Retrieve pages - Assuming connection is established by envSetup
-        // If envSetup was refactored out, connection logic needs to be here or in beforeEach
-        pageA = globalThis.__PAGE_A__!;
-        pageB = globalThis.__PAGE_B__!; // This relies on the old setup or needs adjustment
 
-        // Check if pages exist (basic sanity check)
-        if (!pageA || !pageB) {
-            throw new Error("Page A or Page B not found in global scope. Ensure E2E environment setup ran correctly and established connection.");
-        }
-        console.log("Page A and Page B retrieved.");
-        // Optional: Quick connection check if needed
-        // await checkConnectionEstablished(pageA, 'Page A (beforeAll)');
-        // await checkConnectionEstablished(pageB, 'Page B (beforeAll)');
+    beforeAll(async () => {
+        // Run the standard setup
+        const setupResult = await standardSetup();
+        pageA = setupResult.pageA;
+        pageB = setupResult.pageB;
 
         // Create test directory
         fs.ensureDirSync(TEST_FILES_DIR);
@@ -155,7 +147,10 @@ describe('WebRTC File Transfer E2E Test (Multiple Sizes)', () => {
     });
 
     afterAll(async () => {
-        // Delete the test files directory
+        // Run the standard teardown first
+        await standardTeardown({ pageA, pageB });
+
+        // Then cleanup generated files
         if (fs.existsSync(TEST_FILES_DIR)) {
             console.log(`Deleting test files directory: ${TEST_FILES_DIR}`);
             try {
