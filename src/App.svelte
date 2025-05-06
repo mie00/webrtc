@@ -265,7 +265,6 @@
   
   // Update acceptHandler signature to match the event detail type (cid can be null)
   const acceptHandler = async (cid: string | null, pasteValue: string) => { 
-    console.log("MIEMIE", cid, pasteValue)
     if (!pasteValue || !cid) return; // Add check for null cid
     
     let data = pasteValue;

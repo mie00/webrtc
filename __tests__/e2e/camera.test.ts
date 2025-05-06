@@ -1,8 +1,8 @@
 import { describe, test, expect, jest, beforeAll, afterAll } from '@jest/globals';
 import type { Page } from 'puppeteer';
 import { JEST_TIMEOUT } from './setup/testHelpers';
-import { standardSetup } from './setup/envSetup'; // Import standardSetup
-import { standardTeardown } from './setup/envTeardown'; // Import standardTeardown
+import { standardSetup } from './setup/standardSetup'; // Import standardSetup
+import { standardTeardown } from './setup/standardTeardown'; // Import standardTeardown
 import QrCode from 'qrcode-reader';
 import { Jimp } from 'jimp';
 import { type Bitmap } from "@jimp/types";

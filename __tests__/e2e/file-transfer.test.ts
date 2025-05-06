@@ -11,8 +11,8 @@ import {
     // checkConnectionEstablished, // No longer needed here, setup handles it
     calculateSHA256
 } from './setup/testHelpers';
-import { standardSetup } from './setup/envSetup'; // Import standardSetup
-import { standardTeardown } from './setup/envTeardown'; // Import standardTeardown
+import { standardSetup } from './setup/standardSetup'; // Import standardSetup
+import { standardTeardown } from './setup/standardTeardown'; // Import standardTeardown
 
 // --- Test Configuration ---
 const __filename = fileURLToPath(import.meta.url);
@@ -168,7 +168,6 @@ describe('WebRTC File Transfer E2E Test (Multiple Sizes)', () => {
         async ({ fileName, filePath, timeoutMultiplier, sizeBytes, description }) => {
             // sleep for 10 seconds and log to see if the test is running in parallel
             // await new Promise((resolve) => setTimeout(resolve, 10000));
-            console.log("MIEMIEMIE", fileName, filePath, timeoutMultiplier, sizeBytes, description);
             await createTestFile(filePath, sizeBytes);
             console.log(`Calculating SHA256 for: ${filePath}...`);
             const expectedSha256 = await calculateFileSHA256(filePath);

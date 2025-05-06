@@ -76,6 +76,7 @@
   }
   
   function handleAccept() {
+    console.log("MIEMIEMIE", pasteValue, cid)
     // Ensure the dispatched object matches the AcceptEventDetail interface
     // Use the cid prop directly
     const detail: AcceptEventDetail = {
@@ -95,18 +96,18 @@
   <div class="bg-white p-4 rounded-md shadow-md text-center">
     <button id="open-config" on:click={handleOpenConfig} class="right">⚙️</button>
     <button id="reset" on:click={handleReset}>↺</button>
-    <div bind:this={qrCodeElement}></div>
+    <div id="test-qr" bind:this={qrCodeElement}></div>
     <p class="text-lg font-semibold mb-2">Copy this:</p>
-    <textarea readonly value={copyText} class="bg-gray-200 px-4 py-2 rounded-md break-all block"></textarea>
+    <textarea readonly value={copyText} id="test-copy" class="bg-gray-200 px-4 py-2 rounded-md break-all block"></textarea>
     {#if showCopyButton}
       <button on:click={handleCopy}
         class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">{copyButtonText}</button>
     {/if}
     {#if showPasteText}
-      <textarea bind:value={pasteValue} class="bg-gray-200 px-4 py-2 rounded-md break-all block mt-2"></textarea>
+      <textarea id="test-paste" bind:value={pasteValue} class="bg-gray-200 px-4 py-2 rounded-md break-all block mt-2"></textarea>
     {/if}
     {#if showAcceptButton}
-      <button on:click={handleAccept}
+      <button id="test-accept" on:click={handleAccept}
         class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">Accept</button>
     {/if}
     {#if showJoinButton}

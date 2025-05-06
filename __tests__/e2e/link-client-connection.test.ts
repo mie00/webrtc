@@ -1,7 +1,7 @@
 import { describe, test, expect, jest, beforeAll, afterAll } from '@jest/globals';
 import type { Page } from 'puppeteer';
 import { checkConnectionEstablished, JEST_TIMEOUT } from './setup/testHelpers';
-import { standardSetup } from './setup/standardSetup'; // Import standardSetup
+import { linkClientSetup } from './setup/linkClientSetup'; // Import standardSetup
 import { standardTeardown } from './setup/standardTeardown'; // Import standardTeardown
 
 
@@ -14,7 +14,7 @@ describe('WebRTC Peer Connection E2E Test', () => {
 
     beforeAll(async () => {
         // Run the standard setup and store the pages
-        const setupResult = await standardSetup();
+        const setupResult = await linkClientSetup();
         pageA = setupResult.pageA;
         pageB = setupResult.pageB;
     });

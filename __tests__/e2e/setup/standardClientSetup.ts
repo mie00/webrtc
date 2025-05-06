@@ -26,7 +26,7 @@ interface SetupResult {
 }
 
 // No longer default export, and doesn't need 'this' context
-export async function standardSetup(): Promise<SetupResult> {
+export async function standardClientSetup(): Promise<SetupResult> {
     console.log('\n--- Standard E2E Setup (Pages & Connection) ---');
 
     // --- 1. Get Server URL from Global Scope (still needed from globalSetup) ---
@@ -53,11 +53,19 @@ export async function standardSetup(): Promise<SetupResult> {
     console.log(`Page A navigating to: ${serverUrl}`);
     await pageA.goto(serverUrl, { waitUntil: 'networkidle0', timeout: PUPPETEER_TIMEOUT });
     console.log('Page A navigation complete.');
+    await pageA.waitForSelector('::-p-text(⚙️)', { visible: true, timeout: PUPPETEER_TIMEOUT });
+    await pageA.click('::-p-text(⚙️)');
+    await pageA.waitForSelector('#config-loader', { visible: true, timeout: PUPPETEER_TIMEOUT });
+    await pageA.select('#config-loader', 'client');
+    await Promise.all([
+        pageA.waitForNavigation(), // The promise resolves after navigation has finished
+        pageA.click('#save-button'), // Clicking the link will indirectly cause a navigation
+      ]);
 
     console.log('Waiting for invite URL element on Page A...');
     await pageA.waitForSelector(INVITE_URL_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT });
     console.log('Invite URL element found. Evaluating window location...');
-    const inviteUrl = await pageA.evaluate(() => window.location.toString());
+    const inviteUrl = await pageA.$eval('textarea#test-copy', (el) => el.value);
     if (!inviteUrl || (!inviteUrl.startsWith('http://') && !inviteUrl.startsWith('https://'))) {
         throw new Error(`Failed to get a valid invite URL from Page A: ${inviteUrl}`);
     }
@@ -71,10 +79,18 @@ export async function standardSetup(): Promise<SetupResult> {
 
     // --- 3. Establish Connection ---
     console.log('Waiting for call button in Page B...');
-    await pageB.waitForSelector(CALL_BUTTON_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT });
-    console.log('Call button found. Clicking...');
-    await pageB.click(CALL_BUTTON_SELECTOR);
-    console.log('Call button clicked.');
+    await pageB.waitForSelector('::-p-text(Copy)', { visible: true, timeout: PUPPETEER_TIMEOUT });
+    // wait for a bit
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // get the content of #test-copy element
+    const copyText = await pageB.$eval('textarea#test-copy', (el) => el.value);
+    console.log(`Copy text from Page B: ${copyText}`);
+    // type text into #text-paste in pageA
+    await pageA.type('#test-paste', copyText);
+    console.log(`Pasted text into Page A: ${copyText}`);
+    // click accept button in pageA
+    await pageA.click('#test-accept');
+    console.log('Accepted connection in Page A.');
 
     console.log('Waiting for connection establishment in both pages...');
     await Promise.all([
