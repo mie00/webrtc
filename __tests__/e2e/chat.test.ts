@@ -8,7 +8,7 @@ import { JEST_TIMEOUT, PUPPETEER_TIMEOUT } from './setup/testHelpers';
 const CONTROL_PANEL_SELECTOR = 'div.w-11\\/12'; // Main panel container
 const CONTROL_PANEL_TOGGLE_SELECTOR = 'button ::-p-text(<)'; // Button to open/close panel (text changes)
 const CHAT_INPUT_SELECTOR = 'input[placeholder="Type message..."]';
-const CHAT_OUTPUT_CONTAINER_SELECTOR = 'div[bind\\:this=\\{chatOutputContainer\\}]'; // Container for messages
+const CHAT_OUTPUT_CONTAINER_SELECTOR = '#test-chat-container'; // Container for messages
 
 // --- Jest Test Suite ---
 describe('WebRTC Chat E2E Test', () => {

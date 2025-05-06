@@ -15,7 +15,7 @@
   let pasteValue = '';
   let copyButtonText = 'Copy';
   let qrCodeElement: HTMLElement;
-  
+
   // Define the structure of the detail for the 'accept' event
   interface AcceptEventDetail {
     pasteValue: string;
