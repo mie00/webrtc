@@ -76,19 +76,19 @@ export async function threeClientSetup(): Promise<SetupResult> {
     await pageB.goto(inviteUrl, { waitUntil: 'networkidle0', timeout: PUPPETEER_TIMEOUT });
     console.log('Page B navigation complete.');
 
-    // --- 5. Setup Page C ---
-    console.log('Opening Page C in Browser C...');
-    const pageC = await browserC.newPage(); // Use browserC
-    console.log('Page C navigating to the same invite URL...');
-    await pageC.goto(inviteUrl, { waitUntil: 'networkidle0', timeout: PUPPETEER_TIMEOUT }); // Use the same inviteUrl
-    console.log('Page C navigation complete.');
-
-    // --- 6. Establish Connections ---
+    // --- 5. Establish Connections ---
     console.log('Waiting for call button in Page B...');
     await pageB.waitForSelector(CALL_BUTTON_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT });
     console.log('Call button found on Page B. Clicking...');
     await pageB.click(CALL_BUTTON_SELECTOR);
     console.log('Call button clicked on Page B.');
+
+    // --- 6. Setup Page C ---
+    console.log('Opening Page C in Browser C...');
+    const pageC = await browserC.newPage(); // Use browserC
+    console.log('Page C navigating to the same invite URL...');
+    await pageC.goto(inviteUrl, { waitUntil: 'networkidle0', timeout: PUPPETEER_TIMEOUT }); // Use the same inviteUrl
+    console.log('Page C navigation complete.');
 
     console.log('Waiting for call button in Page C...');
     await pageC.waitForSelector(CALL_BUTTON_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT });

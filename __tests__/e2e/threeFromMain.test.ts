@@ -5,11 +5,10 @@ import { threeClientTeardown } from './setup/threeClientTeardown';
 import { JEST_TIMEOUT, PUPPETEER_TIMEOUT } from './setup/testHelpers';
 
 // Selectors needed for chat functionality (similar to chat.test.ts)
-const CONTROL_PANEL_SELECTOR = '#control-panel'; // Adjust if your ID is different
-const CHAT_INPUT_SELECTOR = '#chat-input'; // Adjust if your ID is different
-const CHAT_MESSAGES_SELECTOR = '#chat-messages'; // Adjust if your ID is different
-const CHAT_MESSAGE_SELECTOR = `${CHAT_MESSAGES_SELECTOR} > div`; // Selector for individual messages
-const CONTROL_PANEL_TOGGLE_SELECTOR = '#toggle-control-panel'; // Selector for the panel toggle button
+const CONTROL_PANEL_SELECTOR = 'div.w-11\\/12'; // Main panel container
+const CONTROL_PANEL_TOGGLE_SELECTOR = 'button ::-p-text(<)'; // Button to open/close panel (text changes)
+const CHAT_INPUT_SELECTOR = 'input[placeholder="Type message..."]';
+const CHAT_OUTPUT_CONTAINER_SELECTOR = '#test-chat-container'; // Container for messages
 
 describe('Three Client Chat E2E Test (A sends, B & C receive)', () => {
     jest.setTimeout(JEST_TIMEOUT); // Use timeout from helpers
@@ -67,7 +66,7 @@ describe('Three Client Chat E2E Test (A sends, B & C receive)', () => {
         console.log(`Verifying message "${expectedMessage}" on ${receiverName}...`);
         await ensurePanelOpen(receiverPage, receiverName); // Ensure panel is open to see messages
 
-        const messageSelector = `${CHAT_MESSAGE_SELECTOR} ::-p-text(${expectedMessage})`; // Use Puppeteer's text selector
+        const messageSelector = `${CHAT_OUTPUT_CONTAINER_SELECTOR} ::-p-text(${expectedMessage})`; // Use Puppeteer's text selector
 
         try {
             await receiverPage.waitForSelector(messageSelector, { visible: true, timeout: PUPPETEER_TIMEOUT * 2 }); // Increased timeout for message arrival
@@ -76,7 +75,7 @@ describe('Three Client Chat E2E Test (A sends, B & C receive)', () => {
         } catch (error) {
             console.error(`Error finding message "${expectedMessage}" on ${receiverName}:`, error);
             // Capture page state for debugging
-            const messagesHtml = await receiverPage.$eval(CHAT_MESSAGES_SELECTOR, el => el.innerHTML).catch(() => 'Could not get chat messages HTML');
+            const messagesHtml = await receiverPage.$eval(CHAT_OUTPUT_CONTAINER_SELECTOR, el => el.innerHTML).catch(() => 'Could not get chat messages HTML');
             console.error(`Current messages on ${receiverName}:\n${messagesHtml}`);
             throw new Error(`Message "${expectedMessage}" not found on ${receiverName} within timeout.`);
         }
