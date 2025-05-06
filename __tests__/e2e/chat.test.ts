@@ -6,10 +6,11 @@ import {
     JEST_TIMEOUT,
     PUPPETEER_TIMEOUT,
     CONTROL_PANEL_SELECTOR,
-    CONTROL_PANEL_TOGGLE_SELECTOR,
+    CONTROL_PANEL_TOGGLE_SELECTOR, // Used by ensurePanelOpen
     CHAT_INPUT_SELECTOR,
-    CHAT_OUTPUT_CONTAINER_SELECTOR
+    CHAT_OUTPUT_CONTAINER_SELECTOR // Used by verifyMessageReceived
 } from './setup/testHelpers'; // Import selectors from helpers
+import { ensurePanelOpen, verifyMessageReceived } from '../shared/chatTestHelpers';
 
 // --- Jest Test Suite ---
 describe('WebRTC Chat E2E Test', () => {
@@ -28,31 +29,7 @@ describe('WebRTC Chat E2E Test', () => {
         await standardTeardown({ pageA, pageB });
     });
 
-    // Helper function to ensure the control panel is open
-    async function ensurePanelOpen(page: Page, pageName: string) {
-        console.log(`Checking if control panel is open on ${pageName}...`);
-        const panel = await page.$(CONTROL_PANEL_SELECTOR);
-        if (!panel) {
-            throw new Error(`Control panel element not found on ${pageName}`);
-        }
-        const panelIsClosed = await panel.evaluate(el => el.classList.contains('left-full'));
-
-        if (panelIsClosed) {
-            console.log(`Control panel is closed on ${pageName}, opening...`);
-            // Use the imported selector constant
-            const toggleButton = await page.waitForSelector(CONTROL_PANEL_TOGGLE_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT });
-            await toggleButton?.click();
-            // Wait for the panel to slide open (check class change on the panel itself)
-            await page.waitForFunction(
-                (panelSelector) => !document.querySelector(panelSelector)?.classList.contains('left-full'),
-                { timeout: PUPPETEER_TIMEOUT },
-                CONTROL_PANEL_SELECTOR // Pass the panel selector ID
-            );
-            console.log(`Control panel opened on ${pageName}.`);
-        } else {
-            console.log(`Control panel is already open on ${pageName}.`);
-        }
-    }
+    // ensurePanelOpen is now imported from ../shared/chatTestHelpers
 
     // Helper function to send a message and verify receipt
     async function sendMessageAndVerify(senderPage: Page, receiverPage: Page, message: string, senderName: string, receiverName: string) {
@@ -69,24 +46,13 @@ describe('WebRTC Chat E2E Test', () => {
         await senderPage.keyboard.press('Enter');
         console.log(`Message sent from ${senderName}.`);
 
-        // 3. Ensure panel is open on receiver
-        await ensurePanelOpen(receiverPage, receiverName);
+        // 3. Ensure panel is open on receiver (already done by verifyMessageReceived)
+        // await ensurePanelOpen(receiverPage, receiverName); // This call is now part of verifyMessageReceived
 
-        // 4. Wait for the message to appear on the receiver's side by checking container content
-        console.log(`Waiting for message "${message}" to appear in ${CHAT_OUTPUT_CONTAINER_SELECTOR} on ${receiverName}...`);
-        await receiverPage.waitForFunction(
-            (containerSelector, expectedText) => {
-                const container = document.querySelector(containerSelector);
-                // Check if the container exists and its text content includes the message
-                return container?.textContent?.includes(expectedText) ?? false;
-            },
-            { timeout: PUPPETEER_TIMEOUT }, // Use appropriate timeout
-            CHAT_OUTPUT_CONTAINER_SELECTOR,
-            message
-        );
-        console.log(`Message "${message}" found in container on ${receiverName}.`);
+        // 4. Use the shared verifyMessageReceived function
+        await verifyMessageReceived(receiverPage, receiverName, message);
 
-        // 5. Verification is implicitly done by waitForFunction succeeding
+        // 5. Verification is handled by verifyMessageReceived
 
         // Optional: Verify sender name (might need more specific selectors depending on structure)
         // const senderNameSelector = `...selector for sender name near the message...`;
