@@ -10,7 +10,7 @@ import {
     CHAT_INPUT_SELECTOR
     // CHAT_OUTPUT_CONTAINER_SELECTOR is used by verifyMessageReceived from shared
 } from './setup/testHelpers'; // Import selectors
-import { ensurePanelOpen, verifyMessageReceived } from '../shared/chatTestHelpers';
+import { ensurePanelOpen, verifyMessageReceived } from './shared/chatTestHelpers';
 
 describe('Three Client Chat E2E Test (A sends, B & C receive)', () => {
     jest.setTimeout(JEST_TIMEOUT);
