@@ -1,7 +1,5 @@
-<script lang="ts">
-  import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
-  import type { FileTransfer } from '../lib/fileBridge.js';
-
+<script context="module">
+  
   // This interface should be kept in sync with CarouselMediaItem in ControlPanel.svelte
   // or ideally defined in a shared types file.
   export interface CarouselMediaItem {
@@ -12,6 +10,11 @@
     transfer: FileTransfer & { url: string }; // URL must exist
     cid?: string;
   }
+</script>
+<script lang="ts">
+  import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
+  import type { FileTransfer } from '../lib/fileBridge.js';
+
 
   export let items: CarouselMediaItem[] = [];
   export let startIndex: number = 0;
@@ -84,8 +87,10 @@
 {#if show && currentItem}
   <div
     class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-[1000] p-4"
-    on:click|self={closeCarousel} <!-- Close on clicking backdrop -->
+    on:click|self={closeCarousel}
+    on:keypress|stopPropagation
     role="dialog"
+    tabindex="0"
     aria-modal="true"
     aria-labelledby="carousel-sender-name"
   >
@@ -164,7 +169,4 @@
   </div>
 {/if}
 
-<!-- Ensure global keydown listener is only active when carousel is shown -->
-{#if show}
 <svelte:window on:keydown={handleKeydown} />
-{/if}
