@@ -164,7 +164,18 @@ export async function performFileTransferTest(
     // 3. Upload the test file
     console.log(`Uploading test file: ${filePath} on ${senderName}`);
     await (fileInputElement as ElementHandle<HTMLInputElement>).uploadFile(filePath);
-    console.log('File selected for upload.');
+    console.log('File selected for staging.');
+
+    // --- Simulate pressing Enter in chat input to send staged files ---
+    const chatInputSelector = '#test-chat-input'; // As defined in ControlPanel.svelte
+    console.log(`Waiting for chat input element on ${senderName}...`);
+    const chatInputElement = await senderPage.waitForSelector(chatInputSelector, { visible: true, timeout: dynamicPuppeteerTimeout });
+    if (!chatInputElement) {
+        throw new Error(`Chat input element (${chatInputSelector}) not found on ${senderName}`);
+    }
+    console.log('Chat input element found. Pressing Enter to send file(s)...');
+    await chatInputElement.press('Enter');
+    console.log('Enter pressed on chat input.');
 
     // --- Verification using data attributes ---
     const fileContainerSelector = `div[data-filename="${fileName}"]`;
