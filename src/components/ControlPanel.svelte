@@ -279,6 +279,7 @@
                       <!-- Inline Player View - Always shown for completed playable media -->
                       <div class="my-2">
                         {#if playableMediaType === 'video'}
+                          <!-- svelte-ignore a11y_media_has_caption -->
                           <video src={transfer.url} controls class="w-full rounded aspect-video min-w-md"></video>
                         {:else if playableMediaType === 'audio'}
                           <audio src={transfer.url} controls class="w-full min-w-md"></audio>
