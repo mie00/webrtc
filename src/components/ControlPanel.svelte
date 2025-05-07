@@ -277,7 +277,7 @@
 
                     {#if transfer.status === 'complete' && playableMediaType && transfer.url}
                       <!-- Inline Player View - Always shown for completed playable media -->
-                      <div class="my-2"> {/* Added margin for spacing */}
+                      <div class="my-2">
                         {#if playableMediaType === 'video'}
                           <video src={transfer.url} controls class="w-full rounded aspect-video"></video>
                         {:else if playableMediaType === 'audio'}
@@ -302,11 +302,11 @@
                       {#if transfer.url}
                         <div class="flex flex-wrap gap-2 mt-1">
                           <a data-testid="download-link" href={transfer.url} download={transfer.name}
-                             class="flex-1 text-center py-1 px-2 bg-green-500 text-white text-xs rounded shadow hover:bg-green-600 min-w-[calc(50%-0.25rem)]"> {/* Adjusted width */}
+                             class="flex-1 text-center py-1 px-2 bg-green-500 text-white text-xs rounded shadow hover:bg-green-600 min-w-[calc(50%-0.25rem)]">
                             Download
                           </a>
                           <a data-testid="view-link" href={transfer.url} target="_blank" rel="noopener noreferrer"
-                             class="flex-1 text-center py-1 px-2 bg-blue-500 text-white text-xs rounded shadow hover:bg-blue-600 min-w-[calc(50%-0.25rem)]"> {/* Adjusted width */}
+                             class="flex-1 text-center py-1 px-2 bg-blue-500 text-white text-xs rounded shadow hover:bg-blue-600 min-w-[calc(50%-0.25rem)]">
                             View
                           </a>
                         </div>
