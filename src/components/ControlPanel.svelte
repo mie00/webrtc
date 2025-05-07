@@ -1,6 +1,5 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, afterUpdate } from 'svelte';
-  import { v4 as uuidv4 } from 'uuid'; // For unique IDs for staged files
   import { connectionStore, type ConnectionState } from '../stores/connectionStore.js';
   import { configStore } from '../stores/configStore.js';
   import { chatStore, type ChatState } from '../lib/chatBridge.js';
@@ -97,6 +96,12 @@
         resolve(null); // No thumbnail for non-images, UI can use a generic icon
       }
     });
+  }
+
+  function uuidv4(): string {
+    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+      (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
+    );
   }
 
   async function addFilesToStaging(files: FileList | null) {
@@ -521,6 +526,7 @@
               <button
                 type="button"
                 disabled={isSending}
+                aria-label="remove file"
                 on:click={() => removeStagedFile(stagedFile.id)}
                 class="text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed p-1 ml-2 flex-shrink-0"
                 title="Remove file"
@@ -533,7 +539,7 @@
       {/if}
 
       <!-- Message Input and Upload Button (Remains at the bottom) -->
-      <div class="flex items-center space-x-2 p-4 border-t border-gray-300 mt-auto"> {/* mt-auto to push to bottom if staging area grows */}
+      <div class="flex items-center space-x-2 p-4 border-t border-gray-300 mt-auto">
         <input id="test-chat-input" type="text" placeholder="Type message..."
           bind:value={message}
           bind:this={chatInput}
@@ -555,10 +561,10 @@
           <input
             id="test-file-upload"
             type="file"
-            multiple <!-- Allow multiple file selection -->
+            multiple
             disabled={isSending}
             class="hidden"
-            on:change={stageFilesFromInput} <!-- Changed to new handler -->
+            on:change={stageFilesFromInput}
             bind:this={uploadField}
           >
         </div>
