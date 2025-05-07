@@ -328,7 +328,7 @@
 
                     {#if transfer.status === 'complete' && playableMediaType && transfer.url}
                       <!-- Inline Player View - Always shown for completed playable media -->
-                      <div class="my-2"> {/* Wrapper for all playable media types */}
+                      <div class="my-2">
                         {#if playableMediaType === 'video'}
                           <div
                             class="cursor-pointer"
@@ -348,7 +348,7 @@
                             aria-label={`View video: ${transfer.name}`}
                           >
                             <!-- svelte-ignore a11y_media_has_caption -->
-                            <video src={transfer.url} controls class="w-full rounded aspect-video min-w-md pointer-events-none"></video> {/* pointer-events-none so div handles click */}
+                            <video src={transfer.url} controls class="w-full rounded aspect-video min-w-md pointer-events-none"></video>
                           </div>
                         {:else if playableMediaType === 'image'}
                           <div
@@ -371,7 +371,7 @@
                             <img
                               src={transfer.url}
                               alt={transfer.name}
-                              class="w-full rounded max-h-60 object-contain my-2 pointer-events-none" /* pointer-events-none so div handles click */
+                              class="w-full rounded max-h-60 object-contain my-2 pointer-events-none"
                               on:error={(e) => {
                                 console.error('Image failed to load. URL:', transfer.url, 'Transfer object:', JSON.stringify(transfer));
                               }}
