@@ -45,9 +45,6 @@
     fileState = value;
   });
 
-  // State for inline media player
-  let inlinePlayingFileId: string | null = null;
-
   // Helper function to determine if media is playable and its type
   function getPlayableMediaType(fileType: string): 'audio' | 'video' | null {
     if (fileType?.startsWith('audio/')) {
@@ -274,61 +271,52 @@
                   {@const transfer = item.transfer}
                   {@const playableMediaType = getPlayableMediaType(transfer.type)}
 
-                  {#if playableMediaType && inlinePlayingFileId === transfer.id && transfer.url}
-                    <!-- Inline Player View -->
-                    <div class="space-y-1 w-full">
-                      <button on:click={() => inlinePlayingFileId = null}
-                              class="text-xs py-1 px-2 bg-gray-300 text-black rounded shadow hover:bg-gray-400 mb-2">
-                        Close Player
-                      </button>
-                      {#if playableMediaType === 'video'}
-                        <video src={transfer.url} controls autoplay class="w-full rounded aspect-video"></video>
-                      {:else if playableMediaType === 'audio'}
-                        <audio src={transfer.url} controls autoplay class="w-full"></audio>
-                      {/if}
-                    </div>
-                  {:else}
-                    <!-- Standard File Info View -->
-                    <div class="space-y-1">
-                      <p data-testid="filename" class="text-sm font-medium truncate" title={transfer.name}>{transfer.name}</p>
-                      {#if transfer.status !== 'complete' && transfer.status !== 'error'}
-                        <div class="flex items-center space-x-2">
-                          <progress data-testid="progress-bar" class="w-full h-2 rounded" value={transfer.progress} max="100"></progress>
-                          <span class="text-xs font-mono flex-shrink-0">{transfer.progress}%</span>
-                        </div>
-                      {/if}
-                      {#if transfer.status === 'sending'}
-                        <p data-testid="status" class="text-xs text-blue-600">Sending...</p>
-                      {:else if transfer.status === 'receiving'}
-                        <p data-testid="status" class="text-xs text-blue-600">Receiving...</p>
-                      {:else if transfer.status === 'complete'}
-                        <p data-testid="status" class="text-xs text-green-600">Completed</p>
-                        {#if transfer.url}
-                          <div class="flex flex-wrap gap-2 mt-1">
-                            <a data-testid="download-link" href={transfer.url} download={transfer.name}
-                               class="flex-1 text-center py-1 px-2 bg-green-500 text-white text-xs rounded shadow hover:bg-green-600 min-w-[calc(33%-0.5rem)]">
-                              Download
-                            </a>
-                            {#if playableMediaType}
-                              <button data-testid="play-inline-button"
-                                      on:click={() => inlinePlayingFileId = transfer.id}
-                                      class="flex-1 text-center py-1 px-2 bg-yellow-500 text-white text-xs rounded shadow hover:bg-yellow-600 min-w-[calc(33%-0.5rem)]">
-                                Play Inline
-                              </button>
-                            {/if}
-                            <a data-testid="view-link" href={transfer.url} target="_blank" rel="noopener noreferrer"
-                               class="flex-1 text-center py-1 px-2 bg-blue-500 text-white text-xs rounded shadow hover:bg-blue-600 min-w-[calc(33%-0.5rem)]">
-                              View
-                            </a>
-                          </div>
-                        {:else}
-                          <p data-testid="status" class="text-xs text-gray-500 mt-1">(URL not available)</p>
+                  <!-- Standard File Info View -->
+                  <div class="space-y-1">
+                    <p data-testid="filename" class="text-sm font-medium truncate" title={transfer.name}>{transfer.name}</p>
+
+                    {#if transfer.status === 'complete' && playableMediaType && transfer.url}
+                      <!-- Inline Player View - Always shown for completed playable media -->
+                      <div class="my-2"> {/* Added margin for spacing */}
+                        {#if playableMediaType === 'video'}
+                          <video src={transfer.url} controls class="w-full rounded aspect-video"></video>
+                        {:else if playableMediaType === 'audio'}
+                          <audio src={transfer.url} controls class="w-full"></audio>
                         {/if}
-                      {:else if transfer.status === 'error'}
-                        <p data-testid="status" class="text-xs text-red-600" title={transfer.error}>Error: {transfer.error || 'Transfer failed'}</p>
+                      </div>
+                    {/if}
+
+                    {#if transfer.status !== 'complete' && transfer.status !== 'error'}
+                      <div class="flex items-center space-x-2">
+                        <progress data-testid="progress-bar" class="w-full h-2 rounded" value={transfer.progress} max="100"></progress>
+                        <span class="text-xs font-mono flex-shrink-0">{transfer.progress}%</span>
+                      </div>
+                    {/if}
+
+                    {#if transfer.status === 'sending'}
+                      <p data-testid="status" class="text-xs text-blue-600">Sending...</p>
+                    {:else if transfer.status === 'receiving'}
+                      <p data-testid="status" class="text-xs text-blue-600">Receiving...</p>
+                    {:else if transfer.status === 'complete'}
+                      <p data-testid="status" class="text-xs text-green-600">Completed</p>
+                      {#if transfer.url}
+                        <div class="flex flex-wrap gap-2 mt-1">
+                          <a data-testid="download-link" href={transfer.url} download={transfer.name}
+                             class="flex-1 text-center py-1 px-2 bg-green-500 text-white text-xs rounded shadow hover:bg-green-600 min-w-[calc(50%-0.25rem)]"> {/* Adjusted width */}
+                            Download
+                          </a>
+                          <a data-testid="view-link" href={transfer.url} target="_blank" rel="noopener noreferrer"
+                             class="flex-1 text-center py-1 px-2 bg-blue-500 text-white text-xs rounded shadow hover:bg-blue-600 min-w-[calc(50%-0.25rem)]"> {/* Adjusted width */}
+                            View
+                          </a>
+                        </div>
+                      {:else}
+                        <p data-testid="status" class="text-xs text-gray-500 mt-1">(URL not available)</p>
                       {/if}
-                    </div>
-                  {/if}
+                    {:else if transfer.status === 'error'}
+                      <p data-testid="status" class="text-xs text-red-600" title={transfer.error}>Error: {transfer.error || 'Transfer failed'}</p>
+                    {/if}
+                  </div>
                 {/if}
               </div>
             </div>
