@@ -46,12 +46,15 @@
   });
 
   // Helper function to determine if media is playable and its type
-  function getPlayableMediaType(fileType: string): 'audio' | 'video' | null {
+  function getPlayableMediaType(fileType: string): 'audio' | 'video' | 'image' | null {
     if (fileType?.startsWith('audio/')) {
       return 'audio';
     }
     if (fileType?.startsWith('video/')) {
       return 'video';
+    }
+    if (fileType?.startsWith('image/')) {
+      return 'image';
     }
     return null;
   }
@@ -283,6 +286,8 @@
                           <video src={transfer.url} controls class="w-full rounded aspect-video min-w-md"></video>
                         {:else if playableMediaType === 'audio'}
                           <audio src={transfer.url} controls class="w-full min-w-md"></audio>
+                        {:else if playableMediaType === 'image'}
+                          <img src={transfer.url} alt={transfer.name} class="w-full rounded max-h-60 object-contain my-2" />
                         {/if}
                       </div>
                     {/if}
