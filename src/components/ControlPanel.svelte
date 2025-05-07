@@ -1,10 +1,18 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, afterUpdate } from 'svelte';
+  import { v4 as uuidv4 } from 'uuid'; // For unique IDs for staged files
   import { connectionStore, type ConnectionState } from '../stores/connectionStore.js';
   import { configStore } from '../stores/configStore.js';
   import { chatStore, type ChatState } from '../lib/chatBridge.js';
   import { fileStore, type FileState, type FileTransfer } from '../lib/fileBridge.js';
   import MediaCarousel, { type CarouselMediaItem } from './MediaCarousel.svelte'; // Import Carousel
+
+  // --- Types for Staged Files ---
+  interface StagedFile {
+    id: string;
+    file: File;
+    thumbnailUrl: string | null; // URL for image previews (Data URL)
+  }
 
   // --- Types for Combined Feed ---
   interface FeedItem { // This is for the general feed
@@ -26,7 +34,11 @@
   let controlsPanel: HTMLDivElement;
   let uploadField: HTMLInputElement;
   let chatOutputContainer: HTMLDivElement;
-  let canUpload = true;
+  // let canUpload = true; // Replaced by isSending and stagedFiles logic
+
+  // --- New State for Staged Files & Sending ---
+  let stagedFiles: StagedFile[] = [];
+  let isSending = false; // To disable input/buttons during send operation
 
   // Carousel State
   let showMediaCarousel = false;
@@ -69,7 +81,42 @@
     unsubscribe(); // Unsubscribe from connectionStore
     unsubscribeChat(); // Unsubscribe from chatStore
     unsubscribeFile(); // Unsubscribe from fileStore
+    // Data URLs from FileReader (used for thumbnails) don't need explicit revocation.
+    // If URL.createObjectURL were used, cleanup would be needed here.
   });
+
+  // --- Helper Functions for Staged Files ---
+  function generateThumbnailUrl(file: File): Promise<string | null> {
+    return new Promise((resolve) => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = () => resolve(null); // Fallback if reading fails
+        reader.readAsDataURL(file);
+      } else {
+        resolve(null); // No thumbnail for non-images, UI can use a generic icon
+      }
+    });
+  }
+
+  async function addFilesToStaging(files: FileList | null) {
+    if (!files || files.length === 0 || isSending) return;
+
+    const newStagedFileEntries: StagedFile[] = [];
+    for (const file of Array.from(files)) {
+      const thumbnailUrl = await generateThumbnailUrl(file);
+      newStagedFileEntries.push({ id: uuidv4(), file, thumbnailUrl });
+    }
+    stagedFiles = [...stagedFiles, ...newStagedFileEntries];
+  }
+
+  function removeStagedFile(fileIdToRemove: string) {
+    stagedFiles = stagedFiles.filter(sf => sf.id !== fileIdToRemove);
+    // If thumbnails were blob URLs (from URL.createObjectURL), revoke here:
+    // const fileToRemove = stagedFiles.find(f => f.id === fileIdToRemove);
+    // if (fileToRemove?.thumbnailUrl?.startsWith('blob:')) { URL.revokeObjectURL(fileToRemove.thumbnailUrl); }
+  }
+
 
   // Get local user name directly from the config store
   $: localUserName = $configStore['user-name'] || 'You';
@@ -174,58 +221,71 @@
     }
   }
   
-  function handleKeyPress(event: KeyboardEvent) { // Add type annotation
-    if (event.key === 'Enter') {
-      sendMessage();
+  function handleKeyPress(event: KeyboardEvent) {
+    // Send on Enter (if not Shift+Enter for newline), and if not currently sending
+    if (event.key === 'Enter' && !event.shiftKey && !isSending) {
+      event.preventDefault(); // Prevent default Enter behavior (e.g., adding a newline)
+      triggerSend();
     }
   }
   
-  async function sendMessage() {
-    if (!message.trim()) return;
+  async function triggerSend() {
+    if (isSending) return; // Prevent concurrent sends
+    if (!message.trim() && stagedFiles.length === 0) return; // Nothing to send
 
-    // Get sender name from config store
-    const senderName = $configStore['user-name'] || 'You';
+    isSending = true;
 
-    // Import the sendChatMessage function from our bridge
-    const { sendChatMessage } = await import('../lib/chatBridge.js');
-    sendChatMessage(message.trim(), senderName);
+    try {
+      // 1. Send text message if present
+      if (message.trim()) {
+        const senderName = $configStore['user-name'] || 'You';
+        const { sendChatMessage } = await import('../lib/chatBridge.js');
+        await sendChatMessage(message.trim(), senderName); // Assuming sendChatMessage is async
+        message = ''; // Clear message input after successful send
+      }
 
-    // Clear input
-    message = '';
-  }
-  
-  async function handleFileUpload(file: File | null | undefined) { // Modified to accept a File object
-    if (!file) return;
-    // Import the sendFile function from our bridge
-    const { sendFile } = await import('../lib/fileBridge.js');
-    canUpload = false;
-    try{
-      await sendFile(file); // Added await here if sendFile is async and we want to ensure completion before resetting canUpload
+      // 2. Send all staged files
+      if (stagedFiles.length > 0) {
+        const { sendFile } = await import('../lib/fileBridge.js');
+        // Create a copy of the array to iterate over, as sendFile might be slow
+        // and we want to clear the UI staging area optimistically or upon completion.
+        const filesToSend = [...stagedFiles];
+        stagedFiles = []; // Clear staging area from UI immediately
+
+        for (const stagedFileObj of filesToSend) {
+          await sendFile(stagedFileObj.file);
+          // Note: Thumbnail DataURLs don't need explicit revocation.
+        }
+      }
+    } catch (error) {
+      console.error("Error sending message or files:", error);
+      // Potentially re-add files to staging or notify user
+      // For now, message remains cleared, stagedFiles remain cleared.
+      // User would need to re-add files that failed.
     } finally {
-      canUpload = true;
+      isSending = false;
     }
-    // Clear the uploadField only if it was the source
-    if (uploadField && uploadField.files && uploadField.files[0] === file) {
-      uploadField.value = '';
+  }
+  
+  // Renamed from handleFileUpload to reflect it now stages files, not sends directly.
+  async function stageFilesFromInput(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files) {
+      await addFilesToStaging(input.files);
+      input.value = ''; // Clear the file input after files are staged
     }
   }
 
   async function handlePaste(event: ClipboardEvent) {
-    if (!canUpload) return;
+    if (isSending) return;
 
-    const items = event.clipboardData?.items;
-    if (items) {
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].kind === 'file') {
-          const file = items[i].getAsFile();
-          if (file) {
-            event.preventDefault(); // Prevent pasting text if a file is found
-            await handleFileUpload(file);
-            return; // Handle only the first file
-          }
-        }
-      }
+    const pastedFiles = event.clipboardData?.files;
+    if (pastedFiles && pastedFiles.length > 0) {
+      // If files are pasted into the chat input, prevent default text paste and stage them.
+      event.preventDefault();
+      await addFilesToStaging(pastedFiles);
     }
+    // If no files, default paste behavior (text) for chatInput is allowed.
   }
 </script>
 
@@ -441,26 +501,66 @@
         {/if}
       </div>
 
+      <!-- Staging Area for Files -->
+      {#if stagedFiles.length > 0}
+        <div class="px-4 pt-2 space-y-2 max-h-48 overflow-y-auto border-t border-b border-gray-300">
+          <h4 class="text-xs font-semibold text-gray-600 uppercase">Files to send:</h4>
+          {#each stagedFiles as stagedFile (stagedFile.id)}
+            <div class="flex items-center justify-between p-1.5 bg-gray-50 rounded shadow-sm text-sm">
+              <div class="flex items-center space-x-2 overflow-hidden min-w-0">
+                {#if stagedFile.thumbnailUrl}
+                  <img src={stagedFile.thumbnailUrl} alt="Preview" class="w-10 h-10 object-cover rounded border border-gray-200">
+                {:else}
+                  <!-- Generic file icon placeholder -->
+                  <div class="w-10 h-10 flex items-center justify-center bg-gray-200 rounded border border-gray-300">
+                    <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a2 2 0 00-2 2v8l-3 3v2h12v-2l-3-3V4a2 2 0 00-2-2H9zm7 11h-2v2h2v-2zm-4 0H8v2h4v-2zM7 2H5v2h2V2z"></path></svg>
+                  </div>
+                {/if}
+                <span class="truncate text-gray-700" title={stagedFile.file.name}>{stagedFile.file.name}</span>
+              </div>
+              <button
+                type="button"
+                disabled={isSending}
+                on:click={() => removeStagedFile(stagedFile.id)}
+                class="text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed p-1 ml-2 flex-shrink-0"
+                title="Remove file"
+              >
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+              </button>
+            </div>
+          {/each}
+        </div>
+      {/if}
+
       <!-- Message Input and Upload Button (Remains at the bottom) -->
-      <div class="flex items-center space-x-2 p-4 border-t border-gray-300 mt-2">
+      <div class="flex items-center space-x-2 p-4 border-t border-gray-300 mt-auto"> {/* mt-auto to push to bottom if staging area grows */}
         <input id="test-chat-input" type="text" placeholder="Type message..."
           bind:value={message}
           bind:this={chatInput}
-          class="flex-1 border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          disabled={isSending}
+          class="flex-1 border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
           on:keypress={handleKeyPress}
           on:paste={handlePaste}>
         <div class="relative"> <!-- Use relative positioning for the button container -->
           <button
             id="test-attach-file-button"
             type="button"
-            disabled={!canUpload}
+            disabled={isSending}
             on:click={() => uploadField.click()}
             class="cursor-pointer text-white px-3 py-2 rounded-md text-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            class:bg-blue-500={canUpload}
-            class:bg-gray-500={!canUpload}
-            title={canUpload ? "Attach file" : "File upload in progress"}
+            class:bg-blue-500={!isSending}
+            class:bg-gray-500={isSending}
+            title={!isSending ? "Attach file" : "Sending..."}
           >📎</button>
-          <input id="test-file-upload" disabled={!canUpload} type="file" class="hidden" on:change={(e) => handleFileUpload((e.target as HTMLInputElement).files?.[0])} bind:this={uploadField}>
+          <input
+            id="test-file-upload"
+            type="file"
+            multiple <!-- Allow multiple file selection -->
+            disabled={isSending}
+            class="hidden"
+            on:change={stageFilesFromInput} <!-- Changed to new handler -->
+            bind:this={uploadField}
+          >
         </div>
       </div>
     </div> <!-- End Combined Feed -->
