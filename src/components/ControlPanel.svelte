@@ -250,7 +250,7 @@
             <!-- Add data-filename for file transfers to help test selectors -->
             <div class="flex" class:justify-end={isLocalUser} class:justify-start={!isLocalUser} data-filename={item.type === 'file' ? item.transfer?.name : null}>
               <div
-                class="p-3 rounded-lg shadow max-w-xs lg:max-w-md break-words"
+                class="p-3 rounded-lg shadow max-w-[90%] break-words"
                 class:bg-blue-100={isLocalUser}
                 class:bg-gray-100={!isLocalUser}
                 > <!-- Removed title from outer div -->
@@ -279,9 +279,9 @@
                       <!-- Inline Player View - Always shown for completed playable media -->
                       <div class="my-2">
                         {#if playableMediaType === 'video'}
-                          <video src={transfer.url} controls class="w-full rounded aspect-video"></video>
+                          <video src={transfer.url} controls class="w-full rounded aspect-video min-w-md"></video>
                         {:else if playableMediaType === 'audio'}
-                          <audio src={transfer.url} controls class="w-full"></audio>
+                          <audio src={transfer.url} controls class="w-full min-w-md"></audio>
                         {/if}
                       </div>
                     {/if}
