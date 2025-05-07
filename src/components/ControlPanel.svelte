@@ -113,6 +113,10 @@
       newStagedFileEntries.push({ id: uuidv4(), file, thumbnailUrl });
     }
     stagedFiles = [...stagedFiles, ...newStagedFileEntries];
+
+    if (chatInput) {
+      chatInput.focus();
+    }
   }
 
   function removeStagedFile(fileIdToRemove: string) {
