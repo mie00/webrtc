@@ -238,14 +238,14 @@
       videoStream,
       local: true
     });
-    
+
     await setupLocalStream('local');
   }
-  
+
   function handleChangeLayout(layout: LayoutType) {
     setViewLayout(layout);
   }
-  
+
   function handleFocusStream(event: CustomEvent) {
     const { streamId } = event.detail;
     setViewLayout('focus', streamId);
