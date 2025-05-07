@@ -1,12 +1,13 @@
 <script lang="ts">
-  import { createEventDispatcher, onDestroy, afterUpdate } from 'svelte'; // Import onDestroy and afterUpdate
+  import { createEventDispatcher, onDestroy, afterUpdate } from 'svelte';
   import { connectionStore, type ConnectionState } from '../stores/connectionStore.js';
-  import { configStore } from '../stores/configStore.js'; // Import configStore
+  import { configStore } from '../stores/configStore.js';
   import { chatStore, type ChatState } from '../lib/chatBridge.js';
   import { fileStore, type FileState, type FileTransfer } from '../lib/fileBridge.js';
+  import MediaCarousel, { type CarouselMediaItem } from './MediaCarousel.svelte'; // Import Carousel
 
   // --- Types for Combined Feed ---
-  interface FeedItem {
+  interface FeedItem { // This is for the general feed
     id: string; // Unique ID for the #each block key
     type: 'chat' | 'file';
     sender: string;
@@ -27,8 +28,13 @@
   let chatOutputContainer: HTMLDivElement;
   let canUpload = true;
 
+  // Carousel State
+  let showMediaCarousel = false;
+  let carouselMediaItems: CarouselMediaItem[] = [];
+  let carouselStartIndex = 0;
+
   // Subscribe to connection store
-  let connectionState: ConnectionState = { directClients: {}, participants: {} }; // Initialize with default structure
+  let connectionState: ConnectionState = { directClients: {}, participants: {} };
   const unsubscribe = connectionStore.subscribe(value => {
     connectionState = value;
   });
@@ -110,9 +116,51 @@
     return allItems;
   })();
 
+  // Filter combinedFeed for items suitable for the carousel
+  $: viewableMediaForCarousel = (() => {
+    const result: CarouselMediaItem[] = [];
+    for (const item of combinedFeed) {
+      if (
+        item.type === 'file' &&
+        item.transfer?.status === 'complete' &&
+        item.transfer.url && // Ensure URL exists
+        (getPlayableMediaType(item.transfer.type) === 'image' ||
+         getPlayableMediaType(item.transfer.type) === 'video')
+      ) {
+        // Type assertion: we've checked all necessary conditions for CarouselMediaItem
+        result.push({
+          id: item.id,
+          type: 'file', // Known
+          sender: item.sender,
+          timestamp: item.timestamp,
+          transfer: item.transfer as FileTransfer & { url: string }, // Cast here
+          cid: item.cid,
+        });
+      }
+    }
+    return result;
+  })();
+
+  function openMediaCarousel(clickedItem: CarouselMediaItem) {
+    carouselMediaItems = viewableMediaForCarousel; // Use the pre-filtered and typed list
+    const clickedItemIndex = carouselMediaItems.findIndex(item => item.id === clickedItem.id);
+
+    if (clickedItemIndex !== -1) {
+      carouselStartIndex = clickedItemIndex;
+      showMediaCarousel = true;
+    } else if (carouselMediaItems.length > 0) {
+      // Fallback if somehow the clicked item isn't in the list (should be rare)
+      carouselStartIndex = 0;
+      showMediaCarousel = true;
+    } else {
+      console.warn("No viewable media items for carousel, or clicked item not found in the filtered list.");
+    }
+  }
+
+
   // Auto-scroll combined feed
   afterUpdate(() => {
-    if (chatOutputContainer) {
+    if (chatOutputContainer && !showMediaCarousel) { // Don't auto-scroll if carousel is open
       // Scroll to the bottom instantly
       chatOutputContainer.scrollTop = chatOutputContainer.scrollHeight;
     }
@@ -280,22 +328,57 @@
 
                     {#if transfer.status === 'complete' && playableMediaType && transfer.url}
                       <!-- Inline Player View - Always shown for completed playable media -->
-                      <div class="my-2">
+                      <div class="my-2"> {/* Wrapper for all playable media types */}
                         {#if playableMediaType === 'video'}
-                          <!-- svelte-ignore a11y_media_has_caption -->
-                          <video src={transfer.url} controls class="w-full rounded aspect-video min-w-md"></video>
+                          <div
+                            class="cursor-pointer"
+                            role="button"
+                            tabindex="0"
+                            on:click={() => {
+                              const cItem = viewableMediaForCarousel.find(mi => mi.id === item.id);
+                              if (cItem) openMediaCarousel(cItem);
+                            }}
+                            on:keydown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                const cItem = viewableMediaForCarousel.find(mi => mi.id === item.id);
+                                if (cItem) openMediaCarousel(cItem);
+                                e.preventDefault();
+                              }
+                            }}
+                            aria-label={`View video: ${transfer.name}`}
+                          >
+                            <!-- svelte-ignore a11y_media_has_caption -->
+                            <video src={transfer.url} controls class="w-full rounded aspect-video min-w-md pointer-events-none"></video> {/* pointer-events-none so div handles click */}
+                          </div>
+                        {:else if playableMediaType === 'image'}
+                          <div
+                            class="cursor-pointer"
+                            role="button"
+                            tabindex="0"
+                            on:click={() => {
+                              const cItem = viewableMediaForCarousel.find(mi => mi.id === item.id);
+                              if (cItem) openMediaCarousel(cItem);
+                            }}
+                            on:keydown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                const cItem = viewableMediaForCarousel.find(mi => mi.id === item.id);
+                                if (cItem) openMediaCarousel(cItem);
+                                e.preventDefault();
+                              }
+                            }}
+                            aria-label={`View image: ${transfer.name}`}
+                          >
+                            <img
+                              src={transfer.url}
+                              alt={transfer.name}
+                              class="w-full rounded max-h-60 object-contain my-2 pointer-events-none" /* pointer-events-none so div handles click */
+                              on:error={(e) => {
+                                console.error('Image failed to load. URL:', transfer.url, 'Transfer object:', JSON.stringify(transfer));
+                              }}
+                            />
+                          </div>
                         {:else if playableMediaType === 'audio'}
                           <audio src={transfer.url} controls class="w-full min-w-md"></audio>
-                        {:else if playableMediaType === 'image'}
-                          <img
-                            src={transfer.url}
-                            alt={transfer.name}
-                            class="w-full rounded max-h-60 object-contain my-2"
-                            on:error={(e) => {
-                              console.error('Image failed to load. URL:', transfer.url, 'Transfer object:', JSON.stringify(transfer));
-                              // You can inspect the 'e' event object for more details if needed: console.error('Event:', e);
-                            }}
-                          />
                         {/if}
                       </div>
                     {/if}
@@ -363,3 +446,10 @@
 
   </div>
 </div>
+
+<MediaCarousel
+  items={carouselMediaItems}
+  startIndex={carouselStartIndex}
+  show={showMediaCarousel}
+  on:close={() => showMediaCarousel = false}
+/>
