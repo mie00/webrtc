@@ -194,18 +194,38 @@
     message = '';
   }
   
-  async function handleFileUpload(event: Event) { // Add type annotation
-    const file = uploadField.files?.[0]; // Use optional chaining
+  async function handleFileUpload(file: File | null | undefined) { // Modified to accept a File object
     if (!file) return;
     // Import the sendFile function from our bridge
     const { sendFile } = await import('../lib/fileBridge.js');
     canUpload = false;
     try{
-      sendFile(file);
+      await sendFile(file); // Added await here if sendFile is async and we want to ensure completion before resetting canUpload
     } finally {
       canUpload = true;
     }
-    uploadField.value = '';
+    // Clear the uploadField only if it was the source
+    if (uploadField && uploadField.files && uploadField.files[0] === file) {
+      uploadField.value = '';
+    }
+  }
+
+  async function handlePaste(event: ClipboardEvent) {
+    if (!canUpload) return;
+
+    const items = event.clipboardData?.items;
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].kind === 'file') {
+          const file = items[i].getAsFile();
+          if (file) {
+            event.preventDefault(); // Prevent pasting text if a file is found
+            await handleFileUpload(file);
+            return; // Handle only the first file
+          }
+        }
+      }
+    }
   }
 </script>
 
@@ -427,7 +447,8 @@
           bind:value={message}
           bind:this={chatInput}
           class="flex-1 border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-          on:keypress={handleKeyPress}>
+          on:keypress={handleKeyPress}
+          on:paste={handlePaste}>
         <div class="relative"> <!-- Use relative positioning for the button container -->
           <button
             id="test-attach-file-button"
@@ -439,7 +460,7 @@
             class:bg-gray-500={!canUpload}
             title={canUpload ? "Attach file" : "File upload in progress"}
           >📎</button>
-          <input id="test-file-upload" disabled={!canUpload} type="file" class="hidden" on:change={handleFileUpload} bind:this={uploadField}>
+          <input id="test-file-upload" disabled={!canUpload} type="file" class="hidden" on:change={(e) => handleFileUpload((e.target as HTMLInputElement).files?.[0])} bind:this={uploadField}>
         </div>
       </div>
     </div> <!-- End Combined Feed -->
