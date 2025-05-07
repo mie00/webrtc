@@ -1,4 +1,4 @@
-<script context="module">
+<script context="module" lang="ts">
   
   // This interface should be kept in sync with CarouselMediaItem in ControlPanel.svelte
   // or ideally defined in a shared types file.
