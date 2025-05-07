@@ -195,7 +195,10 @@ export async function sendFile(file: File): Promise<void> { // Make async
   // const app = window.app; // No longer need app object directly here
   const transferId = Math.random().toString(16).slice(2); // Use a more descriptive name
 
-  // Add to store immediately with 'sending' status
+  // Create a URL for the sender to view/download their own file
+  const fileURL = URL.createObjectURL(file);
+
+  // Add to store immediately with 'sending' status and the local URL
   addFileTransfer({
     id: transferId,
     name: file.name,
@@ -203,6 +206,7 @@ export async function sendFile(file: File): Promise<void> { // Make async
     size: file.size,
     progress: 0,
     status: 'sending',
+    url: fileURL, // Store URL for the sender
     timestamp: Date.now() // Add timestamp on creation
   });
 

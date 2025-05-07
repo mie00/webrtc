@@ -169,11 +169,45 @@ export async function performFileTransferTest(
     // --- Verification using data attributes ---
     const fileContainerSelector = `div[data-filename="${fileName}"]`;
 
-    // --- Sender Verification (Optional, good for debugging) ---
-    // console.log(`Waiting for file container [data-filename="${fileName}"] on ${senderName} (Sender)...`);
-    // await senderPage.waitForSelector(fileContainerSelector, { visible: true, timeout: dynamicPuppeteerTimeout });
-    // console.log(`File container found on ${senderName}.`);
-    // Add more sender-specific checks if needed, e.g., progress bar completion
+    // --- Sender UI Verification ---
+    console.log(`Verifying sender UI for ${fileName} on ${senderName}...`);
+    await senderPage.waitForSelector(fileContainerSelector, { visible: true, timeout: dynamicPuppeteerTimeout });
+    console.log(`File container found on ${senderName}.`);
+
+    // Wait for the "Completed" status text to appear for the sender
+    // This indicates the transfer process (to all clients) has finished from the sender's perspective
+    const senderStatusSelector = `${fileContainerSelector} [data-testid="status"]`;
+    console.log(`Waiting for "Completed" status on ${senderName}...`);
+    try {
+        await senderPage.waitForFunction(
+            (selector) => {
+                const element = document.querySelector(selector);
+                return element?.textContent?.includes('Completed') ?? false;
+            },
+            { timeout: transferCompletionTimeout }, // Use a longer timeout as this depends on full transfer
+            senderStatusSelector
+        );
+        console.log(`"Completed" status found on ${senderName}.`);
+
+        // Now verify Download and View links for the sender
+        const senderDownloadLinkSelector = `${fileContainerSelector} [data-testid="download-link"]`;
+        await senderPage.waitForSelector(senderDownloadLinkSelector, { visible: true, timeout: dynamicPuppeteerTimeout });
+        console.log(`Download link found on ${senderName}.`);
+
+        const senderViewLinkSelector = `${fileContainerSelector} [data-testid="view-link"]`;
+        await senderPage.waitForSelector(senderViewLinkSelector, { visible: true, timeout: dynamicPuppeteerTimeout });
+        console.log(`View link found on ${senderName}.`);
+        console.log(`--- Sender UI for ${fileName} verified on ${senderName} ---`);
+
+    } catch (e) {
+        // If status doesn't become "Completed", it might be "Error" or still "Sending" if timeout is too short.
+        // Log current status for debugging.
+        const currentStatus = await senderPage.evaluate((selector) => document.querySelector(selector)?.textContent, senderStatusSelector);
+        console.error(`Failed to find "Completed" status or links for sender ${senderName}. Current status: "${currentStatus}". Error:`, e);
+        // Re-throw to fail the test if critical elements are missing
+        throw new Error(`Sender UI verification failed for ${senderName}: Status did not become 'Completed' or links not found. Current status: ${currentStatus}`);
+    }
+
 
     // --- Receiver Verification ---
     for (let i = 0; i < receiverPages.length; i++) {
