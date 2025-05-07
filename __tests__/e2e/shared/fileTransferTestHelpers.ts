@@ -42,6 +42,19 @@ export const testCases: TestCase[] = [
 // This will hold the fully prepared test cases with filePaths and SHA256 hashes
 export const preparedTestCases: TestCaseData[] = [];
 
+for (const testCase of testCases) {
+    const filePath = path.join(TEST_FILES_DIR, testCase.fileName);
+    let timeoutMultiplier = 1;
+    if (testCase.sizeBytes > 5 * 1024 * 1024) timeoutMultiplier = 4; // 5MB
+    if (testCase.sizeBytes > 50 * 1024 * 1024) timeoutMultiplier = 8; // 50MB
+
+    preparedTestCases.push({
+        ...testCase,
+        filePath,
+        timeoutMultiplier,
+    });
+}
+
 // Helper to create files efficiently
 export async function createTestFile(filePath: string, sizeBytes: number): Promise<void> {
     if (sizeBytes === 0) {
@@ -98,24 +111,12 @@ export async function setupTestFiles(): Promise<void> {
     await fs.ensureDir(TEST_FILES_DIR);
     console.log(`Ensured test file directory exists: ${TEST_FILES_DIR}`);
 
-    preparedTestCases.length = 0; // Clear array before populating
+    for (const i in preparedTestCases) {
+        await createTestFile(preparedTestCases[i].filePath, preparedTestCases[i].sizeBytes);
+        const expectedSha256 = await calculateFileSHA256(preparedTestCases[i].filePath);
 
-    for (const testCase of testCases) {
-        const filePath = path.join(TEST_FILES_DIR, testCase.fileName);
-        let timeoutMultiplier = 1;
-        if (testCase.sizeBytes > 5 * 1024 * 1024) timeoutMultiplier = 4; // 5MB
-        if (testCase.sizeBytes > 50 * 1024 * 1024) timeoutMultiplier = 8; // 50MB
-
-        await createTestFile(filePath, testCase.sizeBytes);
-        const expectedSha256 = await calculateFileSHA256(filePath);
-
-        preparedTestCases.push({
-            ...testCase,
-            filePath,
-            timeoutMultiplier,
-            expectedSha256,
-        });
-        console.log(`Prepared: ${testCase.fileName}, SHA256: ${expectedSha256}`);
+        preparedTestCases[i].expectedSha256 = expectedSha256;
+        console.log(`Prepared: ${preparedTestCases[i].fileName}, SHA256: ${expectedSha256}`);
     }
     console.log('All test files prepared and hashes calculated.');
 }

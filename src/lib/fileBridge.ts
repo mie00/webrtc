@@ -1,6 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { WebRTCApp } from './webrtc/WebRTCApp.js';
-import { getDirectClient, getAllClientCids } from '../stores/connectionStore.js'; // Adjust path if needed
+import { getDirectClient, getAllClientCids, getAllDirectClients } from '../stores/connectionStore.js'; // Adjust path if needed
 
 // File transfer state interface
 export interface FileTransfer {
@@ -112,6 +112,18 @@ export function setupFileChannel(app: App, cid: string): void { // app might be 
       // Re-fetch client in case state changed
       const currentClient = getDirectClient(cid);
       if (!currentClient) return; // Client might have disconnected
+
+      // TODO: fix incomplete files in case of relay
+      const clients = getAllDirectClients();
+      for (const clientId in clients) {
+        if (clientId !== cid && clients[clientId].dc && clients[clientId].dc.readyState === 'open') {
+          try {
+            clients[clientId].dc_file?.send(e.data);
+          } catch (err) {
+            console.error(`Failed to send chat message to ${clientId}:`, err);
+          }
+        }
+      }
 
       if (!currentClient.file_stuff) {
         // First message contains file metadata
