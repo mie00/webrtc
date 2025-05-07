@@ -16,7 +16,7 @@ import {
     teardownTestFiles,
     performFileTransferTest,
     preparedTestCases, // Use the populated array
-    TestCaseData
+    type TestCaseData
 } from './shared/fileTransferTestHelpers';
 
 // Increase timeout if file transfers are involved, especially for larger files.
@@ -90,29 +90,5 @@ describe('Three Client E2E Tests (Page A as primary sender)', () => {
             },
             PUPPETEER_TIMEOUT * 8 // Max timeout for each file transfer test (adjust as needed, base * multiplier is handled in helper)
         );
-    });
-});
-        console.log(`Message: "${messageFromA}"`);
-
-        // 1. Ensure panel is open on Page A
-        await ensurePanelOpen(pageA, 'Page A');
-
-        // 2. Find chat input on Page A, type message, and press Enter
-        console.log(`Typing message on Page A...`);
-        const chatInputA = await pageA.waitForSelector(CHAT_INPUT_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT });
-        if (!chatInputA) {
-            throw new Error(`Chat input (${CHAT_INPUT_SELECTOR}) not found on Page A`);
-        }
-        await chatInputA.type(messageFromA);
-        await pageA.keyboard.press('Enter');
-        console.log(`Message sent from Page A.`);
-
-        // 3. Verify message received on Page B
-        await verifyMessageReceived(pageB, 'Page B', messageFromA);
-
-        // 4. Verify message received on Page C
-        await verifyMessageReceived(pageC, 'Page C', messageFromA);
-
-        console.log(`--- Message successfully verified on Page B and Page C ---`);
     });
 });

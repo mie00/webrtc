@@ -215,7 +215,7 @@
                title={`Relayed: ${participant.cid}\nVia: ${participant.relayCid}\nRelay State: ${relayState ?? 'N/A'}\nRelay ICE: ${relayIceState ?? 'N/A'}`}
              ></div>
              <p class="text-sm font-medium text-gray-500 truncate" title={`${participant.cid} (via ${participant.relayCid})`}>
-               {participant.cid.substring(0, 8)}... (Relayed)
+               {participant.cid}... (Relayed)
              </p>
            </div>
          {/if}

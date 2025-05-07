@@ -16,7 +16,7 @@ import {
     teardownTestFiles,
     performFileTransferTest,
     preparedTestCases, // Use the populated array
-    TestCaseData
+    type TestCaseData
 } from './shared/fileTransferTestHelpers';
 
 // jest.setTimeout(JEST_TIMEOUT * 5); // Example if file tests are long
@@ -89,27 +89,4 @@ describe('Three Client E2E Tests (Page B as primary sender)', () => {
         );
     });
 });
-        console.log(`Message: "${messageFromB}"`);
 
-        // 1. Ensure panel is open on Page B (Sender)
-        await ensurePanelOpen(pageB, 'Page B'); // Changed sender page
-
-        // 2. Find chat input on Page B, type message, and press Enter
-        console.log(`Typing message on Page B...`); // Changed sender page
-        const chatInputB = await pageB.waitForSelector(CHAT_INPUT_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT }); // Changed sender page variable
-        if (!chatInputB) {
-            throw new Error(`Chat input (${CHAT_INPUT_SELECTOR}) not found on Page B`); // Changed sender page
-        }
-        await chatInputB.type(messageFromB);
-        await pageB.keyboard.press('Enter'); // Changed sender page
-        console.log(`Message sent from Page B.`); // Changed sender page
-
-        // 3. Verify message received on Page A (Receiver)
-        await verifyMessageReceived(pageA, 'Page A', messageFromB); // Changed receiver page
-
-        // 4. Verify message received on Page C (Receiver)
-        await verifyMessageReceived(pageC, 'Page C', messageFromB); // Kept receiver page C
-
-        console.log(`--- Message successfully verified on Page A and Page C ---`); // Changed receiver pages
-    });
-});

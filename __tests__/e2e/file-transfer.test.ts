@@ -19,7 +19,7 @@ import {
     teardownTestFiles,
     performFileTransferTest,
     preparedTestCases, // Use the populated array from the helper
-    TestCaseData
+    type TestCaseData
 } from './shared/fileTransferTestHelpers';
 // ensurePanelOpen is implicitly used by performFileTransferTest via chatTestHelpers
 
