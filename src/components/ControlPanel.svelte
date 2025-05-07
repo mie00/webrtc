@@ -287,7 +287,15 @@
                         {:else if playableMediaType === 'audio'}
                           <audio src={transfer.url} controls class="w-full min-w-md"></audio>
                         {:else if playableMediaType === 'image'}
-                          <img src={transfer.url} alt={transfer.name} class="w-full rounded max-h-60 object-contain my-2" />
+                          <img
+                            src={transfer.url}
+                            alt={transfer.name}
+                            class="w-full rounded max-h-60 object-contain my-2"
+                            on:error={(e) => {
+                              console.error('Image failed to load. URL:', transfer.url, 'Transfer object:', JSON.stringify(transfer));
+                              // You can inspect the 'e' event object for more details if needed: console.error('Event:', e);
+                            }}
+                          />
                         {/if}
                       </div>
                     {/if}
