@@ -34,7 +34,7 @@ export async function analyzeAudioInBrowser(
     };
 
     let audioCtx: AudioContext | null = null;
-    let sourceNode: MediaStreamAudioSourceNode | null = null;
+    let sourceNode: MediaStreamAudioSourceNode | MediaElementAudioSourceNode | null = null;
     let analyser: AnalyserNode | null = null;
 
     try {
@@ -53,24 +53,36 @@ export async function analyzeAudioInBrowser(
             const container = mediaElement.closest('div[id^="test-local-video-"], div[id^="test-remote-video-"], div[id*="stream-container"]'); // More generic container check
             console.log(`  Checking element: Tag=${mediaElement.tagName}, Muted=${mediaElement.muted}, Paused=${mediaElement.paused}, SrcObject Type=${typeof mediaElement.srcObject}, In Test Container=${!!container}`);
 
-            if (container && !mediaElement.muted && !mediaElement.paused && mediaElement.srcObject instanceof MediaStream) {
-                const stream = mediaElement.srcObject;
-                const audioTracks = stream.getAudioTracks();
-                console.log(`   Stream found in container ${container.id || 'unknown'}: StreamID=${stream.id}, Active=${stream.active}, Audio Tracks=${audioTracks.length}`);
+            if (container && !mediaElement.muted && !mediaElement.paused) {
+                if (mediaElement.srcObject instanceof MediaStream) {
+                    const stream = mediaElement.srcObject;
+                    const audioTracks = stream.getAudioTracks();
+                    console.log(`   Stream found in container ${container.id || 'unknown'}: StreamID=${stream.id}, Active=${stream.active}, Audio Tracks=${audioTracks.length}`);
 
-                if (stream.active && audioTracks.length > 0 && audioTracks.some(track => track.enabled)) {
-                    console.log(`   Found suitable playing stream in ${mediaElement.tagName} element.`);
-                    try {
-                        sourceNode = audioCtx.createMediaStreamSource(stream);
-                        console.log(`   Successfully created source node from stream ${stream.id}.`);
-                        break;
-                    } catch (err) {
-                         console.warn(`   Could not create source node from stream ${stream.id}: ${(err as Error).message}`);
-                         sourceNode = null;
+                    if (stream.active && audioTracks.length > 0 && audioTracks.some(track => track.enabled)) {
+                        console.log(`   Found suitable playing stream in ${mediaElement.tagName} element.`);
+                        try {
+                            sourceNode = audioCtx.createMediaStreamSource(stream);
+                            console.log(`   Successfully created source node from stream ${stream.id}.`);
+                            break;
+                        } catch (err) {
+                             console.warn(`   Could not create source node from stream ${stream.id}: ${(err as Error).message}`);
+                             sourceNode = null;
+                        }
+                    } else {
+                        console.log(`   Stream ${stream.id} is inactive or has no enabled audio tracks.`);
                     }
                 } else {
-                    console.log(`   Stream ${stream.id} is inactive or has no enabled audio tracks.`);
+                    try {
+                        sourceNode = audioCtx.createMediaElementSource(mediaElement);
+                        console.log(`   Successfully created source node from HTML5 Media Element.`);
+                        break;
+                    } catch (err) {
+                         console.warn(`   Could not create source node from HTML5 Media Element: ${(err as Error).message}`);
+                         sourceNode = null;
+                    }
                 }
+
             } else {
                  console.log(`   Element is muted, paused, has no valid MediaStream srcObject, or not in a recognized test container.`);
             }

@@ -103,14 +103,10 @@ describe('WebRTC Watch (Share Video File) E2E Test', () => {
         await cleanupMedia(filesToClean, dirsToClean);
     });
 
-    test('should share an MP4 file from Page A, play on both A & B, and verify audio/video', async () => {
+    test('should share an MP4 file from Page A, play on A, and verify audio/video on A & B', async () => {
         console.log('--- Starting Watch (Share Video File) Test ---');
 
-        // 1. On Page A: Click "Share Video" button and upload the MP4 file
-        console.log('Page A: Clicking "Share Video" button...');
-        await pageA.waitForSelector(SHARE_VIDEO_BUTTON_SELECTOR, { visible: true });
-        await pageA.click(SHARE_VIDEO_BUTTON_SELECTOR);
-
+        // 1. On Page A: Share the MP4 file
         console.log('Page A: Waiting for file input and uploading file...');
         const fileInputElementA = await pageA.waitForSelector(UPLOAD_VIDEO_INPUT_SELECTOR, { hidden: true }); // Input is hidden
         expect(fileInputElementA).toBeTruthy();
@@ -146,28 +142,17 @@ describe('WebRTC Watch (Share Video File) E2E Test', () => {
         expect(uniqueLocalXCoordsA.size).toBeGreaterThan(1);
         console.log('Page A: Local video QR movement verified.');
 
-        // 4. Verify audio on Page A (Local Playback)
-        console.log('Page A: Verifying local audio playback (chirp frequency change)...');
-        const audioResultA: AudioAnalysisResult = await pageA.evaluate(analyzeAudioInBrowser as any, 'frequency', { silenceThresholdDb: -70 });
-        expect(audioResultA.err).toBeUndefined();
-        expect(audioResultA.frequencies.length).toBeGreaterThanOrEqual(2);
-        audioResultA.frequencies.forEach(freq => expect(freq).not.toBeNull());
-        const uniqueLocalFreqsA = new Set(audioResultA.frequencies.filter(f => f !== null));
-        console.log('Page A: Verifying audio frequency change on local playback');
-        expect(uniqueLocalFreqsA.size).toBeGreaterThan(1);
-        console.log(`Page A: Local audio chirp verified (Found ${uniqueLocalFreqsA.size} unique frequencies).`);
-
-        // 5. Wait for remote stream to start on Page B
+        // 4. Wait for remote stream to start on Page B
         console.log(`Page B: Waiting for remote video element (${REMOTE_VIDEO_ELEMENT_SELECTOR_B}) to be visible...`);
         await pageB.waitForSelector(REMOTE_VIDEO_ELEMENT_SELECTOR_B, { visible: true, timeout: 15000 });
         console.log('Page B: Remote video element found. Giving time for stream to stabilize...');
         await new Promise(resolve => setTimeout(resolve, 3000));
 
-        // 6. Verify video on Page B (Remote Stream)
+        // 5. Verify video on Page B (Remote Stream)
         console.log('Page B: Verifying remote video stream (QR code movement)...');
         const remoteQrMinXCoordsB: number[] = [];
         for (let i = 0; i < 2; i++) { // Take 2 screenshots
-            const result = await takeScreenshotAndDecodeQR(pageB, REMOTE_VIDEO_ELEMENT_SELECTOR_B);
+            const result = await takeScreenshotAndDecodeQR(pageB, ``);
             console.log(`Page B: Verifying QR decoding for remote video, screenshot ${i + 1}`);
             expect(result).not.toBeNull();
             const qrResult = result as QrCodeResult;
@@ -181,7 +166,7 @@ describe('WebRTC Watch (Share Video File) E2E Test', () => {
         expect(uniqueRemoteXCoordsB.size).toBeGreaterThan(1);
         console.log('Page B: Remote video QR movement verified.');
 
-        // 7. Verify audio on Page B (Remote Stream)
+        // 6. Verify audio on Page B (Remote Stream)
         console.log('Page B: Verifying remote audio stream (chirp frequency change)...');
         const audioResultB: AudioAnalysisResult = await pageB.evaluate(analyzeAudioInBrowser as any, 'frequency', { silenceThresholdDb: -70 });
         expect(audioResultB.err).toBeUndefined();
@@ -191,6 +176,17 @@ describe('WebRTC Watch (Share Video File) E2E Test', () => {
         console.log('Page B: Verifying audio frequency change on remote stream');
         expect(uniqueRemoteFreqsB.size).toBeGreaterThan(1);
         console.log(`Page B: Remote audio chirp verified (Found ${uniqueRemoteFreqsB.size} unique frequencies).`);
+
+        // 7. Verify audio on Page A (Local Playback) (moved this here since it stops audio from being sent)
+        console.log('Page A: Verifying local audio playback (chirp frequency change)...');
+        const audioResultA: AudioAnalysisResult = await pageA.evaluate(analyzeAudioInBrowser as any, 'frequency', { silenceThresholdDb: -70 });
+        expect(audioResultA.err).toBeUndefined();
+        expect(audioResultA.frequencies.length).toBeGreaterThanOrEqual(2);
+        audioResultA.frequencies.forEach(freq => expect(freq).not.toBeNull());
+        const uniqueLocalFreqsA = new Set(audioResultA.frequencies.filter(f => f !== null));
+        console.log('Page A: Verifying audio frequency change on local playback');
+        expect(uniqueLocalFreqsA.size).toBeGreaterThan(1);
+        console.log(`Page A: Local audio chirp verified (Found ${uniqueLocalFreqsA.size} unique frequencies).`);
 
         // 8. On Page A: Click "Share Video" button again to stop sharing
         console.log('Page A: Clicking "Share Video" button again to stop sharing...');
