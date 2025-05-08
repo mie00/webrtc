@@ -118,7 +118,7 @@
 </script>
 
 {#if show}
-<div id="copy-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-30 cursor-default" onclick={handleClose} role="button" tabindex="0" onkeydown={(e) => e.key === 'Escape' && handleClose(e)} aria-label="Close overlay">
+<div id="copy-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-30 cursor-default" onclick={handleClose} role="button" tabindex="0" onkeydown={(e) => e.key === 'Escape' && handleClose(e)} aria-label="Close overlay">
   <div class="bg-white p-4 rounded-md shadow-md text-center">
     <button id="test-open-config-button" onclick={handleOpenConfig} class="right">⚙️</button>
     <button id="test-reset-button" onclick={handleReset}>↺</button>

@@ -34,7 +34,7 @@
 </script>
 
 {#if show}
-<div id="config-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-40" role="button" tabindex="0" on:click={handleClose} on:keypress|stopPropagation>
+<div id="config-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-40" role="button" tabindex="0" on:click={handleClose} on:keypress|stopPropagation>
   <div class="bg-white p-4 rounded-md shadow-md text-center" role="button" tabindex="0" on:click|stopPropagation on:keypress|stopPropagation>
     <div class="flex flex-col space-y-2">
       Loader
