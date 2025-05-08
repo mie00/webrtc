@@ -13,8 +13,8 @@ import {
     DEFAULT_START_FREQ_HZ,
     DEFAULT_END_FREQ_HZ,
     DEFAULT_SAMPLE_RATE
-} from '../shared/mediaGeneration';
-import { analyzeAudioInBrowser, type AudioAnalysisResult } from '../shared/browserMediaUtils';
+} from './shared/mediaGeneration';
+import { analyzeAudioInBrowser, type AudioAnalysisResult } from './shared/browserMediaUtils';
 
 // --- Constants ---
 const __filename = fileURLToPath(import.meta.url);

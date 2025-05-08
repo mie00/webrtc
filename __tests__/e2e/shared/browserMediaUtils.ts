@@ -1,6 +1,6 @@
 import type { Page } from 'puppeteer';
 import QrCode from 'qrcode-reader';
-import Jimp from 'jimp'; // Corrected import for Jimp v0.16+
+import { Jimp } from 'jimp'; // Corrected import for Jimp v0.16+
 import { type Bitmap } from "@jimp/types"; // Corrected import for Bitmap
 // import fs from 'fs/promises'; // Only if saving debug screenshots
 
@@ -222,6 +222,7 @@ async function decodeQrCodeWithTimeout(bitmap: Bitmap, timeoutMs: number = 2000)
     try {
         return await Promise.race([decodePromise, timeoutPromise]);
     } catch (error) {
+        console.log(error);
         if ((error as Error).message.includes("timed out")) {
             console.warn((error as Error).message); // Log timeout as warning
             return null; // Return null on timeout
@@ -256,6 +257,8 @@ export async function takeScreenshotAndDecodeQR(
             // await fs.writeFile(`./debug-screenshot-attempt-${attempt}.png`, screenshotBuffer);
 
             const image = await Jimp.read(screenshotBuffer);
+            // save immage for debugging
+            await image.write(`./debug-image-attempt-${attempt}.png`);
             console.log(` Attempt ${attempt}: Screenshot read into Jimp image.`);
 
             const result = await decodeQrCodeWithTimeout(image.bitmap, 2000); // 2s timeout for decoding

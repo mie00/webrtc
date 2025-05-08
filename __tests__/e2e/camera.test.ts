@@ -15,8 +15,8 @@ import {
     DEFAULT_QR_SIZE,
     DEFAULT_BG_COLOR,
     DEFAULT_VIDEO_FRAMERATE
-} from '../shared/mediaGeneration';
-import { takeScreenshotAndDecodeQR, type QrCodeResult } from '../shared/browserMediaUtils';
+} from './shared/mediaGeneration';
+import { takeScreenshotAndDecodeQR, type QrCodeResult } from './shared/browserMediaUtils';
 
 // --- Constants ---
 const QR_CONTENT = "book";
@@ -104,12 +104,12 @@ describe('WebRTC Camera E2E Test', () => {
         for (let i = 0; i < numScreenshots; i++) {
             console.log(`--- Screenshot ${i + 1}/${numScreenshots} ---`);
             // Screenshot the specific remote video element for better accuracy
-            const result = await takeScreenshotAndDecodeQR(pageB, `${remoteVideoContainerSelector} video`);
+            const result = await takeScreenshotAndDecodeQR(pageB, ``);
             
-            expect(result, `QR code decoding failed for screenshot ${i + 1}`).not.toBeNull();
+            expect(result).not.toBeNull();
             // Type assertion because we expect result to be non-null here
             const qrResult = result as QrCodeResult;
-            expect(qrResult.result, `QR code content mismatch for screenshot ${i + 1}`).toBe(QR_CONTENT);
+            expect(qrResult.result).toBe(QR_CONTENT);
 
             const minX = Math.min(...qrResult.points.map(p => p.x));
             minXCoordinates.push(minX);
@@ -119,7 +119,7 @@ describe('WebRTC Camera E2E Test', () => {
         // 4. Assert that the QR code position changed
         const uniqueMinX = new Set(minXCoordinates);
         console.log(`Unique Min X coordinates found: ${Array.from(uniqueMinX).join(', ')}`);
-        expect(uniqueMinX.size, `QR code position (min X) did not change across ${numScreenshots} screenshots`).toBeGreaterThan(1);
+        expect(uniqueMinX.size).toBeGreaterThan(1);
         console.log(`QR code position change verified (found ${uniqueMinX.size} unique positions).`);
 
         console.log('--- TEST SUCCESS: Video stream and QR code movement verified ---');
