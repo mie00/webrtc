@@ -188,11 +188,6 @@ export class WebRTCApp {
 
   public destroy(): void {
     this.cleanup();
-    const mediaElement = document.getElementById('media');
-    const outputElement = document.getElementById('output');
-    if (mediaElement) mediaElement.innerHTML = '';
-    if (outputElement) outputElement.innerHTML = '';
-    // Store updates handle reactivity, no need for handleChange
     this.reset();
   }
 
@@ -470,11 +465,6 @@ export class WebRTCApp {
       });
       diffs.appendChild(fragment);
     }
-  }
-
-  public static log(msg: string): void {
-    const output = document.getElementById('output');
-    if (output) output.innerHTML += `<br>${msg}`;
   }
 
   // Removed handleChange method
