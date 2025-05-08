@@ -17,6 +17,7 @@
   
   // State
   let showCopyOverlay = false;
+  let initialOverlayShown = false; // True if overlay is shown by a windowLoader as part of initial page load
   let showConfigOverlay = false;
   let copyText = '';
   let qrCodeUrl = '';
@@ -28,6 +29,7 @@
 
   // Socket.io connection
   let socket: Socket; // Add type annotation
+  let isDuringInitialServerLoad = false; // Helper for serverWindowLoader's async init path
   
   // Window loader function type
   type WindowLoader = () => Promise<void>;
@@ -79,6 +81,10 @@
       urlParams.set('r', id);
       history.replaceState(null, '', '?' + urlParams.toString());
       onId();
+      if (isDuringInitialServerLoad) {
+        initialOverlayShown = true;
+        isDuringInitialServerLoad = false; // Reset flag
+      }
     });
     
     socket.on('subscribed', async (sid: string) => { // Add type for sid
@@ -153,121 +159,102 @@
   // Window loaders
   let windowLoader: WindowLoader; // Use the defined type
   
-  const clientWindowLoader: WindowLoader = async () => { // Add type annotation
-    const globalConfig = getAllConfig(); // Get global config
+  const clientWindowLoader: WindowLoader = async () => {
+    const globalConfig = getAllConfig();
     console.log("client window loader");
     const urlParams = new URLSearchParams(window.location.search);
-    let localCompressedOffer: string | null = null; // Variable to store the offer this tab generated
 
-    if (!urlParams.get('offer')) {
-      const now = Date.now();
-      showCopyOverlay = true;
-      showAcceptButton = true;
-      showPasteText = true;
-      
-      let cid: string; // Add type for cid
-      cid = await webRTCApp.getOffer(async (candidate: RTCIceCandidateInit | null) => { // Add type for candidate
-        if (Date.now() - now > 10 * 1000) { return; }
-        const app = webRTCApp.getApp(); // No longer needed for client access
-        const client = getDirectClient(cid); // Get client from store
-        const sdp = client?.pc?.localDescription?.sdp;
-        if (sdp) {
-          const compressed = await compress(sdp);
-          localCompressedOffer = compressed; // Store the compressed offer locally
-          urlParams.set('offer', compressed);
-          const newUrl = ($configStore['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
-          qrCodeUrl = newUrl;
-          copyText = newUrl;
-        }
-      }, {sid: ''});
-      currentOfferCid = cid; // Store the CID for the accept handler
+    if (!urlParams.get('offer') && !urlParams.get('answer')) { // No offer or answer in URL, we initiate.
+      currentOfferCid = null; // Reset any previous offer context for a fresh start.
+      const { offerCid, newCompressedOffer } = await prepareOfferForClientModeDisplay();
+      // showCopyOverlay is set by prepareOfferForClientModeDisplay
+      initialOverlayShown = true;
 
-      const bc = new BroadcastChannel("manual_rtc");
-      bc.onmessage = async (event) => {
-        const data = event.data;
-        // Check if data is structured as expected and if the offer matches the one we generated
-        if (typeof data === 'object' && data !== null && data.offer && data.answer && data.offer === localCompressedOffer) {
+      if (newCompressedOffer && offerCid) {
+        // Update browser URL history with the new offer
+        const newUrlParams = new URLSearchParams();
+        newUrlParams.set('offer', newCompressedOffer);
+        history.replaceState(null, '', window.location.pathname + '?' + newUrlParams.toString());
+
+        const bc = new BroadcastChannel("manual_rtc");
+        bc.onmessage = async (event) => {
+          const data = event.data;
+          if (typeof data === 'object' && data !== null && data.offer && data.answer && data.offer === newCompressedOffer) {
             console.log("Received matching answer via broadcast channel for offer:", data.offer);
             const answer = await decompress(data.answer.trim());
-            const client = getDirectClient(cid); // Get client from store
+            const client = getDirectClient(offerCid); // Use offerCid from the closure
             if (client?.pc) {
-                try {
-                    await client.pc.setRemoteDescription({
-                        type: "answer",
-                        sdp: answer.trim() + '\n'
-                    });
-                    console.log("Successfully set remote description from broadcast answer.");
-                    bc.close(); // Close the channel ONLY after successful processing
-                } catch (e) {
-                    console.error("Error setting remote description from broadcast answer:", e);
-                    // Keep channel open on error
-                }
+              try {
+                await client.pc.setRemoteDescription({ type: "answer", sdp: answer.trim() + '\n' });
+                console.log("Successfully set remote description from broadcast answer.");
+                bc.close();
+              } catch (e) {
+                console.error("Error setting remote description from broadcast answer:", e);
+              }
             } else {
-                console.warn("Client or PeerConnection not found when processing broadcast answer.");
-                // Keep channel open
+              console.warn("Client or PeerConnection not found when processing broadcast answer.");
             }
-        } else {
-            console.warn("Received broadcast message with non-matching offer or invalid format. Ignoring.", { receivedData: data, expectedOffer: localCompressedOffer });
-            // Keep channel open and listening for the correct message
-        }
-      };
-      // No need for DOM manipulation here since we're using Svelte events
-      // The accept button click is handled by the on:accept event in the CopyOverlay component
-      // We pass the currentOfferCid to CopyOverlay now.
-    } else if (urlParams.get('answer')) {
-      const answerParam = urlParams.get('answer');
-      const offerParamForAnswer = urlParams.get('offer'); // Get the offer this answer corresponds to
-      if (answerParam && offerParamForAnswer) {
-          const bc = new BroadcastChannel("manual_rtc"); // Create locally
-          // Send an object containing both the offer and the answer
-          await bc.postMessage({ offer: offerParamForAnswer, answer: answerParam });
-          bc.close(); // Close immediately after posting
+          } else {
+            console.warn("Received broadcast message with non-matching/invalid offer. Ignoring.", { receivedData: data, expectedOffer: newCompressedOffer });
+          }
+        };
       }
-      // Removed redundant bc.close() from here
+    } else if (urlParams.get('answer')) { // Answer is in URL (and offer implicitly)
+      const answerParam = urlParams.get('answer');
+      const offerParamForAnswer = urlParams.get('offer');
+      if (answerParam && offerParamForAnswer) {
+        const bc = new BroadcastChannel("manual_rtc");
+        await bc.postMessage({ offer: offerParamForAnswer, answer: answerParam });
+        bc.close();
+      }
       showCopyOverlay = true;
-      // Instead of manipulating the DOM directly, we'll use a variable to control the content
+      initialOverlayShown = true;
       copyText = 'Call started on another tab, please close this one';
       showCopyButton = false;
       showAcceptButton = false;
       showPasteText = false;
       showJoinButton = false;
-    } else {
+    } else if (urlParams.get('offer')) { // Offer in URL, but no answer (we are the answerer)
       const now = Date.now();
       const offerParam = urlParams.get('offer');
       if (offerParam) {
         const offer = await decompress(offerParam);
         showCopyOverlay = true;
+        initialOverlayShown = true;
+        // currentOfferCid is not set here, as we are not the original offerer.
         
-        let cid: string; // Add type for cid
-        cid = await webRTCApp.getAnswer(offer, async (candidate: RTCIceCandidateInit | null) => { // Add type for candidate
+        let answererCid: string;
+        answererCid = await webRTCApp.getAnswer(offer, async (candidate: RTCIceCandidateInit | null) => {
           if (Date.now() - now > 10 * 1000) { return; }
-          // const app = webRTCApp.getApp(); // No longer needed for client access
-          const client = getDirectClient(cid); // Get client from store
+          const client = getDirectClient(answererCid);
           const sdp = client?.pc?.localDescription?.sdp;
           if (sdp) {
             const compressed = await compress(sdp);
-            urlParams.set('answer', compressed);
-            const newUrl = (globalConfig['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
+            // Update URL for sharing the answer
+            const answerUrlParams = new URLSearchParams(window.location.search); // Preserve original offer param
+            answerUrlParams.set('answer', compressed);
+            const newUrl = (globalConfig['config-host'] || window.location.origin) + window.location.pathname + '?' + answerUrlParams.toString();
             qrCodeUrl = newUrl;
-            copyText = compressed;
+            copyText = newUrl; // Display the full URL with offer and answer
           }
-        }, {sid: ''});
+        }, { sid: '' });
       }
     }
   };
   
-  const serverWindowLoader: WindowLoader = async () => { // Add type annotation
+  const serverWindowLoader: WindowLoader = async () => {
     const urlParams = new URLSearchParams(window.location.search);
-    
     if (!urlParams.has('r')) {
       showCopyButton = true;
       showAcceptButton = false;
-      showJoinButton = false;
+      showJoinButton = false; // Or true, based on desired UX before room ID
+      isDuringInitialServerLoad = true; // Mark that we are in initial server load phase
       socket.emit('init');
     } else {
-      const id = urlParams.get('r');
+      // const id = urlParams.get('r'); // Not strictly needed here
       onId();
-      showCopyButton = false;
+      initialOverlayShown = true; // Set for initial load with existing room
+      showCopyButton = true; // Show copy for existing room URL
       showAcceptButton = false;
       showJoinButton = true;
     }
@@ -280,7 +267,7 @@
   }
   
   // Helper functions
-  const onId = () => {
+  const onId = () => { // Callers manage initialOverlayShown
     showCopyOverlay = true;
     const urlParams = new URLSearchParams(window.location.search);
     const newUrl = ($configStore['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
@@ -320,73 +307,76 @@
     webRTCApp.reset();
   }
 
-  async function ensureOfferGeneratedAndDisplayed() {
-    // This function handles generating a new client-side offer and setting up the overlay for it.
-    // It's called when in client mode and no offer/answer is in the URL.
-
+  // Refactored function to prepare and display a client-side offer
+  async function prepareOfferForClientModeDisplay(): Promise<{ offerCid: string | null, newCompressedOffer: string | null }> {
     const urlParams = new URLSearchParams(window.location.search);
-    // Check if an offer was already generated by this client instance in a previous interaction
-    // and the overlay was just hidden. currentOfferCid would be set, and copyText/qrCodeUrl would hold the offer.
-    // This logic assumes that if currentOfferCid is set, copyText/qrCodeUrl are also appropriately set from that offer.
+
+    // Scenario 1: Offer previously generated by this instance, overlay was hidden, URL is clean. Restore its state.
     if (currentOfferCid && !urlParams.get('offer') && !urlParams.get('answer')) {
-      // Offer was previously generated by this instance, overlay was hidden. Restore its state.
       showCopyOverlay = true;
       showAcceptButton = true;
       showPasteText = true;
       showCopyButton = true; // To copy the offer link
       showJoinButton = false;
-      // copyText, qrCodeUrl, and currentOfferCid should still hold values from the previous generation.
-      return;
+      // copyText, qrCodeUrl are assumed to be set from the previous generation tied to currentOfferCid
+      return { offerCid: currentOfferCid, newCompressedOffer: null };
     }
 
-    // If no currentOfferCid from a previous same-page generation, or if URL state is different,
-    // proceed to generate a new offer.
+    // Scenario 2: Generate a new offer
     const now = Date.now();
     showAcceptButton = true;
     showPasteText = true;
     showCopyButton = true;
     showJoinButton = false;
-    currentOfferCid = null; // Reset before generating a new one
+    // currentOfferCid will be set with the new CID below.
     qrCodeUrl = ''; // Clear previous URL
     copyText = '';  // Clear previous text
-
     showCopyOverlay = true; // Show overlay while offer is being generated
 
-    let cid: string;
-    cid = await webRTCApp.getOffer(async (candidate: RTCIceCandidateInit | null) => {
+    let newCid: string | null = null;
+    let compressedOfferForReturn: string | null = null;
+
+    newCid = await webRTCApp.getOffer(async (candidate: RTCIceCandidateInit | null) => {
       if (Date.now() - now > 10 * 1000) { return; } // Timeout for candidate gathering
-      const client = getDirectClient(cid);
+      if (!newCid) return; // Ensure CID is available from the outer scope
+      const client = getDirectClient(newCid);
       const sdp = client?.pc?.localDescription?.sdp;
       if (sdp) {
         const compressed = await compress(sdp);
+        compressedOfferForReturn = compressed; // Capture for return
         // Create a URL for display purposes only, do not modify window.location here
         const displayUrlParams = new URLSearchParams();
         displayUrlParams.set('offer', compressed);
-        const newUrl = ($configStore['config-host'] || window.location.origin) + window.location.pathname + '?' + displayUrlParams.toString();
-        qrCodeUrl = newUrl;
-        copyText = newUrl;
+        const newUrlForOverlay = ($configStore['config-host'] || window.location.origin) + window.location.pathname + '?' + displayUrlParams.toString();
+        qrCodeUrl = newUrlForOverlay;
+        copyText = newUrlForOverlay;
       }
-    }, {sid: ''});
-    currentOfferCid = cid;
+    }, { sid: '' });
+    
+    currentOfferCid = newCid; // Store the newly generated CID
+    return { offerCid: newCid, newCompressedOffer: compressedOfferForReturn };
   }
 
   async function handleOpenQrRequest() {
     const urlParams = new URLSearchParams(window.location.search);
     const configLoader = $configStore['config-loader'];
+    initialOverlayShown = false; // Explicitly ensure not an initial overlay for QR clicks
 
     if (configLoader === 'server') {
       if (!urlParams.has('r')) {
-        // Server mode, no room ID yet. Initiate room creation.
-        // The 'init' socket event will call onId(), which handles overlay visibility and content.
-        // Set button states here in anticipation of onId() being called.
-        showJoinButton = true;
+        // Server mode, no room ID yet.
+        // Show current state (likely no room ID in URL yet) and request/ensure room ID.
+        onId(); // This will show the overlay with the current URL (no 'r').
+        showJoinButton = true; // Or false, as no room to join yet.
         showCopyButton = true;
         showAcceptButton = false;
         showPasteText = false;
-        socket.emit('init');
+        if (!socket.connected) socket.connect();
+        socket.emit('init'); // Request room ID. The 'init' handler updates URL & calls onId again.
+                             // initialOverlayShown is managed by the 'init' handler for true initial loads.
       } else {
         // Server mode, room ID exists.
-        onId(); // Sets showCopyOverlay, copyText, qrCodeUrl.
+        onId(); // Sets showCopyOverlay, copyText, qrCodeUrl. initialOverlayShown remains false.
         showJoinButton = true;
         showCopyButton = true;
         showAcceptButton = false;
@@ -397,11 +387,11 @@
       const answerInUrl = urlParams.get('answer');
 
       if (!offerInUrl && !answerInUrl) {
-        // Client mode, no offer/answer in URL. Generate new offer.
-        await ensureOfferGeneratedAndDisplayed();
+        // Client mode, no offer/answer in URL. Generate/display offer.
+        await prepareOfferForClientModeDisplay(); // Sets showCopyOverlay. initialOverlayShown remains false.
       } else {
         // Client mode, offer or answer is in URL.
-        onId(); // Sets showCopyOverlay, copyText, qrCodeUrl using the existing URL.
+        onId(); // Sets showCopyOverlay, copyText, qrCodeUrl. initialOverlayShown remains false.
         showCopyButton = true;
         showAcceptButton = false;
         showPasteText = false;
@@ -414,17 +404,19 @@
     }
   }
 
-  // Reactive statement to hide copy overlay when any client connects
+  // Reactive statement to hide copy overlay when any client connects,
+  // but only if it was an initial overlay.
   $: {
-    if (showCopyOverlay) { // Only proceed if the overlay is currently shown
+    if (showCopyOverlay && initialOverlayShown) { 
       const clients = Object.values($connectionStore.directClients);
       const isAnyClientConnected = clients.some(
         client => client && client.connectionState === 'connected' && client.iceConnectionState === 'connected'
       );
 
       if (isAnyClientConnected) {
-        console.log("A client connected, hiding copy overlay.");
+        console.log("A client connected while initial overlay was visible, hiding copy overlay.");
         showCopyOverlay = false;
+        initialOverlayShown = false; // Reset flag so manual re-opening isn't auto-hidden
       }
     }
   }
