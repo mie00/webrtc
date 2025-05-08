@@ -8,7 +8,8 @@ import {
   addRemoteStream,
   removeRemoteStream,
   type StreamType,
-  type StreamState // Import StreamState
+  type StreamState, // Import StreamState
+  updateStreamConfig
 } from '../stores/streamStore.js';
 import {
   getAllConfig
@@ -27,6 +28,7 @@ import {
 } from './media/stream.js'
 // Export background utilities
 import { backgroundChange } from './utils/background.js';
+import { getLocalFileStreamState } from '..//stores/localFileStreamStore.js';
 
 // Module-level storage for audio processing contexts/nodes
 let audioProcessingContexts: Record<string, AudioNodes | null> = {};
@@ -59,20 +61,21 @@ export function streamInit(originalApp: App): void {
       const clients = getAllDirectClients(); // Get clients from store
       Object.entries(state.localStreams).forEach(([key, localStreamData]) => {
         const stream = localStreamData.stream;
-        const streamId = normalizeStreamId(stream.id);
+        if (stream) {
+          const streamId = normalizeStreamId(stream.id);
 
-        try {
-          // Iterate over client objects from the store
-          Object.values(clients).forEach((client) => {
-            // Use window.webRTCApp.sendNego
-            window.webRTCApp.sendNego(client, { type: 'stream.end', stream: streamId })
-          });
-        } catch (e) {
-            console.error("Error sending stream.end during global cleanup:", e);
+          try {
+            // Iterate over client objects from the store
+            Object.values(clients).forEach((client) => {
+              // Use window.webRTCApp.sendNego
+              window.webRTCApp.sendNego(client, { type: 'stream.end', stream: streamId })
+            });
+          } catch (e) {
+              console.error("Error sending stream.end during global cleanup:", e);
+          }
+
+          stream.getTracks().forEach((track: MediaStreamTrack) => track.stop()); // Use forEach for clarity
         }
-
-        stream.getTracks().forEach((track: MediaStreamTrack) => track.stop()); // Use forEach for clarity
-
         // Remove from enhanced store structure
         removeLocalStream(key);
 
@@ -148,9 +151,9 @@ export function setupTrackHandler(app: App, cid: string): void { // app might be
 
   Object.values(state.localStreams).forEach((localStreamData) => {
     if (localStreamData.active) { // Only add active streams
-        localStreamData.stream.getTracks().forEach(track => {
+        localStreamData.stream?.getTracks().forEach(track => {
             try {
-                targetClient.pc?.addTrack(track, localStreamData.stream);
+                targetClient.pc?.addTrack(track, localStreamData.stream as MediaStream);
             } catch (e) {
                 console.error("Error adding track to new client:", e, track, localStreamData.stream);
             }
@@ -238,40 +241,27 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
       setupStream(stream, "medium", 'detail', false);
     }
   } else if (changed === 'local') {
-    // Use streamConfig from store
-    if (streamConfig.local && streamConfig.videoStream) {
-      stream = streamConfig.videoStream;
-      if (stream) {
-        stream.getTracks().forEach(track => {
-          setupTrack(track, stream!, "medium", undefined, false);
-        });
-        stream.onaddtrack = (ev: MediaStreamTrackEvent) => {
-          setupTrack(ev.track, stream!, "medium", undefined, false);
-        };
-      }
-    }
   }
 
-  if (stream) {
-    // Map the stream type
-    let streamType: StreamType = 'custom';
-    if (changed === 'audio') streamType = 'audio';
-    else if (changed === 'video') streamType = 'camera';
-    else if (changed === 'screen') streamType = 'screen';
-    else if (changed === 'local') streamType = 'file';
-    
-    // Add to enhanced store structure
-    addLocalStream(changed, stream, streamType);
-  } else {
-    // If the stream was removed (e.g., toggled off), ensure it's removed from the store
-    removeLocalStream(changed);
-    // Also clean up any associated audio context
-    if (changed === 'audio' && audioProcessingContexts[changed]) {
-        stopProcessingAudio(audioProcessingContexts[changed]);
-        delete audioProcessingContexts[changed];
-    }
-  }
+  // Map the stream type
+  let streamType: StreamType = 'custom';
+  if (changed === 'audio') streamType = 'audio';
+  else if (changed === 'video') streamType = 'camera';
+  else if (changed === 'screen') streamType = 'screen';
+  else if (changed === 'local') streamType = 'file';
+
+  // Add to enhanced store structure
+  addLocalStream(changed, stream || null, streamType, changed === 'local'?streamConfig.videoSrc || null: null);
 };
+
+export const setupLocalFileStream = (stream: MediaStream): void => {
+  stream.getTracks().forEach(track => {
+    setupTrack(track, stream!, "medium", undefined, false);
+  });
+  stream.onaddtrack = (ev: MediaStreamTrackEvent) => {
+    setupTrack(ev.track, stream!, "medium", undefined, false);
+  };
+}
 
 /**
  * Destroy a local stream
@@ -283,8 +273,16 @@ export const destroyLocalStream = async (changed: 'audio' | 'video' | 'screen' |
 
   if (localStreamData) {
     // Stop all tracks using the utility function
-    await tearDownStream(localStreamData.stream);
-
+    if (localStreamData.stream) {
+      await tearDownStream(localStreamData.stream);
+    } else if (localStreamData.src) {
+      // cleanup blob url
+      URL.revokeObjectURL(localStreamData.src);
+      const stream = getLocalFileStreamState().localFileStreams[localStreamData.src];
+      if (stream) {
+        await tearDownStream(stream);
+      }
+    }
     // Handle audio processing cleanup if needed
     if (changed === 'audio') {
       // Retrieve and stop the specific audio context

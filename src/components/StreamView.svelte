@@ -1,19 +1,33 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   
-  export let stream: MediaStream;
-  export let type: 'audio' | 'video';
-  export let muted: boolean = false;
-  export let mirrored: boolean = false;
-  export let controls: boolean = false;
-  export let peerId: string | null = null;
-  
-  const dispatch = createEventDispatcher();
-  let mediaElement: HTMLVideoElement | HTMLAudioElement;
+  let {
+    stream,
+    useSlot = false,
+    type = "video",
+    muted = false,
+    mirrored = false,
+    controls = false,
+    peerId = null,
+    children,
+    focus,
+  }: {
+    stream: MediaStream | null;
+    useSlot?: boolean;
+    type?: "audio" | "video";
+    muted?: boolean;
+    mirrored?: boolean;
+    controls?: boolean;
+    peerId?: string | null;
+    children?: any;
+    focus: ({}:{streamId: string|undefined; peerId : string | null}) => void;
+  } = $props();
+
+  let mediaElement: HTMLVideoElement | HTMLAudioElement | undefined = $state();
   let audioContext: AudioContext | undefined;
   let analyser: AnalyserNode | undefined;
   let dataArray: Uint8Array | undefined;
-  let audioVisualizationCanvas: HTMLCanvasElement | undefined;
+  let audioVisualizationCanvas: HTMLCanvasElement | undefined = $state();
   let canvasContext: CanvasContext2D | undefined;
   let animationFrame: number | undefined;
   
@@ -48,6 +62,7 @@
   });
   
   function setupAudioVisualization() {
+    if (!stream) return;
     try {
       audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       analyser = audioContext.createAnalyser();
@@ -100,12 +115,14 @@
   }
   
   function handleClick() {
-    dispatch('focus', { streamId: stream.id, peerId });
+    focus({ streamId: stream?.id, peerId });
   }
 </script>
 
-<div class="stream-container" role="button" tabindex="0" on:click={handleClick} on:keypress|stopPropagation>
-  {#if type === 'video'}
+<div class="stream-container" role="button" tabindex="0" onclick={handleClick} onkeypress={() => {}}>
+  {#if useSlot}
+  {@render children?.()}
+  {:else if type === 'video'}
     <video 
       bind:this={mediaElement} 
       class="stream-element" 

@@ -1,59 +1,70 @@
+<script module lang="ts">
+  // add mies type to window
+  declare global {
+    interface Window {
+      mies: HTMLElement[];
+    }
+  }
+</script>
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import { streamStore, updateStreamConfig, setViewLayout, type LayoutType } from '../stores/streamStore.js';
-  import { setupLocalStream, destroyLocalStream, normalizeStreamId } from '../lib/streamBridge.js';
+  import { setupLocalStream, destroyLocalStream, normalizeStreamId, setupLocalFileStream } from '../lib/streamBridge.js';
   import { startRecording, stopRecording } from '../lib/media/recorder.js';
   import { calculateStreamPositions } from '../lib/utils/streamLayout.js';
   import ContextMenu from './ContextMenu.svelte';
-  import { updateConfig, getAllConfig } from '../stores/configStore.js';
+  import { updateConfig, configStore } from '../stores/configStore.js';
   import StreamView from './StreamView.svelte';
+    import { addLocalFileStream, removeLocalFileStream } from '../stores/localFileStreamStore.js';
 
   // Context menu state
-  let showMenu = false;
-  let menuPosition = { x: 0, y: 0 };
-  let menuItems: string[] = [];
-  let selectedButton: 'audio'|'video'|null = null;
+  let showMenu = $state(false);
+  let menuPosition = $state({ x: 0, y: 0 });
+  let menuItems: string[] = $state([]);
+  let selectedButton: 'audio'|'video'|null = $state(null);
   let audioButton: HTMLElement;
   let videoButton: HTMLElement;
-  let instant = 0
-  
+  let instant = $state(0)
+  let mie: HTMLElement | undefined = $state();
+
   const dispatch = createEventDispatcher();
-  
+
   // References to DOM elements
   let uploadVideo: HTMLInputElement;
   let videoNode: HTMLVideoElement;
   let refreshInterval: number;
-  
+
   // Reactive button states
-  $: isAudioEnabled = $streamStore.streamConfig.audio;
-  $: isVideoEnabled = $streamStore.streamConfig.video;
-  $: isScreenSharing = $streamStore.streamConfig.screen;
-  $: isVideoShared = !!$streamStore.streamConfig.videoStream;
-  $: isBlurEnabled = getAllConfig()['blur-video'] === 'yes';
-  
+  const isAudioEnabled = $derived($streamStore.streamConfig.audio);
+  const isVideoEnabled = $derived($streamStore.streamConfig.video);
+  const isScreenSharing = $derived($streamStore.streamConfig.screen);
+  const isVideoShared = $derived(!!$streamStore.streamConfig.videoSrc);
+  const isBlurEnabled = $derived($configStore['blur-video'] === 'yes');
+
   // Stream layout state
-  $: currentLayout = $streamStore.activeView.layout;
-  $: focusedStream = $streamStore.activeView.focusedStream;
-  
+  const currentLayout = $derived($streamStore.activeView.layout);
+  const focusedStream = $derived($streamStore.activeView.focusedStream);
+
   // Derived stream collections
-  $: localStreams = Object.entries($streamStore.localStreams);
-  $: remoteStreams = Object.entries($streamStore.remoteStreams).flatMap(([peerId, data]) => 
+  const localStreams = $derived(Object.entries($streamStore.localStreams));
+  const remoteStreams = $derived(Object.entries($streamStore.remoteStreams).flatMap(([peerId, data]) =>
     Object.entries(data.streams).map(([streamId, stream]) => ({
       id: streamId,
       stream,
       peerId
     }))
-  );
-  
+  ));
+
   // All active streams for display
-  $: activeStreams = [
+  const activeStreams = $derived.by(() => [
     ...localStreams.filter(([_, data]) => data.active).map(([id, data]) => ({
-      id: normalizeStreamId(data.stream.id),
+      id: normalizeStreamId(data.stream?.id || data.src || ''),
       streamKey: id,
       stream: data.stream,
       type: data.type,
       isLocal: true,
-      peerId: null
+      peerId: null,
+      src: data.src,
     })),
     ...remoteStreams.map(({ id, stream, peerId }) => ({
       id: normalizeStreamId(stream.id),
@@ -61,13 +72,13 @@
       stream,
       type: stream.getVideoTracks().length > 0 ? 'camera' : 'audio',
       isLocal: false,
-      peerId
+      peerId,
+      src: null,
     }))
-  ];
-  
+  ]);
   // Stream positions
   let mediaContainerElement: HTMLElement;
-  let streamPositions: Array<{ id: string; x: number; y: number; width: number; height: number }> = [];
+  let streamPositions: Array<{ id: string; x: number; y: number; width: number; height: number }> = $state([]);
   
   function updateStreamPositions() {
     if (!mediaContainerElement) return;
@@ -98,12 +109,7 @@
   });
   
   // Update positions when layout or streams change
-  $: {
-    currentLayout;
-    focusedStream;
-    activeStreams;
-    updateStreamPositions();
-  }
+  $effect(() => updateStreamPositions());
   
   // Event handlers
   function handleHangup() {
@@ -164,7 +170,6 @@
   
   async function handleToggleBlur() {
     const newValue = isBlurEnabled ? 'no' : 'yes';
-    isBlurEnabled = !isBlurEnabled;
     updateConfig('blur-video', newValue);
     
     // If video is already enabled, restart it to apply the blur effect
@@ -189,19 +194,10 @@
     const { toggleForwardHandler } = await import('../lib/forwardBridge.js');
     await toggleForwardHandler();
   }
+
   
-  function handleShareVideo() {
-    // Trigger file upload dialog
-    if (uploadVideo.files && uploadVideo.files.length > 0) {
-      uploadVideo.files = null;
-      destroyLocalStream('local');
-    } else {
-      uploadVideo?.click();
-    }
-  }
-  
-  let isRecording = false;
-  
+  let isRecording = $state(false);
+
   async function handleRecord() {
     if (isRecording) {
       stopRecording();
@@ -215,39 +211,59 @@
     dispatch('openQr');
   }
   
+  function handleShareVideo() {
+    // Trigger file upload dialog
+    if (uploadVideo.files && uploadVideo.files.length > 0) {
+      uploadVideo.files = null;
+      handleVideoCleanup();
+    } else {
+      uploadVideo?.click();
+    }
+  }
+
   async function handleVideoUpload(event: Event) {
     if (uploadVideo.files && uploadVideo.files.length > 0) {
       const file = uploadVideo.files[0];
       const fileURL = URL.createObjectURL(file);
 
-      videoNode.src = fileURL;
-      videoNode.autoplay = true;
-      videoNode.controls = false;
-      videoNode.loop = true;
+      updateStreamConfig({
+        local: true,
+        videoSrc: fileURL,
+        videoStream: undefined,
+      });
+      await setupLocalStream('local');
     }
+  }
+  async function handleVideoCleanup() {
+    const src = $streamStore.streamConfig.videoSrc!;
+    await destroyLocalStream('local');
+    removeLocalFileStream(src);
+    updateStreamConfig({local: false, videoSrc: null, videoStream: null});
   }
 
   async function handleFilePlay(event: Event) {
+    if ($streamStore.streamConfig.videoStream) {
+      return
+    }
+    const videoNode = (event.target as HTMLVideoElement);
     videoNode.play();
     const videoStream = (videoNode as any).captureStream ? 
       (videoNode as any).captureStream() : 
       (videoNode as any).mozCaptureStream();
 
     updateStreamConfig({
-      videoNode,
       videoStream,
       local: true
     });
-
-    await setupLocalStream('local');
+    addLocalFileStream($streamStore.streamConfig.videoSrc!, videoStream);
+    setupLocalFileStream(videoStream);
   }
 
   function handleChangeLayout(layout: LayoutType) {
     setViewLayout(layout);
   }
 
-  function handleFocusStream(event: CustomEvent) {
-    const { streamId } = event.detail;
+  function handleFocusStream({streamId}:{streamId: string|undefined; peerId : string | null}) {
     setViewLayout('focus', streamId);
   }
 </script>
@@ -263,13 +279,21 @@
            id={stream.isLocal ? `test-local-video-${stream.streamKey}` : `test-remote-video-${stream.peerId}-${stream.id}`}
            style="left: {position?.x}px; top: {position?.y}px; width: {position?.width}px; height: {position?.height}px;">
         <StreamView
-          stream={stream.stream}
-          type={stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'}
+          stream={stream.src?null:stream.stream}
+          useSlot={!!stream.src}
+          type={!stream.stream || stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'}
           muted={stream.isLocal && stream.type !== 'file'} 
           mirrored={stream.isLocal && stream.type === 'camera'} 
           peerId={stream.peerId}
-          on:focus={handleFocusStream}
-        />
+          focus={handleFocusStream}
+        >
+        {#if stream.src}
+        <!-- svelte-ignore a11y_media_has_caption -->
+        {#key stream.src}
+        <video onloadeddata={handleFilePlay} src={stream.src} autoplay controls loop bind:this={mie}></video>
+        {/key}
+        {/if}
+        </StreamView>
       </div>
     {/if}
   {/each}
@@ -278,46 +302,45 @@
 <div class="fixed bottom-0 left-0 right-0 bg-transparent p-4 flex justify-center space-x-0 lg:space-x-4 pointer-events-none">
   <!-- Layout controls -->
   <div class="layout-controls pointer-events-auto flex mr-4">
-    <button id="test-layout-grid-button" on:click={() => handleChangeLayout('grid')} class="p-2 rounded-l-full {currentLayout === 'grid' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
+    <button id="test-layout-grid-button" onclick={() => handleChangeLayout('grid')} class="p-2 rounded-l-full {currentLayout === 'grid' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
       Grid
     </button>
-    <button id="test-layout-focus-button" on:click={() => handleChangeLayout('focus')} class="p-2 {currentLayout === 'focus' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
+    <button id="test-layout-focus-button" onclick={() => handleChangeLayout('focus')} class="p-2 {currentLayout === 'focus' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
       Focus
     </button>
-    <button id="test-layout-present-button" on:click={() => handleChangeLayout('presentation')} class="p-2 rounded-r-full {currentLayout === 'presentation' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
+    <button id="test-layout-present-button" onclick={() => handleChangeLayout('presentation')} class="p-2 rounded-r-full {currentLayout === 'presentation' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
       Present
     </button>
   </div>
 
-  <button id="test-open-qr-button" on:click={handleOpenQr} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+  <button id="test-open-qr-button" onclick={handleOpenQr} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
     ▩ <!-- QR Code -->
   </button>
-  <button id="test-toggle-audio-button" bind:this={audioButton} on:click={handleToggleAudio} on:contextmenu={e => handleContextMenu('audio', e)} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isAudioEnabled} style={isAudioEnabled?`background: linear-gradient(0deg, rgb(59 130 246) ${instant}%, white ${instant}%)`:""}>
+  <button id="test-toggle-audio-button" bind:this={audioButton} onclick={handleToggleAudio} oncontextmenu={e => handleContextMenu('audio', e)} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isAudioEnabled} style={isAudioEnabled?`background: linear-gradient(0deg, rgb(59 130 246) ${instant}%, white ${instant}%)`:""}>
     {isAudioEnabled ? '🎤' : '🔇'} <!-- Microphone -->
   </button>
-  <button id="test-toggle-video-button" bind:this={videoButton} on:click={handleToggleVideo} on:contextmenu={e => handleContextMenu('video', e)} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoEnabled}>
+  <button id="test-toggle-video-button" bind:this={videoButton} onclick={handleToggleVideo} oncontextmenu={e => handleContextMenu('video', e)} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoEnabled}>
     {isVideoEnabled ? '🎥' : '📷'} <!-- Video Camera -->
   </button>
-  <button id="test-toggle-blur-button" on:click={handleToggleBlur} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isBlurEnabled}>
+  <button id="test-toggle-blur-button" onclick={handleToggleBlur} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isBlurEnabled}>
     🌫️ <!-- Blur effect -->
   </button>
-  <button id="test-toggle-screen-button" on:click={handleToggleScreen} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isScreenSharing}>
+  <button id="test-toggle-screen-button" onclick={handleToggleScreen} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isScreenSharing}>
     🖥️ <!-- Monitor for Share Screen -->
   </button>
-  <button id="test-start-forward-button" on:click={handleStartForward} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
+  <button id="test-start-forward-button" onclick={handleStartForward} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
     ⏩ <!-- Forward -->
   </button>
-  <button id="test-share-video-button" on:click={handleShareVideo} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoShared}>
+  <button id="test-share-video-button" onclick={handleShareVideo} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoShared}>
     📹 <!-- Share Video -->
   </button>
-  <button id="test-record-button" on:click={handleRecord} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-red-600={isRecording}>
+  <button id="test-record-button" onclick={handleRecord} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-red-600={isRecording}>
     {isRecording ? '⏹' : '⏺'}
   </button>
-  <button id="test-hangup-button" on:click={handleHangup} class="hover:bg-red-600 bg-red-500 text-white p-3 rounded-full pointer-events-auto">
+  <button id="test-hangup-button" onclick={handleHangup} class="hover:bg-red-600 bg-red-500 text-white p-3 rounded-full pointer-events-auto">
     📞
   </button>
-  <video on:loadeddata={handleFilePlay} muted bind:this={videoNode} autoplay loop class="hidden"></video>
-  <input bind:this={uploadVideo} type="file" on:change={handleVideoUpload} accept="video/*" class="hidden">
+  <input bind:this={uploadVideo} type="file" onchange={handleVideoUpload} accept="video/*" class="hidden">
 </div>
 
 {#if showMenu}

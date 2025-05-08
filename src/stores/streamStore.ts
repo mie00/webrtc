@@ -6,8 +6,8 @@ export interface StreamConfig {
   video: boolean;
   screen: boolean;
   local: boolean;
-  videoStream?: MediaStream;
-  videoNode?: HTMLVideoElement;
+  videoStream: MediaStream | null;
+  videoSrc: string | null;
 }
 
 // Stream type definitions
@@ -17,7 +17,8 @@ export type LayoutType = 'grid' | 'focus' | 'presentation';
 // Local stream interface
 export interface LocalStreamData {
   type: StreamType;
-  stream: MediaStream;
+  stream: MediaStream | null;
+  src: string | null;
   active: boolean;
 }
 
@@ -62,7 +63,9 @@ const initialState: StreamState = {
     audio: false,
     video: false,
     screen: false,
-    local: false
+    local: false,
+    videoStream: null,
+    videoSrc: null,
   }
 };
 
@@ -102,10 +105,10 @@ export function removeViewStream(key: string): void {
 }
 
 // Enhanced stream management functions
-export function addLocalStream(id: string, stream: MediaStream, type: StreamType): void {
+export function addLocalStream(id: string, stream: MediaStream | null, type: StreamType, src: string | null): void {
   streamStore.update(state => {
     const localStreams = { ...state.localStreams };
-    localStreams[id] = { type, stream, active: true };
+    localStreams[id] = { type, stream, active: true, src: src  };
     return { ...state, localStreams };
   });
 }

@@ -47,7 +47,7 @@ function objectToArrayBuffer(data) {
     return buffer;
 }
 self.addEventListener('fetch', (event) => {
-    console.log("got a new fetch", "ref", event.request.referrer, "url", event.request.url, event, Object.fromEntries(event.request.headers));
+    // console.log("got a new fetch", "ref", event.request.referrer, "url", event.request.url, event, Object.fromEntries(event.request.headers));
     const url = event.request.referrer ? new URL(event.request.referrer) : undefined;
     let host = url?.searchParams.get('host');
     let homepage = false;
@@ -63,8 +63,8 @@ self.addEventListener('fetch', (event) => {
                     host = sw.host;
                 }
                 else {
-                    console.log(sw.client_ids);
-                    console.log("normal handling", event.request.url);
+                    // console.log(sw.client_ids);
+                    // console.log("normal handling", event.request.url);
                     return;
                 }
             }

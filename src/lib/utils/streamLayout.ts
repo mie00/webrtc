@@ -175,8 +175,8 @@ export function calculateStreamPositions(
     ...Object.entries(state.localStreams)
       .filter(([_, data]) => data.active)
       .map(([_, data]) => ({ 
-        id: normalizeStreamId(data.stream.id),
-        aspectRatio: data.stream.getVideoTracks().length > 0 ? 16/9 : 1
+        id: normalizeStreamId(data.stream?.id || data.src || ''),
+        aspectRatio: data.src || !data.stream || data.stream.getVideoTracks().length > 0 ? 16/9 : 1
       })),
     ...Object.entries(state.remoteStreams)
       .flatMap(([_, data]) => 
@@ -201,7 +201,7 @@ export function calculateStreamPositions(
         .find(([_, data]) => data.active && data.type === 'screen');
       
       if (screenStream) {
-        const screenStreamId = normalizeStreamId(screenStream[1].stream.id);
+        const screenStreamId = normalizeStreamId(screenStream[1].stream?.id || screenStream[1].src || '');
         return calculatePresentationPositions(containerWidth, containerHeight, screenStreamId, activeStreams);
       }
       return calculateGridPositions(containerWidth, containerHeight, activeStreams);

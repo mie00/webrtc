@@ -77,7 +77,7 @@ function objectToArrayBuffer(data: Record<string, number>): ArrayBufferLike {
 }
 
 (self as unknown as ServiceWorkerGlobalScope).addEventListener('fetch', (event: FetchEvent) => {
-    console.log("got a new fetch", "ref", event.request.referrer, "url", event.request.url, event, Object.fromEntries(event.request.headers));
+    // console.log("got a new fetch", "ref", event.request.referrer, "url", event.request.url, event, Object.fromEntries(event.request.headers));
     
     const url = event.request.referrer ? new URL(event.request.referrer) : undefined;
     let host = url?.searchParams.get('host');
@@ -93,8 +93,8 @@ function objectToArrayBuffer(data: Record<string, number>): ArrayBufferLike {
                 if (event.request.destination === "iframe") {
                     host = sw.host;
                 } else {
-                    console.log(sw.client_ids);
-                    console.log("normal handling", event.request.url);
+                    // console.log(sw.client_ids);
+                    // console.log("normal handling", event.request.url);
                     return;
                 }
             }
