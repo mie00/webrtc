@@ -500,9 +500,7 @@ export class WebRTCApp {
                       updateDirectClientFingerprint(cid, ejs);
                       console.log(`Fingerprint for ${cid}: ${ejs}`);
 
-                      // Optional: Hide overlay/update history (consider moving this UI logic elsewhere if possible)
-                      const copyOverlayElement = document.getElementById("copy-overlay");
-                      if (copyOverlayElement) copyOverlayElement.classList.add('hidden');
+                      // Optional: Update history (UI logic for overlay is now in App.svelte)
                       if (!new URLSearchParams(window.location.search).has('r')) {
                           history.replaceState('', '', window.location.origin + window.location.pathname);
                       }

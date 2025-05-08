@@ -8,7 +8,7 @@
   import ContextMenu from './components/ContextMenu.svelte';
   import { configStore, getAllConfig } from './stores/configStore.js';
   import { streamStore } from './stores/streamStore.js';
-  import { connectionStore, getDirectClient } from './stores/connectionStore.js'; // Import store and getter
+  import { connectionStore, getDirectClient } from './stores/connectionStore.js';
   import { compress, decompress } from './lib/utils/sdpCompress.js';
   import type { WebRTCApp } from './lib/webrtc/WebRTCApp.js'; // Corrected import path if needed
 
@@ -318,6 +318,21 @@
   
   function handleReset() {
     webRTCApp.reset();
+  }
+
+  // Reactive statement to hide copy overlay when any client connects
+  $: {
+    if (showCopyOverlay) { // Only proceed if the overlay is currently shown
+      const clients = Object.values($connectionStore.directClients);
+      const isAnyClientConnected = clients.some(
+        client => client && client.connectionState === 'connected' && client.iceConnectionState === 'connected'
+      );
+
+      if (isAnyClientConnected) {
+        console.log("A client connected, hiding copy overlay.");
+        showCopyOverlay = false;
+      }
+    }
   }
 </script>
 
