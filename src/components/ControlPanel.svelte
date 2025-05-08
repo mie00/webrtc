@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onDestroy, afterUpdate } from 'svelte';
+  import { createEventDispatcher, onDestroy, afterUpdate, tick } from 'svelte';
   import { connectionStore, type ConnectionState } from '../stores/connectionStore.js';
   import { configStore } from '../stores/configStore.js';
   import { chatStore, type ChatState } from '../lib/chatBridge.js';
@@ -273,6 +273,10 @@
       // User would need to re-add files that failed.
     } finally {
       isSending = false;
+      await tick(); // Wait for Svelte to process DOM updates
+      if (isPanelOpen && chatInput) {
+        chatInput.focus();
+      }
     }
   }
   
