@@ -1,200 +1,25 @@
 import { describe, test, expect, jest, beforeAll, afterAll } from '@jest/globals';
 import type { Page } from 'puppeteer';
 import { JEST_TIMEOUT } from './setup/testHelpers';
-import { standardSetup } from './setup/standardSetup'; // Import standardSetup
-import { standardTeardown } from './setup/standardTeardown'; // Import standardTeardown
-import { execSync } from 'child_process';
-import fs from 'fs/promises';
+import { standardSetup } from './setup/standardSetup';
+import { standardTeardown } from './setup/standardTeardown';
 import { fileURLToPath } from 'url';
 import path, { dirname } from 'path';
-import { TOGGLE_AUDIO_BUTTON_SELECTOR } from './setup/testHelpers'; // Import selector
+import { TOGGLE_AUDIO_BUTTON_SELECTOR } from './setup/testHelpers';
+import {
+    generateChirpAudioFile,
+    cleanupMedia,
+    DEFAULT_AUDIO_DURATION_SECONDS,
+    DEFAULT_START_FREQ_HZ,
+    DEFAULT_END_FREQ_HZ,
+    DEFAULT_SAMPLE_RATE
+} from '../shared/mediaGeneration';
+import { analyzeAudioInBrowser, type AudioAnalysisResult } from '../shared/browserMediaUtils';
 
 // --- Constants ---
-const AUDIO_DURATION_SECONDS = 6;
-const START_FREQ_HZ = 40; // A4 note
-const END_FREQ_HZ = 1200;
-const SAMPLE_RATE = 44100; // Standard CD quality sample rate
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const audioOutputPath = path.join(__dirname, 'setup', 'mic.wav'); // Output path in setup dir
-
-interface AudioAnalysisResult {
-    frequencies: (number | null)[];
-    peakAmplitudes: ( number | null )[];
-    err?: string | null;
-}
-
-// --- Reusable Browser-Side Audio Analysis Function ---
-// NOTE: This function is stringified and executed in the browser context via page.evaluate()
-// It cannot access variables from the Node.js scope directly.
-async function analyzeAudioInBrowser(
-    analysisType: 'frequency' | 'amplitude',
-    options: {
-        // numSamples and sampleIntervalMs are now controlled internally for frequency analysis
-        silenceThresholdDb?: number
-    } = {silenceThresholdDb: -80}
-): Promise<AudioAnalysisResult> {
-
-    console.log(`--- Starting Audio Analysis in Browser --- Type: ${analysisType}`);
-    const {
-        silenceThresholdDb = -80 // Default silence threshold
-    } = options;
-    const MAX_FREQ_SAMPLES = 4; // Max samples to take for frequency check
-
-    const results: AudioAnalysisResult = {
-        frequencies: [],
-        peakAmplitudes: []
-    };
-
-    let audioCtx: AudioContext | null = null;
-    let sourceNode: MediaStreamAudioSourceNode | null = null;
-    let analyser: AnalyserNode | null = null;
-
-    try {
-        audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = analysisType === 'frequency' ? 4096 : 512; // Larger FFT for frequency
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Float32Array(bufferLength); // For getFloatFrequencyData
-
-        // --- Find a Suitable Audio Stream Source ---
-        console.log('Searching for playing, unmuted <audio> or <video> elements with audio tracks...');
-        const mediaElements = document.querySelectorAll('audio, video');
-        console.log(` Found ${mediaElements.length} media elements.`);
-
-        for (const el of mediaElements) {
-            const mediaElement = el as HTMLAudioElement | HTMLVideoElement; // Type assertion
-            // Look for elements within our test containers
-            const container = mediaElement.closest('div[id^="test-local-video-"], div[id^="test-remote-video-"]');
-            console.log(`  Checking element: Tag=${mediaElement.tagName}, Muted=${mediaElement.muted}, Paused=${mediaElement.paused}, SrcObject Type=${typeof mediaElement.srcObject}, In Test Container=${!!container}`);
-
-            // Only consider elements within our designated stream containers
-            if (container && !mediaElement.muted && !mediaElement.paused && mediaElement.srcObject instanceof MediaStream) {
-                const stream = mediaElement.srcObject;
-                const audioTracks = stream.getAudioTracks();
-                console.log(`   Stream found in container ${container.id}: StreamID=${stream.id}, Active=${stream.active}, Audio Tracks=${audioTracks.length}`);
-
-                if (stream.active && audioTracks.length > 0 && audioTracks.some(track => track.enabled)) {
-                    console.log(`   Found suitable playing stream in ${mediaElement.tagName} element.`);
-                    try {
-                        sourceNode = audioCtx.createMediaStreamSource(stream);
-                        console.log(`   Successfully created source node from stream ${stream.id}.`);
-                        break; // Use the first suitable stream found
-                    } catch (err) {
-                         console.warn(`   Could not create source node from stream ${stream.id}: ${err}`);
-                         sourceNode = null; // Reset if creation fails
-                    }
-                } else {
-                    console.log(`   Stream ${stream.id} is inactive or has no enabled audio tracks.`);
-                }
-            } else {
-                 console.log(`   Element is muted, paused, or has no valid MediaStream srcObject.`);
-            }
-        }
-        // --- Perform Analysis ---
-        if (!sourceNode) {
-            console.error('Failed to find any suitable playing, unmuted audio stream source.');
-            // Populate results with defaults indicating failure
-            results.peakAmplitudes = analysisType === 'amplitude' ? [null] : []; // Use -Infinity to indicate failure
-            results.frequencies = [];
-            return results; // Early exit
-        }
-
-        console.log(`Successfully connected sourceNode for analysis.`);
-        sourceNode.connect(analyser);
-
-        // Helper: Get Dominant Frequency
-        function getDominantFrequency(): number | null {
-            if (!analyser) return null;
-            analyser.getFloatFrequencyData(dataArray);
-            let maxAmp = -Infinity;
-            let maxIndex = -1;
-            for (let i = 0; i < bufferLength; i++) {
-                if (dataArray[i] > maxAmp && isFinite(dataArray[i])) {
-                    maxAmp = dataArray[i];
-                    maxIndex = i;
-                }
-            }
-            if (maxIndex === -1 || maxAmp < silenceThresholdDb) {
-                console.log(` Freq Analysis: Detected low amplitude (${maxAmp.toFixed(2)} dB), returning null.`);
-                return null;
-            }
-            const nyquist = audioCtx!.sampleRate / 2;
-            const frequency = maxIndex * nyquist / bufferLength;
-            // Log the calculated frequency before returning
-            console.log(` Freq Analysis: Max Amp ${maxAmp.toFixed(2)} dB at Index ${maxIndex}, Calculated Freq: ${frequency.toFixed(2)} Hz`);
-            return frequency;
-        }
-
-        // Helper: Get Peak Amplitude
-        function getPeakAmplitude(): number {
-             if (!analyser) return -Infinity;
-             analyser.getFloatFrequencyData(dataArray);
-             let maxAmp = -Infinity;
-             for (let i = 0; i < bufferLength; i++) {
-                 if (dataArray[i] > maxAmp && isFinite(dataArray[i])) {
-                     maxAmp = dataArray[i];
-                 }
-             }
-             console.log(` Amp Analysis: Peak Amplitude: ${maxAmp.toFixed(2)} dB`);
-             return maxAmp;
-        }
-
-        // Take samples
-        if (analysisType === 'frequency') {
-            for (let i = 0; i < MAX_FREQ_SAMPLES; i++) {
-                if (i > 0) {
-                    const randomInterval = Math.random() * 1000 + 2000; // 2000ms to 3000ms
-                    console.log(` Waiting ${randomInterval.toFixed(0)}ms for next sample...`);
-                    await new Promise(resolve => setTimeout(resolve, randomInterval));
-                } else {
-                    // Add a longer initial delay for analyser to stabilize before the first sample
-                    console.log(' Initial 1000ms delay for analyser stabilization...');
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                }
-
-                console.log(` Taking frequency sample ${i + 1}/${MAX_FREQ_SAMPLES}...`);
-                const currentFreq = getDominantFrequency();
-                results.frequencies.push(currentFreq);
-
-                // Check for early exit: if we have at least 2 samples, and the last two are different and not null
-                if (results.frequencies.length >= 2) {
-                    const lastFreq = results.frequencies[results.frequencies.length - 1];
-                    const prevFreq = results.frequencies[results.frequencies.length - 2];
-                    if (lastFreq !== null && prevFreq !== null && lastFreq !== prevFreq) {
-                        console.log(` Detected frequency change (${prevFreq.toFixed(2)} Hz -> ${lastFreq.toFixed(2)} Hz). Stopping sampling early.`);
-                        break; // Exit the loop
-                    }
-                }
-            }
-        } else { // amplitude analysis
-            // Add initial delay for amplitude check too
-            console.log(' Initial 500ms delay for analyser stabilization...');
-            await new Promise(resolve => setTimeout(resolve, 500));
-            console.log(` Taking amplitude sample 1/1...`);
-            results.peakAmplitudes.push(getPeakAmplitude());
-        }
-    } catch (error) {
-        console.error(`Error during audio analysis in browser: ${error}`);
-        // Populate results with defaults indicating failure
-        results.err = error;
-    } finally {
-        // --- Cleanup ---
-        console.log("Cleaning up audio analysis resources...");
-        if (sourceNode && analyser) {
-            sourceNode.disconnect(analyser);
-            console.log(" Disconnected source node.");
-        }
-        if (audioCtx) {
-            await audioCtx.close();
-            console.log(" Closed AudioContext.");
-        }
-    }
-
-    console.log("--- Audio Analysis Complete --- Results:", results);
-    return results;
-}
-
+const audioOutputPath = path.join(__dirname, 'setup', 'mic.wav');
 
 // --- Jest Test Suite ---
 describe('WebRTC Microphone E2E Test', () => {
@@ -206,29 +31,17 @@ describe('WebRTC Microphone E2E Test', () => {
     beforeAll(async () => {
         console.log('--- Generating test audio file (chirp) ---');
         try {
-            // Ensure setup directory exists
-            await fs.mkdir(path.dirname(audioOutputPath), { recursive: true });
-
-            // Calculate frequency change per second
-            const freqChangePerSec = (END_FREQ_HZ - START_FREQ_HZ) / AUDIO_DURATION_SECONDS;
-
-            // Use ffmpeg with aevalsrc to generate a sine wave chirp
-            // Expression for linear chirp: sin(2*PI*(f0*t + (f1-f0)/(2*D)*t^2))
-            // f0 = START_FREQ_HZ, f1 = END_FREQ_HZ, D = AUDIO_DURATION_SECONDS
-            const chirpExpression = `sin(2*PI*(${START_FREQ_HZ}*t + (${END_FREQ_HZ}-${START_FREQ_HZ})/(2*${AUDIO_DURATION_SECONDS})*t*t))`;
-            // Need to escape special characters like '*' and potentially ':' for the shell if not quoted properly.
-            // Using single quotes around the expression for aevalsrc is generally safer.
-            // Outputting Stereo (ac 2), 44.1kHz (ar ${SAMPLE_RATE}), 16-bit PCM (acodec pcm_s16le)
-            const ffmpegCommand = `ffmpeg -y -f lavfi -i "aevalsrc='${chirpExpression}':s=${SAMPLE_RATE}:d=${AUDIO_DURATION_SECONDS}" -ar ${SAMPLE_RATE} -ac 2 -acodec pcm_s16le ${audioOutputPath}`;
-
-            console.log(`Executing: ${ffmpegCommand}`);
-            execSync(ffmpegCommand);
-            console.log(`Generated test audio: ${audioOutputPath}`);
-
+            await generateChirpAudioFile(
+                audioOutputPath,
+                DEFAULT_AUDIO_DURATION_SECONDS,
+                DEFAULT_START_FREQ_HZ,
+                DEFAULT_END_FREQ_HZ,
+                DEFAULT_SAMPLE_RATE
+            );
         } catch (error) {
             console.error('Error during audio generation:', error);
             // Attempt cleanup even on error
-            await fs.rm(audioOutputPath, { force: true }).catch(e => console.error("Error during cleanup after generation error:", e));
+            await cleanupMedia([audioOutputPath], []);
             throw new Error(`Failed to generate test audio: ${error}`); // Fail fast
         }
 
@@ -243,13 +56,7 @@ describe('WebRTC Microphone E2E Test', () => {
         await standardTeardown({ pageA, pageB });
 
         // Then cleanup generated files
-        console.log('--- Cleaning up generated audio file ---');
-        try {
-            await fs.rm(audioOutputPath, { force: true });
-            console.log(`Removed audio file: ${audioOutputPath}`);
-        } catch (error) {
-            console.error('Error during audio file cleanup:', error);
-        }
+        await cleanupMedia([audioOutputPath], []);
     });
 
     test('should stream audio from Page A to Page B, verify frequencies, then verify Page A is muted', async () => {
