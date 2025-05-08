@@ -41,7 +41,6 @@ export const rtcUtils = {
   genEmojis: (digest: string) => webRTCApp.genEmojis(digest),
   logDiff: (d1: string, d2: string) => webRTCApp.logDiff(d1, d2),
   // Static methods
-  log: (msg: string) => WebRTCApp.log(msg),
   reset: () => webRTCApp.reset(),
   // Export the app object for testing
   _getApp: () => webRTCApp.getApp()
