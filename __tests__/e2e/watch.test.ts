@@ -133,14 +133,17 @@ describe('WebRTC Watch (Share Video File) E2E Test', () => {
         const localQrMinXCoordsA: number[] = [];
         for (let i = 0; i < 2; i++) { // Take 2 screenshots
             const result = await takeScreenshotAndDecodeQR(pageA, LOCAL_VIDEO_ELEMENT_SELECTOR_A);
-            expect(result, `Page A: QR decoding failed on local video, screenshot ${i + 1}`).not.toBeNull();
+            console.log(`Page A: Verifying QR decoding for local video, screenshot ${i + 1}`);
+            expect(result).not.toBeNull();
             const qrResult = result as QrCodeResult;
-            expect(qrResult.result, `Page A: QR content mismatch on local video, screenshot ${i + 1}`).toBe(QR_CONTENT);
+            console.log(`Page A: Verifying QR content for local video, screenshot ${i + 1}`);
+            expect(qrResult.result).toBe(QR_CONTENT);
             localQrMinXCoordsA.push(Math.min(...qrResult.points.map(p => p.x)));
             if (i < 1) await new Promise(resolve => setTimeout(resolve, 1500)); // Wait between screenshots
         }
         const uniqueLocalXCoordsA = new Set(localQrMinXCoordsA);
-        expect(uniqueLocalXCoordsA.size, 'Page A: QR code did not move on local video').toBeGreaterThan(1);
+        console.log('Page A: Verifying QR code movement on local video');
+        expect(uniqueLocalXCoordsA.size).toBeGreaterThan(1);
         console.log('Page A: Local video QR movement verified.');
 
         // 4. Verify audio on Page A (Local Playback)
@@ -150,7 +153,8 @@ describe('WebRTC Watch (Share Video File) E2E Test', () => {
         expect(audioResultA.frequencies.length).toBeGreaterThanOrEqual(2);
         audioResultA.frequencies.forEach(freq => expect(freq).not.toBeNull());
         const uniqueLocalFreqsA = new Set(audioResultA.frequencies.filter(f => f !== null));
-        expect(uniqueLocalFreqsA.size, 'Page A: Audio frequency did not change on local playback').toBeGreaterThan(1);
+        console.log('Page A: Verifying audio frequency change on local playback');
+        expect(uniqueLocalFreqsA.size).toBeGreaterThan(1);
         console.log(`Page A: Local audio chirp verified (Found ${uniqueLocalFreqsA.size} unique frequencies).`);
 
         // 5. Wait for remote stream to start on Page B
@@ -164,14 +168,17 @@ describe('WebRTC Watch (Share Video File) E2E Test', () => {
         const remoteQrMinXCoordsB: number[] = [];
         for (let i = 0; i < 2; i++) { // Take 2 screenshots
             const result = await takeScreenshotAndDecodeQR(pageB, REMOTE_VIDEO_ELEMENT_SELECTOR_B);
-            expect(result, `Page B: QR decoding failed on remote video, screenshot ${i + 1}`).not.toBeNull();
+            console.log(`Page B: Verifying QR decoding for remote video, screenshot ${i + 1}`);
+            expect(result).not.toBeNull();
             const qrResult = result as QrCodeResult;
-            expect(qrResult.result, `Page B: QR content mismatch on remote video, screenshot ${i + 1}`).toBe(QR_CONTENT);
+            console.log(`Page B: Verifying QR content for remote video, screenshot ${i + 1}`);
+            expect(qrResult.result).toBe(QR_CONTENT);
             remoteQrMinXCoordsB.push(Math.min(...qrResult.points.map(p => p.x)));
             if (i < 1) await new Promise(resolve => setTimeout(resolve, 1500)); // Wait between screenshots
         }
         const uniqueRemoteXCoordsB = new Set(remoteQrMinXCoordsB);
-        expect(uniqueRemoteXCoordsB.size, 'Page B: QR code did not move on remote video').toBeGreaterThan(1);
+        console.log('Page B: Verifying QR code movement on remote video');
+        expect(uniqueRemoteXCoordsB.size).toBeGreaterThan(1);
         console.log('Page B: Remote video QR movement verified.');
 
         // 7. Verify audio on Page B (Remote Stream)
@@ -181,7 +188,8 @@ describe('WebRTC Watch (Share Video File) E2E Test', () => {
         expect(audioResultB.frequencies.length).toBeGreaterThanOrEqual(2);
         audioResultB.frequencies.forEach(freq => expect(freq).not.toBeNull());
         const uniqueRemoteFreqsB = new Set(audioResultB.frequencies.filter(f => f !== null));
-        expect(uniqueRemoteFreqsB.size, 'Page B: Audio frequency did not change on remote stream').toBeGreaterThan(1);
+        console.log('Page B: Verifying audio frequency change on remote stream');
+        expect(uniqueRemoteFreqsB.size).toBeGreaterThan(1);
         console.log(`Page B: Remote audio chirp verified (Found ${uniqueRemoteFreqsB.size} unique frequencies).`);
 
         // 8. On Page A: Click "Share Video" button again to stop sharing
