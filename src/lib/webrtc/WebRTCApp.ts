@@ -242,7 +242,7 @@ export class WebRTCApp {
     const cid = this.uuidv4();
     this.app.sids = this.app.sids || {};
     // Check if a client for this sid already exists in the store
-    if (sid in this.app.sids && getDirectClient(this.app.sids[sid])) {
+    if (sid && sid in this.app.sids && getDirectClient(this.app.sids[sid])) {
       getDirectClient(this.app.sids[sid])?.pc?.restartIce();
       return this.app.sids[sid];
     }
