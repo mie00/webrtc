@@ -80,7 +80,17 @@
       const urlParams = new URLSearchParams(window.location.search);
       urlParams.set('r', id);
       history.replaceState(null, '', '?' + urlParams.toString());
-      onId();
+      onId(); // Sets showCopyOverlay = true, copyText, qrCodeUrl
+
+      // If this 'init' event establishes a server-mode room context,
+      // ensure button visibility reflects that. This handles cases where
+      // the previous state might have been different (e.g., client mode).
+      if ($configStore['config-loader'] === 'server') {
+        showCopyButton = true;
+        showAcceptButton = false; 
+        showJoinButton = true; // A room ID is now available via 'init'
+      }
+
       if (isDuringInitialServerLoad) {
         initialOverlayShown = true;
         isDuringInitialServerLoad = false; // Reset flag
