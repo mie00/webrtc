@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { getAllDirectClients } from '../stores/connectionStore.js';
-  import { createEventDispatcher, onMount } from 'svelte';
+  import QRCode from 'qrcode';
   
   // Props
   let {
@@ -35,7 +34,7 @@
 
   let pasteValue = $state('');
   let copyButtonText = $state('Copy');
-  let qrCodeElement: HTMLElement | undefined = $state();
+  let qrCodeDataURL: string = $state("");
 
   $inspect(copyButtonText)
   // Define the structure of the detail for the 'accept' event
@@ -43,28 +42,18 @@
     pasteValue: string;
     cid: string | null; // Allow null as per the original logic
   }
-  
-  // Specify the event map for the dispatcher
-  const dispatch = createEventDispatcher<{
-    close: void;
-    openConfig: void;
-    reset: void;
-    accept: AcceptEventDetail;
-    join: void;
-  }>();
-  
+
   $effect(() => {
-    if (show && qrCodeUrl && qrCodeElement) {
+    if (show && qrCodeUrl) {
       renderQRCode();
     }
   });
   
-  function renderQRCode() {
-    if (!qrCodeElement || !qrCodeUrl) return;
-    
-    qrCodeElement.innerHTML = '';
+  async function renderQRCode() {
+    if (!qrCodeUrl) return;
+
     try {
-      new QRCode(qrCodeElement, qrCodeUrl);
+      qrCodeDataURL = await QRCode.toDataURL(qrCodeUrl);
     } catch (e) {
       console.log("qr code generation error", e);
     }
@@ -122,7 +111,7 @@
   <div class="bg-white p-4 rounded-md shadow-md text-center">
     <button id="test-open-config-button" onclick={handleOpenConfig} class="right">⚙️</button>
     <button id="test-reset-button" onclick={handleReset}>↺</button>
-    <div id="test-qr" bind:this={qrCodeElement}></div>
+    <div id="test-qr"><img src={qrCodeDataURL} alt="QR Code" /></div>
     <p class="text-lg font-semibold mb-2">Copy this:</p>
     <textarea readonly value={copyText} id="test-copy" class="bg-gray-200 px-4 py-2 rounded-md break-all block"></textarea>
     {#if showCopyButton}
