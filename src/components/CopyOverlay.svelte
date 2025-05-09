@@ -111,7 +111,7 @@
   <div class="bg-white p-4 rounded-md shadow-md text-center">
     <button id="test-open-config-button" onclick={handleOpenConfig} class="right">⚙️</button>
     <button id="test-reset-button" onclick={handleReset}>↺</button>
-    <div id="test-qr"><img src={qrCodeDataURL} alt="QR Code" /></div>
+    <div id="test-qr" class="flex justify-center"><img src={qrCodeDataURL} alt="QR Code" /></div>
     <p class="text-lg font-semibold mb-2">Copy this:</p>
     <textarea readonly value={copyText} id="test-copy" class="bg-gray-200 px-4 py-2 rounded-md break-all block"></textarea>
     {#if showCopyButton}
