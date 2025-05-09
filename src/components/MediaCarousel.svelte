@@ -86,7 +86,7 @@
 
 {#if show && currentItem}
   <div
-    class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[1000] p-4"
+    class="fixed inset-0 bg-black/75 flex items-center justify-center z-[1000] p-4"
     on:click|self={closeCarousel}
     on:keypress|stopPropagation
     role="dialog"
