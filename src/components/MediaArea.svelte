@@ -24,7 +24,7 @@
   let showMenu = $state(false);
   let menuPosition = $state({ x: 0, y: 0 });
   let menuItems: string[] = $state([]);
-  let selectedButton: 'audio'|'video'|null = $state(null);
+  let selectedButton: 'audio'|'camera'|null = $state(null);
   let audioButton: HTMLElement;
   let videoButton: HTMLElement;
   let instant = $state(0);
@@ -35,7 +35,7 @@
 
   // Reactive button states
   const isAudioEnabled = $derived($streamStore.streamConfig.audio);
-  const isVideoEnabled = $derived($streamStore.streamConfig.video);
+  const isCameraEnabled = $derived($streamStore.streamConfig.camera);
   const isScreenSharing = $derived($streamStore.streamConfig.screen);
   const isVideoShared = $derived(!!$streamStore.streamConfig.videoSrc);
   const isBlurEnabled = $derived($configStore['blur-video'] === 'yes');
@@ -63,8 +63,8 @@
     src: string | null,
   
     peerId?: string | null,
-    audioStream?: MediaStream,
-    hasAudio?: boolean,
+    audioStream?: MediaStream | null,
+    hasAudio?: boolean | null,
   }
 
   // Group streams by peer ID
@@ -207,7 +207,7 @@
     }
   }
 
-  async function handleContextMenu(type: 'audio'|'video', event: MouseEvent) {
+  async function handleContextMenu(type: 'audio'|'camera', event: MouseEvent) {
     event.preventDefault();
     selectedButton = type;
     
@@ -240,12 +240,12 @@
   }
 
   async function handleToggleVideo() {
-    const newValue = !$streamStore.streamConfig.video;
-    updateStreamConfig({ video: newValue });
+    const newValue = !$streamStore.streamConfig.camera;
+    updateStreamConfig({ camera: newValue });
     if (newValue) {
-      await setupLocalStream('video');
+      await setupLocalStream('camera');
     } else {
-      await destroyLocalStream('video');
+      await destroyLocalStream('camera');
     }
   }
   
@@ -254,9 +254,9 @@
     updateConfig('blur-video', newValue);
     
     // If video is already enabled, restart it to apply the blur effect
-    if (isVideoEnabled) {
+    if (isCameraEnabled) {
       // await destroyLocalStream('video');
-      await setupLocalStream('video');
+      await setupLocalStream('camera');
     }
   }
   
@@ -367,8 +367,8 @@
           mirrored={stream.isLocal && stream.type === 'camera'} 
           peerId={stream.peerId}
           focus={handleFocusStream}
-          audioStream={stream.audioStream}
-          hasAudio={stream.hasAudio}
+          audioStream={stream.audioStream || undefined}
+          hasAudio={stream.hasAudio || undefined}
         >
         {#if stream.src}
         <!-- svelte-ignore a11y_media_has_caption -->
@@ -402,8 +402,8 @@
   <button id="test-toggle-audio-button" bind:this={audioButton} onclick={handleToggleAudio} oncontextmenu={e => handleContextMenu('audio', e)} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isAudioEnabled} style={isAudioEnabled?`background: linear-gradient(0deg, rgb(59 130 246) ${instant}%, white ${instant}%)`:""}>
     {isAudioEnabled ? '🎤' : '🔇'} <!-- Microphone -->
   </button>
-  <button id="test-toggle-video-button" bind:this={videoButton} onclick={handleToggleVideo} oncontextmenu={e => handleContextMenu('video', e)} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoEnabled}>
-    {isVideoEnabled ? '🎥' : '📷'} <!-- Video Camera -->
+  <button id="test-toggle-video-button" bind:this={videoButton} onclick={handleToggleVideo} oncontextmenu={e => handleContextMenu('camera', e)} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isCameraEnabled}>
+    {isCameraEnabled ? '🎥' : '📷'} <!-- Video Camera -->
   </button>
   <button id="test-toggle-blur-button" onclick={handleToggleBlur} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isBlurEnabled}>
     🌫️ <!-- Blur effect -->

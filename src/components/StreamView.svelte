@@ -106,7 +106,6 @@
       
       // Initial setup of audio processing
       setupAudioProcessing();
-      }
     }
     
     return () => {
