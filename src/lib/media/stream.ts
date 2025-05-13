@@ -49,16 +49,11 @@ registerProcessor('audio-level-processor', AudioLevelProcessor);
 `;
 
 // Setup audio processing with analyzer
-async function processAudio(
+function processAudio(
     stream: MediaStream, 
     cb: (dataArray: Uint8Array, analyser: AnalyserNode) => void,
     fftSize: number = 256
-): Promise<AudioNodes | null> {
-    const streamConfig = getStreamState().streamConfig;
-    if (!streamConfig.audio) {
-        return null; // Don't process if audio is disabled in config
-    }
-
+): AudioNodes | null {
     const context = new window.AudioContext();
     const analyser = context.createAnalyser();
     

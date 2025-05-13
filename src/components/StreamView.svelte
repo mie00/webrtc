@@ -26,12 +26,12 @@
   let mediaElement: HTMLVideoElement | HTMLAudioElement | undefined = $state();
   import { processAudio, stopProcessingAudio, drawVisualization, type AudioNodes } from '../lib/media/stream.js';
   
-  let audioNodes: AudioNodes | undefined;
+  let audioNodes: AudioNodes | null;
   let audioVisualizationCanvas: HTMLCanvasElement | undefined = $state();
   let canvasContext: CanvasRenderingContext2D | undefined;
   const FFT_SIZE = 256; // Can be adjusted: 32, 64, 128, 256, 512, 1024, 2048
   
-  onMount(async () => {
+  onMount(() => {
     if (mediaElement) {
       mediaElement.srcObject = stream;
       mediaElement.play().catch(err => console.error('Error playing stream:', err));
@@ -40,12 +40,12 @@
       if (type === 'audio' && audioVisualizationCanvas && stream) {
         try {
           // Get canvas context
-          canvasContext = audioVisualizationCanvas.getContext('2d');
+          canvasContext = audioVisualizationCanvas.getContext('2d')!;
           
           if (canvasContext) {
             // Setup audio processing with the shared function
             // The callback now receives the frequency data array and analyzer
-            audioNodes = await processAudio(
+            audioNodes = processAudio(
               stream, 
               (dataArray, analyser) => {
                 // Draw visualization with the data we received
