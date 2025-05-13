@@ -1,28 +1,29 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import { configStore, updateConfig, type Config } from '../stores/configStore.js'; // Import Config type
   
   // Props
-  export let show = false;
-  
-  // Define event map for type safety
-  const dispatch = createEventDispatcher<{
-    close: void;
-    configUpdated: void;
+  let { 
+    show = false, 
+    onclose, 
+    onconfigUpdated 
+  } = $props<{ 
+    show?: boolean; 
+    onclose?: () => void; 
+    onconfigUpdated?: () => void; 
   }>();
   
   // Event handlers
   function handleClose(event: Event) { // Add type for event
     if (event.target === event.currentTarget) {
-      dispatch('close');
+      if (onclose) onclose();
     }
   }
   
   function handleSave() {
     // No need to manually collect values - they're already in the store
     // Just close the overlay and notify that config has been updated
-    dispatch('configUpdated');
-    dispatch('close');
+    if (onconfigUpdated) onconfigUpdated();
+    if (onclose) onclose();
   }
   
   // Handle input changes directly
@@ -34,15 +35,15 @@
 </script>
 
 {#if show}
-<div id="config-overlay" class="fixed inset-0 bg-black/75 flex justify-center items-center z-40" role="button" tabindex="0" on:click={handleClose} on:keypress|stopPropagation>
-  <div class="bg-white p-4 rounded-md shadow-md text-center" role="button" tabindex="0" on:click|stopPropagation on:keypress|stopPropagation>
+<div id="config-overlay" class="fixed inset-0 bg-black/75 flex justify-center items-center z-40" role="button" tabindex="0" onclick={handleClose} onkeypress={(e) => e.stopPropagation()}>
+  <div class="bg-white p-4 rounded-md shadow-md text-center" role="button" tabindex="0" onclick={(e) => e.stopPropagation()} onkeypress={(e) => e.stopPropagation()}>
     <div class="flex flex-col space-y-2">
       Loader
       <select 
         id="config-loader" 
         class="flex-1 border border-gray-300 px-3 py-2 rounded-md"
         value={$configStore['config-loader']}
-        on:change={(e) => handleInputChange(e, 'config-loader')}
+        onchange={(e) => handleInputChange(e, 'config-loader')}
       >
         <option value="server">Server</option>
         <option value="client">Client</option>
@@ -57,7 +58,7 @@
         placeholder="Username"
         class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
         value={$configStore['user-name']}
-        on:input={(e) => handleInputChange(e, 'user-name')}
+        oninput={(e) => handleInputChange(e, 'user-name')}
       >
     </div>
     
@@ -69,7 +70,7 @@
         placeholder="Host"
         class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
         value={$configStore['config-host']}
-        on:input={(e) => handleInputChange(e, 'config-host')}
+        oninput={(e) => handleInputChange(e, 'config-host')}
       >
     </div>
     
@@ -81,7 +82,7 @@
         placeholder="Stun servers"
         class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
         value={$configStore['stun-servers']}
-        on:input={(e) => handleInputChange(e, 'stun-servers')}
+        oninput={(e) => handleInputChange(e, 'stun-servers')}
       >
     </div>
     
@@ -93,7 +94,7 @@
         placeholder="Turn server"
         class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
         value={$configStore['turn-server-v2']}
-        on:input={(e) => handleInputChange(e, 'turn-server-v2')}
+        oninput={(e) => handleInputChange(e, 'turn-server-v2')}
       >
     </div>
     
@@ -105,7 +106,7 @@
         placeholder="Turn username"
         class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
         value={$configStore['turn-username']}
-        on:input={(e) => handleInputChange(e, 'turn-username')}
+        oninput={(e) => handleInputChange(e, 'turn-username')}
       >
     </div>
     
@@ -117,7 +118,7 @@
         placeholder="Turn password"
         class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
         value={$configStore['turn-password']}
-        on:input={(e) => handleInputChange(e, 'turn-password')}
+        oninput={(e) => handleInputChange(e, 'turn-password')}
       >
     </div>
     
@@ -129,7 +130,7 @@
         placeholder="Audio device"
         class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
         value={$configStore['audio-device']}
-        on:input={(e) => handleInputChange(e, 'audio-device')}
+        oninput={(e) => handleInputChange(e, 'audio-device')}
       >
     </div>
     
@@ -141,7 +142,7 @@
         placeholder="Video device"
         class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
         value={$configStore['video-device']}
-        on:input={(e) => handleInputChange(e, 'video-device')}
+        oninput={(e) => handleInputChange(e, 'video-device')}
       >
     </div>
     
@@ -151,7 +152,7 @@
         id="blur-video" 
         class="flex-1 border border-gray-300 px-3 py-2 rounded-md"
         value={$configStore['blur-video']}
-        on:change={(e) => handleInputChange(e, 'blur-video')}
+        onchange={(e) => handleInputChange(e, 'blur-video')}
       >
         <option value="no">No</option>
         <option value="yes">Yes</option>
@@ -160,7 +161,7 @@
     
     <button 
       id="save-button" 
-      on:click={handleSave}
+      onclick={handleSave}
       class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2"
     >
       Save
