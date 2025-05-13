@@ -165,7 +165,7 @@ export function setupTrackHandler(app: App, cid: string): void { // app might be
 /**
  * Enhanced version of setupLocalStream that uses the new store structure
  */
-export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (instant: number) => void): Promise<void> => {
+export const setupLocalStream = async (changed: 'audio' | 'camera' | 'screen' | 'local', audioCb?: (instant: number) => void): Promise<void> => {
   // REMOVE const app = window.app as AppWithStreamConfig;
   let stream: MediaStream | undefined;
   const streamConfig = getStreamState().streamConfig; // Get config from store
@@ -214,8 +214,8 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
       }
       audioCb(0);
     }
-  } else if (changed === 'video') {
-    if (streamConfig.video) {
+  } else if (changed === 'camera') {
+    if (streamConfig.camera) {
       stream = await navigator.mediaDevices.getUserMedia({
         video: {
           groupId: globalConfig['video-device']?.split('|')[0],
@@ -263,7 +263,7 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
   // Map the stream type
   let streamType: StreamType = 'custom';
   if (changed === 'audio') streamType = 'audio';
-  else if (changed === 'video') streamType = 'camera';
+  else if (changed === 'camera') streamType = 'camera';
   else if (changed === 'screen') streamType = 'screen';
   else if (changed === 'local') streamType = 'file';
 
@@ -283,7 +283,7 @@ export const setupLocalFileStream = (stream: MediaStream): void => {
 /**
  * Destroy a local stream
  */
-export const destroyLocalStream = async (changed: 'audio' | 'video' | 'screen' | 'local', audioCb?: (instant: number) => void): Promise<void> => {
+export const destroyLocalStream = async (changed: 'audio' | 'camera' | 'screen' | 'local', audioCb?: (instant: number) => void): Promise<void> => {
   // REMOVE const app = window.app as AppWithStreamConfig;
   const state = getStreamState();
   const localStreamData = state.localStreams[changed];

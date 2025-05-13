@@ -3,7 +3,7 @@ import { writable, get } from 'svelte/store';
 // Stream configuration interface
 export interface StreamConfig {
   audio: boolean;
-  video: boolean;
+  camera: boolean;
   screen: boolean;
   local: boolean;
   videoStream: MediaStream | null;
@@ -61,7 +61,7 @@ const initialState: StreamState = {
   
   streamConfig: {
     audio: false,
-    video: false,
+    camera: false,
     screen: false,
     local: false,
     videoStream: null,
