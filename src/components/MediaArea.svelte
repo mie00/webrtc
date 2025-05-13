@@ -140,8 +140,12 @@
         videoStreams.forEach(stream => {
           // Find a matching audio stream from this peer if available
           const audioStream = audioStreams.length > 0 ? audioStreams[0].stream : null;
+          
+          // Check if the video stream itself has audio tracks
+          const streamHasAudio = stream.stream && stream.stream.getAudioTracks().length > 0;
+          
           stream.audioStream = audioStream || undefined;
-          stream.hasAudio = !!audioStream;
+          stream.hasAudio = !!audioStream || streamHasAudio;
         });
         
         result.push(...videoStreams);

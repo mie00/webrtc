@@ -39,7 +39,8 @@
   let audioLevel = $state(0);
   let borderColor = $state('red');
   // use #5be7a9 as base
-  let borderStyle = $derived(`4px solid ${hasAudio ? `rgba(255, 255, 255, ${audioLevel})` : 'rgba(255, 0, 0, 0.5)'}`);
+  let borderStyle = $derived(`4px solid ${hasAudio || (stream && stream.getAudioTracks().length > 0) ? 
+    `rgba(0, 255, 0, ${audioLevel})` : 'rgba(255, 0, 0, 0.5)'}`);
   
   onMount(() => {
     if (mediaElement) {
@@ -48,7 +49,9 @@
       
       // Set up audio visualization for audio streams or video streams with audio
       const streamToProcess = audioStream || stream;
-      if (streamToProcess && ((type === 'audio' && audioVisualizationCanvas) || type === 'video')) {
+      const hasAudioTracks = streamToProcess && streamToProcess.getAudioTracks().length > 0;
+      
+      if (streamToProcess && hasAudioTracks && ((type === 'audio' && audioVisualizationCanvas) || type === 'video')) {
         try {
           // For audio-only streams, set up canvas visualization
           if (type === 'audio' && audioVisualizationCanvas) {
@@ -126,9 +129,11 @@
       {controls}
     ></audio>
     <!-- Audio visualization -->
-    <div class="audio-visualization">
-      <canvas bind:this={audioVisualizationCanvas} width="300" height="150"></canvas>
-    </div>
+    {#if stream && stream.getAudioTracks().length > 0}
+      <div class="audio-visualization">
+        <canvas bind:this={audioVisualizationCanvas} width="300" height="150"></canvas>
+      </div>
+    {/if}
   {/if}
   
   <!-- Optional overlay with peer info -->
