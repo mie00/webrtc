@@ -109,17 +109,17 @@
 {#if show}
 <div id="copy-overlay" class="fixed inset-0 bg-black/75 flex justify-center items-center z-30 cursor-default" onclick={handleClose} role="button" tabindex="0" onkeydown={(e) => e.key === 'Escape' && handleClose(e)} aria-label="Close overlay">
   <div class="bg-white p-4 rounded-md shadow-md text-center">
-    <button id="test-open-config-button" onclick={handleOpenConfig} class="right">⚙️</button>
+    <button id="test-open-config-button" onclick={handleOpenConfig}>⚙️</button> {/* Removed class="right" */}
     <button id="test-reset-button" onclick={handleReset}>↺</button>
-    <div id="test-qr" class="flex justify-center"><img src={qrCodeDataURL} alt="QR Code" /></div>
+    <div id="test-qr" class="flex justify-center"><img src={qrCodeDataURL} alt="QR Code" class="max-w-xs" /></div> {/* Added max-w-xs to image */}
     <p class="text-lg font-semibold mb-2">Copy this:</p>
-    <textarea readonly value={copyText} id="test-copy" class="bg-gray-200 px-4 py-2 rounded-md break-all block"></textarea>
+    <textarea readonly value={copyText} id="test-copy" class="bg-gray-200 px-4 py-2 rounded-md break-all block mx-auto w-full max-w-md"></textarea> {/* Added mx-auto, w-full, max-w-md */}
     {#if showCopyButton}
       <button id="test-copy-button" onclick={handleCopy}
         class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2">{copyButtonText}</button>
     {/if}
     {#if showPasteText}
-      <textarea id="test-paste" bind:value={pasteValue} class="bg-gray-200 px-4 py-2 rounded-md break-all block mt-2"></textarea>
+      <textarea id="test-paste" bind:value={pasteValue} class="bg-gray-200 px-4 py-2 rounded-md break-all block mt-2 mx-auto w-full max-w-md"></textarea> {/* Added mx-auto, w-full, max-w-md */}
     {/if}
     {#if showAcceptButton}
       <button id="test-accept" onclick={handleAccept}
