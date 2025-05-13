@@ -187,7 +187,24 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
       // Process audio for visualization if callback provided
       if (audioCb) {
         // Store the returned context/nodes
-        audioProcessingContexts[changed] = await processAudio(stream, audioCb);
+        // Adapt the callback to work with the new signature
+        audioProcessingContexts[changed] = await processAudio(
+          stream, 
+          (dataArray, analyser) => {
+            // Calculate the average level from the frequency data
+            if (dataArray.length > 0) {
+              let sum = 0;
+              for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i];
+              }
+              const avgLevel = sum / dataArray.length;
+              // Call the original callback with the average level
+              audioCb(avgLevel);
+            } else {
+              audioCb(0);
+            }
+          }
+        );
       }
     } else if (audioCb) {
       // Stop processing if it was running for this type

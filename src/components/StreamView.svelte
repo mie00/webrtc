@@ -24,11 +24,12 @@
   } = $props();
 
   let mediaElement: HTMLVideoElement | HTMLAudioElement | undefined = $state();
-  import { processAudio, stopProcessingAudio, startVisualization, type AudioNodes } from '../lib/media/stream.js';
+  import { processAudio, stopProcessingAudio, drawVisualization, type AudioNodes } from '../lib/media/stream.js';
   
   let audioNodes: AudioNodes | undefined;
   let audioVisualizationCanvas: HTMLCanvasElement | undefined = $state();
   let canvasContext: CanvasRenderingContext2D | undefined;
+  const FFT_SIZE = 256; // Can be adjusted: 32, 64, 128, 256, 512, 1024, 2048
   
   onMount(async () => {
     if (mediaElement) {
@@ -43,21 +44,22 @@
           
           if (canvasContext) {
             // Setup audio processing with the shared function
-            audioNodes = await processAudio(stream, (instant) => {
-              // This callback receives audio level updates
-              // Could be used for level meters or other indicators
-              // console.log('Audio level:', instant);
-            });
-            
-            if (audioNodes && canvasContext) {
-              // Start the visualization loop
-              startVisualization(
-                audioNodes,
-                canvasContext,
-                audioVisualizationCanvas.width,
-                audioVisualizationCanvas.height
-              );
-            }
+            // The callback now receives the frequency data array and analyzer
+            audioNodes = await processAudio(
+              stream, 
+              (dataArray, analyser) => {
+                // Draw visualization with the data we received
+                if (canvasContext && audioVisualizationCanvas) {
+                  drawVisualization(
+                    dataArray,
+                    canvasContext,
+                    audioVisualizationCanvas.width,
+                    audioVisualizationCanvas.height
+                  );
+                }
+              },
+              FFT_SIZE // Pass the FFT size
+            );
           }
         } catch (err) {
           console.error('Error setting up audio visualization:', err);

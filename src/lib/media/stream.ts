@@ -18,6 +18,7 @@ interface AudioNodes {
     source: MediaStreamAudioSourceNode;
     dataArray: Uint8Array;
     animationFrame?: number;
+    fftSize: number;
 }
 
 // Audio processor worklet code as a string
@@ -47,8 +48,12 @@ class AudioLevelProcessor extends AudioWorkletProcessor {
 registerProcessor('audio-level-processor', AudioLevelProcessor);
 `;
 
-// Setup audio processing with modern AudioWorklet API
-async function processAudio(stream: MediaStream, cb: (instant: number) => void): Promise<AudioNodes | null> {
+// Setup audio processing with analyzer
+async function processAudio(
+    stream: MediaStream, 
+    cb: (dataArray: Uint8Array, analyser: AnalyserNode) => void,
+    fftSize: number = 256
+): Promise<AudioNodes | null> {
     const streamConfig = getStreamState().streamConfig;
     if (!streamConfig.audio) {
         return null; // Don't process if audio is disabled in config
@@ -56,90 +61,69 @@ async function processAudio(stream: MediaStream, cb: (instant: number) => void):
 
     const context = new window.AudioContext();
     const analyser = context.createAnalyser();
-    analyser.fftSize = 256;
+    
+    // Set FFT size - must be a power of 2
+    analyser.fftSize = fftSize;
     
     const source = context.createMediaStreamSource(stream);
     source.connect(analyser);
-    
-    // Create and use the worklet for audio level processing
-    try {
-        // Create a blob URL for the processor code
-        const blob = new Blob([audioProcessorWorklet], { type: 'application/javascript' });
-        const workletUrl = URL.createObjectURL(blob);
-        
-        // Load the worklet
-        await context.audioWorklet.addModule(workletUrl);
-        
-        // Create the worklet node
-        const workletNode = new AudioWorkletNode(context, 'audio-level-processor');
-        
-        // Connect the worklet
-        source.connect(workletNode);
-        workletNode.connect(context.destination);
-        
-        // Listen for messages from the processor
-        workletNode.port.onmessage = (event) => {
-            if (event.data.instant !== undefined) {
-                cb(event.data.instant);
-            }
-        };
-        
-        // Clean up the blob URL
-        URL.revokeObjectURL(workletUrl);
-    } catch (err) {
-        console.error('AudioWorklet not supported, falling back to analyser node only:', err);
-    }
     
     // Create data array for visualization
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
     
-    return { context, analyser, source, dataArray };
-}
-
-// Function to get frequency data for visualization
-function getAudioVisualizationData(nodes: AudioNodes): Uint8Array | null {
-    if (!nodes || !nodes.analyser || !nodes.dataArray) return null;
+    // Set up animation frame to continuously get audio data
+    let animationFrame: number;
     
-    nodes.analyser.getByteFrequencyData(nodes.dataArray);
-    return nodes.dataArray;
+    const updateAnalysis = () => {
+        // Get current frequency data
+        analyser.getByteFrequencyData(dataArray);
+        
+        // Call the callback with the data and analyzer
+        cb(dataArray, analyser);
+        
+        // Continue the loop
+        animationFrame = requestAnimationFrame(updateAnalysis);
+    };
+    
+    // Start the analysis loop
+    animationFrame = requestAnimationFrame(updateAnalysis);
+    
+    return { 
+        context, 
+        analyser, 
+        source, 
+        dataArray, 
+        animationFrame,
+        fftSize
+    };
 }
 
-// Function to start visualization loop
-function startVisualization(
-    nodes: AudioNodes, 
+// Function to draw visualization on canvas
+function drawVisualization(
+    dataArray: Uint8Array,
     canvasContext: CanvasRenderingContext2D, 
     width: number, 
     height: number, 
     color: string = '#3B82F6'
 ): void {
-    if (!nodes || !nodes.analyser || !nodes.dataArray) return;
-    
     // Clear canvas
     canvasContext.clearRect(0, 0, width, height);
     
-    // Get audio data
-    nodes.analyser.getByteFrequencyData(nodes.dataArray);
-    
     // Draw visualization
-    const barWidth = (width / nodes.dataArray.length) * 2.5;
+    const barWidth = (width / dataArray.length) * 2.5;
     let barHeight;
     let x = 0;
     
     canvasContext.fillStyle = color;
     
-    for (let i = 0; i < nodes.dataArray.length; i++) {
-        barHeight = nodes.dataArray[i] / 2;
+    for (let i = 0; i < dataArray.length; i++) {
+        barHeight = dataArray[i] / 2;
         
         canvasContext.fillRect(x, height - barHeight, barWidth, barHeight);
         
         x += barWidth + 1;
     }
-    
-    // Continue animation
-    nodes.animationFrame = requestAnimationFrame(() => 
-        startVisualization(nodes, canvasContext, width, height, color)
-    );
 }
 
 function stopProcessingAudio(nodes: AudioNodes | null): void {
@@ -212,8 +196,7 @@ export {
     normalizeStreamId,
     processAudio,
     stopProcessingAudio,
-    getAudioVisualizationData,
-    startVisualization,
+    drawVisualization,
     tearDownStream,
     setupTrack,
     setupStream,
