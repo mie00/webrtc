@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { $state, $derived, $effect, tick } from 'svelte';
+  import { tick } from 'svelte';
   import { connectionStore, type ConnectionState } from '../stores/connectionStore.js';
   import { configStore } from '../stores/configStore.js';
   import { chatStore, type ChatState } from '../lib/chatBridge.js';
@@ -168,7 +168,7 @@
   })());
 
   // Filter combinedFeed for items suitable for the carousel
-  const viewableMediaForCarousel = $derived((() => {
+  const viewableMediaForCarousel = $derived.by(() => {
     const result: CarouselMediaItem[] = [];
     for (const item of combinedFeed) {
       if (
@@ -190,7 +190,7 @@
       }
     }
     return result;
-  })();
+  });
 
   function openMediaCarousel(clickedItem: CarouselMediaItem) {
     carouselMediaItems = viewableMediaForCarousel; // Use the pre-filtered and typed list
@@ -221,7 +221,7 @@
   function togglePanel() {
     isPanelOpen = !isPanelOpen;
     if (isPanelOpen) {
-      chatInput.focus();
+      chatInput?.focus();
       unreadCount = 0; // Reset unread count when panel is opened
       if (combinedFeed && typeof localUserName === 'string') {
         lastRemoteItemCountSeen = countRemoteItems(combinedFeed);
@@ -619,5 +619,5 @@
   items={carouselMediaItems}
   startIndex={carouselStartIndex}
   show={showMediaCarousel}
-  on:close={() => showMediaCarousel = false}
+  onClose={() => showMediaCarousel = false}
 />

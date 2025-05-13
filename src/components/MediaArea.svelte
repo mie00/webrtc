@@ -7,7 +7,7 @@
   }
 </script>
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { onMount } from 'svelte';
   import { streamStore, updateStreamConfig, setViewLayout, type LayoutType } from '../stores/streamStore.js';
   import { setupLocalStream, destroyLocalStream, normalizeStreamId, setupLocalFileStream } from '../lib/streamBridge.js';
   import { startRecording, stopRecording } from '../lib/media/recorder.js';
@@ -15,7 +15,10 @@
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, configStore } from '../stores/configStore.js';
   import StreamView from './StreamView.svelte';
-    import { addLocalFileStream, removeLocalFileStream } from '../stores/localFileStreamStore.js';
+  import { addLocalFileStream, removeLocalFileStream } from '../stores/localFileStreamStore.js';
+
+  // get hangup and openQr from $props
+  let { hangup, openQr }: { hangup?: () => void; openQr?: () => void } = $props();
 
   // Context menu state
   let showMenu = $state(false);
@@ -24,14 +27,10 @@
   let selectedButton: 'audio'|'video'|null = $state(null);
   let audioButton: HTMLElement;
   let videoButton: HTMLElement;
-  let instant = $state(0)
-  let mie: HTMLElement | undefined = $state();
-
-  const dispatch = createEventDispatcher();
+  let instant = $state(0);
 
   // References to DOM elements
   let uploadVideo: HTMLInputElement;
-  let videoNode: HTMLVideoElement;
   let refreshInterval: number;
 
   // Reactive button states
@@ -113,7 +112,7 @@
   
   // Event handlers
   function handleHangup() {
-    dispatch('hangup');
+    if (hangup) hangup();
   }
   
   async function handleToggleAudio() {
@@ -208,7 +207,7 @@
   }
   
   function handleOpenQr() {
-    dispatch('openQr');
+    if(openQr) openQr();
   }
   
   function handleShareVideo() {
@@ -290,7 +289,7 @@
         {#if stream.src}
         <!-- svelte-ignore a11y_media_has_caption -->
         {#key stream.src}
-        <video onloadeddata={handleFilePlay} src={stream.src} autoplay controls loop bind:this={mie}></video>
+        <video onloadeddata={handleFilePlay} src={stream.src} autoplay controls></video>
         {/key}
         {/if}
         </StreamView>

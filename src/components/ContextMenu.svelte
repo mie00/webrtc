@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { $props } from 'svelte/legacy'; // Or 'svelte' if using Svelte 5.0+ runes mode fully
 
   // Props
   let { position = { x: 0, y: 0 }, menuItems = [], cb, hide } = $props();

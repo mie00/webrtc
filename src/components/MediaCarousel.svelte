@@ -1,4 +1,4 @@
-<script context="module" lang="ts">
+<script module lang="ts">
   
   // This interface should be kept in sync with CarouselMediaItem in ControlPanel.svelte
   // or ideally defined in a shared types file.
@@ -12,7 +12,7 @@
   }
 </script>
 <script lang="ts">
-  import { onMount, onDestroy, tick, $props, $state, $derived, $effect } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import type { FileTransfer } from '../lib/fileBridge.js';
 
   type Props = {
@@ -25,7 +25,7 @@
 
   let currentIndex = $state(0);
   let currentItem = $derived(items[currentIndex]);
-  let mediaElement: HTMLImageElement | HTMLVideoElement | null = null;
+  let mediaElement: HTMLImageElement | HTMLVideoElement | null = $state(null);
 
   // Effect to initialize/update currentIndex when show, items, or startIndex change
   $effect(() => {

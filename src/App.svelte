@@ -433,8 +433,8 @@
 </script>
 
 <main class="flex-1 flex">
-  <MediaArea on:hangup={handleHangup} on:openQr={handleOpenQrRequest} />
-  <ControlPanel on:toggleConfig={toggleConfigOverlay} />
+  <MediaArea hangup={handleHangup} openQr={handleOpenQrRequest} />
+  <ControlPanel />
 </main>
 
 <CopyOverlay 
@@ -455,8 +455,8 @@
 
 <ConfigOverlay 
   show={showConfigOverlay} 
-  on:close={() => showConfigOverlay = false}
-  on:configUpdated={handleReset}
+  onclose={() => showConfigOverlay = false}
+  onconfigUpdated={handleReset}
 />
 
 <!-- <ContextMenu /> -->
