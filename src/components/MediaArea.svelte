@@ -289,7 +289,7 @@
         {#if stream.src}
         <!-- svelte-ignore a11y_media_has_caption -->
         {#key stream.src}
-        <video onloadeddata={handleFilePlay} src={stream.src} autoplay controls></video>
+        <video onloadeddata={handleFilePlay} src={stream.src} autoplay controls loop></video>
         {/key}
         {/if}
         </StreamView>
