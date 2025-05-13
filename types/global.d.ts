@@ -57,24 +57,14 @@ interface WebRTCClient {
 
 interface App {
   clients: Record<string, WebRTCClient>;
-  streams?: Record<string, MediaStream>;
   viewStreams: Record<string, MediaStream>;
   nego_messages: Record<string, any>;
   nego_handlers: Record<string, (data: any, cid: string) => void>;
   cleanups: Record<string, (cid?: string) => void>;
-  file_progress_interval?: number;
   _send_host_interval?: number | null;
   _last_forwarded?: string;
-  allowed_host?: string | null;
-  inited?: boolean;
-  participants?: Record<string, { relay: string }>;
   sids?: Record<string, string>;
   debug?: boolean;
-  recorder?: number;
-  merger?: any;
-  mediaRecorder?: MediaRecorder;
-  forward_peer?: string;
-  inflight?: Record<string, (data: any) => void>;
 }
 
 // Extended HTMLMediaElement with substitute properties

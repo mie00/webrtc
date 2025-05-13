@@ -13,6 +13,8 @@ import {
 } from '../../stores/connectionStore.js'; // Adjust path if needed
 import { getAllConfig } from '../../stores/configStore.js';
 import { diffChars } from 'diff';
+import { streamInit } from '../streamBridge.js';
+import { forwardInit } from '../forwardBridge.js';
 
 
 // Type definitions for local use
@@ -37,9 +39,13 @@ export class WebRTCApp {
   constructor() { // Removed config parameter
     // Config is now managed solely by configStore
     this.setupNegoHandlers();
+    this.init();
   }
 
-  // Removed updateConfig method
+  public init(): void {
+    streamInit(this.app);
+    forwardInit(this.app);
+  }
 
   private setupNegoHandlers(): void {
     this.app.nego_handlers = {
@@ -202,30 +208,7 @@ export class WebRTCApp {
     );
   }
 
-  public async init(): Promise<void> {
-    if (this.app.inited) {
-      return;
-    }
-    // participants are managed by the store
-    // clients are managed by the store
-    this.app.cleanups = {};
-    this.app.inited = true;
-    this.app.nego_messages = {};
-
-    // Initialize other modules
-    // Import dynamically to avoid circular dependencies
-    const { streamInit } = await import('../streamBridge.js');
-    const { forwardInit } = await import('../forwardBridge.js');
-    const { chatInit } = await import('../chatBridge.js');
-    const { fileInit } = await import('../fileBridge.js');
-    streamInit(this.app);
-    forwardInit(this.app);
-    chatInit(this.app);
-    fileInit(this.app);
-  }
-
   public async initClient(polite: boolean, options: ClientInitOptions): Promise<string> {
-    await this.init();
     // Get current config from the store
     const currentConfig = getAllConfig();
     const rtcConfig = {

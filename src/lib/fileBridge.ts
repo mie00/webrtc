@@ -89,9 +89,6 @@ export function removeFileTransfer(id: string): void {
   });
 }
 
-export function fileInit(app: App): void {
-}
-
 /**
  * Set up file channel for a client
  */

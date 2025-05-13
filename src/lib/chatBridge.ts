@@ -42,13 +42,6 @@ export function addMessage(text: string, sender: string, cid?: string): void {
 }
 
 /**
- * Initialize the chat module with the app object
- */
-export function chatInit(app: App): void {
-  // No longer need to subscribe here, Svelte component handles rendering
-}
-
-/**
  * Set up chat channel for a client
  */
 export function setupChatChannel(app: App, cid: string): void { // app might be needed for global config
