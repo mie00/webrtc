@@ -11,6 +11,8 @@
     peerId = null,
     children,
     focus,
+    audioStreamId,
+    hasAudio = false,
   }: {
     stream: MediaStream | null;
     useSlot?: boolean;
@@ -21,6 +23,8 @@
     peerId?: string | null;
     children?: any;
     focus: ({}:{streamId: string|undefined; peerId : string | null}) => void;
+    audioStreamId?: string;
+    hasAudio?: boolean;
   } = $props();
 
   let mediaElement: HTMLVideoElement | HTMLAudioElement | undefined = $state();
@@ -31,36 +35,50 @@
   let canvasContext: CanvasRenderingContext2D | undefined;
   const FFT_SIZE = 256; // Can be adjusted: 32, 64, 128, 256, 512, 1024, 2048
   
+  // Audio level state
+  let audioLevel = $state(0);
+  let borderColor = $state('red');
+  let borderStyle = $derived(`4px solid ${hasAudio ? `rgba(0, 255, 0, ${audioLevel})` : 'rgba(255, 0, 0, 0.5)'}`);
+  
   onMount(() => {
     if (mediaElement) {
       mediaElement.srcObject = stream;
       mediaElement.play().catch(err => console.error('Error playing stream:', err));
       
-      // Set up audio visualization if this is an audio stream
-      if (type === 'audio' && audioVisualizationCanvas && stream) {
+      // Set up audio visualization for audio streams or video streams with audio
+      const streamToProcess = stream;
+      if (streamToProcess && ((type === 'audio' && audioVisualizationCanvas) || type === 'video')) {
         try {
-          // Get canvas context
-          canvasContext = audioVisualizationCanvas.getContext('2d')!;
-          
-          if (canvasContext) {
-            // Setup audio processing with the shared function
-            // The callback now receives the frequency data array and analyzer
-            audioNodes = processAudio(
-              stream, 
-              (dataArray, analyser) => {
-                // Draw visualization with the data we received
-                if (canvasContext && audioVisualizationCanvas) {
-                  drawVisualization(
-                    dataArray,
-                    canvasContext,
-                    audioVisualizationCanvas.width,
-                    audioVisualizationCanvas.height
-                  );
-                }
-              },
-              FFT_SIZE // Pass the FFT size
-            );
+          // For audio-only streams, set up canvas visualization
+          if (type === 'audio' && audioVisualizationCanvas) {
+            canvasContext = audioVisualizationCanvas.getContext('2d')!;
           }
+          
+          // Process audio for both audio-only and video streams
+          audioNodes = processAudio(
+            streamToProcess, 
+            (dataArray, analyser) => {
+              // For audio-only streams, draw visualization
+              if (type === 'audio' && canvasContext && audioVisualizationCanvas) {
+                drawVisualization(
+                  dataArray,
+                  canvasContext,
+                  audioVisualizationCanvas.width,
+                  audioVisualizationCanvas.height
+                );
+              }
+              
+              // For all streams, calculate audio level for border
+              if (dataArray) {
+                // Calculate average volume level from frequency data
+                const sum = dataArray.reduce((acc, val) => acc + (val || 0), 0);
+                const avg = sum / dataArray.length;
+                // Normalize to 0-1 range with some amplification
+                audioLevel = Math.min(1, avg / 128);
+              }
+            },
+            FFT_SIZE
+          );
         } catch (err) {
           console.error('Error setting up audio visualization:', err);
         }
@@ -84,7 +102,7 @@
   }
 </script>
 
-<div class="stream-container" role="button" tabindex="0" onclick={handleClick} onkeypress={() => {}}>
+<div class="stream-container" role="button" tabindex="0" onclick={handleClick} onkeypress={() => {}} style={type === 'video' ? `border: ${borderStyle}` : ''}>
   {#if useSlot}
   {@render children?.()}
   {:else if type === 'video'}

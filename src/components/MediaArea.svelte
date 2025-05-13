@@ -54,27 +54,100 @@
     }))
   ));
 
-  // All active streams for display
-  const activeStreams = $derived.by(() => [
-    ...localStreams.filter(([_, data]) => data.active).map(([id, data]) => ({
-      id: normalizeStreamId(data.stream?.id || data.src || ''),
-      streamKey: id,
-      stream: data.stream,
-      type: data.type,
-      isLocal: true,
+  // Group streams by peer ID
+  const groupedStreams = $derived.by(() => {
+    const groups: Record<string, {
+      peerId: string | null,
+      streams: Array<{
+        id: string,
+        streamKey: string,
+        stream: MediaStream,
+        type: string,
+        isLocal: boolean,
+        src: string | null
+      }>
+    }> = {};
+    
+    // Add local streams
+    const localPeerId = 'local';
+    groups[localPeerId] = {
       peerId: null,
-      src: data.src,
-    })),
-    ...remoteStreams.map(({ id, stream, peerId }) => ({
-      id: normalizeStreamId(stream.id),
-      streamKey: id,
-      stream,
-      type: stream.getVideoTracks().length > 0 ? 'camera' : 'audio',
-      isLocal: false,
-      peerId,
-      src: null,
-    }))
-  ]);
+      streams: localStreams
+        .filter(([_, data]) => data.active)
+        .map(([id, data]) => ({
+          id: normalizeStreamId(data.stream?.id || data.src || ''),
+          streamKey: id,
+          stream: data.stream,
+          type: data.type,
+          isLocal: true,
+          peerId: null,
+          src: data.src,
+        }))
+    };
+    
+    // Add remote streams
+    remoteStreams.forEach(({ id, stream, peerId }) => {
+      if (!groups[peerId]) {
+        groups[peerId] = { peerId, streams: [] };
+      }
+      
+      groups[peerId].streams.push({
+        id: normalizeStreamId(stream.id),
+        streamKey: id,
+        stream,
+        type: stream.getVideoTracks().length > 0 ? 'camera' : 'audio',
+        isLocal: false,
+        peerId,
+        src: null,
+      });
+    });
+    
+    return groups;
+  });
+  
+  // All active streams for display
+  const activeStreams = $derived.by(() => {
+    const result = [];
+    
+    // Process each peer's streams
+    Object.values(groupedStreams).forEach(({ peerId, streams }) => {
+      // Check if this peer has any video streams (camera or screen)
+      const hasVideoStreams = streams.some(s => 
+        s.type === 'camera' || s.type === 'screen' || s.type === 'file' || 
+        (s.stream && s.stream.getVideoTracks().length > 0)
+      );
+      
+      // Find audio streams
+      const audioStreams = streams.filter(s => 
+        s.type === 'audio' || 
+        (s.stream && s.stream.getVideoTracks().length === 0 && s.stream.getAudioTracks().length > 0)
+      );
+      
+      // If there are video streams, don't add separate audio streams
+      if (hasVideoStreams) {
+        // Add all non-audio streams
+        const videoStreams = streams.filter(s => 
+          s.type !== 'audio' && 
+          (s.stream?.getVideoTracks().length > 0 || s.type === 'file')
+        );
+        
+        // Add audio info to video streams
+        videoStreams.forEach(stream => {
+          // Find a matching audio stream from this peer if available
+          const audioStream = audioStreams.length > 0 ? audioStreams[0] : null;
+          stream.audioStreamId = audioStream?.id;
+          stream.hasAudio = !!audioStream;
+        });
+        
+        result.push(...videoStreams);
+      } else {
+        // If no video streams, add all audio streams as separate items
+        result.push(...audioStreams);
+      }
+    });
+    
+    return result;
+  });
   // Stream positions
   let mediaContainerElement: HTMLElement;
   let streamPositions: Array<{ id: string; x: number; y: number; width: number; height: number }> = $state([]);
