@@ -144,6 +144,8 @@
           // Check if the video stream itself has audio tracks
           const streamHasAudio = stream.stream && stream.stream.getAudioTracks().length > 0;
           
+          // Always pass the audio stream if available, even if the video stream has audio tracks
+          // This ensures audio is properly transmitted in all cases
           stream.audioStream = audioStream;
           stream.hasAudio = !!audioStream || streamHasAudio;
         });

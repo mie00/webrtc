@@ -50,9 +50,18 @@
       audioNodes = null;
     }
     
-    // Set up audio visualization for audio streams or video streams with audio
+    // Determine which stream to use for audio processing
+    // Priority: 1. audioStream (if available), 2. stream (if it has audio tracks)
     const streamToProcess = audioStream || stream;
     const hasAudioTracks = streamToProcess && streamToProcess.getAudioTracks().length > 0;
+    
+    // Log audio setup for debugging
+    console.log('Setting up audio processing:', {
+      hasAudioStream: !!audioStream,
+      hasStreamWithAudio: !!(stream && stream.getAudioTracks().length > 0),
+      hasAudioTracks,
+      type
+    });
     
     if (streamToProcess && hasAudioTracks && ((type === 'audio' && audioVisualizationCanvas) || type === 'video')) {
       try {
@@ -101,7 +110,32 @@
   
   onMount(() => {
     if (mediaElement) {
-      mediaElement.srcObject = stream;
+      // If we have both a video stream and a separate audio stream,
+      // we need to handle them differently to ensure audio works properly
+      if (stream && audioStream && type === 'video') {
+        console.log('Setting up combined audio/video streams');
+        
+        // Create a new MediaStream that combines video tracks from the video stream
+        // and audio tracks from the audio stream
+        const combinedStream = new MediaStream();
+        
+        // Add all video tracks from the video stream
+        stream.getVideoTracks().forEach(track => {
+          combinedStream.addTrack(track);
+        });
+        
+        // Add all audio tracks from the audio stream
+        audioStream.getAudioTracks().forEach(track => {
+          combinedStream.addTrack(track);
+        });
+        
+        // Set the combined stream as the source
+        mediaElement.srcObject = combinedStream;
+      } else {
+        // Normal case - just use the provided stream
+        mediaElement.srcObject = stream;
+      }
+      
       mediaElement.play().catch(err => console.error('Error playing stream:', err));
       
       // Initial setup of audio processing
