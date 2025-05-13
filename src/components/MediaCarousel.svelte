@@ -12,39 +12,44 @@
   }
 </script>
 <script lang="ts">
-  import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
+  import { onMount, onDestroy, tick, $props, $state, $derived, $effect } from 'svelte';
   import type { FileTransfer } from '../lib/fileBridge.js';
 
+  type Props = {
+    items?: CarouselMediaItem[];
+    startIndex?: number;
+    show?: boolean;
+    onClose?: () => void;
+  };
+  let { items = [], startIndex = 0, show = false, onClose }: Props = $props();
 
-  export let items: CarouselMediaItem[] = [];
-  export let startIndex: number = 0;
-  export let show: boolean = false;
-
-  const dispatch = createEventDispatcher();
-
-  let currentIndex = 0;
-  let currentItem: CarouselMediaItem | undefined;
+  let currentIndex = $state(0);
+  let currentItem = $derived(items[currentIndex]);
   let mediaElement: HTMLImageElement | HTMLVideoElement | null = null;
 
-  // Reactive updates for currentIndex and currentItem
-  $: {
+  // Effect to initialize/update currentIndex when show, items, or startIndex change
+  $effect(() => {
     if (show && items.length > 0) {
       currentIndex = Math.max(0, Math.min(startIndex, items.length - 1));
     }
-  }
-  $: currentItem = items[currentIndex];
-  $: if (currentItem && mediaElement && currentItem.transfer.type.startsWith('video/')) {
+  });
+
+  // Effect for video handling when currentItem or mediaElement changes
+  $effect(() => {
+    if (currentItem && mediaElement && currentItem.transfer.type.startsWith('video/')) {
       // Ensure video reloads and autoplays if it's a video element
       tick().then(() => {
         const video = mediaElement as HTMLVideoElement;
         video.load(); // Reload the source
         video.play().catch(e => console.warn("Autoplay prevented for video:", e));
       });
-  }
-
+    }
+  });
 
   function closeCarousel() {
-    dispatch('close');
+    if (onClose) {
+      onClose();
+    }
   }
 
   function nextItem() {
@@ -87,8 +92,8 @@
 {#if show && currentItem}
   <div
     class="fixed inset-0 bg-black/75 flex items-center justify-center z-[1000] p-4"
-    on:click|self={closeCarousel}
-    on:keypress|stopPropagation
+    onclick={(e) => { if (e.target === e.currentTarget) closeCarousel(); }}
+    onkeypress={(e) => e.stopPropagation()}
     role="dialog"
     tabindex="0"
     aria-modal="true"
@@ -97,7 +102,7 @@
     <div class="relative bg-gray-900 p-3 md:p-5 rounded-xl max-w-full max-h-full w-auto h-auto flex flex-col shadow-2xl outline-none" tabindex="-1">
       <!-- Close Button -->
       <button
-        on:click={closeCarousel}
+        onclick={closeCarousel}
         class="absolute top-2 right-2 md:-top-3 md:-right-3 bg-red-600 text-white rounded-full w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-xl md:text-2xl z-10 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400"
         aria-label="Close media viewer"
       >
@@ -133,7 +138,7 @@
               controls
               autoplay
               class="max-w-full max-h-[calc(90vh-150px)] md:max-h-[calc(85vh-120px)] rounded-md aspect-video"
-              on:error={(e) => console.error('Video playback error:', e)}
+              onerror={(e) => console.error('Video playback error:', e)}
             ></video>
           {:else}
             <p class="text-white p-5 bg-gray-700 rounded">Unsupported media type for carousel.</p>
@@ -147,7 +152,7 @@
       {#if items.length > 1}
         <div class="flex justify-between items-center mt-3 md:mt-4 pt-2 border-t border-gray-700">
           <button
-            on:click|stopPropagation={prevItem}
+            onclick={(e) => { e.stopPropagation(); prevItem(); }}
             class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
             aria-label="Previous item"
           >
@@ -157,7 +162,7 @@
             {currentIndex + 1} / {items.length}
           </p>
           <button
-            on:click|stopPropagation={nextItem}
+            onclick={(e) => { e.stopPropagation(); nextItem(); }}
             class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
             aria-label="Next item"
           >
