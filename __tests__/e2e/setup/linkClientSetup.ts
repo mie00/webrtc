@@ -82,8 +82,8 @@ export async function linkClientSetup(): Promise<SetupResult> {
     await pageB.waitForSelector('#test-copy-button', { visible: true, timeout: PUPPETEER_TIMEOUT });
     // wait for a bit
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    // get the content of #test-copy textarea
-    const responseUrl = await pageB.$eval('div#test-qr', (el) => el.title);
+    // get the new url of the page
+    const responseUrl = await pageB.evaluate(() => window.location.href);
 
     const pageC = await browserA.newPage();
     console.log('Page C navigating to response URL...', responseUrl);

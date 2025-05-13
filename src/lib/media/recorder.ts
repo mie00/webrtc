@@ -1,3 +1,5 @@
+import { VideoStreamMerger }  from 'video-stream-merger';
+
 let lastStreams: string[] = [];
 
 const FW = 1920;

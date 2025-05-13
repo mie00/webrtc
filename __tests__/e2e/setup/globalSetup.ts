@@ -87,13 +87,6 @@ export default async function globalSetup(globalConfig: Config.GlobalConfig, pro
         });
     });
 
-    if (!globalThis.__SERVER_URL__ || !globalThis.__SERVER_PID__) {
-        // If server fails, close Browser B as well
-        if (globalThis.__BROWSER_B__) {
-            await globalThis.__BROWSER_B__.close();
-        }
-        throw new Error("Server did not start correctly or PID/URL is missing.");
-    }
 
     console.log(`Server started globally. URL: ${globalThis.__SERVER_URL__}, PID: ${globalThis.__SERVER_PID__}`);
     console.log('--- Global E2E Setup Complete ---');

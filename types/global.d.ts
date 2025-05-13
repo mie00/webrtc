@@ -134,3 +134,5 @@ declare global {
   var __PAGE_A__: import('puppeteer').Page | undefined;
   var __PAGE_B__: import('puppeteer').Page | undefined;
 }
+
+declare module 'diff';

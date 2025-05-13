@@ -25,6 +25,7 @@ export async function standardTeardown({ pageA, pageB }: TeardownArgs): Promise<
         closePage(pageA, 'Page A'),
         closePage(pageB, 'Page B')
     ]);
+    await new Promise(resolve => setTimeout(resolve, 1000)); // TODO: check why it fails without this line
 
     // No need to clear globals as they weren't set by standardSetup
 

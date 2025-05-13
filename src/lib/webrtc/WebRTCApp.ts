@@ -12,6 +12,7 @@ import {
   getAllClientCids
 } from '../../stores/connectionStore.js'; // Adjust path if needed
 import { getAllConfig } from '../../stores/configStore.js';
+import { diffChars } from 'diff';
 
 
 // Type definitions for local use
@@ -450,10 +451,10 @@ export class WebRTCApp {
       }
       let span: HTMLSpanElement | null = null;
 
-      const diff = Diff.diffChars(d1, d2);
+      const diff = diffChars(d1, d2);
       const fragment = document.createDocumentFragment();
 
-      diff.forEach((part) => {
+      diff.forEach((part: any) => {
         // green for additions, red for deletions
         // grey for common parts
         const color = part.added ? 'green' :
