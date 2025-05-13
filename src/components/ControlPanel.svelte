@@ -246,8 +246,14 @@
       if (combinedFeed && typeof localUserName === 'string') {
         lastRemoteItemCountSeen = countRemoteItems(combinedFeed);
       }
+    } else {
+      // Panel is being closed, update lastRemoteItemCountSeen to current remote count
+      // This ensures that items seen while panel was open are not counted as unread
+      if (combinedFeed && typeof localUserName === 'string') {
+        lastRemoteItemCountSeen = countRemoteItems(combinedFeed);
+      }
+      // unreadCount should remain 0 or be recalculated by the reactive block if new items arrive after closing
     }
-    // If panel is closed, unreadCount will be updated by the reactive block
   }
   
   function handleKeyPress(event: KeyboardEvent) {
