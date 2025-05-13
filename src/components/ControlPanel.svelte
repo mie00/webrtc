@@ -39,6 +39,10 @@
   let stagedFiles: StagedFile[] = [];
   let isSending = false; // To disable input/buttons during send operation
 
+  // --- State for Unread Notifications ---
+  let unreadCount = 0;
+  let lastRemoteItemCountSeen = 0; // Count of remote items when panel was last opened or user sent something
+
   // Carousel State
   let showMediaCarousel = false;
   let carouselMediaItems: CarouselMediaItem[] = [];
@@ -129,6 +133,17 @@
 
   // Get local user name directly from the config store
   $: localUserName = $configStore['user-name'] || 'You';
+
+  // --- Helper function to count remote items in the feed ---
+  function countRemoteItems(feed: FeedItem[]): number {
+    if (!feed || typeof localUserName !== 'string') return 0; // Ensure localUserName is resolved
+    return feed.filter(item => {
+      const isLocal = item.type === 'chat'
+        ? item.sender === localUserName
+        : !item.cid; // File is local if no senderCid
+      return !isLocal;
+    }).length;
+  }
 
   // --- Create Combined Feed ---
   $: combinedFeed = (() => {
@@ -227,7 +242,12 @@
     isPanelOpen = !isPanelOpen;
     if (isPanelOpen) {
       chatInput.focus();
+      unreadCount = 0; // Reset unread count when panel is opened
+      if (combinedFeed && typeof localUserName === 'string') {
+        lastRemoteItemCountSeen = countRemoteItems(combinedFeed);
+      }
     }
+    // If panel is closed, unreadCount will be updated by the reactive block
   }
   
   function handleKeyPress(event: KeyboardEvent) {
@@ -243,6 +263,7 @@
     if (!message.trim() && stagedFiles.length === 0) return; // Nothing to send
 
     isSending = true;
+    let successfullySentSomething = false;
 
     try {
       // 1. Send text message if present
@@ -251,28 +272,30 @@
         const { sendChatMessage } = await import('../lib/chatBridge.js');
         await sendChatMessage(message.trim(), senderName); // Assuming sendChatMessage is async
         message = ''; // Clear message input after successful send
+        successfullySentSomething = true;
       }
 
       // 2. Send all staged files
       if (stagedFiles.length > 0) {
         const { sendFile } = await import('../lib/fileBridge.js');
-        // Create a copy of the array to iterate over, as sendFile might be slow
-        // and we want to clear the UI staging area optimistically or upon completion.
         const filesToSend = [...stagedFiles];
         stagedFiles = []; // Clear staging area from UI immediately
 
         for (const stagedFileObj of filesToSend) {
           await sendFile(stagedFileObj.file);
-          // Note: Thumbnail DataURLs don't need explicit revocation.
         }
+        successfullySentSomething = true;
       }
     } catch (error) {
       console.error("Error sending message or files:", error);
       // Potentially re-add files to staging or notify user
-      // For now, message remains cleared, stagedFiles remain cleared.
-      // User would need to re-add files that failed.
     } finally {
       isSending = false;
+      if (successfullySentSomething && !isPanelOpen && combinedFeed && typeof localUserName === 'string') {
+        // If something was sent and panel is closed, user has "seen" the feed
+        lastRemoteItemCountSeen = countRemoteItems(combinedFeed);
+        unreadCount = 0; // Reset unread count
+      }
       await tick(); // Wait for Svelte to process DOM updates
       if (isPanelOpen && chatInput) {
         chatInput.focus();
@@ -300,6 +323,15 @@
     }
     // If no files, default paste behavior (text) for chatInput is allowed.
   }
+
+  // --- Reactive update for unreadCount ---
+  $: {
+    if (!isPanelOpen && combinedFeed && typeof localUserName === 'string') {
+      const currentRemoteCount = countRemoteItems(combinedFeed);
+      unreadCount = Math.max(0, currentRemoteCount - lastRemoteItemCountSeen);
+    }
+    // If panel is open, unreadCount is managed by togglePanel and user actions.
+  }
 </script>
 
 <div
@@ -309,8 +341,23 @@
      class:left-full={!isPanelOpen}
      class:right-0={isPanelOpen}>
   <div class="absolute top-1/4">
-    <button id="test-toggle-panel-button" on:click={togglePanel} class="hover:bg-blue-600 w-5 h-16 bg-gray-300 text-black p-0 absolute border-solid rounded-l" style="left: -20px;">
+    <button 
+      id="test-toggle-panel-button" 
+      on:click={togglePanel} 
+      class="relative hover:bg-blue-600 w-5 h-16 bg-gray-300 text-black p-0 border-solid rounded-l" 
+      style="left: -20px;"
+      aria-label={isPanelOpen ? "Close panel" : `Open panel (${unreadCount} unread)`}
+    >
       {isPanelOpen ? '>' : '<'}
+      {#if unreadCount > 0 && !isPanelOpen}
+        <span 
+          class="absolute top-0 right-0 transform translate-x-1/4 -translate-y-1/4 bg-red-500 text-white text-xs rounded-full h-4 w-4 min-w-[1rem] flex items-center justify-center leading-none p-0.5"
+          style="font-size: 0.6rem;"
+          aria-hidden="true"
+        >
+          {unreadCount > 9 ? '9+' : unreadCount}
+        </span>
+      {/if}
     </button>
   </div>
   <div class="bg-gray-200 p-4 flex flex-col space-y-4 w-full h-full overflow-y-auto"> <!-- Added overflow-y-auto -->
