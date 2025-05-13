@@ -40,52 +40,72 @@
   let borderColor = $state('red');
   // use #5be7a9 as base
   let borderStyle = $derived(`4px solid ${hasAudio || (stream && stream.getAudioTracks().length > 0) ? 
-    `rgba(0, 255, 0, ${audioLevel})` : 'rgba(255, 0, 0, 0.5)'}`);
+    `rgba(0, 255, 0, ${Math.max(0.1, audioLevel)})` : 'rgba(255, 0, 0, 0.5)'}`);
+  
+  // Function to set up audio processing
+  function setupAudioProcessing() {
+    // Clean up any existing audio processing
+    if (audioNodes) {
+      stopProcessingAudio(audioNodes);
+      audioNodes = null;
+    }
+    
+    // Set up audio visualization for audio streams or video streams with audio
+    const streamToProcess = audioStream || stream;
+    const hasAudioTracks = streamToProcess && streamToProcess.getAudioTracks().length > 0;
+    
+    if (streamToProcess && hasAudioTracks && ((type === 'audio' && audioVisualizationCanvas) || type === 'video')) {
+      try {
+        // For audio-only streams, set up canvas visualization
+        if (type === 'audio' && audioVisualizationCanvas) {
+          canvasContext = audioVisualizationCanvas.getContext('2d')!;
+        }
+        
+        // Process audio for both audio-only and video streams
+        audioNodes = processAudio(
+          streamToProcess, 
+          (dataArray, analyser) => {
+            // For audio-only streams, draw visualization
+            if (type === 'audio' && canvasContext && audioVisualizationCanvas) {
+              drawVisualization(
+                dataArray,
+                canvasContext,
+                audioVisualizationCanvas.width,
+                audioVisualizationCanvas.height
+              );
+            }
+            
+            // For all streams, calculate audio level for border
+            if (dataArray) {
+              // Calculate average volume level from frequency data
+              const sum = dataArray.reduce((acc, val) => acc + (val || 0), 0);
+              const avg = sum / dataArray.length;
+              // Normalize to 0-1 range with some amplification
+              audioLevel = Math.pow(Math.min(1, avg / 128), 0.5);
+            }
+          },
+          FFT_SIZE
+        );
+      } catch (err) {
+        console.error('Error setting up audio visualization:', err);
+      }
+    }
+  }
+  
+  // Watch for changes to stream or audioStream
+  $effect(() => {
+    if (stream || audioStream) {
+      setupAudioProcessing();
+    }
+  });
   
   onMount(() => {
     if (mediaElement) {
       mediaElement.srcObject = stream;
       mediaElement.play().catch(err => console.error('Error playing stream:', err));
       
-      // Set up audio visualization for audio streams or video streams with audio
-      const streamToProcess = audioStream || stream;
-      const hasAudioTracks = streamToProcess && streamToProcess.getAudioTracks().length > 0;
-      
-      if (streamToProcess && hasAudioTracks && ((type === 'audio' && audioVisualizationCanvas) || type === 'video')) {
-        try {
-          // For audio-only streams, set up canvas visualization
-          if (type === 'audio' && audioVisualizationCanvas) {
-            canvasContext = audioVisualizationCanvas.getContext('2d')!;
-          }
-          
-          // Process audio for both audio-only and video streams
-          audioNodes = processAudio(
-            streamToProcess, 
-            (dataArray, analyser) => {
-              // For audio-only streams, draw visualization
-              if (type === 'audio' && canvasContext && audioVisualizationCanvas) {
-                drawVisualization(
-                  dataArray,
-                  canvasContext,
-                  audioVisualizationCanvas.width,
-                  audioVisualizationCanvas.height
-                );
-              }
-              
-              // For all streams, calculate audio level for border
-              if (dataArray) {
-                // Calculate average volume level from frequency data
-                const sum = dataArray.reduce((acc, val) => acc + (val || 0), 0);
-                const avg = sum / dataArray.length;
-                // Normalize to 0-1 range with some amplification
-                audioLevel = Math.pow(Math.min(1, avg / 128), 0.5);
-              }
-            },
-            FFT_SIZE
-          );
-        } catch (err) {
-          console.error('Error setting up audio visualization:', err);
-        }
+      // Initial setup of audio processing
+      setupAudioProcessing();
       }
     }
     
@@ -128,8 +148,8 @@
       {muted}
       {controls}
     ></audio>
-    <!-- Audio visualization -->
-    {#if stream && stream.getAudioTracks().length > 0}
+    <!-- Audio visualization - only show for audio-only streams -->
+    {#if type === 'audio' && stream && stream.getAudioTracks().length > 0}
       <div class="audio-visualization">
         <canvas bind:this={audioVisualizationCanvas} width="300" height="150"></canvas>
       </div>
