@@ -40,7 +40,7 @@
   let borderColor = $state('red');
   // use #5be7a9 as base
   let borderStyle = $derived(`4px solid ${hasAudio || (stream && stream.getAudioTracks().length > 0) ? 
-    `rgba(0, 255, 0, ${Math.max(0.1, audioLevel)})` : 'rgba(255, 0, 0, 0.5)'}`);
+    `rgba(0, 255, 0, ${Math.max(0.2, audioLevel)})` : 'rgba(255, 0, 0, 0.5)'}`);
   
   // Function to set up audio processing
   function setupAudioProcessing() {
@@ -90,7 +90,9 @@
               const sum = dataArray.reduce((acc, val) => acc + (val || 0), 0);
               const avg = sum / dataArray.length;
               // Normalize to 0-1 range with some amplification
-              audioLevel = Math.pow(Math.min(1, avg / 128), 0.5);
+              // Use a more responsive algorithm that emphasizes changes
+              const newLevel = Math.pow(Math.min(1, avg / 100), 0.4); // More sensitive to sound
+              audioLevel = newLevel > audioLevel ? newLevel : audioLevel * 0.95; // Quick rise, slow decay
             }
           },
           FFT_SIZE

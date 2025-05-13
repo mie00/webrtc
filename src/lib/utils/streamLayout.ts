@@ -170,22 +170,74 @@ export function calculateStreamPositions(
 ): Array<{ id: string; x: number; y: number; width: number; height: number }> {
   const state = get(streamStore);
   
-  // Get all active streams
-  const activeStreams = [
-    ...Object.entries(state.localStreams)
+  // Group streams by peer ID to filter out audio streams that should be hidden
+  const groupedStreams: Record<string, {
+    peerId: string | null,
+    streams: Array<{
+      id: string,
+      type: string,
+      stream: MediaStream | null,
+      src?: string | null,
+      aspectRatio: number
+    }>
+  }> = {};
+  
+  // Add local streams
+  const localPeerId = 'local';
+  groupedStreams[localPeerId] = {
+    peerId: null,
+    streams: Object.entries(state.localStreams)
       .filter(([_, data]) => data.active)
-      .map(([_, data]) => ({ 
+      .map(([_, data]) => ({
         id: normalizeStreamId(data.stream?.id || data.src || ''),
+        type: data.type,
+        stream: data.stream,
+        src: data.src,
         aspectRatio: data.src || !data.stream || data.stream.getVideoTracks().length > 0 ? 16/9 : 1
-      })),
-    ...Object.entries(state.remoteStreams)
-      .flatMap(([_, data]) => 
-        Object.entries(data.streams).map(([streamId, stream]) => ({
-          id: normalizeStreamId(stream.id),
-          aspectRatio: stream.getVideoTracks().length > 0 ? 16/9 : 1
-        }))
-      )
-  ];
+      }))
+  };
+  
+  // Add remote streams
+  Object.entries(state.remoteStreams).forEach(([peerId, data]) => {
+    if (!groupedStreams[peerId]) {
+      groupedStreams[peerId] = { peerId, streams: [] };
+    }
+    
+    Object.entries(data.streams).forEach(([streamId, stream]) => {
+      groupedStreams[peerId].streams.push({
+        id: normalizeStreamId(stream.id),
+        type: stream.getVideoTracks().length > 0 ? 'camera' : 'audio',
+        stream,
+        aspectRatio: stream.getVideoTracks().length > 0 ? 16/9 : 1
+      });
+    });
+  });
+  
+  // Filter out audio streams that should be hidden (when a peer has video streams)
+  const visibleStreams = Object.values(groupedStreams).flatMap(({ peerId, streams }) => {
+    // Check if this peer has any video streams
+    const hasVideoStreams = streams.some(s => 
+      s.type === 'camera' || s.type === 'screen' || s.type === 'file' || 
+      (s.stream && s.stream.getVideoTracks().length > 0)
+    );
+    
+    if (hasVideoStreams) {
+      // Only include video streams from this peer
+      return streams.filter(s => 
+        s.type !== 'audio' && 
+        ((s.stream && s.stream?.getVideoTracks().length > 0) || s.type === 'file')
+      );
+    } else {
+      // Include all streams from this peer
+      return streams;
+    }
+  });
+  
+  // Convert to the format needed for layout calculations
+  const activeStreams = visibleStreams.map(stream => ({
+    id: stream.id,
+    aspectRatio: stream.aspectRatio
+  }));
   
   // Calculate positions based on layout
   switch (layout) {
