@@ -358,6 +358,8 @@
           mirrored={stream.isLocal && stream.type === 'camera'} 
           peerId={stream.peerId}
           focus={handleFocusStream}
+          audioStreamId={stream.audioStreamId}
+          hasAudio={stream.hasAudio}
         >
         {#if stream.src}
         <!-- svelte-ignore a11y_media_has_caption -->
