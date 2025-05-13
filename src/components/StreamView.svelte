@@ -24,24 +24,44 @@
   } = $props();
 
   let mediaElement: HTMLVideoElement | HTMLAudioElement | undefined = $state();
-  let audioContext: AudioContext | undefined;
-  let analyser: AnalyserNode | undefined;
-  let dataArray: Uint8Array | undefined;
+  import { processAudio, stopProcessingAudio, startVisualization, type AudioNodes } from '../lib/media/stream.js';
+  
+  let audioNodes: AudioNodes | undefined;
   let audioVisualizationCanvas: HTMLCanvasElement | undefined = $state();
-  let canvasContext: CanvasContext2D | undefined;
-  let animationFrame: number | undefined;
+  let canvasContext: CanvasRenderingContext2D | undefined;
   
-  // For audio visualization
-  interface CanvasContext2D extends CanvasRenderingContext2D {}
-  
-  onMount(() => {
+  onMount(async () => {
     if (mediaElement) {
       mediaElement.srcObject = stream;
       mediaElement.play().catch(err => console.error('Error playing stream:', err));
       
       // Set up audio visualization if this is an audio stream
-      if (type === 'audio' && audioVisualizationCanvas) {
-        setupAudioVisualization();
+      if (type === 'audio' && audioVisualizationCanvas && stream) {
+        try {
+          // Get canvas context
+          canvasContext = audioVisualizationCanvas.getContext('2d');
+          
+          if (canvasContext) {
+            // Setup audio processing with the shared function
+            audioNodes = await processAudio(stream, (instant) => {
+              // This callback receives audio level updates
+              // Could be used for level meters or other indicators
+              // console.log('Audio level:', instant);
+            });
+            
+            if (audioNodes && canvasContext) {
+              // Start the visualization loop
+              startVisualization(
+                audioNodes,
+                canvasContext,
+                audioVisualizationCanvas.width,
+                audioVisualizationCanvas.height
+              );
+            }
+          }
+        } catch (err) {
+          console.error('Error setting up audio visualization:', err);
+        }
       }
     }
     
@@ -50,69 +70,12 @@
         mediaElement.srcObject = null;
       }
       
-      // Clean up audio visualization
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame);
-      }
-      
-      if (audioContext) {
-        audioContext.close();
+      // Clean up audio visualization using the shared function
+      if (audioNodes) {
+        stopProcessingAudio(audioNodes);
       }
     };
   });
-  
-  function setupAudioVisualization() {
-    if (!stream) return;
-    try {
-      audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      
-      const source = audioContext.createMediaStreamSource(stream);
-      source.connect(analyser);
-      
-      const bufferLength = analyser.frequencyBinCount;
-      dataArray = new Uint8Array(bufferLength);
-      
-      canvasContext = audioVisualizationCanvas!.getContext('2d') as CanvasContext2D;
-      
-      // Start visualization
-      visualize();
-    } catch (err) {
-      console.error('Error setting up audio visualization:', err);
-    }
-  }
-  
-  function visualize() {
-    if (!analyser || !canvasContext || !dataArray || !audioVisualizationCanvas) return;
-    
-    const width = audioVisualizationCanvas.width;
-    const height = audioVisualizationCanvas.height;
-    
-    // Clear canvas
-    canvasContext.clearRect(0, 0, width, height);
-    
-    // Get audio data
-    analyser.getByteFrequencyData(dataArray);
-    
-    // Draw visualization
-    const barWidth = (width / dataArray.length) * 2.5;
-    let barHeight;
-    let x = 0;
-    
-    canvasContext.fillStyle = '#3B82F6'; // Blue color
-    
-    for (let i = 0; i < dataArray.length; i++) {
-      barHeight = dataArray[i] / 2;
-      
-      canvasContext.fillRect(x, height - barHeight, barWidth, barHeight);
-      
-      x += barWidth + 1;
-    }
-    
-    // Continue animation
-    animationFrame = requestAnimationFrame(visualize);
-  }
   
   function handleClick() {
     focus({ streamId: stream?.id, peerId });

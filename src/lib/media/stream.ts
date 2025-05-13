@@ -11,54 +11,150 @@ function normalizeStreamId(id: string): string {
     return id.replace('{', '').replace('}', '');
 }
 
-// Define a type for the returned audio processing objects
+// Define types for audio processing
 interface AudioNodes {
     context: AudioContext;
-    script: ScriptProcessorNode;
-    mic: MediaStreamAudioSourceNode;
+    analyser: AnalyserNode;
+    source: MediaStreamAudioSourceNode;
+    dataArray: Uint8Array;
+    animationFrame?: number;
 }
 
-// REMOVE AppWithStreamConfig and AudioProcessingApp interfaces
+// Audio processor worklet code as a string
+const audioProcessorWorklet = `
+class AudioLevelProcessor extends AudioWorkletProcessor {
+  process(inputs, outputs, parameters) {
+    const input = inputs[0][0];
+    if (!input) return true;
+    
+    let sum = 0.0;
+    let clipcount = 0;
+    
+    for (let i = 0; i < input.length; ++i) {
+      sum += input[i] * input[i];
+      if (Math.abs(input[i]) > 0.99) {
+        clipcount += 1;
+      }
+    }
+    
+    const instant = Math.sqrt(Math.sqrt(sum / input.length)) * 100;
+    this.port.postMessage({ instant });
+    
+    return true;
+  }
+}
 
-function processAudio(stream: MediaStream, cb: (instant: number) => void): AudioNodes | null {
+registerProcessor('audio-level-processor', AudioLevelProcessor);
+`;
+
+// Setup audio processing with modern AudioWorklet API
+async function processAudio(stream: MediaStream, cb: (instant: number) => void): Promise<AudioNodes | null> {
     const streamConfig = getStreamState().streamConfig;
     if (!streamConfig.audio) {
         return null; // Don't process if audio is disabled in config
     }
 
     const context = new window.AudioContext();
-    const script = context.createScriptProcessor(2048, 1, 1);
-    script.onaudioprocess = function (event) {
-        // Re-check config in case it changed
-        if (!getStreamState().streamConfig.audio) {
-            return;
-        }
-        const input = event.inputBuffer.getChannelData(0);
-        let i;
-        let sum = 0.0;
-        let clipcount = 0;
-        for (i = 0; i < input.length; ++i) {
-            sum += input[i] * input[i];
-            if (Math.abs(input[i]) > 0.99) {
-                clipcount += 1;
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 256;
+    
+    const source = context.createMediaStreamSource(stream);
+    source.connect(analyser);
+    
+    // Create and use the worklet for audio level processing
+    try {
+        // Create a blob URL for the processor code
+        const blob = new Blob([audioProcessorWorklet], { type: 'application/javascript' });
+        const workletUrl = URL.createObjectURL(blob);
+        
+        // Load the worklet
+        await context.audioWorklet.addModule(workletUrl);
+        
+        // Create the worklet node
+        const workletNode = new AudioWorkletNode(context, 'audio-level-processor');
+        
+        // Connect the worklet
+        source.connect(workletNode);
+        workletNode.connect(context.destination);
+        
+        // Listen for messages from the processor
+        workletNode.port.onmessage = (event) => {
+            if (event.data.instant !== undefined) {
+                cb(event.data.instant);
             }
-        }
-        const instant = Math.sqrt(Math.sqrt(sum / input.length)) * 100;
-        cb(instant);
-    };
-    const mic = context.createMediaStreamSource(stream);
-    mic.connect(script);
-    script.connect(context.destination);
+        };
+        
+        // Clean up the blob URL
+        URL.revokeObjectURL(workletUrl);
+    } catch (err) {
+        console.error('AudioWorklet not supported, falling back to analyser node only:', err);
+    }
+    
+    // Create data array for visualization
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    return { context, analyser, source, dataArray };
+}
 
-    return { context, script, mic };
+// Function to get frequency data for visualization
+function getAudioVisualizationData(nodes: AudioNodes): Uint8Array | null {
+    if (!nodes || !nodes.analyser || !nodes.dataArray) return null;
+    
+    nodes.analyser.getByteFrequencyData(nodes.dataArray);
+    return nodes.dataArray;
+}
+
+// Function to start visualization loop
+function startVisualization(
+    nodes: AudioNodes, 
+    canvasContext: CanvasRenderingContext2D, 
+    width: number, 
+    height: number, 
+    color: string = '#3B82F6'
+): void {
+    if (!nodes || !nodes.analyser || !nodes.dataArray) return;
+    
+    // Clear canvas
+    canvasContext.clearRect(0, 0, width, height);
+    
+    // Get audio data
+    nodes.analyser.getByteFrequencyData(nodes.dataArray);
+    
+    // Draw visualization
+    const barWidth = (width / nodes.dataArray.length) * 2.5;
+    let barHeight;
+    let x = 0;
+    
+    canvasContext.fillStyle = color;
+    
+    for (let i = 0; i < nodes.dataArray.length; i++) {
+        barHeight = nodes.dataArray[i] / 2;
+        
+        canvasContext.fillRect(x, height - barHeight, barWidth, barHeight);
+        
+        x += barWidth + 1;
+    }
+    
+    // Continue animation
+    nodes.animationFrame = requestAnimationFrame(() => 
+        startVisualization(nodes, canvasContext, width, height, color)
+    );
 }
 
 function stopProcessingAudio(nodes: AudioNodes | null): void {
     if (!nodes) return;
-    const { context, script, mic } = nodes;
-    if (mic) mic.disconnect();
-    if (script) script.disconnect();
-    // context?.close(); // Closing context might be too aggressive if reused
+    
+    // Cancel any ongoing animation
+    if (nodes.animationFrame) {
+        cancelAnimationFrame(nodes.animationFrame);
+    }
+    
+    // Disconnect audio nodes
+    if (nodes.source) nodes.source.disconnect();
+    
+    // Close context if needed
+    // nodes.context?.close(); // Commented as noted in original code
 }
 
 const tearDownStream = async (stream: MediaStream): Promise<void> => {
@@ -116,6 +212,8 @@ export {
     normalizeStreamId,
     processAudio,
     stopProcessingAudio,
+    getAudioVisualizationData,
+    startVisualization,
     tearDownStream,
     setupTrack,
     setupStream,

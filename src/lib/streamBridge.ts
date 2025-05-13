@@ -187,7 +187,7 @@ export const setupLocalStream = async (changed: 'audio' | 'video' | 'screen' | '
       // Process audio for visualization if callback provided
       if (audioCb) {
         // Store the returned context/nodes
-        audioProcessingContexts[changed] = processAudio(stream, audioCb);
+        audioProcessingContexts[changed] = await processAudio(stream, audioCb);
       }
     } else if (audioCb) {
       // Stop processing if it was running for this type
