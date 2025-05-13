@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onDestroy, afterUpdate, tick } from 'svelte';
+  import { $state, $derived, $effect, tick } from 'svelte';
   import { connectionStore, type ConnectionState } from '../stores/connectionStore.js';
   import { configStore } from '../stores/configStore.js';
   import { chatStore, type ChatState } from '../lib/chatBridge.js';
@@ -24,47 +24,31 @@
     cid?: string; // Added: Original sender CID (if available)
   }
 
-  const dispatch = createEventDispatcher();
-
   // State for panel toggle, chat, file upload
-  let isPanelOpen = false;
-  let message = '';
-  let chatInput: HTMLInputElement;
-  let controlsPanel: HTMLDivElement;
-  let uploadField: HTMLInputElement;
-  let chatOutputContainer: HTMLDivElement;
+  let isPanelOpen = $state(false);
+  let message = $state('');
+  let chatInput: HTMLInputElement | null = null;
+  let controlsPanel: HTMLDivElement | null = null;
+  let uploadField: HTMLInputElement | null = null;
+  let chatOutputContainer: HTMLDivElement | null = null;
   // let canUpload = true; // Replaced by isSending and stagedFiles logic
 
   // --- New State for Staged Files & Sending ---
-  let stagedFiles: StagedFile[] = [];
-  let isSending = false; // To disable input/buttons during send operation
+  let stagedFiles = $state<StagedFile[]>([]);
+  let isSending = $state(false); // To disable input/buttons during send operation
 
   // --- State for Unread Notifications ---
-  let unreadCount = 0;
-  let lastRemoteItemCountSeen = 0; // Count of remote items when panel was last opened or user sent something
+  let unreadCount = $state(0);
+  let lastRemoteItemCountSeen = $state(0); // Count of remote items when panel was last opened or user sent something
 
   // Carousel State
-  let showMediaCarousel = false;
-  let carouselMediaItems: CarouselMediaItem[] = [];
-  let carouselStartIndex = 0;
+  let showMediaCarousel = $state(false);
+  let carouselMediaItems = $state<CarouselMediaItem[]>([]);
+  let carouselStartIndex = $state(0);
 
-  // Subscribe to connection store
-  let connectionState: ConnectionState = { directClients: {}, participants: {} };
-  const unsubscribe = connectionStore.subscribe(value => {
-    connectionState = value;
-  });
-
-  // Subscribe to chat store
-  let chatState: ChatState = { messages: [] };
-  const unsubscribeChat = chatStore.subscribe(value => {
-    chatState = value;
-  });
-
-  // Subscribe to file store
-  let fileState: FileState = { transfers: {} };
-  const unsubscribeFile = fileStore.subscribe(value => {
-    fileState = value;
-  });
+  // Store values will be accessed directly using $storeName syntax
+  // No need for local copies like connectionState, chatState, fileState
+  // and their manual subscriptions.
 
   // Helper function to determine if media is playable and its type
   function getPlayableMediaType(fileType: string): 'audio' | 'video' | 'image' | null {
@@ -80,13 +64,9 @@
     return null;
   }
 
-  onDestroy(() => {
-    unsubscribe(); // Unsubscribe from connectionStore
-    unsubscribeChat(); // Unsubscribe from chatStore
-    unsubscribeFile(); // Unsubscribe from fileStore
-    // Data URLs from FileReader (used for thumbnails) don't need explicit revocation.
-    // If URL.createObjectURL were used, cleanup would be needed here.
-  });
+  // onDestroy cleanup for store subscriptions is no longer needed as we access stores directly.
+  // Data URLs from FileReader (used for thumbnails) don't need explicit revocation.
+  // If URL.createObjectURL were used, cleanup would be needed here.
 
   // --- Helper Functions for Staged Files ---
   function generateThumbnailUrl(file: File): Promise<string | null> {
@@ -132,7 +112,7 @@
 
 
   // Get local user name directly from the config store
-  $: localUserName = $configStore['user-name'] || 'You';
+  const localUserName = $derived($configStore['user-name'] || 'You');
 
   // --- Helper function to count remote items in the feed ---
   function countRemoteItems(feed: FeedItem[]): number {
@@ -146,8 +126,8 @@
   }
 
   // --- Create Combined Feed ---
-  $: combinedFeed = (() => {
-    const chatItems: FeedItem[] = chatState.messages.map((msg, i) => ({
+  const combinedFeed = $derived((() => {
+    const chatItems: FeedItem[] = ($chatStore.messages || []).map((msg, i) => ({
       id: `chat-${msg.timestamp}-${i}`,
       type: 'chat',
       sender: msg.sender, // Display name
@@ -156,7 +136,7 @@
       cid: msg.cid, // Pass CID for chat messages
     }));
 
-    const fileItems: FeedItem[] = Object.values(fileState.transfers).map(transfer => {
+    const fileItems: FeedItem[] = Object.values($fileStore.transfers || {}).map(transfer => {
       // Determine sender display name:
       let senderDisplayName: string;
       if (!transfer.senderCid) {
@@ -185,10 +165,10 @@
     const allItems = [...chatItems, ...fileItems];
     allItems.sort((a, b) => a.timestamp - b.timestamp);
     return allItems;
-  })();
+  })());
 
   // Filter combinedFeed for items suitable for the carousel
-  $: viewableMediaForCarousel = (() => {
+  const viewableMediaForCarousel = $derived((() => {
     const result: CarouselMediaItem[] = [];
     for (const item of combinedFeed) {
       if (
@@ -230,7 +210,7 @@
 
 
   // Auto-scroll combined feed
-  afterUpdate(() => {
+  $effect(() => {
     if (chatOutputContainer && !showMediaCarousel) { // Don't auto-scroll if carousel is open
       // Scroll to the bottom instantly
       chatOutputContainer.scrollTop = chatOutputContainer.scrollHeight;
@@ -331,13 +311,13 @@
   }
 
   // --- Reactive update for unreadCount ---
-  $: {
+  $effect(() => {
     if (!isPanelOpen && combinedFeed && typeof localUserName === 'string') {
       const currentRemoteCount = countRemoteItems(combinedFeed);
       unreadCount = Math.max(0, currentRemoteCount - lastRemoteItemCountSeen);
     }
     // If panel is open, unreadCount is managed by togglePanel and user actions.
-  }
+  });
 </script>
 
 <div
@@ -347,10 +327,10 @@
      class:left-full={!isPanelOpen}
      class:right-0={isPanelOpen}>
   <div class="absolute top-1/4">
-    <button 
-      id="test-toggle-panel-button" 
-      on:click={togglePanel} 
-      class="relative hover:bg-blue-600 w-5 h-16 bg-gray-300 text-black p-0 border-solid rounded-l" 
+    <button
+      id="test-toggle-panel-button"
+      onclick={togglePanel}
+      class="relative hover:bg-blue-600 w-5 h-16 bg-gray-300 text-black p-0 border-solid rounded-l"
       style="left: -20px;"
       aria-label={isPanelOpen ? "Close panel" : `Open panel (${unreadCount} unread)`}
     >
@@ -371,12 +351,12 @@
      <!-- Participants Panel -->
      <div class="border-b border-gray-300 pb-4 mb-4">
        <h3 class="text-lg font-semibold mb-2">Connections</h3>
-       {#if Object.keys(connectionState.directClients).length === 0 && Object.keys(connectionState.participants).length === 0}
+       {#if Object.keys($connectionStore.directClients || {}).length === 0 && Object.keys($connectionStore.participants || {}).length === 0}
          <p class="text-sm text-gray-500">No active connections.</p>
        {/if}
 
        <!-- Direct Connections -->
-       {#each Object.values(connectionState.directClients) as client (client.cid)}
+       {#each Object.values($connectionStore.directClients || {}) as client (client.cid)}
         {@const state = client.connectionState}
         {@const iceState = client.iceConnectionState}
         {@const isConnected = state === 'connected' && iceState === 'connected'}
@@ -403,10 +383,10 @@
        {/each}
 
        <!-- Relayed Participants (Peers known via other direct connections) -->
-       {#each Object.values(connectionState.participants) as participant (participant.cid)}
+       {#each Object.values($connectionStore.participants || {}) as participant (participant.cid)}
          <!-- Only show participants that are NOT direct clients -->
-         {#if !connectionState.directClients[participant.cid]}
-           {@const relayClient = connectionState.directClients[participant.relayCid]}
+         {#if !($connectionStore.directClients || {})[participant.cid]}
+           {@const relayClient = ($connectionStore.directClients || {})[participant.relayCid]}
            {@const relayState = relayClient?.connectionState}
            {@const relayIceState = relayClient?.iceConnectionState}
            {@const isRelayConnected = relayState === 'connected' && relayIceState === 'connected'}
@@ -480,11 +460,11 @@
                             class="cursor-pointer"
                             role="button"
                             tabindex="0"
-                            on:click={() => {
+                            onclick={() => {
                               const cItem = viewableMediaForCarousel.find(mi => mi.id === item.id);
                               if (cItem) openMediaCarousel(cItem);
                             }}
-                            on:keydown={(e) => {
+                            onkeydown={(e) => {
                               if (e.key === 'Enter' || e.key === ' ') {
                                 const cItem = viewableMediaForCarousel.find(mi => mi.id === item.id);
                                 if (cItem) openMediaCarousel(cItem);
@@ -501,11 +481,11 @@
                             class="cursor-pointer"
                             role="button"
                             tabindex="0"
-                            on:click={() => {
+                            onclick={() => {
                               const cItem = viewableMediaForCarousel.find(mi => mi.id === item.id);
                               if (cItem) openMediaCarousel(cItem);
                             }}
-                            on:keydown={(e) => {
+                            onkeydown={(e) => {
                               if (e.key === 'Enter' || e.key === ' ') {
                                 const cItem = viewableMediaForCarousel.find(mi => mi.id === item.id);
                                 if (cItem) openMediaCarousel(cItem);
@@ -518,7 +498,7 @@
                               src={transfer.url}
                               alt={transfer.name}
                               class="w-full rounded max-h-60 object-contain my-2 pointer-events-none"
-                              on:error={(e) => {
+                              onerror={(e) => {
                                 console.error('Image failed to load. URL:', transfer.url, 'Transfer object:', JSON.stringify(transfer));
                               }}
                             />
@@ -588,7 +568,7 @@
                 type="button"
                 disabled={isSending}
                 aria-label="remove file"
-                on:click={() => removeStagedFile(stagedFile.id)}
+                onclick={() => removeStagedFile(stagedFile.id)}
                 class="text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed p-1 ml-2 flex-shrink-0"
                 title="Remove file"
               >
@@ -606,14 +586,14 @@
           bind:this={chatInput}
           disabled={isSending}
           class="flex-1 border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
-          on:keypress={handleKeyPress}
-          on:paste={handlePaste}>
+          onkeypress={handleKeyPress}
+          onpaste={handlePaste}>
         <div class="relative"> <!-- Use relative positioning for the button container -->
           <button
             id="test-attach-file-button"
             type="button"
             disabled={isSending}
-            on:click={() => uploadField.click()}
+            onclick={() => uploadField?.click()}
             class="cursor-pointer text-white px-3 py-2 rounded-md text-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
             class:bg-blue-500={!isSending}
             class:bg-gray-500={isSending}
@@ -625,7 +605,7 @@
             multiple
             disabled={isSending}
             class="hidden"
-            on:change={stageFilesFromInput}
+            onchange={stageFilesFromInput}
             bind:this={uploadField}
           >
         </div>
