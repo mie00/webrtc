@@ -54,18 +54,24 @@
     }))
   ));
 
+  interface ViewableStream {
+    id: string,
+    streamKey: string,
+    stream: MediaStream | null,
+    type: string,
+    isLocal: boolean,
+    src: string | null,
+  
+    peerId?: string | null,
+    audioStream?: MediaStream,
+    hasAudio?: boolean,
+  }
+
   // Group streams by peer ID
   const groupedStreams = $derived.by(() => {
     const groups: Record<string, {
       peerId: string | null,
-      streams: Array<{
-        id: string,
-        streamKey: string,
-        stream: MediaStream,
-        type: string,
-        isLocal: boolean,
-        src: string | null
-      }>
+      streams: Array<ViewableStream>
     }> = {};
     
     // Add local streams
@@ -97,7 +103,6 @@
         stream,
         type: stream.getVideoTracks().length > 0 ? 'camera' : 'audio',
         isLocal: false,
-        peerId,
         src: null,
       });
     });
@@ -107,7 +112,7 @@
   
   // All active streams for display
   const activeStreams = $derived.by(() => {
-    const result = [];
+    const result: ViewableStream[] = [];
     
     // Process each peer's streams
     Object.values(groupedStreams).forEach(({ peerId, streams }) => {
@@ -128,14 +133,14 @@
         // Add all non-audio streams
         const videoStreams = streams.filter(s => 
           s.type !== 'audio' && 
-          (s.stream?.getVideoTracks().length > 0 || s.type === 'file')
+          (s.stream && s.stream?.getVideoTracks().length > 0 || s.type === 'file')
         );
         
         // Add audio info to video streams
         videoStreams.forEach(stream => {
           // Find a matching audio stream from this peer if available
-          const audioStream = audioStreams.length > 0 ? audioStreams[0] : null;
-          stream.audioStreamId = audioStream?.id;
+          const audioStream = audioStreams.length > 0 ? audioStreams[0].stream : null;
+          stream.audioStream = audioStream || undefined;
           stream.hasAudio = !!audioStream;
         });
         
@@ -358,7 +363,7 @@
           mirrored={stream.isLocal && stream.type === 'camera'} 
           peerId={stream.peerId}
           focus={handleFocusStream}
-          audioStreamId={stream.audioStreamId}
+          audioStream={stream.audioStream}
           hasAudio={stream.hasAudio}
         >
         {#if stream.src}

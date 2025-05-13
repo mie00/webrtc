@@ -11,7 +11,7 @@
     peerId = null,
     children,
     focus,
-    audioStreamId,
+    audioStream,
     hasAudio = false,
   }: {
     stream: MediaStream | null;
@@ -23,7 +23,7 @@
     peerId?: string | null;
     children?: any;
     focus: ({}:{streamId: string|undefined; peerId : string | null}) => void;
-    audioStreamId?: string;
+    audioStream?: MediaStream;
     hasAudio?: boolean;
   } = $props();
 
@@ -38,7 +38,8 @@
   // Audio level state
   let audioLevel = $state(0);
   let borderColor = $state('red');
-  let borderStyle = $derived(`4px solid ${hasAudio ? `rgba(0, 255, 0, ${audioLevel})` : 'rgba(255, 0, 0, 0.5)'}`);
+  // use #5be7a9 as base
+  let borderStyle = $derived(`4px solid ${hasAudio ? `rgba(255, 255, 255, ${audioLevel})` : 'rgba(255, 0, 0, 0.5)'}`);
   
   onMount(() => {
     if (mediaElement) {
@@ -46,7 +47,7 @@
       mediaElement.play().catch(err => console.error('Error playing stream:', err));
       
       // Set up audio visualization for audio streams or video streams with audio
-      const streamToProcess = stream;
+      const streamToProcess = audioStream || stream;
       if (streamToProcess && ((type === 'audio' && audioVisualizationCanvas) || type === 'video')) {
         try {
           // For audio-only streams, set up canvas visualization
@@ -74,7 +75,7 @@
                 const sum = dataArray.reduce((acc, val) => acc + (val || 0), 0);
                 const avg = sum / dataArray.length;
                 // Normalize to 0-1 range with some amplification
-                audioLevel = Math.min(1, avg / 128);
+                audioLevel = Math.pow(Math.min(1, avg / 128), 0.5);
               }
             },
             FFT_SIZE
