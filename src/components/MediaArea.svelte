@@ -250,7 +250,7 @@
       await destroyLocalStream('camera');
     }
   }
-  
+
   async function handleToggleBlur() {
     const newValue = isBlurEnabled ? 'no' : 'yes';
     updateConfig('blur-video', newValue);
@@ -261,7 +261,7 @@
       await setupLocalStream('camera');
     }
   }
-  
+
   async function handleToggleScreen() {
     const newValue = !$streamStore.streamConfig.screen;
     updateStreamConfig({ screen: newValue });

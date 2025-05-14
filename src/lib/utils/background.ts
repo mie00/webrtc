@@ -1,3 +1,5 @@
+import { SelfieSegmentation, type Results } from '@mediapipe/selfie_segmentation';
+
 /**
  * Changes the background of a video element using selfie segmentation
  * @param videoSource The video element to process
@@ -8,19 +10,16 @@ async function backgroundChange(videoSource: HTMLVideoElement): Promise<MediaStr
     canvasElement.width = videoSource.videoWidth;
     canvasElement.height = videoSource.videoHeight;
     canvasElement.style.transform = 'scaleX(-1)';
-    (document.getElementById('media') as HTMLElement).appendChild(canvasElement);
-    videoSource.substitueElement = canvasElement;
 
     const ctx = canvasElement.getContext('2d');
     if (!ctx) {
         throw new Error('Could not get canvas context');
     }
 
-    function onResults(results: any): void {
+    function onResults(results: Results): void {
         if (!ctx) {
             throw new Error("Could not get canvas context again");
-            return;
-        }       
+        }
         ctx.save();
         ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
         ctx.drawImage(results.segmentationMask, 0, 0,
@@ -38,15 +37,16 @@ async function backgroundChange(videoSource: HTMLVideoElement): Promise<MediaStr
         ctx.filter = "blur(16px)";
         ctx.drawImage(
             results.image, 0, 0, canvasElement.width, canvasElement.height);
-
         ctx.restore();
     }
 
     const selfieSegmentation = new SelfieSegmentation({
-        modelSelection: 1,
         locateFile: (file: string) => {
             return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
         }
+    });
+    selfieSegmentation.setOptions({
+        modelSelection: 1,
     });
     selfieSegmentation.onResults(onResults);
 
@@ -58,8 +58,6 @@ async function backgroundChange(videoSource: HTMLVideoElement): Promise<MediaStr
         videoSource.requestVideoFrameCallback(async () => {
             await ddo();
             const stream = canvasElement.captureStream();
-            videoSource.substitueStream = stream;
-
             resolve(stream);
         });
     });

@@ -67,12 +67,6 @@ interface App {
   debug?: boolean;
 }
 
-// Extended HTMLMediaElement with substitute properties
-interface HTMLMediaElementWithSubstitute extends HTMLMediaElement {
-  substitueStream?: MediaStream;
-  substitueElement?: HTMLElement;
-}
-
 // Add this to HTMLVideoElement
 interface HTMLVideoElement {
   substitueStream?: MediaStream;
