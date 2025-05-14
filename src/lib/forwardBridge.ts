@@ -1,5 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { getDirectClient, getAllDirectClients } from '../stores/connectionStore.js'; // Adjust path if needed
+import { registerCleanup } from '../../stores/appStateStore.js'; // Import store function
 
 // Forward state interface
 export interface ForwardState {
@@ -57,9 +58,9 @@ export function removeInflight(id: string): void {
  * Initialize the forward module
  * This maintains compatibility with the original forwardInit function
  */
-export function forwardInit(originalApp: App): void {
+export function forwardInit(): void {
   // Set up cleanup handler
-  originalApp.cleanups['forward'] = (cid?: string) => {
+  registerCleanup('forward', (cid?: string) => {
     if (cid) {
       return;
     }

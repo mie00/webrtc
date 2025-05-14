@@ -13,6 +13,10 @@ import {
   type Config
 } from '../stores/configStore.js';
 import { getDirectClient, getAllDirectClients, getAllClientCids } from '../stores/connectionStore.js'; // Adjust path if needed
+import { 
+  registerNegoHandler, 
+  registerCleanup 
+} from '../../stores/appStateStore.js'; // Import store functions
 import {
   type AudioNodes, // Import new type
   normalizeStreamId,
@@ -30,13 +34,13 @@ import { getLocalFileStreamState } from '..//stores/localFileStreamStore.js';
 let audioProcessingContexts: Record<string, AudioNodes | null> = {};
 
 /**
- * Initialize the stream module with the app object
+ * Initialize the stream module
  */
-export function streamInit(originalApp: App): void {
+export function streamInit(): void {
   // Set up handlers for stream events
-  originalApp.nego_handlers['stream.end'] = (data: { stream: string }, cid: string) => {
+  registerNegoHandler('stream.end', (data: { stream: string }, cid: string) => {
     const streamId = normalizeStreamId(data.stream);
-    
+
     // Remove from enhanced store structure
     removeRemoteStream(cid, streamId);
 
@@ -48,9 +52,9 @@ export function streamInit(originalApp: App): void {
       // Use window.webRTCApp.sendNego
       window.webRTCApp.sendNego(client, { type: 'stream.end', stream: streamId });
     }
-  };
+  });
   // Set up cleanup handler
-  originalApp.cleanups['stream'] = (cid?: string) => {
+  registerCleanup('stream', (cid?: string) => {
     if (!cid) {
       // Clean up all local streams when the app is torn down globally
       const state = getStreamState(); // Get current stream state

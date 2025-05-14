@@ -12,6 +12,12 @@ import {
   getAllClientCids
 } from '../../stores/connectionStore.js'; // Adjust path if needed
 import { getAllConfig } from '../../stores/configStore.js';
+import { 
+  registerNegoHandler, 
+  getNegoHandler, 
+  getAllCleanups,
+  resetAppStateStore
+} from '../../stores/appStateStore.js'; // Import store functions
 import { diffChars } from 'diff';
 import { streamInit } from '../streamBridge.js';
 import { forwardInit } from '../forwardBridge.js';
@@ -27,11 +33,11 @@ interface NegoMessage {
 export class WebRTCApp {
   // Static reference to the app for static methods
   // Note: 'clients' is removed, managed by connectionStore now
+  // nego_handlers and cleanups are now managed by appStateStore
   private app: App = {
-    nego_handlers: {},
-    cleanups: {},
     nego_messages: {},
-  };
+    // nego_handlers and cleanups removed
+  } as App; // Cast to App, acknowledging some properties are managed elsewhere
 
   constructor() { // Removed config parameter
     // Config is now managed solely by configStore
@@ -40,47 +46,50 @@ export class WebRTCApp {
   }
 
   public init(): void {
-    streamInit(this.app);
-    forwardInit(this.app);
+    // Initialize modules that register their own handlers/cleanups
+    streamInit();
+    forwardInit();
   }
 
   private setupNegoHandlers(): void {
-    this.app.nego_handlers = {
-      "answer": (data: any, cid: string) => {
-        getDirectClient(cid)?.pc?.setRemoteDescription(data);
-      },
-      "offer": async (data: any, cid: string) => {
-        const client = getDirectClient(cid);
-        if (!client || !client.pc) return; // Check if client exists
-        if (!client.polite) {
-          if (client.makingOffer) return;
-          if (client.pc.signalingState != "stable") return;
-        }
-        await client.pc.setRemoteDescription(data);
-        await client.pc.setLocalDescription();
-        if (client.pc.localDescription) {
-          this.sendNego(client, client.pc.localDescription);
-        }
-      },
-      "hangup": (data: any, cid: string) => {
-        const client = getDirectClient(cid);
-        if (client && !client.polite) {
-          this.destroyClient(cid);
-        } else {
-          this.destroy(); // Destroy self if polite or client not found (shouldn't happen)
-        }
-      },
-      "participant": (data: any, cid: string) => {
-        // cid here is the relaying client's cid
-        addParticipant(data.cid, cid);
+    registerNegoHandler("answer", (data: any, cid: string) => {
+      getDirectClient(cid)?.pc?.setRemoteDescription(data);
+    });
+
+    registerNegoHandler("offer", async (data: any, cid: string) => {
+      const client = getDirectClient(cid);
+      if (!client || !client.pc) return; // Check if client exists
+      if (!client.polite) {
+        if (client.makingOffer) return;
+        if (client.pc.signalingState != "stable") return;
+      }
+      await client.pc.setRemoteDescription(data);
+      await client.pc.setLocalDescription();
+      if (client.pc.localDescription) {
+        this.sendNego(client, client.pc.localDescription);
+      }
+    });
+
+    registerNegoHandler("hangup", (data: any, cid: string) => {
+      const client = getDirectClient(cid);
+      if (client && !client.polite) {
+        this.destroyClient(cid);
+      } else {
+        this.destroy(); // Destroy self if polite or client not found (shouldn't happen)
+      }
+    });
+
+    registerNegoHandler("participant", (data: any, cid: string) => {
+      // cid here is the relaying client's cid
+      addParticipant(data.cid, cid);
+      // No need to call handleChange here, the store update is reactive
+    });
+
+    registerNegoHandler("participant.end", (data: any, cid: string) => {
+      // cid here is the relaying client's cid (though not strictly needed for removal)
+      removeParticipant(data.cid);
         // No need to call handleChange here, the store update is reactive
-      },
-      "participant.end": (data: any, cid: string) => {
-        // cid here is the relaying client's cid (though not strictly needed for removal)
-        removeParticipant(data.cid);
-         // No need to call handleChange here, the store update is reactive
-      },
-    };
+    });
   }
 
   public sendNego(client: WebRTCClient, data: NegoMessage): void {
@@ -137,10 +146,9 @@ export class WebRTCApp {
       // Clean up PeerConnection
       if (client.pc) {
         // Run specific cleanups associated with this client
-        if (this.app.cleanups) {
-          for (const cleanup of Object.values(this.app.cleanups)) {
-            cleanup(cid); // Pass cid to cleanup functions
-          }
+        const cleanups = getAllCleanups();
+        for (const cleanup of Object.values(cleanups)) {
+          cleanup(cid); // Pass cid to cleanup functions
         }
         client.pc.close();
         client.pc = null; // Nullify PC reference
@@ -166,10 +174,11 @@ export class WebRTCApp {
     const cids = getAllClientCids();
 
     // Run all general cleanup functions first
-    for (const cleanup of Object.values(this.app.cleanups)) {
+    const cleanups = getAllCleanups();
+    for (const cleanup of Object.values(cleanups)) {
       cleanup(); // Call without cid for global cleanup
     }
-    this.app.cleanups = {}; // Clear cleanups
+    // appStateStore will be reset later, which clears cleanups
 
     // Iterate through clients to send hangup and destroy
     for (const cid of cids) {
@@ -186,12 +195,14 @@ export class WebRTCApp {
       this.destroyClient(cid);
     }
 
-    // Reset the store after all clients are processed
+    // Reset the connection store after all clients are processed
     resetConnectionStore();
+    // Reset the app state store (handlers, cleanups)
+    resetAppStateStore();
   }
 
   public destroy(): void {
-    this.cleanup();
+    this.cleanup(); // This now also calls resetAppStateStore via cleanup's end
     this.reset();
   }
 
@@ -283,7 +294,7 @@ export class WebRTCApp {
       }
       this.app.nego_messages[data.id] = {};
       console.log("got negotiation message", data);
-      const handler = this.app.nego_handlers[data.type];
+      const handler = getNegoHandler(data.type);
       if (!handler) {
         console.log("cannot find handler for", data.type);
         return;
