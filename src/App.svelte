@@ -108,7 +108,6 @@
         console.log("got a candidate", sid, candidate);
         socket.emit('candidate', sid, JSON.stringify(candidate));
       }, {sid});
-      const app = webRTCApp.getApp();
       const client = getDirectClient(cid); // Get client from store
       const sdp = client?.pc?.localDescription?.sdp;
       if (sdp) {
@@ -119,8 +118,7 @@
 
     socket.on('answer', async (sid: string, sdp: string) => { // Add types for sid and sdp
       console.log('got an answer', sid, sdp);
-      const app = webRTCApp.getApp(); // Keep for sids mapping for now
-      const cid = app.sids?.[sid];
+      const cid = webRTCApp.getCid(sid);
       if (cid) {
         const client = getDirectClient(cid); // Get client from store
         client?.pc?.setRemoteDescription({
@@ -148,7 +146,6 @@
     
     socket.on('error', async () => {
       history.replaceState(null, '', window.location.origin + window.location.pathname);
-      const app = webRTCApp.getApp();
       if (getAllConfig()['config-loader'] === 'client') {
         windowLoader = clientWindowLoader;
       }
@@ -157,8 +154,7 @@
     
     socket.on('candidate', async (sid: string, candidate: string) => { // Add types for sid and candidate (stringified JSON)
       console.log('got a candidate from peer', sid, candidate);
-      const app = webRTCApp.getApp(); // Keep for sids mapping for now
-      const cid = app.sids?.[sid];
+      const cid = webRTCApp.getCid(sid);
        if (cid) {
         const client = getDirectClient(cid); // Get client from store
         try {

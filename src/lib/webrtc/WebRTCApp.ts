@@ -31,13 +31,9 @@ interface NegoMessage {
 }
 
 export class WebRTCApp {
-  // Static reference to the app for static methods
-  // Note: 'clients' is removed, managed by connectionStore now
-  // nego_handlers and cleanups are now managed by appStateStore
-  private app: App = {
-    nego_messages: {},
-    // nego_handlers and cleanups removed
-  } as App; // Cast to App, acknowledging some properties are managed elsewhere
+  private sids: Record<string, string> = {};
+  private debug = false;
+  private nego_messages: Record<string, any> = {};
 
   constructor() { // Removed config parameter
     // Config is now managed solely by configStore
@@ -49,6 +45,11 @@ export class WebRTCApp {
     // Initialize modules that register their own handlers/cleanups
     streamInit();
     forwardInit();
+  }
+
+  // get cid of sid from sids
+  public getCid(sid: string): string | undefined {
+    return this.sids[sid];
   }
 
   private setupNegoHandlers(): void {
@@ -96,10 +97,10 @@ export class WebRTCApp {
     if (!data.id) {
       data = JSON.parse(JSON.stringify(data));
       data.id = this.uuidv4();
-      if (!this.app.nego_messages) {
-        this.app.nego_messages = {};
+      if (!this.nego_messages) {
+        this.nego_messages = {};
       }
-      this.app.nego_messages[data.id] = {};
+      this.nego_messages[data.id] = {};
     }
     try {
       client.nego_dc?.send(JSON.stringify(data));
@@ -186,7 +187,7 @@ export class WebRTCApp {
       if (client) {
         // Run specific cleanups for this client *before* sending hangup/destroying
         // (This might be redundant if destroyClient handles it, but ensures order)
-        // for (const cleanup of Object.values(this.app.cleanups)) {
+        // for (const cleanup of Object.values(this.cleanups)) {
         //   cleanup(cid);
         // }
         this.sendNego(client, { type: "hangup" });
@@ -232,13 +233,13 @@ export class WebRTCApp {
 
     const { sid, offer } = options;
     const cid = this.uuidv4();
-    this.app.sids = this.app.sids || {};
+    this.sids = this.sids || {};
     // Check if a client for this sid already exists in the store
-    if (sid && sid in this.app.sids && getDirectClient(this.app.sids[sid])) {
-      getDirectClient(this.app.sids[sid])?.pc?.restartIce();
-      return this.app.sids[sid];
+    if (sid && sid in this.sids && getDirectClient(this.sids[sid])) {
+      getDirectClient(this.sids[sid])?.pc?.restartIce();
+      return this.sids[sid];
     }
-    this.app.sids[sid] = cid;
+    this.sids[sid] = cid;
 
     // Create the PeerConnection using config derived from the store
     const pc = new RTCPeerConnection(rtcConfig);
@@ -289,10 +290,10 @@ export class WebRTCApp {
 
     nego_dc.onmessage = async e => {
       const data = JSON.parse(e.data);
-      if (data.id in this.app.nego_messages) {
+      if (data.id in this.nego_messages) {
         return;
       }
-      this.app.nego_messages[data.id] = {};
+      this.nego_messages[data.id] = {};
       console.log("got negotiation message", data);
       const handler = getNegoHandler(data.type);
       if (!handler) {
@@ -437,7 +438,7 @@ export class WebRTCApp {
   public logDiff(d1: string, d2: string): void {
     const diffs = document.getElementById('diffs');
     if (diffs) {
-      if (this.app.debug) {
+      if (this.debug) {
         diffs.classList.remove('hidden');
       }
       let span: HTMLSpanElement | null = null;
@@ -508,15 +509,5 @@ export class WebRTCApp {
       } catch (error) {
           console.error(`Error getting stats/fingerprint for ${cid}:`, error);
       }
-  }
-
-
-  // Getter for testing and backward compatibility
-  // Note: The 'clients' property within the returned App object is no longer the source of truth.
-  // Use connectionStore getters (getDirectClient, getAllDirectClients) for client information.
-  public getApp(): App {
-    // Return a copy or a version without the actual client objects if needed
-    // For now, returning the internal app state, but warn about 'clients' usage.
-    return this.app;
   }
 }

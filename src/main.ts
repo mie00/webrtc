@@ -9,9 +9,6 @@ window.WebRTCApp = WebRTCApp;
 const webRTCApp = new WebRTCApp();
 window.webRTCApp = webRTCApp;
 
-// Expose it to the window for legacy code that might need it
-window.app = window.app || webRTCApp.getApp();
-
 // Initialize the Svelte app
 const targetElement = document.getElementById('app');
 if (!targetElement) {
@@ -38,8 +35,6 @@ export const rtcUtils = {
   logDiff: (d1: string, d2: string) => webRTCApp.logDiff(d1, d2),
   // Static methods
   reset: () => webRTCApp.reset(),
-  // Export the app object for testing
-  _getApp: () => webRTCApp.getApp()
 };
 
 // Add to window for legacy code

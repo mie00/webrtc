@@ -55,12 +55,6 @@ interface WebRTCClient {
   // 2. Update the unit tests in __tests__/unit/main.test.js to verify cleanup
 }
 
-interface App {
-  nego_messages: Record<string, any>;
-  sids?: Record<string, string>;
-  debug?: boolean;
-}
-
 // Add this to HTMLVideoElement
 interface HTMLVideoElement {
   substitueStream?: MediaStream;
