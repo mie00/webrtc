@@ -230,8 +230,17 @@
     const device = devices.find(d => d.label === item && d.kind === `${selectedButton}input`);
     
     if (device) {
-      // Update the device configuration
-      updateConfig(`${selectedButton}-device`, `${device.groupId}|${device.deviceId}`);
+      const deviceString = `${device.groupId}|${device.deviceId}`;
+      
+      // Update both stores for compatibility
+      updateConfig(`${selectedButton}-device`, deviceString);
+      
+      // Update the device in streamConfig
+      if (selectedButton === 'audio') {
+        updateStreamConfig({ audioDevice: deviceString });
+      } else if (selectedButton === 'camera') {
+        updateStreamConfig({ videoDevice: deviceString });
+      }
       
       // Temporarily disable the stream and then re-enable it to apply the new device
       const currentState = $streamStore.streamConfig[selectedButton];
