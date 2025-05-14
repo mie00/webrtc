@@ -297,7 +297,6 @@
         videoSrc: fileURL,
         videoStream: undefined,
       });
-      await setupLocalStream('file');
     }
   }
   async function handleVideoCleanup() {

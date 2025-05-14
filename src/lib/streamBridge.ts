@@ -5,16 +5,11 @@ import {
   removeLocalStream,
   addRemoteStream,
   removeRemoteStream,
-  type StreamType,
-  type StreamState, // Import StreamState
-  updateStreamConfig
 } from '../stores/streamStore.js';
-import { get } from 'svelte/store';
 import {
   getAllConfig
 } from '../stores/configStore.js';
 import { getDirectClient, getAllDirectClients, getAllClientCids } from '../stores/connectionStore.js'; // Adjust path if needed
-import { get } from 'svelte/store';
 import {
   // REMOVE AppWithStreamConfig, AudioProcessingApp imports
   type AudioNodes, // Import new type
@@ -198,9 +193,9 @@ streamStore.subscribe(async (state) => {
               }
               const avgLevel = sum / dataArray.length;
               // Call the original callback with the average level
-              audioCbFunction(avgLevel);
+              audioCbFunction?.(avgLevel);
             } else {
-              audioCbFunction(0);
+              audioCbFunction?.(0);
             }
           }
         );
