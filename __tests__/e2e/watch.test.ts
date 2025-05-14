@@ -40,7 +40,7 @@ const dirsToClean: string[] = [TEST_FILES_BASE_PATH]; // Will include tempVideoF
 
 const SHARE_VIDEO_BUTTON_SELECTOR = '#test-share-video-button';
 const UPLOAD_VIDEO_INPUT_SELECTOR = 'input[type="file"][accept="video/*"]'; // From MediaArea.svelte
-const LOCAL_VIDEO_CONTAINER_SELECTOR_A = 'div#test-local-video-local'; // Stream key is 'local'
+const LOCAL_VIDEO_CONTAINER_SELECTOR_A = 'div#test-local-video-file'; // Stream key is 'file'
 const LOCAL_VIDEO_ELEMENT_SELECTOR_A = `${LOCAL_VIDEO_CONTAINER_SELECTOR_A} video`;
 const REMOTE_VIDEO_CONTAINER_SELECTOR_B = 'div.stream-container[id^="test-remote-video-"]'; // Generic for 2 peers
 const REMOTE_VIDEO_ELEMENT_SELECTOR_B = `${REMOTE_VIDEO_CONTAINER_SELECTOR_B} video`;

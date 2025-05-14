@@ -246,7 +246,7 @@
         // Temporarily disable the stream and then re-enable it with the new device
         updateStreamConfig({ [selectedButton]: null });
         // Short delay to ensure cleanup completes before restarting
-        setTimeout(() => updateStreamConfig({ [selectedButton]: deviceString }), 100);
+        setTimeout(() => updateStreamConfig({ [selectedButton!]: deviceString }), 100);
       } else {
         // If not enabled, just enable it with the new device
         updateStreamConfig({ [selectedButton]: deviceString });

@@ -212,185 +212,172 @@ const fileStream = derived(streamStore, $state => $state.streamConfig.file);
 
 // Subscribe to audio device changes
 audioDevice.subscribe(async (audio) => {
-  const prevState = getStreamState();
-  const globalConfig = getAllConfig();
-  
-  if (prevState.streamConfig.audio !== audio) {
-    if (audio !== null) {
-      // Set up audio stream
-      const deviceInfo = audio.split('|') || [];
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: deviceInfo.length === 2 ? {
-          groupId: deviceInfo[0],
-          deviceId: deviceInfo[1]
-        } : true
-      });
+  if (audio !== null) {
+    // Set up audio stream
+    const deviceInfo = audio.split('|') || [];
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: deviceInfo.length === 2 ? {
+        groupId: deviceInfo[0],
+        deviceId: deviceInfo[1]
+      } : true
+    });
 
-      // Set up the stream for WebRTC
-      setupStream(stream, "high");
+    // Set up the stream for WebRTC
+    setupStream(stream, "high");
 
-      // Process audio for visualization if callback provided
-      if (audioCbFunction) {
-        // Store the returned context/nodes
-        audioProcessingContexts['audio'] = await processAudio(
-          stream, 
-          (dataArray, analyser) => {
-            // Calculate the average level from the frequency data
-            if (dataArray.length > 0) {
-              let sum = 0;
-              for (let i = 0; i < dataArray.length; i++) {
-                sum += dataArray[i];
-              }
-              const avgLevel = sum / dataArray.length;
-              // Call the original callback with the average level
-              audioCbFunction?.(avgLevel);
-            } else {
-              audioCbFunction?.(0);
+    // Process audio for visualization if callback provided
+    if (audioCbFunction) {
+      // Store the returned context/nodes
+      audioProcessingContexts['audio'] = await processAudio(
+        stream, 
+        (dataArray, analyser) => {
+          // Calculate the average level from the frequency data
+          if (dataArray.length > 0) {
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+              sum += dataArray[i];
             }
+            const avgLevel = sum / dataArray.length;
+            // Call the original callback with the average level
+            audioCbFunction?.(avgLevel);
+          } else {
+            audioCbFunction?.(0);
           }
-        );
+        }
+      );
+    }
+    
+    // Add to enhanced store structure
+    addLocalStream('audio', stream, null);
+  } else {
+    // Clean up audio stream
+    const state = getStreamState(); // Get current stream state
+    const localStreamData = state.localStreams['audio'];
+    if (localStreamData?.stream) {
+      await tearDownStream(localStreamData.stream);
+      
+      // Handle audio processing cleanup
+      const audioNodes = audioProcessingContexts['audio'];
+      stopProcessingAudio(audioNodes);
+      delete audioProcessingContexts['audio']; // Remove from tracking
+      if (audioCbFunction) {
+        audioCbFunction(0); // Reset visualization
       }
       
-      // Add to enhanced store structure
-      addLocalStream('audio', stream, null);
-    } else {
-      // Clean up audio stream
-      const localStreamData = state.localStreams['audio'];
-      if (localStreamData?.stream) {
-        await tearDownStream(localStreamData.stream);
-        
-        // Handle audio processing cleanup
-        const audioNodes = audioProcessingContexts['audio'];
-        stopProcessingAudio(audioNodes);
-        delete audioProcessingContexts['audio']; // Remove from tracking
-        if (audioCbFunction) {
-          audioCbFunction(0); // Reset visualization
-        }
-        
-        // Remove from store
-        removeLocalStream('audio');
-      }
+      // Remove from store
+      removeLocalStream('audio');
     }
   }
 });
 
 // Subscribe to camera device changes
 cameraDevice.subscribe(async (camera) => {
-  const prevState = getStreamState();
   const globalConfig = getAllConfig();
-  
-  if (prevState.streamConfig.camera !== camera) {
-    if (camera !== null) {
-      // Set up camera stream
-      const deviceInfo = camera.split('|') || [];
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: deviceInfo.length === 2 ? {
-          groupId: deviceInfo[0],
-          deviceId: deviceInfo[1]
-        } : true
-      });
+  if (camera !== null) {
+    // Set up camera stream
+    const deviceInfo = camera.split('|') || [];
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: deviceInfo.length === 2 ? {
+        groupId: deviceInfo[0],
+        deviceId: deviceInfo[1]
+      } : true
+    });
 
-      // Apply background blur if enabled
-      if (globalConfig['blur-video'] === 'yes') {
-        try {
-          const videoElem = document.createElement('video');
-          videoElem.autoplay = true;
-          videoElem.muted = true;
-          videoElem.srcObject = stream;
+    // Apply background blur if enabled
+    if (globalConfig['blur-video'] === 'yes') {
+      try {
+        const videoElem = document.createElement('video');
+        videoElem.autoplay = true;
+        videoElem.muted = true;
+        videoElem.srcObject = stream;
 
-          await new Promise<void>((resolve) => {
-            videoElem.onloadedmetadata = () => {
-              videoElem.play().then(() => resolve());
-            };
-          });
+        await new Promise<void>((resolve) => {
+          videoElem.onloadedmetadata = () => {
+            videoElem.play().then(() => resolve());
+          };
+        });
 
-          const blurredStream = await backgroundChange(videoElem);
-          setupStream(blurredStream, "low", "motion", true);
-          
-          // Add to enhanced store structure
-          addLocalStream('camera', blurredStream, null);
-        } catch (error) {
-          console.error('Failed to apply background blur:', error);
-          // Fallback to original stream if blur fails
-          setupStream(stream, "low", "motion", true);
-          
-          // Add to enhanced store structure
-          addLocalStream('camera', stream, null);
-        }
-      } else {
+        const blurredStream = await backgroundChange(videoElem);
+        setupStream(blurredStream, "low", "motion", true);
+        
+        // Add to enhanced store structure
+        addLocalStream('camera', blurredStream, null);
+      } catch (error) {
+        console.error('Failed to apply background blur:', error);
+        // Fallback to original stream if blur fails
         setupStream(stream, "low", "motion", true);
         
         // Add to enhanced store structure
         addLocalStream('camera', stream, null);
       }
     } else {
-      // Clean up camera stream
-      const localStreamData = state.localStreams['camera'];
-      if (localStreamData?.stream) {
-        await tearDownStream(localStreamData.stream);
-        
-        // Remove from store
-        removeLocalStream('camera');
-      }
+      setupStream(stream, "low", "motion", true);
+      
+      // Add to enhanced store structure
+      addLocalStream('camera', stream, null);
+    }
+  } else {
+    // Clean up camera stream
+    const state = getStreamState(); // Get current stream state
+    const localStreamData = state.localStreams['camera'];
+    if (localStreamData?.stream) {
+      await tearDownStream(localStreamData.stream);
+      
+      // Remove from store
+      removeLocalStream('camera');
     }
   }
 });
 
 // Subscribe to screen sharing changes
 screenSharing.subscribe(async (screen) => {
-  const prevState = getStreamState();
-  
-  if (prevState.streamConfig.screen !== screen) {
-    if (screen) {
-      // Set up screen sharing
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        audio: true,
-        video: { cursor: "always" } as any
-      });
-      setupStream(stream, "medium", 'detail', false);
+  if (screen) {
+    // Set up screen sharing
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      audio: true,
+      video: { cursor: "always" } as any
+    });
+    setupStream(stream, "medium", 'detail', false);
+    
+    // Add to enhanced store structure
+    addLocalStream('screen', stream, null);
+  } else {
+    // Clean up screen sharing
+    const state = getStreamState(); // Get current stream state
+    const localStreamData = state.localStreams['screen'];
+    if (localStreamData?.stream) {
+      await tearDownStream(localStreamData.stream);
       
-      // Add to enhanced store structure
-      addLocalStream('screen', stream, null);
-    } else {
-      // Clean up screen sharing
-      const localStreamData = state.localStreams['screen'];
-      if (localStreamData?.stream) {
-        await tearDownStream(localStreamData.stream);
-        
-        // Remove from store
-        removeLocalStream('screen');
-      }
+      // Remove from store
+      removeLocalStream('screen');
     }
   }
 });
 
 // Subscribe to file stream changes
 fileStream.subscribe(async (file) => {
-  const prevState = getStreamState();
-  
-  if (prevState.streamConfig.file !== file) {
-    if (file !== null) {
-      // File stream is handled differently - the actual stream setup happens in handleFilePlay
-      // Just add the placeholder to the store
-      addLocalStream('file', null, file);
-    } else {
-      // Clean up file stream
-      const localStreamData = state.localStreams['file'];
-      if (localStreamData) {
-        if (localStreamData.stream) {
-          await tearDownStream(localStreamData.stream);
-        } else if (localStreamData.src) {
-          // cleanup blob url
-          URL.revokeObjectURL(localStreamData.src);
-          const stream = getLocalFileStreamState().localFileStreams[localStreamData.src];
-          if (stream) {
-            await tearDownStream(stream);
-          }
+  if (file !== null) {
+    // File stream is handled differently - the actual stream setup happens in handleFilePlay
+    // Just add the placeholder to the store
+    addLocalStream('file', null, file);
+  } else {
+    // Clean up file stream
+    const state = getStreamState(); // Get current stream state
+    const localStreamData = state.localStreams['file'];
+    if (localStreamData) {
+      if (localStreamData.stream) {
+        await tearDownStream(localStreamData.stream);
+      } else if (localStreamData.src) {
+        // cleanup blob url
+        URL.revokeObjectURL(localStreamData.src);
+        const stream = getLocalFileStreamState().localFileStreams[localStreamData.src];
+        if (stream) {
+          await tearDownStream(stream);
         }
-        
-        // Remove from store
-        removeLocalStream('file');
       }
+      
+      // Remove from store
+      removeLocalStream('file');
     }
   }
 });
