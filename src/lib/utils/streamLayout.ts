@@ -26,6 +26,14 @@ export function calculateStreamLayout(
   return { rows, cols };
 }
 
+export interface Position {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 
 /**
  * Calculate positions for streams in a grid layout
@@ -34,7 +42,7 @@ export function calculateGridPositions(
   containerWidth: number,
   containerHeight: number,
   streams: Array<{ id: string; aspectRatio?: number }>
-): Array<{ id: string; x: number; y: number; width: number; height: number }> {
+): Array<Position> {
   if (streams.length === 0) return [];
   
   // Calculate grid dimensions

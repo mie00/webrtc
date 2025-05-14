@@ -1,8 +1,8 @@
-import { VideoStreamMerger } from 'video-stream-merger';
+import { VideoStreamMerger, type AddStreamOptions, type AudioEffect, type DrawFunction } from 'video-stream-merger';
 import { writable, get } from 'svelte/store';
 import { normalizeStreamId } from './stream.js';
 import { getStreamState, type StreamState } from '../../stores/streamStore.js';
-import { calculateStreamLayout, calculateGridPositions } from '../utils/streamLayout.js';
+import { calculateStreamLayout, calculateGridPositions, type Position } from '../utils/streamLayout.js';
 
 // Constants
 const FW = 1920;
@@ -26,7 +26,7 @@ export const recorderStore = writable<RecorderState>({
 
 
 // Set up streams in the merger
-async function setupStreams(merger: any): Promise<void> {
+async function setupStreams(merger: VideoStreamMerger): Promise<void> {
   const state = get(recorderStore);
   const streamState = getStreamState();
   
@@ -112,21 +112,53 @@ async function setupStreams(merger: any): Promise<void> {
     const position = positions.find(p => p.id === streamInfo.id);
     if (!position) return;
     
+    // stream needs to fit at into (x, x + width) and (y, y + height)
+    const {dx, dy, width, height} = calculateFit(position, streamInfo.stream);
+
     merger.addStream(streamInfo.stream, {
-      x: position.x,
-      y: position.y,
-      width: position.width,
-      height: position.height,
+      x: position.x + dx,
+      y: position.y + dy,
+      width: width,
+      height: height,
       mute: false,
+      muted: false,
+      index: 0,
+      draw: null as unknown as DrawFunction,
+      audioEffect: null as unknown as AudioEffect,
     });
   });
   
   // Add audio-only streams
   audioStreams.forEach(({ stream }) => {
-    merger.addStream(stream, { mute: false });
+    merger.addStream(stream, { muted: false } as AddStreamOptions);
   });
 }
 
+type FitResult = { dx: number; dy: number; width: number; height: number };
+
+function calculateFit(position: Position, stream: MediaStream): FitResult {
+  // Calculate the aspect ratio of the video track in the stream
+  const videoTrack = stream.getVideoTracks()[0];
+  if (!videoTrack) throw new Error("No video track found");
+  const { width: videoWidth, height: videoHeight } = videoTrack.getSettings();
+  if (videoWidth === undefined || videoHeight === undefined) throw new Error("Invalid video dimensions");
+  const videoAspectRatio = videoWidth / videoHeight;
+
+  // Calculate the aspect ratio of the position
+  const positionAspectRatio = position.width / position.height;
+
+  let dx = 0, dy = 0, width = position.width, height = position.height;
+  if (videoAspectRatio > positionAspectRatio) {
+    // Video is wider than the position, so fit to width and center vertically
+    height = width / videoAspectRatio;
+    dy = (position.height - height) / 2;
+  } else {
+    // Video is taller than the position, so fit to height and center horizontally
+    width = height * videoAspectRatio;
+    dx = (position.width - width) / 2;
+  }
+  return { dx, dy, width, height };
+}
 
 // Start recording
 export async function startRecording(): Promise<void> {
