@@ -9,6 +9,7 @@ import {
   type StreamState, // Import StreamState
   updateStreamConfig
 } from '../stores/streamStore.js';
+import { get } from 'svelte/store';
 import {
   getAllConfig
 } from '../stores/configStore.js';
@@ -160,19 +161,20 @@ export function setupTrackHandler(app: App, cid: string): void { // app might be
   });
 }
 
-/**
- * Enhanced version of setupLocalStream that uses the new store structure
- */
-export const setupLocalStream = async (changed: StreamType, audioCb?: (instant: number) => void): Promise<void> => {
-  // REMOVE const app = window.app as AppWithStreamConfig;
-  let stream: MediaStream | undefined;
-  const streamConfig = getStreamState().streamConfig; // Get config from store
-  const globalConfig = getAllConfig(); // Get global config
+// Module-level storage for audio callback
+let audioCbFunction: ((instant: number) => void) | undefined;
 
-  // Handle different stream types
-  if (changed === 'audio') {
+// Set up subscription to streamConfig changes
+streamStore.subscribe(async (state) => {
+  const prevState = getStreamState();
+  const streamConfig = state.streamConfig;
+  
+  // Handle audio stream changes
+  if (prevState.streamConfig.audio !== streamConfig.audio) {
     if (streamConfig.audio) {
-      stream = await navigator.mediaDevices.getUserMedia({
+      // Set up audio stream
+      const globalConfig = getAllConfig();
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           groupId: globalConfig['audio-device']?.split('|')[0],
           deviceId: globalConfig['audio-device']?.split('|')[1]
@@ -183,10 +185,9 @@ export const setupLocalStream = async (changed: StreamType, audioCb?: (instant: 
       setupStream(stream, "high");
 
       // Process audio for visualization if callback provided
-      if (audioCb) {
+      if (audioCbFunction) {
         // Store the returned context/nodes
-        // Adapt the callback to work with the new signature
-        audioProcessingContexts[changed] = await processAudio(
+        audioProcessingContexts['audio'] = await processAudio(
           stream, 
           (dataArray, analyser) => {
             // Calculate the average level from the frequency data
@@ -197,24 +198,42 @@ export const setupLocalStream = async (changed: StreamType, audioCb?: (instant: 
               }
               const avgLevel = sum / dataArray.length;
               // Call the original callback with the average level
-              audioCb(avgLevel);
+              audioCbFunction(avgLevel);
             } else {
-              audioCb(0);
+              audioCbFunction(0);
             }
           }
         );
       }
-    } else if (audioCb) {
-      // Stop processing if it was running for this type
-      if (audioProcessingContexts[changed]) {
-        stopProcessingAudio(audioProcessingContexts[changed]);
-        delete audioProcessingContexts[changed];
+      
+      // Add to enhanced store structure
+      addLocalStream('audio', stream, null);
+    } else {
+      // Clean up audio stream
+      const localStreamData = state.localStreams['audio'];
+      if (localStreamData?.stream) {
+        await tearDownStream(localStreamData.stream);
+        
+        // Handle audio processing cleanup
+        const audioNodes = audioProcessingContexts['audio'];
+        stopProcessingAudio(audioNodes);
+        delete audioProcessingContexts['audio']; // Remove from tracking
+        if (audioCbFunction) {
+          audioCbFunction(0); // Reset visualization
+        }
+        
+        // Remove from store
+        removeLocalStream('audio');
       }
-      audioCb(0);
     }
-  } else if (changed === 'camera') {
+  }
+  
+  // Handle camera stream changes
+  if (prevState.streamConfig.camera !== streamConfig.camera) {
     if (streamConfig.camera) {
-      stream = await navigator.mediaDevices.getUserMedia({
+      // Set up camera stream
+      const globalConfig = getAllConfig();
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           groupId: globalConfig['video-device']?.split('|')[0],
           deviceId: globalConfig['video-device']?.split('|')[1]
@@ -222,7 +241,7 @@ export const setupLocalStream = async (changed: StreamType, audioCb?: (instant: 
       });
 
       // Apply background blur if enabled
-      if (globalConfig['blur-video'] === 'yes') { // Use globalConfig
+      if (globalConfig['blur-video'] === 'yes') {
         try {
           const videoElem = document.createElement('video');
           videoElem.autoplay = true;
@@ -237,30 +256,92 @@ export const setupLocalStream = async (changed: StreamType, audioCb?: (instant: 
 
           const blurredStream = await backgroundChange(videoElem);
           setupStream(blurredStream, "low", "motion", true);
-          stream = blurredStream;
+          
+          // Add to enhanced store structure
+          addLocalStream('camera', blurredStream, null);
         } catch (error) {
           console.error('Failed to apply background blur:', error);
           // Fallback to original stream if blur fails
           setupStream(stream, "low", "motion", true);
+          
+          // Add to enhanced store structure
+          addLocalStream('camera', stream, null);
         }
       } else {
         setupStream(stream, "low", "motion", true);
+        
+        // Add to enhanced store structure
+        addLocalStream('camera', stream, null);
+      }
+    } else {
+      // Clean up camera stream
+      const localStreamData = state.localStreams['camera'];
+      if (localStreamData?.stream) {
+        await tearDownStream(localStreamData.stream);
+        
+        // Remove from store
+        removeLocalStream('camera');
       }
     }
-  } else if (changed === 'screen') {
+  }
+  
+  // Handle screen sharing changes
+  if (prevState.streamConfig.screen !== streamConfig.screen) {
     if (streamConfig.screen) {
-      stream = await navigator.mediaDevices.getDisplayMedia({
+      // Set up screen sharing
+      const stream = await navigator.mediaDevices.getDisplayMedia({
         audio: true,
         video: { cursor: "always" } as any
       });
       setupStream(stream, "medium", 'detail', false);
+      
+      // Add to enhanced store structure
+      addLocalStream('screen', stream, null);
+    } else {
+      // Clean up screen sharing
+      const localStreamData = state.localStreams['screen'];
+      if (localStreamData?.stream) {
+        await tearDownStream(localStreamData.stream);
+        
+        // Remove from store
+        removeLocalStream('screen');
+      }
     }
-  } else if (changed === 'file') {
   }
+  
+  // Handle file stream changes
+  if (prevState.streamConfig.file !== streamConfig.file || 
+      prevState.streamConfig.videoSrc !== streamConfig.videoSrc) {
+    if (streamConfig.file && streamConfig.videoSrc) {
+      // File stream is handled differently - the actual stream setup happens in handleFilePlay
+      // Just add the placeholder to the store
+      addLocalStream('file', null, streamConfig.videoSrc);
+    } else if (!streamConfig.file && prevState.streamConfig.file) {
+      // Clean up file stream
+      const localStreamData = state.localStreams['file'];
+      if (localStreamData) {
+        if (localStreamData.stream) {
+          await tearDownStream(localStreamData.stream);
+        } else if (localStreamData.src) {
+          // cleanup blob url
+          URL.revokeObjectURL(localStreamData.src);
+          const stream = getLocalFileStreamState().localFileStreams[localStreamData.src];
+          if (stream) {
+            await tearDownStream(stream);
+          }
+        }
+        
+        // Remove from store
+        removeLocalStream('file');
+      }
+    }
+  }
+});
 
-  // Add to enhanced store structure
-  addLocalStream(changed, stream || null, changed === 'file'?streamConfig.videoSrc || null: null);
-};
+// Helper function to set audio callback
+export function setAudioCallback(callback: (instant: number) => void) {
+  audioCbFunction = callback;
+}
 
 export const setupLocalFileStream = (stream: MediaStream): void => {
   stream.getTracks().forEach(track => {
@@ -270,42 +351,6 @@ export const setupLocalFileStream = (stream: MediaStream): void => {
     setupTrack(ev.track, stream!, "medium", undefined, false);
   };
 }
-
-/**
- * Destroy a local stream
- */
-export const destroyLocalStream = async (changed: 'audio' | 'camera' | 'screen' | 'file', audioCb?: (instant: number) => void): Promise<void> => {
-  // REMOVE const app = window.app as AppWithStreamConfig;
-  const state = getStreamState();
-  const localStreamData = state.localStreams[changed];
-
-  if (localStreamData) {
-    // Stop all tracks using the utility function
-    if (localStreamData.stream) {
-      await tearDownStream(localStreamData.stream);
-    } else if (localStreamData.src) {
-      // cleanup blob url
-      URL.revokeObjectURL(localStreamData.src);
-      const stream = getLocalFileStreamState().localFileStreams[localStreamData.src];
-      if (stream) {
-        await tearDownStream(stream);
-      }
-    }
-    // Handle audio processing cleanup if needed
-    if (changed === 'audio') {
-      // Retrieve and stop the specific audio context
-      const audioNodes = audioProcessingContexts[changed];
-      stopProcessingAudio(audioNodes);
-      delete audioProcessingContexts[changed]; // Remove from tracking
-      if (audioCb) {
-        audioCb(0); // Reset visualization
-      }
-    }
-
-    // Remove from store
-    removeLocalStream(changed);
-  }
-};
 
 // Export utility functions from the original stream.ts
 export { 

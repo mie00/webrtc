@@ -9,7 +9,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { streamStore, updateStreamConfig, setViewLayout, type LayoutType } from '../stores/streamStore.js';
-  import { setupLocalStream, destroyLocalStream, normalizeStreamId, setupLocalFileStream } from '../lib/streamBridge.js';
+  import { normalizeStreamId, setupLocalFileStream, setAudioCallback } from '../lib/streamBridge.js';
   import { recorderStore, toggleRecording } from '../lib/media/recorder.js';
   import { calculateStreamPositions } from '../lib/utils/streamLayout.js';
   import ContextMenu from './ContextMenu.svelte';
@@ -201,12 +201,8 @@
   
   async function handleToggleAudio() {
     const newValue = !$streamStore.streamConfig.audio;
+    setAudioCallback((arg) => instant = arg);
     updateStreamConfig({ audio: newValue });
-    if (newValue) {
-      await setupLocalStream('audio', (arg) => instant = arg);
-    } else {
-      await destroyLocalStream('audio', (arg) => instant = arg);
-    }
   }
 
   async function handleContextMenu(type: 'audio'|'camera', event: MouseEvent) {
@@ -244,11 +240,6 @@
   async function handleToggleVideo() {
     const newValue = !$streamStore.streamConfig.camera;
     updateStreamConfig({ camera: newValue });
-    if (newValue) {
-      await setupLocalStream('camera');
-    } else {
-      await destroyLocalStream('camera');
-    }
   }
 
   async function handleToggleBlur() {
@@ -257,19 +248,15 @@
     
     // If video is already enabled, restart it to apply the blur effect
     if (isCameraEnabled) {
-      // await destroyLocalStream('video');
-      await setupLocalStream('camera');
+      // Temporarily disable and re-enable camera to apply blur
+      updateStreamConfig({ camera: false });
+      setTimeout(() => updateStreamConfig({ camera: true }), 100);
     }
   }
 
   async function handleToggleScreen() {
     const newValue = !$streamStore.streamConfig.screen;
     updateStreamConfig({ screen: newValue });
-    if (newValue) {
-      await setupLocalStream('screen');
-    } else {
-      await destroyLocalStream('screen');
-    }
   }
   
   async function handleStartForward() {
@@ -315,7 +302,6 @@
   }
   async function handleVideoCleanup() {
     const src = $streamStore.streamConfig.videoSrc!;
-    await destroyLocalStream('file');
     removeLocalFileStream(src);
     updateStreamConfig({file: false, videoSrc: null, videoStream: null});
   }
