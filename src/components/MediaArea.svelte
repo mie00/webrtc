@@ -10,6 +10,7 @@
   import { onMount } from 'svelte';
   import { streamStore, updateStreamConfig, setViewLayout, type LayoutType } from '../stores/streamStore.js';
   import { normalizeStreamId, setupLocalFileStream, setAudioCallback } from '../lib/streamBridge.js';
+  import { forwardStore, toggleForwardHandler as actualToggleForwardHandler, type LogMessage } from '../lib/forwardBridge.js';
   import { recorderStore, toggleRecording } from '../lib/media/recorder.js';
   import { calculateStreamPositions } from '../lib/media/streamLayout.js';
   import ContextMenu from './ContextMenu.svelte';
@@ -40,6 +41,10 @@
   const isVideoShared = $derived($streamStore.streamConfig.file !== null);
   const isBlurEnabled = $derived($configStore['blur-video'] === 'yes');
 
+  // Forwarding state
+  const allowedHost = $derived($forwardStore.allowedHost);
+  const logMessages = $derived($forwardStore.logMessages);
+
   // Stream layout state
   const currentLayout = $derived($streamStore.activeView.layout);
   const focusedStream = $derived($streamStore.activeView.focusedStream);
@@ -58,13 +63,14 @@
     id: string,
     streamKey: string,
     stream: MediaStream | null,
-    type: string,
+    type: 'camera' | 'screen' | 'audio' | 'file' | 'forward-iframe' | 'forward-log',
     isLocal: boolean,
     src: string | null,
   
     peerId?: string | null,
     audioStream?: MediaStream | null,
     hasAudio?: boolean | null,
+    logMessages?: LogMessage[] | null, // For forward-log
   }
 
   // Group streams by peer ID
@@ -114,48 +120,62 @@
   const activeStreams = $derived.by(() => {
     const result: ViewableStream[] = [];
     
-    // Process each peer's streams
-    Object.values(groupedStreams).forEach(({ peerId, streams }) => {
-      // Check if this peer has any video streams (camera or screen)
+    // Process each peer's streams from groupedStreams
+    Object.values(groupedStreams).forEach(({ streams }) => {
       const hasVideoStreams = streams.some(s => 
-        s.type === 'camera' || s.type === 'screen' || s.type === 'file' || 
-        (s.stream && s.stream.getVideoTracks().length > 0)
+        (s.type === 'camera' || s.type === 'screen' || s.type === 'file') && 
+        (s.stream && s.stream.getVideoTracks().length > 0 || s.type === 'file')
       );
       
-      // Find audio streams
       const audioStreams = streams.filter(s => 
         s.type === 'audio' || 
         (s.stream && s.stream.getVideoTracks().length === 0 && s.stream.getAudioTracks().length > 0)
       );
       
-      // If there are video streams, don't add separate audio streams
       if (hasVideoStreams) {
-        // Add all non-audio streams
         const videoStreams = streams.filter(s => 
           s.type !== 'audio' && 
           (s.stream && s.stream?.getVideoTracks().length > 0 || s.type === 'file')
         );
         
-        // Add audio info to video streams
         videoStreams.forEach(stream => {
-          // Find a matching audio stream from this peer if available
           const audioStream = audioStreams.length > 0 ? audioStreams[0].stream : null;
-          
-          // Check if the video stream itself has audio tracks
           const streamHasAudio = stream.stream && stream.stream.getAudioTracks().length > 0;
-          
-          // Always pass the audio stream if available, even if the video stream has audio tracks
-          // This ensures audio is properly transmitted in all cases
           stream.audioStream = audioStream;
           stream.hasAudio = !!audioStream || streamHasAudio;
         });
-        
         result.push(...videoStreams);
       } else {
-        // If no video streams, add all audio streams as separate items
         result.push(...audioStreams);
       }
     });
+
+    // Add forward iframe if allowedHost is set
+    if (allowedHost) {
+      result.push({
+        id: 'forward-iframe',
+        streamKey: 'forward-iframe',
+        stream: null,
+        type: 'forward-iframe',
+        isLocal: true,
+        src: `/iframe-content.html?host=${allowedHost}`,
+        peerId: null,
+      });
+
+      // Add forward log area if there are log messages
+      if (logMessages.length > 0) {
+        result.push({
+          id: 'forward-log',
+          streamKey: 'forward-log',
+          stream: null,
+          type: 'forward-log',
+          isLocal: true,
+          src: null,
+          peerId: null,
+          logMessages: logMessages,
+        });
+      }
+    }
     
     return result;
   });
@@ -279,9 +299,7 @@
   }
   
   async function handleStartForward() {
-    // Import the toggleForwardHandler from our bridge
-    const { toggleForwardHandler } = await import('../lib/forwardBridge.js');
-    await toggleForwardHandler();
+    await actualToggleForwardHandler();
   }
 
   
@@ -370,13 +388,31 @@
           audioStream={stream.audioStream || undefined}
           hasAudio={stream.hasAudio || undefined}
         >
-        {#if stream.src}
-        <!-- svelte-ignore a11y_media_has_caption -->
-        {#key stream.src}
-        <video onloadeddata={handleFilePlay} src={stream.src} autoplay controls loop></video>
-        {/key}
-        {/if}
+          {#if stream.type === 'file' && stream.src}
+            <!-- svelte-ignore a11y_media_has_caption -->
+            {#key stream.src}
+              <video onloadeddata={handleFilePlay} src={stream.src} autoplay controls loop class="w-full h-full object-contain"></video>
+            {/key}
+          {/if}
         </StreamView>
+      {:else if stream.type === 'forward-iframe' && stream.src}
+        <iframe
+          id={`iframe-${allowedHost}`}
+          src={stream.src}
+          class="w-full h-full bg-white"
+          allowTransparency={false}
+          title="Forwarded Content"
+        ></iframe>
+      {:else if stream.type === 'forward-log' && stream.logMessages}
+        <div class="w-full h-full bg-gray-800 text-white p-2 overflow-y-auto text-xs">
+          <h3 class="text-sm font-semibold mb-1">Forward Requests:</h3>
+          {#each stream.logMessages as log (log.id)}
+            <p id={`ll-${log.id}`} class="font-mono break-all">
+              <span class="mr-2">{log.status}</span>{log.text}
+            </p>
+          {/each}
+        </div>
+      {/if}
       </div>
     {/if}
   {/each}
@@ -411,8 +447,16 @@
   <button id="test-toggle-screen-button" onclick={handleToggleScreen} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isScreenSharing}>
     🖥️ <!-- Monitor for Share Screen -->
   </button>
-  <button id="test-start-forward-button" onclick={handleStartForward} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto">
-    ⏩ <!-- Forward -->
+  <button 
+    id="test-start-forward-button" 
+    onclick={handleStartForward} 
+    class="text-white p-3 rounded-full pointer-events-auto"
+    class:bg-red-500={allowedHost}
+    class:hover:bg-red-600={allowedHost}
+    class:bg-blue-500={!allowedHost}
+    class:hover:bg-blue-600={!allowedHost}
+  >
+    {allowedHost ? '⏹️ Stop Forward' : '⏩ Start Forward'}
   </button>
   <button id="test-share-video-button" onclick={handleShareVideo} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoShared}>
     📹 <!-- Share Video -->
