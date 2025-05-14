@@ -44,7 +44,7 @@ export function addMessage(text: string, sender: string, cid?: string): void {
 /**
  * Set up chat channel for a client
  */
-export function setupChatChannel(app: App, cid: string): void { // app might be needed for global config
+export function setupChatChannel(cid: string): void { // app might be needed for global config
   const client = getDirectClient(cid);
   if (!client || !client.pc) {
       console.error(`Client or PeerConnection not found for CID ${cid} in setupChatChannel`);

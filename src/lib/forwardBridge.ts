@@ -1,6 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { getDirectClient, getAllDirectClients } from '../stores/connectionStore.js'; // Adjust path if needed
-import { registerCleanup } from '../../stores/appStateStore.js'; // Import store function
+import { registerCleanup } from '../stores/appStateStore.js'; // Import store function
 
 // Forward state interface
 export interface ForwardState {
@@ -72,7 +72,7 @@ export function forwardInit(): void {
     // Update the Svelte store
     setAllowedHost(null);
     setForwardPeer(null);
-  };
+  });
 }
 
 // Export utility functions from the original forward.ts

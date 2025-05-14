@@ -16,7 +16,7 @@ import { getDirectClient, getAllDirectClients, getAllClientCids } from '../store
 import { 
   registerNegoHandler, 
   registerCleanup 
-} from '../../stores/appStateStore.js'; // Import store functions
+} from '../stores/appStateStore.js'; // Import store functions
 import {
   type AudioNodes, // Import new type
   normalizeStreamId,
@@ -87,9 +87,8 @@ export function streamInit(): void {
       });
     }
     // Note: Cleanup for a specific client remains unchanged for now
-  };
-  
-  // REMOVED streamStore.subscribe block that was syncing back to the removed 'app' object
+  });
+
 }
 
 /**

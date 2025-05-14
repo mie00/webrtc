@@ -56,12 +56,7 @@ interface WebRTCClient {
 }
 
 interface App {
-  clients: Record<string, WebRTCClient>;
   nego_messages: Record<string, any>;
-  nego_handlers: Record<string, (data: any, cid: string) => void>;
-  cleanups: Record<string, (cid?: string) => void>;
-  _send_host_interval?: number | null;
-  _last_forwarded?: string;
   sids?: Record<string, string>;
   debug?: boolean;
 }

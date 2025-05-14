@@ -92,7 +92,7 @@ export function removeFileTransfer(id: string): void {
 /**
  * Set up file channel for a client
  */
-export function setupFileChannel(app: App, cid: string): void { // app might be needed for global config
+export function setupFileChannel(cid: string): void { // app might be needed for global config
   const client = getDirectClient(cid);
   if (!client || !client.pc) {
       console.error(`Client or PeerConnection not found for CID ${cid} in setupFileChannel`);
