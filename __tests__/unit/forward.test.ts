@@ -1,23 +1,33 @@
-import { describe, beforeEach, jest, test, expect } from '@jest/globals'; // Removed beforeAll as it's not used
+import { describe, beforeEach, jest, test, expect } from '@jest/globals';
 import * as forwardModule from '../../src/lib/forwardBridge.js'; // Import the module
-import type { App } from '../../types/global.js'; // Import App type - ADD .js extension
+// Import functions to be mocked
+import { getDirectClient, getAllDirectClients } from '../../src/stores/connectionStore.js';
+import { registerCleanup } from '../../src/stores/appStateStore.js';
+import type { ForwardState } from '../../src/lib/forwardBridge.js';
+
+// Mock the imported functions
+jest.mock('../../src/stores/connectionStore.js');
+jest.mock('../../src/stores/appStateStore.js');
+
 
 /**
  * @jest-environment jsdom
  */
 
-// Declare module variable at the top level
-// let forwardModule: typeof import('../../src/lib/forwardBridge.js'); // No longer needed
-
 describe('Forward Channel', () => {
-  // beforeAll(async () => { // No longer needed if importing statically
-  //   // Dynamically import the module once before all tests
-  //   forwardModule = await import('../../src/lib/forwardBridge.js');
-  // });
+  let mockGetDirectClient: jest.MockedFunction<typeof getDirectClient>;
+  let mockGetAllDirectClients: jest.MockedFunction<typeof getAllDirectClients>;
+  let mockRegisterCleanup: jest.MockedFunction<typeof registerCleanup>;
+
+  const initialForwardState: ForwardState = {
+    allowedHost: null,
+    forwardPeer: null,
+    inflight: {}
+  };
 
   beforeEach(() => {
-    // Setup DOM mocks with type assertion for the mock function itself
-    document.getElementById = jest.fn().mockImplementation((id: string): HTMLElement | null => { // Add type for id
+    // Setup DOM mocks
+    document.getElementById = jest.fn().mockImplementation((id: string): HTMLElement | null => {
       if (id === 'start-forward') {
         return {
           addEventListener: jest.fn(),
@@ -43,133 +53,120 @@ describe('Forward Channel', () => {
         } as any; // Cast return
       }
       return null;
-    }) as jest.Mock; // Cast the mock function itself
+    }) as jest.Mock;
 
-    // Mock createElement with type assertion for the mock function itself
+    // Mock createElement
     document.createElement = jest.fn().mockImplementation((tag: string): HTMLElement => {
       return {
         id: '',
         src: '',
-        classList: {
-          add: jest.fn()
-        },
+        classList: { add: jest.fn() },
         appendChild: jest.fn(),
         innerHTML: '',
         setAttribute: jest.fn()
-      } as any; // Cast return value
-    }) as jest.Mock; // Cast the mock function itself
+      } as any;
+    }) as jest.Mock;
 
-    // Mock global.app (type handled by jest-globals.d.ts)
-    global.app = {
-      clients: {
-        'test-client-id': {
-          pc: {
-            createDataChannel: jest.fn().mockReturnValue({
-              onopen: null,
-              onmessage: null,
-              send: jest.fn(),
-              addEventListener: jest.fn(),
-              removeEventListener: jest.fn()
-            })
-          },
-          forward: {
-            send: jest.fn(),
-            addEventListener: jest.fn(),
-            removeEventListener: jest.fn()
-          }
-        }
-      },
-      cleanups: {},
-      inflight: {},
-      viewStreams: {},
-      config: {},
-      nego_messages: {},
-      nego_handlers: {},
-    } as App; // Cast to App type
+    // Assign typed mocks
+    mockGetDirectClient = getDirectClient as jest.MockedFunction<typeof getDirectClient>;
+    mockGetAllDirectClients = getAllDirectClients as jest.MockedFunction<typeof getAllDirectClients>;
+    mockRegisterCleanup = registerCleanup as jest.MockedFunction<typeof registerCleanup>;
 
-    // Mock navigator with type assertions (casting to any)
+    // Reset forwardStore to initial state
+    forwardModule.forwardStore.set({ ...initialForwardState, inflight: {} }); // Ensure inflight is a new object
+
+    // Mock navigator
     global.navigator = {
       serviceWorker: {
-        register: jest.fn().mockResolvedValue({} as never), // Fix resolved value type
-        ready: Promise.resolve({ then: jest.fn() } as any), // Cast resolved value
-        controller: {
-          postMessage: jest.fn()
-        } as any, // Cast controller
+        register: jest.fn().mockResolvedValue({} as never),
+        ready: Promise.resolve({ then: jest.fn() } as any),
+        controller: { postMessage: jest.fn() } as any,
         addEventListener: jest.fn()
-      } as any // Cast serviceWorker
-    } as any; // Cast navigator
+      } as any
+    } as any;
 
-    // Mock MessageChannel with type assertion (casting to any)
+    // Mock MessageChannel
     global.MessageChannel = jest.fn().mockImplementation(() => ({
-      port1: { onmessage: null } as any, // Cast port1
-      port2: { postMessage: jest.fn() } as any // Add port2 for completeness
-    })) as any; // Cast mock
+      port1: { onmessage: null } as any,
+      port2: { postMessage: jest.fn() } as any
+    })) as any;
 
-    // Mock fetch with type assertion for the mock function itself
+    // Mock fetch
     global.fetch = jest.fn().mockResolvedValue({
       status: 200,
       statusText: 'OK',
       headers: new Map([['Content-Type', 'text/plain']]),
       body: {
         getReader: jest.fn().mockReturnValue({
-          read: jest.fn().mockResolvedValue({ done: true, value: new Uint8Array([]) } as never) // Fix resolved value type
+          read: jest.fn().mockResolvedValue({ done: true, value: new Uint8Array([]) } as never)
         })
-      } as any // Cast body
-    } as Response) as jest.Mock; // Cast resolved value to Response and the mock itself
+      } as any
+    } as Response) as jest.Mock;
 
-    // Mock alert with type assertion
-    global.alert = jest.fn() as jest.Mock; // Cast mock
+    // Mock alert
+    global.alert = jest.fn() as jest.Mock;
 
-    // Mock URL with type assertion (casting to any)
+    // Mock URL
     global.URL = class {
-      searchParams = { // Define property directly
-        set: jest.fn()
-      } as any; // Cast searchParams
+      searchParams = { set: jest.fn() } as any;
       constructor() {}
-    } as any; // Cast class
+    } as any;
 
-    // Mock window with type assertions (casting to any)
+    // Mock window
     global.window = {
-      location: {
-        href: 'http://example.com',
-        host: 'example.com'
-      } as any, // Cast location
-      history: {
-        pushState: jest.fn()
-      } as any, // Cast history
-      setInterval: jest.fn().mockReturnValue(123) as any // Cast setInterval
-    } as any; // Cast window
+      location: { href: 'http://example.com', host: 'example.com' } as any,
+      history: { pushState: jest.fn() } as any,
+      setInterval: jest.fn().mockReturnValue(123) as any,
+      clearInterval: jest.fn() as any, // Add clearInterval mock
+    } as any;
 
-    // Mock prompt (type handled by jest-globals.d.ts) - Cast the mock
+    // Mock prompt
     global.prompt = jest.fn().mockReturnValue('http://127.0.0.1:5000') as jest.Mock;
-
 
     jest.clearAllMocks();
   });
 
+  test('forwardInit should set up cleanups and reset forward store state', () => {
+    forwardModule.forwardInit();
 
-  test('forwardInit should set up cleanups and initial state', () => {
-    // Use the imported module variable and global.app
-    forwardModule.forwardInit(global.app!); // Use non-null assertion
+    expect(mockRegisterCleanup).toHaveBeenCalledWith('forward', expect.any(Function));
+    
+    // Simulate cleanup call for full coverage if needed, though not strictly necessary for this test
+    // const cleanupFn = mockRegisterCleanup.mock.calls[0][1];
+    // cleanupFn(); // This would call setAllowedHost(null) and setForwardPeer(null)
 
-    // Verify the cleanups were set up
-    expect(global.app!.cleanups['forward']).toBeDefined(); // Use non-null assertion
-    expect((global.app as any).allowed_host).toBeNull(); // Cast app for allowed_host
+    const state = forwardModule.getForwardState();
+    expect(state.allowedHost).toBeNull();
+    expect(state.forwardPeer).toBeNull();
   });
 
-  test('setupForwardChannel should create a data channel', () => {
-    // Use the imported module variable and global.app
-    forwardModule.setupForwardChannel(global.app!, 'test-client-id'); // Use non-null assertion
+  test('setupForwardChannel should create a data channel on the client', () => {
+    const mockPc = {
+      createDataChannel: jest.fn().mockReturnValue({
+        onopen: null,
+        onmessage: null,
+        send: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn()
+      })
+    };
+    const mockClient = {
+      pc: mockPc,
+      // Add other properties if forwardBridge expects them on the client object
+    } as any; // Cast to any to simplify mock client structure
 
-    // Verify the data channel was created
-    expect(global.app!.clients['test-client-id'].pc!.createDataChannel).toHaveBeenCalledWith( // Use non-null assertion
+    mockGetDirectClient.mockReturnValue(mockClient);
+
+    forwardModule.setupForwardChannel('test-client-id');
+
+    expect(mockGetDirectClient).toHaveBeenCalledWith('test-client-id');
+    expect(mockPc.createDataChannel).toHaveBeenCalledWith(
       'forward',
       { negotiated: true, id: 3 }
     );
   });
 
   test('concatUint8Arrays should correctly concatenate arrays', () => {
-    // Use the imported module variable
     // Create test arrays
     const array1 = new Uint8Array([1, 2, 3]);
     const array2 = new Uint8Array([4, 5]);
