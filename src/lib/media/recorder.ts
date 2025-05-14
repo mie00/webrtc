@@ -1,23 +1,14 @@
 import { VideoStreamMerger } from 'video-stream-merger';
 import { writable, get } from 'svelte/store';
 import { normalizeStreamId } from './stream.js';
-import { getAllDirectClients } from '../../stores/connectionStore.js';
-import { getStreamState, type StreamState } from '../../stores/streamStore.js';
+import { getStreamState } from '../../stores/streamStore.js';
+import { collectActiveStreams, calculateGridLayout } from '../utils/streamLayout.js';
 
 // Constants
 const FW = 1920;
 const FH = 1080;
-const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
 
 // Types
-interface StreamDimensions {
-  key: string;
-  ow?: number;
-  oh?: number;
-  width?: number;
-  height?: number;
-}
-
 interface RecorderState {
   isRecording: boolean;
   merger: any | null;
@@ -35,139 +26,30 @@ export const recorderStore = writable<RecorderState>({
   lastStreams: []
 });
 
-// Helper function to get stream element ID
-function getStreamElemId(id: string): string {
-  return `stream-${normalizeStreamId(id)}`;
-}
-
-// Get dimensions of all active streams
-const getStreamsDims = async (): Promise<StreamDimensions[]> => {
-  const streamState = getStreamState();
-  let elems: StreamDimensions[] = [];
-  
-  // Create a dictionary to store stream dimensions from WebRTC stats
-  let statsDict: Record<string, { width?: number, height?: number }> = {};
-  
-  // Get stats from all clients
-  const clients = getAllDirectClients();
-  for (const client of Object.values(clients)) {
-    try {
-      (await client.pc?.getStats())?.forEach((stat: any) => {
-        if (stat.type === 'inbound-rtp' && stat.kind === 'video') {
-          statsDict[normalizeStreamId(stat.trackIdentifier)] = { 
-            width: stat.frameWidth, 
-            height: stat.frameHeight 
-          };
-        }
-      });
-    } catch (e) {
-      console.error("Error getting stats:", e);
-    }
-  }
-  
-  // Process all active streams
-  // Collect local streams
-  Object.entries(streamState.localStreams).forEach(([key, data]) => {
-    if (data.stream && data.active && data.stream.getVideoTracks().length > 0) {
-      processStreamDimensions(key, data.stream, statsDict, elems);
-    }
-  });
-  
-  // Collect remote streams
-  Object.values(streamState.remoteStreams).forEach(peerData => {
-    Object.entries(peerData.streams).forEach(([key, stream]) => {
-      if (stream.getVideoTracks().length > 0) {
-        processStreamDimensions(key, stream, statsDict, elems);
-      }
-    });
-  });
-  
-  return elems;
-};
-
-// Helper to process stream dimensions
-function processStreamDimensions(
-  key: string, 
-  stream: MediaStream, 
-  statsDict: Record<string, { width?: number, height?: number }>,
-  elems: StreamDimensions[]
-) {
-  let width: number | undefined, height: number | undefined;
-  
-  // Try to get dimensions from track settings
-  const videoTrack = stream.getVideoTracks()[0];
-  if (videoTrack) {
-    const settings = videoTrack.getSettings();
-    width = settings.width;
-    height = settings.height;
-    
-    // If dimensions not available from settings, try stats
-    if (!width || !height) {
-      const trackId = normalizeStreamId(videoTrack.id);
-      if (trackId in statsDict) {
-        const stats = statsDict[trackId];
-        width = stats.width;
-        height = stats.height;
-      }
-    }
-    
-    // If still no dimensions, try from video element
-    if (!width || !height) {
-      const videoElem = document.querySelector(`video.${getStreamElemId(key)}`) as HTMLVideoElement;
-      if (videoElem) {
-        height = videoElem.videoHeight;
-        width = videoElem.videoWidth;
-      }
-    }
-    
-    // Add to elements array with calculated aspect ratio values
-    elems.push({ 
-      key, 
-      ow: width, 
-      oh: height, 
-      width: width && height ? Math.sqrt(width / height) : undefined, 
-      height: width && height ? Math.sqrt(height / width) : undefined 
-    });
-  }
-}
-
 // Set up streams in the merger
 async function setupStreams(merger: any): Promise<void> {
   const state = get(recorderStore);
-  const streamState = getStreamState();
   
-  // Get all streams with dimensions
-  const streams = (await getStreamsDims()).filter(({ width, height }) => width && height);
-  const videoStreamsLength = streams.length;
+  // Get all active streams using the shared function
+  const activeStreams = collectActiveStreams();
   
-  // Add audio-only streams
-  const audioStreams: StreamDimensions[] = [];
+  // Separate video and audio streams
+  const videoStreams = activeStreams.filter(stream => 
+    stream.stream && stream.stream.getVideoTracks().length > 0
+  );
   
-  // Add local audio streams
-  Object.entries(streamState.localStreams).forEach(([key, data]) => {
-    if (data.stream && data.active && 
-        data.stream.getVideoTracks().length === 0 && 
-        data.stream.getAudioTracks().length > 0) {
-      audioStreams.push({ key });
-    }
-  });
+  const audioStreams = activeStreams.filter(stream => 
+    stream.stream && 
+    stream.stream.getVideoTracks().length === 0 && 
+    stream.stream.getAudioTracks().length > 0
+  );
   
-  // Add remote audio streams
-  Object.values(streamState.remoteStreams).forEach(peerData => {
-    Object.entries(peerData.streams).forEach(([key, stream]) => {
-      if (stream.getVideoTracks().length === 0 && stream.getAudioTracks().length > 0) {
-        audioStreams.push({ key });
-      }
-    });
-  });
-  
-  // Combine video and audio streams
-  const allStreams = [...streams, ...audioStreams];
+  // Combine all stream IDs
+  const allStreamIds = [...videoStreams, ...audioStreams].map(s => s.streamKey || s.id);
   
   // Check if streams have changed
-  const streamKeys = allStreams.map(({ key }) => key);
-  if (state.lastStreams.length === streamKeys.length && 
-      state.lastStreams.every(stream => streamKeys.includes(stream))) {
+  if (state.lastStreams.length === allStreamIds.length && 
+      state.lastStreams.every(id => allStreamIds.includes(id))) {
     return;
   }
   
@@ -177,68 +59,76 @@ async function setupStreams(merger: any): Promise<void> {
   });
   
   // Update last streams
-  recorderStore.update(s => ({ ...s, lastStreams: streamKeys }));
+  recorderStore.update(s => ({ ...s, lastStreams: allStreamIds }));
   
-  // Calculate grid layout
-  const rcs = Math.ceil(Math.sqrt(streams.length));
-  const cols = rcs;
-  const rows = cols * (cols - 1) >= streams.length ? cols - 1 : cols;
-  console.log(`${videoStreamsLength} streams will be displayed in ${rows}x${cols}`);
+  // Calculate grid layout using the shared function
+  const positions = calculateGridLayout(FW, FH, videoStreams);
   
-  // Add streams to merger
-  let videoStreamIndex = 0;
+  console.log(`${videoStreams.length} streams will be displayed in a grid`);
   
   // Add video streams with positioning
-  for (let i = 0; i < streams.length; i++) {
-    const stream = getStreamForKey(streams[i].key, streamState);
+  for (let i = 0; i < videoStreams.length; i++) {
+    const stream = videoStreams[i].stream;
     if (!stream) continue;
     
-    if (!streams[i].width) {
+    const position = positions.find(p => p.id === videoStreams[i].id);
+    if (!position) continue;
+    
+    // Get stream dimensions to calculate aspect ratio
+    const videoTrack = stream.getVideoTracks()[0];
+    let width, height;
+    
+    if (videoTrack) {
+      const settings = videoTrack.getSettings();
+      width = settings.width;
+      height = settings.height;
+    }
+    
+    // Calculate stream dimensions to maintain aspect ratio
+    if (width && height) {
+      const streamAspect = width / height;
+      const cellAspect = position.width / position.height;
+      let streamWidth, streamHeight;
+      
+      if (streamAspect > cellAspect) {
+        // Stream is wider than cell
+        streamWidth = position.width;
+        streamHeight = position.width / streamAspect;
+      } else {
+        // Stream is taller than cell
+        streamHeight = position.height;
+        streamWidth = position.height * streamAspect;
+      }
+      
+      // Center in cell
+      const xOffset = (position.width - streamWidth) / 2;
+      const yOffset = (position.height - streamHeight) / 2;
+      
       merger.addStream(stream, {
+        x: position.x + xOffset,
+        y: position.y + yOffset,
+        width: streamWidth,
+        height: streamHeight,
         mute: false,
       });
     } else {
-      const nw = streams[i].width! * FH / cols / streams[i].height!;
-      const scale = nw <= FW / rows ? FH / cols / streams[i].height! : FW / rows / streams[i].width!;
+      // If no dimensions, just fill the cell
       merger.addStream(stream, {
-        x: (videoStreamIndex % cols) * FW / cols,
-        y: Math.floor(videoStreamIndex / cols) * FH / rows,
-        width: scale * streams[i].width!,
-        height: scale * streams[i].height!,
+        x: position.x,
+        y: position.y,
+        width: position.width,
+        height: position.height,
         mute: false,
       });
-      videoStreamIndex++;
     }
   }
   
   // Add audio-only streams
-  audioStreams.forEach(({ key }) => {
-    const stream = getStreamForKey(key, streamState);
-    if (stream) {
-      merger.addStream(stream, { mute: false });
+  audioStreams.forEach(stream => {
+    if (stream.stream) {
+      merger.addStream(stream.stream, { mute: false });
     }
   });
-}
-
-// Helper to get a stream by key from the store
-function getStreamForKey(key: string, streamState: StreamState): MediaStream | null {
-  // Check local streams
-  for (const [streamKey, data] of Object.entries(streamState.localStreams)) {
-    if (key === streamKey && data.stream) {
-      return data.stream;
-    }
-  }
-  
-  // Check remote streams
-  for (const peerData of Object.values(streamState.remoteStreams)) {
-    for (const [streamKey, stream] of Object.entries(peerData.streams)) {
-      if (key === streamKey) {
-        return stream;
-      }
-    }
-  }
-  
-  return null;
 }
 
 // Start recording
