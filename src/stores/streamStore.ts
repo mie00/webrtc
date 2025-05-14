@@ -8,6 +8,8 @@ export interface StreamConfig {
   file: boolean;
   videoStream: MediaStream | null;
   videoSrc: string | null;
+  audioDevice: string | null;
+  videoDevice: string | null;
 }
 
 // Stream type definitions
@@ -62,6 +64,8 @@ const initialState: StreamState = {
     file: false,
     videoStream: null,
     videoSrc: null,
+    audioDevice: null,
+    videoDevice: null,
   }
 };
 

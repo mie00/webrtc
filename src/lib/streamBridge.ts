@@ -173,11 +173,23 @@ configStore.subscribe(config => {
   // For each device config that changed
   deviceKeys.forEach(key => {
     if (prevConfigState[key] !== config[key]) {
-      // If the corresponding stream is active, restart it
-      if (key === 'audio-device' && streamState.streamConfig.audio) {
-        updateStreamConfig({ audio: false });
-        setTimeout(() => updateStreamConfig({ audio: true }), 100);
-      } else if ((key === 'video-device' || key === 'blur-video') && streamState.streamConfig.camera) {
+      // Update the device in streamConfig
+      if (key === 'audio-device') {
+        updateStreamConfig({ audioDevice: config[key] });
+        // If stream is active, restart it
+        if (streamState.streamConfig.audio) {
+          updateStreamConfig({ audio: false });
+          setTimeout(() => updateStreamConfig({ audio: true }), 100);
+        }
+      } else if (key === 'video-device') {
+        updateStreamConfig({ videoDevice: config[key] });
+        // If stream is active, restart it
+        if (streamState.streamConfig.camera) {
+          updateStreamConfig({ camera: false });
+          setTimeout(() => updateStreamConfig({ camera: true }), 100);
+        }
+      } else if (key === 'blur-video' && streamState.streamConfig.camera) {
+        // Just restart the camera if blur setting changes
         updateStreamConfig({ camera: false });
         setTimeout(() => updateStreamConfig({ camera: true }), 100);
       }
@@ -188,6 +200,24 @@ configStore.subscribe(config => {
   prevConfigState = { ...config };
 });
 
+// Initialize device settings from global config
+function initDeviceSettings() {
+  const globalConfig = getAllConfig();
+  const currentState = getStreamState();
+  
+  // Only set if not already set
+  if (!currentState.streamConfig.audioDevice && globalConfig['audio-device']) {
+    updateStreamConfig({ audioDevice: globalConfig['audio-device'] });
+  }
+  
+  if (!currentState.streamConfig.videoDevice && globalConfig['video-device']) {
+    updateStreamConfig({ videoDevice: globalConfig['video-device'] });
+  }
+}
+
+// Initialize device settings on startup
+initDeviceSettings();
+
 // Set up subscription to streamConfig changes
 streamStore.subscribe(async (state) => {
   const prevState = getStreamState();
@@ -196,15 +226,15 @@ streamStore.subscribe(async (state) => {
   
   // Handle audio stream changes
   if (prevState.streamConfig.audio !== streamConfig.audio || 
-      (streamConfig.audio && globalConfig['audio-device'] !== prevState['audio-device'])) {
+      prevState.streamConfig.audioDevice !== streamConfig.audioDevice) {
     if (streamConfig.audio) {
       // Set up audio stream
-      const globalConfig = getAllConfig();
+      const deviceInfo = streamConfig.audioDevice?.split('|') || [];
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          groupId: globalConfig['audio-device']?.split('|')[0],
-          deviceId: globalConfig['audio-device']?.split('|')[1]
-        }
+        audio: deviceInfo.length === 2 ? {
+          groupId: deviceInfo[0],
+          deviceId: deviceInfo[1]
+        } : true
       });
 
       // Set up the stream for WebRTC
@@ -256,15 +286,15 @@ streamStore.subscribe(async (state) => {
   
   // Handle camera stream changes
   if (prevState.streamConfig.camera !== streamConfig.camera || 
-      (streamConfig.camera && globalConfig['video-device'] !== prevState['video-device'])) {
+      prevState.streamConfig.videoDevice !== streamConfig.videoDevice) {
     if (streamConfig.camera) {
       // Set up camera stream
-      const globalConfig = getAllConfig();
+      const deviceInfo = streamConfig.videoDevice?.split('|') || [];
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          groupId: globalConfig['video-device']?.split('|')[0],
-          deviceId: globalConfig['video-device']?.split('|')[1]
-        }
+        video: deviceInfo.length === 2 ? {
+          groupId: deviceInfo[0],
+          deviceId: deviceInfo[1]
+        } : true
       });
 
       // Apply background blur if enabled
