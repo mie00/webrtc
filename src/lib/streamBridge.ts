@@ -165,7 +165,7 @@ export function setupTrackHandler(app: App, cid: string): void { // app might be
 /**
  * Enhanced version of setupLocalStream that uses the new store structure
  */
-export const setupLocalStream = async (changed: 'audio' | 'camera' | 'screen' | 'local', audioCb?: (instant: number) => void): Promise<void> => {
+export const setupLocalStream = async (changed: StreamType, audioCb?: (instant: number) => void): Promise<void> => {
   // REMOVE const app = window.app as AppWithStreamConfig;
   let stream: MediaStream | undefined;
   const streamConfig = getStreamState().streamConfig; // Get config from store
@@ -257,18 +257,11 @@ export const setupLocalStream = async (changed: 'audio' | 'camera' | 'screen' | 
       });
       setupStream(stream, "medium", 'detail', false);
     }
-  } else if (changed === 'local') {
+  } else if (changed === 'file') {
   }
 
-  // Map the stream type
-  let streamType: StreamType = 'custom';
-  if (changed === 'audio') streamType = 'audio';
-  else if (changed === 'camera') streamType = 'camera';
-  else if (changed === 'screen') streamType = 'screen';
-  else if (changed === 'local') streamType = 'file';
-
   // Add to enhanced store structure
-  addLocalStream(changed, stream || null, streamType, changed === 'local'?streamConfig.videoSrc || null: null);
+  addLocalStream(changed, stream || null, changed === 'file'?streamConfig.videoSrc || null: null);
 };
 
 export const setupLocalFileStream = (stream: MediaStream): void => {
@@ -283,7 +276,7 @@ export const setupLocalFileStream = (stream: MediaStream): void => {
 /**
  * Destroy a local stream
  */
-export const destroyLocalStream = async (changed: 'audio' | 'camera' | 'screen' | 'local', audioCb?: (instant: number) => void): Promise<void> => {
+export const destroyLocalStream = async (changed: 'audio' | 'camera' | 'screen' | 'file', audioCb?: (instant: number) => void): Promise<void> => {
   // REMOVE const app = window.app as AppWithStreamConfig;
   const state = getStreamState();
   const localStreamData = state.localStreams[changed];

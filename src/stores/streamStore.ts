@@ -5,7 +5,7 @@ export interface StreamConfig {
   audio: boolean;
   camera: boolean;
   screen: boolean;
-  local: boolean;
+  file: boolean;
   videoStream: MediaStream | null;
   videoSrc: string | null;
 }
@@ -63,7 +63,7 @@ const initialState: StreamState = {
     audio: false,
     camera: false,
     screen: false,
-    local: false,
+    file: false,
     videoStream: null,
     videoSrc: null,
   }
@@ -105,10 +105,10 @@ export function removeViewStream(key: string): void {
 }
 
 // Enhanced stream management functions
-export function addLocalStream(id: string, stream: MediaStream | null, type: StreamType, src: string | null): void {
+export function addLocalStream(type: StreamType, stream: MediaStream | null, src: string | null): void {
   streamStore.update(state => {
     const localStreams = { ...state.localStreams };
-    localStreams[id] = { type, stream, active: true, src: src  };
+    localStreams[type] = { type, stream, active: true, src: src  };
     return { ...state, localStreams };
   });
 }

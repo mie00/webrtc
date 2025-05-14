@@ -310,18 +310,18 @@
       const fileURL = URL.createObjectURL(file);
 
       updateStreamConfig({
-        local: true,
+        file: true,
         videoSrc: fileURL,
         videoStream: undefined,
       });
-      await setupLocalStream('local');
+      await setupLocalStream('file');
     }
   }
   async function handleVideoCleanup() {
     const src = $streamStore.streamConfig.videoSrc!;
-    await destroyLocalStream('local');
+    await destroyLocalStream('file');
     removeLocalFileStream(src);
-    updateStreamConfig({local: false, videoSrc: null, videoStream: null});
+    updateStreamConfig({file: false, videoSrc: null, videoStream: null});
   }
 
   async function handleFilePlay(event: Event) {
@@ -336,7 +336,7 @@
 
     updateStreamConfig({
       videoStream,
-      local: true
+      file: true
     });
     addLocalFileStream($streamStore.streamConfig.videoSrc!, videoStream);
     setupLocalFileStream(videoStream);
