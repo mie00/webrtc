@@ -302,8 +302,7 @@
   
   function handleShareVideo() {
     // Trigger file upload dialog
-    if (uploadVideo.files && uploadVideo.files.length > 0) {
-      uploadVideo.files = null;
+    if ($streamStore.streamConfig.file !== null) {
       handleVideoCleanup();
     } else {
       uploadVideo?.click();

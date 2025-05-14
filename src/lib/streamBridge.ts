@@ -176,23 +176,20 @@ configStore.subscribe(config => {
     if (prevConfigState[key] !== config[key]) {
       // Update the device in streamConfig
       if (key === 'audio-device') {
-        updateStreamConfig({ audioDevice: config[key] });
-        // If stream is active, restart it
-        if (streamState.streamConfig.audio) {
-          updateStreamConfig({ audio: false });
-          setTimeout(() => updateStreamConfig({ audio: true }), 100);
+        // If audio is enabled, update with new device
+        if (streamState.streamConfig.audio !== null) {
+          updateStreamConfig({ audio: config[key] });
         }
       } else if (key === 'video-device') {
-        updateStreamConfig({ videoDevice: config[key] });
-        // If stream is active, restart it
-        if (streamState.streamConfig.camera) {
-          updateStreamConfig({ camera: false });
-          setTimeout(() => updateStreamConfig({ camera: true }), 100);
+        // If camera is enabled, update with new device
+        if (streamState.streamConfig.camera !== null) {
+          updateStreamConfig({ camera: config[key] });
         }
-      } else if (key === 'blur-video' && streamState.streamConfig.camera) {
+      } else if (key === 'blur-video' && streamState.streamConfig.camera !== null) {
         // Just restart the camera if blur setting changes
-        updateStreamConfig({ camera: false });
-        setTimeout(() => updateStreamConfig({ camera: true }), 100);
+        const currentDevice = streamState.streamConfig.camera;
+        updateStreamConfig({ camera: null });
+        setTimeout(() => updateStreamConfig({ camera: currentDevice }), 100);
       }
     }
   });
@@ -203,17 +200,7 @@ configStore.subscribe(config => {
 
 // Initialize device settings from global config
 function initDeviceSettings() {
-  const globalConfig = getAllConfig();
-  const currentState = getStreamState();
-  
-  // Only set if not already set
-  if (!currentState.streamConfig.audioDevice && globalConfig['audio-device']) {
-    updateStreamConfig({ audioDevice: globalConfig['audio-device'] });
-  }
-  
-  if (!currentState.streamConfig.videoDevice && globalConfig['video-device']) {
-    updateStreamConfig({ videoDevice: globalConfig['video-device'] });
-  }
+  // No longer needed as devices are only set when streams are enabled
 }
 
 // Initialize device settings on startup
