@@ -14,7 +14,6 @@ import {
 } from '../stores/configStore.js';
 import { getDirectClient, getAllDirectClients, getAllClientCids } from '../stores/connectionStore.js'; // Adjust path if needed
 import {
-  // REMOVE AppWithStreamConfig, AudioProcessingApp imports
   type AudioNodes, // Import new type
   normalizeStreamId,
   setupStream,

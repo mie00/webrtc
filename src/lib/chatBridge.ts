@@ -100,8 +100,6 @@ export function setupChatChannel(app: App, cid: string): void { // app might be 
 export function sendChatMessage(message: string, sender: string = 'You'): void {
   if (!message.trim()) return;
 
-  // const app = window.app; // No longer need app object directly here
-
   // Add to local store (sender is 'You' or the name from config)
   addMessage(message, sender);
 

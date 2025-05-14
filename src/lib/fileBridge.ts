@@ -189,7 +189,6 @@ export function setupFileChannel(app: App, cid: string): void { // app might be 
  * Send a file to all connected clients and wait for all transfers to settle.
  */
 export async function sendFile(file: File): Promise<void> { // Make async
-  // const app = window.app; // No longer need app object directly here
   const transferId = Math.random().toString(16).slice(2); // Use a more descriptive name
 
   // Create a URL for the sender to view/download their own file
@@ -277,7 +276,6 @@ async function waitForBufferDrain(dc: RTCDataChannel): Promise<void> {
 }
 
 async function readFile(file: File, cid: string, id: string): Promise<void> {
-  // const app = window.app; // No longer need app object directly here
   const client = getDirectClient(cid);
   const dc_file = client?.dc_file;
 

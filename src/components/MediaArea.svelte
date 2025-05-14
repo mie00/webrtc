@@ -201,7 +201,7 @@
   
   async function handleToggleAudio() {
     setAudioCallback((arg) => instant = arg);
-    
+
     if ($streamStore.streamConfig.audio === null) {
       // Get the current audio device from config or use default
       const deviceString = $configStore['audio-device'] || '';

@@ -1,5 +1,4 @@
 import { writable, get } from 'svelte/store';
-import type { Writable } from 'svelte/store';
 import { getDirectClient, getAllDirectClients } from '../stores/connectionStore.js'; // Adjust path if needed
 
 // Forward state interface
@@ -60,11 +59,7 @@ export function removeInflight(id: string): void {
  */
 export function forwardInit(originalApp: App): void {
   const app = originalApp as ForwardApp;
-  
-  // Initialize app properties if they don't exist
-  app.allowed_host = app.allowed_host || null;
-  app.inflight = app.inflight || {};
-  
+
   // Set up cleanup handler
   app.cleanups['forward'] = (cid?: string) => {
     if (cid) {
@@ -79,28 +74,6 @@ export function forwardInit(originalApp: App): void {
     setAllowedHost(null);
     setForwardPeer(null);
   };
-  
-  // Sync initial state with Svelte store
-  const currentState = getForwardState();
-  
-  // Sync app state with store
-  if (app.allowed_host !== currentState.allowedHost) {
-    setAllowedHost(app.allowed_host);
-  }
-
-  // Ensure app.forward_peer is handled correctly (it might be undefined)
-  if (app.forward_peer !== currentState.forwardPeer) {
-    setForwardPeer(app.forward_peer ?? null); // Use null if undefined
-  }
-
-  // Set up a subscription to sync store changes back to app object
-  forwardStore.subscribe(state => {
-    // This ensures the app object stays in sync with the store
-    // Ensure state.forwardPeer (which can be null) is handled correctly for app.forward_peer (which expects string | undefined)
-    app.allowed_host = state.allowedHost;
-    app.forward_peer = state.forwardPeer ?? undefined; // Use undefined if null
-    app.inflight = { ...state.inflight };
-  });
 }
 
 // Export utility functions from the original forward.ts
@@ -358,15 +331,6 @@ export const toggleForwardHandler = async (): Promise<void> => {
   }
 };
 
-// Helper function to send negotiation messages
-function sendNego(client: WebRTCClient, data: any): void {
-  try {
-    client.nego_dc?.send(JSON.stringify(data));
-  } catch (e) {
-    console.log("error sending data", data, "to", client, "error", e);
-  }
-}
-
 // Type definitions
 interface ForwardClient extends WebRTCClient {
   forward: RTCDataChannel;
@@ -378,4 +342,70 @@ interface ForwardApp extends App {
   allowed_host?: string | null;
   inflight: Record<string, (data: any) => void>;
   _last_forwarded?: string;
+}
+
+interface ForwardResponse {
+  response?: {
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    body: Uint8Array;
+  };
+  data: Uint8Array[];
+}
+
+// Initialize service worker if available
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register(
+    'service-worker.js',
+    { scope: '/' }
+  )
+    .then(() => navigator.serviceWorker
+      .ready
+      .then((worker) => {
+        console.log(worker);
+      })
+    )
+    .catch((err) => console.log(err));
+
+  const forwardApp = window.app as ForwardApp;
+  
+  const handler = function(event: MessageEvent): void {
+    console.log('got event from service worker, sending message to peer', event);
+    const id = event.data.id;
+    
+    if (!forwardApp.forward_peer || !forwardApp.clients[forwardApp.forward_peer]) {
+      console.error('No forward peer available');
+      return;
+    }
+    
+    let r: ForwardResponse = { data: [] };
+    
+    addInflight(id, (data: any) => {
+      console.log('called inflight', id, data);
+      if (data.type === 'error') {
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage(data);
+        }
+      } else if (data.type === 'response') {
+        r.response = data;
+      } else if (data.type === 'data') {
+        r.data.push(new Uint8Array(data.chunk));
+      } else if (data.type === 'end' && r.response) {
+        r.response.body = concatUint8Arrays(r.data);
+        console.log(r.data, r.response.body);
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage(r.response);
+        }
+      }
+    });
+    
+    const client = forwardApp.clients[forwardApp.forward_peer] as ForwardClient;
+    client.forward.send(JSON.stringify({
+      type: "request",
+      ...event.data
+    }));
+  };
+  
+  navigator.serviceWorker.addEventListener('message', handler);
 }
