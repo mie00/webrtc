@@ -30,8 +30,6 @@ export interface RemoteStreamData {
 
 // Stream state interface
 export interface StreamState {
-  viewStreams: Record<string, MediaStream>;
-  
   // Enhanced structure
   localStreams: Record<string, LocalStreamData>;
   remoteStreams: Record<string, RemoteStreamData>;
@@ -48,8 +46,6 @@ export interface StreamState {
 
 // Initial state
 const initialState: StreamState = {
-  viewStreams: {},
-  
   // Enhanced structure
   localStreams: {},
   remoteStreams: {},
@@ -86,22 +82,6 @@ export function updateStreamConfig(config: Partial<StreamConfig>): void {
       ...config
     }
   }));
-}
-
-export function addViewStream(key: string, stream: MediaStream): void {
-  streamStore.update(state => {
-    const viewStreams = { ...state.viewStreams };
-    viewStreams[key] = stream;
-    return { ...state, viewStreams };
-  });
-}
-
-export function removeViewStream(key: string): void {
-  streamStore.update(state => {
-    const viewStreams = { ...state.viewStreams };
-    delete viewStreams[key];
-    return { ...state, viewStreams };
-  });
 }
 
 // Enhanced stream management functions

@@ -1,8 +1,6 @@
 import { 
   streamStore, 
   getStreamState, 
-  addViewStream, 
-  removeViewStream,
   addLocalStream,
   removeLocalStream,
   addRemoteStream,

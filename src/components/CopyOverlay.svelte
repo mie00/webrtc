@@ -114,7 +114,7 @@
     {#if qrCodeDataURL}
     <div id="test-qr" class="flex justify-center" title={qrCodeUrl}><img src={qrCodeDataURL} alt="QR Code" class="max-w-xs" /></div>
     {/if}
-    <p class="text-lg font-semibold mb-2">Copy this:</p>
+    <p class="text-lg font-semibold mb-2">Copy this and send it:</p>
     <textarea readonly value={copyText} id="test-copy" class="bg-gray-200 px-4 py-2 rounded-md break-all block mx-auto w-full max-w-md"></textarea>
     {#if showCopyButton}
       <button id="test-copy-button" onclick={handleCopy}
