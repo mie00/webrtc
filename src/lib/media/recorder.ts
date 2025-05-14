@@ -2,7 +2,7 @@ import { VideoStreamMerger } from 'video-stream-merger';
 import { writable, get } from 'svelte/store';
 import { normalizeStreamId } from './stream.js';
 import { getAllDirectClients } from '../../stores/connectionStore.js';
-import { getStreamState } from '../../stores/streamStore.js';
+import { getStreamState, type StreamState } from '../../stores/streamStore.js';
 
 // Constants
 const FW = 1920;
@@ -221,7 +221,7 @@ async function setupStreams(merger: any): Promise<void> {
 }
 
 // Helper to get a stream by key from the store
-function getStreamForKey(key: string, streamState: any): MediaStream | null {
+function getStreamForKey(key: string, streamState: StreamState): MediaStream | null {
   // Check local streams
   for (const [streamKey, data] of Object.entries(streamState.localStreams)) {
     if (key === streamKey && data.stream) {
