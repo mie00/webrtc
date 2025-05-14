@@ -198,14 +198,6 @@ configStore.subscribe(config => {
   prevConfigState = { ...config };
 });
 
-// Initialize device settings from global config
-function initDeviceSettings() {
-  // No longer needed as devices are only set when streams are enabled
-}
-
-// Initialize device settings on startup
-initDeviceSettings();
-
 // Set up subscription to streamConfig changes
 streamStore.subscribe(async (state) => {
   const prevState = getStreamState();
@@ -358,7 +350,7 @@ streamStore.subscribe(async (state) => {
       // File stream is handled differently - the actual stream setup happens in handleFilePlay
       // Just add the placeholder to the store
       addLocalStream('file', null, streamConfig.file);
-    } else if (prevState.streamConfig.file !== null) {
+    } else {
       // Clean up file stream
       const localStreamData = state.localStreams['file'];
       if (localStreamData) {
