@@ -28,7 +28,6 @@ export class WebRTCApp {
   // Static reference to the app for static methods
   // Note: 'clients' is removed, managed by connectionStore now
   private app: App = {
-    clients: {}, // This will be effectively unused, kept for App type compatibility if needed elsewhere temporarily
     nego_handlers: {},
     cleanups: {},
     nego_messages: {},
@@ -315,10 +314,10 @@ export class WebRTCApp {
     const { setupForwardChannel } = await import('../forwardBridge.js');
     const { setupChatChannel } = await import('../chatBridge.js');
     const { setupFileChannel } = await import('../fileBridge.js');
-    setupTrackHandler(this.app, cid);
-    setupChatChannel(this.app, cid);
-    setupFileChannel(this.app, cid); // Pass app for config/context if needed, but setup uses store for client
-    setupForwardChannel(this.app, cid); // Pass app for config/context if needed, but setup uses store for client
+    setupTrackHandler(cid);
+    setupChatChannel(cid);
+    setupFileChannel(cid); // Pass app for config/context if needed, but setup uses store for client
+    setupForwardChannel(cid); // Pass app for config/context if needed, but setup uses store for client
 
     client._transceiver_interval = window.setInterval(() => {
       // client.pc?.addTransceiver('audio', {direction: "recvonly"});

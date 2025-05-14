@@ -53,9 +53,6 @@ export function removeInflight(id: string): void {
   });
 }
 
-// Store for interval ID
-let sendHostInterval: number | null = null;
-
 /**
  * Initialize the forward module
  * This maintains compatibility with the original forwardInit function

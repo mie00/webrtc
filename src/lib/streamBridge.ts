@@ -91,7 +91,7 @@ export function streamInit(originalApp: App): void {
 /**
  * Set up track handler for a client
  */
-export function setupTrackHandler(app: App, cid: string): void { // app might be needed for global config
+export function setupTrackHandler(cid: string): void { // app might be needed for global config
   const client = getDirectClient(cid); // Get specific client from store
   if (!client || !client.pc) return; // Add null check
 
