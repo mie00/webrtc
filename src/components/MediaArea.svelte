@@ -11,7 +11,7 @@
   import { streamStore, updateStreamConfig, setViewLayout, type LayoutType } from '../stores/streamStore.js';
   import { setupLocalStream, destroyLocalStream, normalizeStreamId, setupLocalFileStream } from '../lib/streamBridge.js';
   import { recorderStore, toggleRecording } from '../lib/media/recorder.js';
-  import { calculateStreamPositions, collectActiveStreams } from '../lib/utils/streamLayout.js';
+  import { calculateStreamPositions } from '../lib/utils/streamLayout.js';
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, configStore } from '../stores/configStore.js';
   import StreamView from './StreamView.svelte';
@@ -74,28 +74,36 @@
       streams: Array<ViewableStream>
     }> = {};
     
-    // Use the shared function to collect all active streams
-    const allStreams = collectActiveStreams();
+    // Add local streams
+    const localPeerId = 'local';
+    groups[localPeerId] = {
+      peerId: null,
+      streams: localStreams
+        .filter(([_, data]) => data.active)
+        .map(([id, data]) => ({
+          id: normalizeStreamId(data.stream?.id || data.src || ''),
+          streamKey: id,
+          stream: data.stream,
+          type: data.type,
+          isLocal: true,
+          peerId: null,
+          src: data.src,
+        }))
+    };
     
-    // Group by peer ID
-    allStreams.forEach(stream => {
-      const peerId = stream.peerId || 'local';
-      
+    // Add remote streams
+    remoteStreams.forEach(({ id, stream, peerId }) => {
       if (!groups[peerId]) {
-        groups[peerId] = { 
-          peerId: stream.peerId || null, 
-          streams: [] 
-        };
+        groups[peerId] = { peerId, streams: [] };
       }
       
       groups[peerId].streams.push({
-        id: stream.id,
-        streamKey: stream.streamKey || stream.id,
-        stream: stream.stream,
-        type: stream.type,
-        isLocal: stream.isLocal,
-        src: stream.src || null,
-        peerId: stream.peerId,
+        id: normalizeStreamId(stream.id),
+        streamKey: id,
+        stream,
+        type: stream.getVideoTracks().length > 0 ? 'camera' : 'audio',
+        isLocal: false,
+        src: null,
       });
     });
     
