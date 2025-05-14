@@ -43,7 +43,11 @@
     
     // Setup window event handlers
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('r')) {
+    if (urlParams.get('mode') === 'server') {
+      windowLoader = serverWindowLoader;
+    } else if (urlParams.get('mode') === 'client') {
+      windowLoader = clientWindowLoader;
+    } else if (urlParams.has('r')) {
       windowLoader = serverWindowLoader;
     } else if (urlParams.has('offer')) {
       windowLoader = clientWindowLoader;
