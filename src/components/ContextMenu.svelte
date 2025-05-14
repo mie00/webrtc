@@ -1,17 +1,7 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-
   // Props
   let { position = { x: 0, y: 0 }, menuItems = [], cb, hide } = $props();
 
-  onMount(() => {
-    // Expose the showContextMenu function to the window
-    document.addEventListener('click', hide);
-    return () => {
-      // Cleanup
-      document.removeEventListener('click', hide);
-  };
-  });
 </script>
 
 <div id="contextMenu" class='fixed bg-white' role="button" tabindex=0 style="left: {position.x}px; top: {position.y}px;" onclick={(event) => event.stopPropagation()} onkeypress={(event) => event.stopPropagation()}>
@@ -28,3 +18,4 @@
     {/each}
   </ul>
 </div>
+<svelte:window on:click={hide} />

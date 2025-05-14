@@ -73,14 +73,6 @@
     }
   }
 
-  onMount(() => {
-    window.addEventListener('keydown', handleKeydown);
-  });
-
-  onDestroy(() => {
-    window.removeEventListener('keydown', handleKeydown);
-  });
-
   // Helper to get playable type, similar to ControlPanel
   function getPlayableMediaType(fileType: string): 'video' | 'image' | null {
     if (fileType?.startsWith('video/')) return 'video';

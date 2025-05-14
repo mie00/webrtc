@@ -27,7 +27,7 @@ import {
   tearDownStream,
 } from './media/stream.js'
 // Export background utilities
-import { backgroundChange } from './utils/background.js';
+import { backgroundChange } from './media/background.js';
 import { getLocalFileStreamState } from '..//stores/localFileStreamStore.js';
 
 // Module-level storage for audio processing contexts/nodes

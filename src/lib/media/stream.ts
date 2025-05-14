@@ -1,8 +1,6 @@
 // Import types from global.d.ts
 /// <reference path="../../../types/global.d.ts" />
 
-import { getAllConfig } from '../../stores/configStore.js';
-import { getStreamState } from '../../stores/streamStore.js'; // Import store getter
 import { getAllDirectClients } from '../../stores/connectionStore.js';
 // Use type assertion to handle vendor prefixes
 window.AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -196,5 +194,4 @@ export {
     setupTrack,
     setupStream,
     type AudioNodes, // Export the new type
-    // REMOVE AppWithStreamConfig, AudioProcessingApp exports
 };

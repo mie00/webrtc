@@ -2,7 +2,7 @@ import { VideoStreamMerger, type AddStreamOptions, type AudioEffect, type DrawFu
 import { writable, get } from 'svelte/store';
 import { normalizeStreamId } from './stream.js';
 import { getStreamState, type StreamState } from '../../stores/streamStore.js';
-import { calculateStreamLayout, calculateGridPositions, type Position } from '../utils/streamLayout.js';
+import { calculateStreamLayout, calculateGridPositions, type Position } from './streamLayout.js';
 
 // Constants
 const FW = 1920;

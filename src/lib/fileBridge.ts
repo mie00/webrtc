@@ -1,5 +1,4 @@
 import { writable, get } from 'svelte/store';
-import { WebRTCApp } from './webrtc/WebRTCApp.js';
 import { getDirectClient, getAllClientCids, getAllDirectClients } from '../stores/connectionStore.js'; // Adjust path if needed
 
 // File transfer state interface

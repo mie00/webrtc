@@ -11,7 +11,7 @@
   import { streamStore, updateStreamConfig, setViewLayout, type LayoutType } from '../stores/streamStore.js';
   import { normalizeStreamId, setupLocalFileStream, setAudioCallback } from '../lib/streamBridge.js';
   import { recorderStore, toggleRecording } from '../lib/media/recorder.js';
-  import { calculateStreamPositions } from '../lib/utils/streamLayout.js';
+  import { calculateStreamPositions } from '../lib/media/streamLayout.js';
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, configStore } from '../stores/configStore.js';
   import StreamView from './StreamView.svelte';
@@ -180,25 +180,21 @@
   onMount(() => {
     // Set up interval for updating stream positions
     refreshInterval = window.setInterval(updateStreamPositions, 1000);
-    
-    // Add resize listener
-    window.addEventListener('resize', updateStreamPositions);
-    
+
     return () => {
       // Clean up on component destruction
       clearInterval(refreshInterval);
-      window.removeEventListener('resize', updateStreamPositions);
     };
   });
-  
+
   // Update positions when layout or streams change
   $effect(() => updateStreamPositions());
-  
+
   // Event handlers
   function handleHangup() {
     if (hangup) hangup();
   }
-  
+
   async function handleToggleAudio() {
     setAudioCallback((arg) => instant = arg);
 
@@ -214,10 +210,10 @@
   async function handleContextMenu(type: 'audio'|'camera', event: MouseEvent) {
     event.preventDefault();
     selectedButton = type;
-    
+
     const devices = await navigator.mediaDevices.enumerateDevices();
     const filtered = devices.filter(device => device.kind === `${type}input`);
-    
+
     if (filtered.length === 0) {
       alert(`No ${type} devices found`);
       return;
@@ -438,6 +434,7 @@
   hide={() => showMenu = false}
 />
 {/if}
+<svelte:window on:resize={updateStreamPositions} />
 
 <style>
   .stream-container {
