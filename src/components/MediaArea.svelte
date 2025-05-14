@@ -10,7 +10,7 @@
   import { onMount } from 'svelte';
   import { streamStore, updateStreamConfig, setViewLayout, type LayoutType } from '../stores/streamStore.js';
   import { setupLocalStream, destroyLocalStream, normalizeStreamId, setupLocalFileStream } from '../lib/streamBridge.js';
-  import { startRecording, stopRecording } from '../lib/media/recorder.js';
+  import { recorderStore, toggleRecording } from '../lib/media/recorder.js';
   import { calculateStreamPositions } from '../lib/utils/streamLayout.js';
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, configStore } from '../stores/configStore.js';
@@ -279,16 +279,11 @@
   }
 
   
-  let isRecording = $state(false);
+  // Use the recorder store
+  const isRecording = $derived($recorderStore.isRecording);
 
   async function handleRecord() {
-    console.log(isRecording)
-    if (isRecording) {
-      stopRecording();
-    } else {
-      await startRecording();
-    }
-    isRecording = !!isRecording;
+    await toggleRecording();
   }
   
   function handleOpenQr() {
