@@ -226,11 +226,10 @@ streamStore.subscribe(async (state) => {
   const globalConfig = getAllConfig();
 
   // Handle audio stream changes
-  if (prevState.streamConfig.audio !== streamConfig.audio || 
-      prevState.streamConfig.audioDevice !== streamConfig.audioDevice) {
-    if (streamConfig.audio) {
+  if (prevState.streamConfig.audio !== streamConfig.audio) {
+    if (streamConfig.audio !== null) {
       // Set up audio stream
-      const deviceInfo = streamConfig.audioDevice?.split('|') || [];
+      const deviceInfo = streamConfig.audio.split('|') || [];
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: deviceInfo.length === 2 ? {
           groupId: deviceInfo[0],
@@ -286,11 +285,10 @@ streamStore.subscribe(async (state) => {
   }
   
   // Handle camera stream changes
-  if (prevState.streamConfig.camera !== streamConfig.camera || 
-      prevState.streamConfig.videoDevice !== streamConfig.videoDevice) {
-    if (streamConfig.camera) {
+  if (prevState.streamConfig.camera !== streamConfig.camera) {
+    if (streamConfig.camera !== null) {
       // Set up camera stream
-      const deviceInfo = streamConfig.videoDevice?.split('|') || [];
+      const deviceInfo = streamConfig.camera.split('|') || [];
       const stream = await navigator.mediaDevices.getUserMedia({
         video: deviceInfo.length === 2 ? {
           groupId: deviceInfo[0],
@@ -368,13 +366,12 @@ streamStore.subscribe(async (state) => {
   }
   
   // Handle file stream changes
-  if (prevState.streamConfig.file !== streamConfig.file || 
-      prevState.streamConfig.videoSrc !== streamConfig.videoSrc) {
-    if (streamConfig.file && streamConfig.videoSrc) {
+  if (prevState.streamConfig.file !== streamConfig.file) {
+    if (streamConfig.file !== null) {
       // File stream is handled differently - the actual stream setup happens in handleFilePlay
       // Just add the placeholder to the store
-      addLocalStream('file', null, streamConfig.videoSrc);
-    } else if (!streamConfig.file && prevState.streamConfig.file) {
+      addLocalStream('file', null, streamConfig.file);
+    } else if (prevState.streamConfig.file !== null) {
       // Clean up file stream
       const localStreamData = state.localStreams['file'];
       if (localStreamData) {

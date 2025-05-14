@@ -34,10 +34,10 @@
   let refreshInterval: number;
 
   // Reactive button states
-  const isAudioEnabled = $derived($streamStore.streamConfig.audio);
-  const isCameraEnabled = $derived($streamStore.streamConfig.camera);
+  const isAudioEnabled = $derived($streamStore.streamConfig.audio !== null);
+  const isCameraEnabled = $derived($streamStore.streamConfig.camera !== null);
   const isScreenSharing = $derived($streamStore.streamConfig.screen);
-  const isVideoShared = $derived(!!$streamStore.streamConfig.videoSrc);
+  const isVideoShared = $derived($streamStore.streamConfig.file !== null);
   const isBlurEnabled = $derived($configStore['blur-video'] === 'yes');
 
   // Stream layout state
@@ -200,9 +200,15 @@
   }
   
   async function handleToggleAudio() {
-    const newValue = !$streamStore.streamConfig.audio;
     setAudioCallback((arg) => instant = arg);
-    updateStreamConfig({ audio: newValue });
+    
+    if ($streamStore.streamConfig.audio === null) {
+      // Get the current audio device from config or use default
+      const deviceString = $configStore['audio-device'] || '';
+      updateStreamConfig({ audio: deviceString });
+    } else {
+      updateStreamConfig({ audio: null });
+    }
   }
 
   async function handleContextMenu(type: 'audio'|'camera', event: MouseEvent) {
@@ -235,30 +241,27 @@
       // Update both stores for compatibility
       updateConfig(`${selectedButton}-device`, deviceString);
       
-      // Update the device in streamConfig
-      if (selectedButton === 'audio') {
-        updateStreamConfig({ audioDevice: deviceString });
-      } else if (selectedButton === 'camera') {
-        updateStreamConfig({ videoDevice: deviceString });
-      }
-      
-      // Temporarily disable the stream and then re-enable it to apply the new device
-      const currentState = $streamStore.streamConfig[selectedButton];
-      if (currentState) {
-        // If already enabled, toggle off and on to restart with new device
-        updateStreamConfig({ [selectedButton]: false });
+      // If the stream is already enabled, update it with the new device
+      if ($streamStore.streamConfig[selectedButton] !== null) {
+        // Temporarily disable the stream and then re-enable it with the new device
+        updateStreamConfig({ [selectedButton]: null });
         // Short delay to ensure cleanup completes before restarting
-        setTimeout(() => updateStreamConfig({ [selectedButton || '']: true }), 100);
+        setTimeout(() => updateStreamConfig({ [selectedButton]: deviceString }), 100);
       } else {
         // If not enabled, just enable it with the new device
-        updateStreamConfig({ [selectedButton]: true });
+        updateStreamConfig({ [selectedButton]: deviceString });
       }
     }
   }
 
   async function handleToggleVideo() {
-    const newValue = !$streamStore.streamConfig.camera;
-    updateStreamConfig({ camera: newValue });
+    if ($streamStore.streamConfig.camera === null) {
+      // Get the current video device from config or use default
+      const deviceString = $configStore['video-device'] || '';
+      updateStreamConfig({ camera: deviceString });
+    } else {
+      updateStreamConfig({ camera: null });
+    }
   }
 
   async function handleToggleBlur() {
@@ -268,8 +271,9 @@
     // If video is already enabled, restart it to apply the blur effect
     if (isCameraEnabled) {
       // Temporarily disable and re-enable camera to apply blur
-      updateStreamConfig({ camera: false });
-      setTimeout(() => updateStreamConfig({ camera: true }), 100);
+      const currentDevice = $streamStore.streamConfig.camera;
+      updateStreamConfig({ camera: null });
+      setTimeout(() => updateStreamConfig({ camera: currentDevice }), 100);
     }
   }
 
@@ -312,16 +316,16 @@
       const fileURL = URL.createObjectURL(file);
 
       updateStreamConfig({
-        file: true,
-        videoSrc: fileURL,
+        file: fileURL,
         videoStream: undefined,
       });
     }
   }
   async function handleVideoCleanup() {
-    const src = $streamStore.streamConfig.videoSrc!;
+    const src = $streamStore.streamConfig.file!;
     removeLocalFileStream(src);
-    updateStreamConfig({file: false, videoSrc: null, videoStream: null});
+    updateStreamConfig({file: null, videoStream: null});
+    uploadVideo.value = ''; // Reset the file input
   }
 
   async function handleFilePlay(event: Event) {
@@ -335,10 +339,9 @@
       (videoNode as any).mozCaptureStream();
 
     updateStreamConfig({
-      videoStream,
-      file: true
+      videoStream
     });
-    addLocalFileStream($streamStore.streamConfig.videoSrc!, videoStream);
+    addLocalFileStream($streamStore.streamConfig.file!, videoStream);
     setupLocalFileStream(videoStream);
   }
 

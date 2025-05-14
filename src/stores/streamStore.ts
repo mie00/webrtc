@@ -2,14 +2,11 @@ import { writable, get } from 'svelte/store';
 
 // Stream configuration interface
 export interface StreamConfig {
-  audio: boolean;
-  camera: boolean;
+  audio: string | null; // Contains device ID when enabled, null when disabled
+  camera: string | null; // Contains device ID when enabled, null when disabled
   screen: boolean;
-  file: boolean;
-  videoStream: MediaStream | null;
-  videoSrc: string | null;
-  audioDevice: string | null;
-  videoDevice: string | null;
+  file: string | null; // Contains video source URL when enabled, null when disabled
+  videoStream: MediaStream | null; // Still needed for file playback
 }
 
 // Stream type definitions
@@ -58,14 +55,11 @@ const initialState: StreamState = {
   },
   
   streamConfig: {
-    audio: false,
-    camera: false,
+    audio: null,
+    camera: null,
     screen: false,
-    file: false,
+    file: null,
     videoStream: null,
-    videoSrc: null,
-    audioDevice: null,
-    videoDevice: null,
   }
 };
 
