@@ -239,7 +239,7 @@
         // If already enabled, toggle off and on to restart with new device
         updateStreamConfig({ [selectedButton]: false });
         // Short delay to ensure cleanup completes before restarting
-        setTimeout(() => updateStreamConfig({ [selectedButton]: true }), 100);
+        setTimeout(() => updateStreamConfig({ [selectedButton || '']: true }), 100);
       } else {
         // If not enabled, just enable it with the new device
         updateStreamConfig({ [selectedButton]: true });
