@@ -115,7 +115,7 @@ async function setupStreams(merger: any): Promise<void> {
 }
 
 async function startRecording(): Promise<void> {
-  var merger = new window.VideoStreamMerger();
+  var merger = new VideoStreamMerger();
   window.app.recorder = window.setInterval(setupStreams.bind(null, merger), 1000);
   window.app.merger = merger;
   merger.setOutputSize(FW, FH);
@@ -125,13 +125,13 @@ async function startRecording(): Promise<void> {
   merger.start();
 
   const result = merger.result;
-  if (false) { // for debugging only
-    window.app.viewStreams[result.id] = result;
-    // await createStreamElement(result, 'video', { muted: false, controls: true });
-  }
+  // if (false) { // for debugging only
+  //   window.app.viewStreams[result.id] = result;
+  //   // await createStreamElement(result, 'video', { muted: false, controls: true });
+  // }
 
   const options = { mimeType: "video/webm; codecs=vp9" };
-  const mediaRecorder = new MediaRecorder(result, options);
+  const mediaRecorder = new MediaRecorder(result!, options);
   window.app.mediaRecorder = mediaRecorder;
 
   mediaRecorder.ondataavailable = async (ev: BlobEvent) => {

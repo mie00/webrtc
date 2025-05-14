@@ -282,6 +282,7 @@
   let isRecording = $state(false);
 
   async function handleRecord() {
+    console.log(isRecording)
     if (isRecording) {
       stopRecording();
     } else {
