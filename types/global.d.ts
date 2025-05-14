@@ -57,7 +57,6 @@ interface WebRTCClient {
 
 interface App {
   clients: Record<string, WebRTCClient>;
-  viewStreams: Record<string, MediaStream>;
   nego_messages: Record<string, any>;
   nego_handlers: Record<string, (data: any, cid: string) => void>;
   cleanups: Record<string, (cid?: string) => void>;

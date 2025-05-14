@@ -32,8 +32,6 @@ export class WebRTCApp {
     nego_handlers: {},
     cleanups: {},
     nego_messages: {},
-    // config: {}, // Removed - Config is managed by configStore
-    viewStreams: {},
   };
 
   constructor() { // Removed config parameter
