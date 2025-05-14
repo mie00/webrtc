@@ -5,9 +5,11 @@ import {
   removeLocalStream,
   addRemoteStream,
   removeRemoteStream,
+  updateStreamConfig
 } from '../stores/streamStore.js';
 import {
-  getAllConfig
+  getAllConfig,
+  configStore
 } from '../stores/configStore.js';
 import { getDirectClient, getAllDirectClients, getAllClientCids } from '../stores/connectionStore.js'; // Adjust path if needed
 import {
@@ -159,13 +161,42 @@ export function setupTrackHandler(app: App, cid: string): void { // app might be
 // Module-level storage for audio callback
 let audioCbFunction: ((instant: number) => void) | undefined;
 
+// Track previous config state for device changes
+let prevConfigState: Record<string, string> = {};
+
+// Subscribe to config changes to detect device changes
+configStore.subscribe(config => {
+  // Check for device changes that might require stream restart
+  const deviceKeys = ['audio-device', 'video-device', 'blur-video'];
+  const streamState = getStreamState();
+  
+  // For each device config that changed
+  deviceKeys.forEach(key => {
+    if (prevConfigState[key] !== config[key]) {
+      // If the corresponding stream is active, restart it
+      if (key === 'audio-device' && streamState.streamConfig.audio) {
+        updateStreamConfig({ audio: false });
+        setTimeout(() => updateStreamConfig({ audio: true }), 100);
+      } else if ((key === 'video-device' || key === 'blur-video') && streamState.streamConfig.camera) {
+        updateStreamConfig({ camera: false });
+        setTimeout(() => updateStreamConfig({ camera: true }), 100);
+      }
+    }
+  });
+  
+  // Update previous state
+  prevConfigState = { ...config };
+});
+
 // Set up subscription to streamConfig changes
 streamStore.subscribe(async (state) => {
   const prevState = getStreamState();
   const streamConfig = state.streamConfig;
+  const globalConfig = getAllConfig();
   
   // Handle audio stream changes
-  if (prevState.streamConfig.audio !== streamConfig.audio) {
+  if (prevState.streamConfig.audio !== streamConfig.audio || 
+      (streamConfig.audio && globalConfig['audio-device'] !== prevState['audio-device'])) {
     if (streamConfig.audio) {
       // Set up audio stream
       const globalConfig = getAllConfig();
@@ -224,7 +255,8 @@ streamStore.subscribe(async (state) => {
   }
   
   // Handle camera stream changes
-  if (prevState.streamConfig.camera !== streamConfig.camera) {
+  if (prevState.streamConfig.camera !== streamConfig.camera || 
+      (streamConfig.camera && globalConfig['video-device'] !== prevState['video-device'])) {
     if (streamConfig.camera) {
       // Set up camera stream
       const globalConfig = getAllConfig();

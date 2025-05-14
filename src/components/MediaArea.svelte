@@ -230,10 +230,20 @@
     const device = devices.find(d => d.label === item && d.kind === `${selectedButton}input`);
     
     if (device) {
-      await destroyLocalStream(selectedButton);
+      // Update the device configuration
       updateConfig(`${selectedButton}-device`, `${device.groupId}|${device.deviceId}`);
-      updateStreamConfig({ [selectedButton]: true });
-      await setupLocalStream(selectedButton);
+      
+      // Temporarily disable the stream and then re-enable it to apply the new device
+      const currentState = $streamStore.streamConfig[selectedButton];
+      if (currentState) {
+        // If already enabled, toggle off and on to restart with new device
+        updateStreamConfig({ [selectedButton]: false });
+        // Short delay to ensure cleanup completes before restarting
+        setTimeout(() => updateStreamConfig({ [selectedButton]: true }), 100);
+      } else {
+        // If not enabled, just enable it with the new device
+        updateStreamConfig({ [selectedButton]: true });
+      }
     }
   }
 
