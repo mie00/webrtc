@@ -53,21 +53,22 @@ export function removeInflight(id: string): void {
   });
 }
 
+// Store for interval ID
+let sendHostInterval: number | null = null;
+
 /**
- * Initialize the forward module with the app object
+ * Initialize the forward module
  * This maintains compatibility with the original forwardInit function
  */
 export function forwardInit(originalApp: App): void {
-  const app = originalApp as ForwardApp;
-
   // Set up cleanup handler
-  app.cleanups['forward'] = (cid?: string) => {
+  originalApp.cleanups['forward'] = (cid?: string) => {
     if (cid) {
       return;
     }
-    if (app._send_host_interval) {
-      clearInterval(app._send_host_interval);
-      app._send_host_interval = null;
+    if (sendHostInterval) {
+      clearInterval(sendHostInterval);
+      sendHostInterval = null;
     }
     
     // Update the Svelte store
@@ -83,11 +84,13 @@ import {
   setButton
 } from './webrtc/forward.js';
 
+// Store for interval ID
+let sendHostInterval: number | null = null;
+
 /**
  * Set up forward channel for a client
  */
-export function setupForwardChannel(originalApp: App, cid: string): void { // originalApp might be needed for global config/state
-  // const app = originalApp as ForwardApp; // Less reliance on app object
+export function setupForwardChannel(cid: string): void {
   const client = getDirectClient(cid);
   const pc = client?.pc;
   if (!client || !pc) {
@@ -127,7 +130,6 @@ export function setupForwardChannel(originalApp: App, cid: string): void { // or
         
         // Update the forward peer in the store
         setForwardPeer(cid);
-        // originalApp.forward_peer = cid; // Update app object if still needed elsewhere
 
         // add hosts_host to url params of current page
         const url = new URL(window.location.href);
@@ -144,12 +146,12 @@ export function setupForwardChannel(originalApp: App, cid: string): void { // or
         };
 
         sendHost();
-        // Manage interval via app object if still necessary for global state
-        if (originalApp._send_host_interval) {
-          clearInterval(originalApp._send_host_interval);
-          originalApp._send_host_interval = null;
+        // Manage interval using our local variable
+        if (sendHostInterval) {
+          clearInterval(sendHostInterval);
+          sendHostInterval = null;
         }
-        originalApp._send_host_interval = window.setInterval(sendHost, 10000);
+        sendHostInterval = window.setInterval(sendHost, 10000);
 
         const mediaElement = document.getElementById('media');
         if (mediaElement) {
@@ -231,10 +233,10 @@ export function setupForwardChannel(originalApp: App, cid: string): void { // or
         break;
 
       case "offer.end":
-        // Use originalApp for interval management if needed
-        if (originalApp._send_host_interval) {
-          clearInterval(originalApp._send_host_interval);
-          originalApp._send_host_interval = null;
+        // Use local variable for interval management
+        if (sendHostInterval) {
+          clearInterval(sendHostInterval);
+          sendHostInterval = null;
         }
         const iframeElem = document.getElementById(`iframe-${data.host}`);
         if (iframeElem) iframeElem.remove();
@@ -251,20 +253,21 @@ export function setupForwardChannel(originalApp: App, cid: string): void { // or
   };
 }
 
+// Store the last forwarded URL
+let lastForwardedUrl: string = "http://127.0.0.1:5001";
+
 /**
  * Toggle forward handler - adapted to work with Svelte store
  */
 export const toggleForwardHandler = async (): Promise<void> => {
-  const forwardApp = window.app as ForwardApp; // Keep for _last_forwarded for now
   const clients = getAllDirectClients(); // Get clients from store
   const state = getForwardState();
 
   if (!state.allowedHost) {
-    let val = prompt("Please enter the url to forward",
-      forwardApp._last_forwarded || "http://127.0.0.1:5001");
+    let val = prompt("Please enter the url to forward", lastForwardedUrl);
     
     if (val) {
-      forwardApp._last_forwarded = val;
+      lastForwardedUrl = val;
     } else {
       alert("empty value");
       return;
@@ -336,14 +339,6 @@ interface ForwardClient extends WebRTCClient {
   forward: RTCDataChannel;
 }
 
-interface ForwardApp extends App {
-  forward_peer?: string;
-  _send_host_interval?: number | null;
-  allowed_host?: string | null;
-  inflight: Record<string, (data: any) => void>;
-  _last_forwarded?: string;
-}
-
 interface ForwardResponse {
   response?: {
     status: number;
@@ -367,15 +362,24 @@ if ('serviceWorker' in navigator) {
       })
     )
     .catch((err) => console.log(err));
-
-  const forwardApp = window.app as ForwardApp;
   
   const handler = function(event: MessageEvent): void {
     console.log('got event from service worker, sending message to peer', event);
     const id = event.data.id;
     
-    if (!forwardApp.forward_peer || !forwardApp.clients[forwardApp.forward_peer]) {
+    // Get current state from store
+    const state = getForwardState();
+    const forwardPeer = state.forwardPeer;
+    
+    if (!forwardPeer) {
       console.error('No forward peer available');
+      return;
+    }
+    
+    // Get client from store
+    const client = getDirectClient(forwardPeer) as ForwardClient;
+    if (!client || !client.forward) {
+      console.error('Forward client not available');
       return;
     }
     
@@ -400,7 +404,6 @@ if ('serviceWorker' in navigator) {
       }
     });
     
-    const client = forwardApp.clients[forwardApp.forward_peer] as ForwardClient;
     client.forward.send(JSON.stringify({
       type: "request",
       ...event.data
