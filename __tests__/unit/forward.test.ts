@@ -6,8 +6,16 @@ import { registerCleanup } from '../../src/stores/appStateStore.js';
 import type { ForwardState } from '../../src/lib/forwardBridge.js';
 
 // Mock the imported functions
-jest.mock('../../src/stores/connectionStore.js'); // Corrected path
-jest.mock('../../src/stores/appStateStore.js'); // Corrected path
+// Paths reverted as per request. These are now relative to __tests__/unit/.
+// For these mocks to apply to 'forwardBridge.ts', Jest must resolve these paths
+// to the same modules imported by 'forwardBridge.ts'.
+jest.mock('./src/stores/connectionStore.js', () => ({
+  getDirectClient: jest.fn(),
+  getAllDirectClients: jest.fn(),
+}));
+jest.mock('./src/stores/appStateStore.js', () => ({
+  registerCleanup: jest.fn(),
+}));
 
 
 /**
