@@ -6,8 +6,8 @@ import { registerCleanup } from '../../src/stores/appStateStore.js';
 import type { ForwardState } from '../../src/lib/forwardBridge.js';
 
 // Mock the imported functions
-jest.mock('./src/stores/connectionStore.js');
-jest.mock('./src/stores/appStateStore.js');
+jest.mock('../../src/stores/connectionStore.js'); // Corrected path
+jest.mock('../../src/stores/appStateStore.js'); // Corrected path
 
 
 /**

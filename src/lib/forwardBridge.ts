@@ -82,6 +82,8 @@ import {
   setButton
 } from './webrtc/forward.js';
 
+export { concatUint8Arrays }; // Export for use in tests or other modules
+
 // Store for interval ID
 let sendHostInterval: number | null = null;
 
