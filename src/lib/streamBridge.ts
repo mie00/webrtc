@@ -9,7 +9,8 @@ import {
 } from '../stores/streamStore.js';
 import {
   getAllConfig,
-  configStore
+  configStore,
+  type Config
 } from '../stores/configStore.js';
 import { getDirectClient, getAllDirectClients, getAllClientCids } from '../stores/connectionStore.js'; // Adjust path if needed
 import {
@@ -162,7 +163,7 @@ export function setupTrackHandler(app: App, cid: string): void { // app might be
 let audioCbFunction: ((instant: number) => void) | undefined;
 
 // Track previous config state for device changes
-let prevConfigState: Record<string, string> = {};
+let prevConfigState: Partial<Config> = {};
 
 // Subscribe to config changes to detect device changes
 configStore.subscribe(config => {
@@ -223,7 +224,7 @@ streamStore.subscribe(async (state) => {
   const prevState = getStreamState();
   const streamConfig = state.streamConfig;
   const globalConfig = getAllConfig();
-  
+
   // Handle audio stream changes
   if (prevState.streamConfig.audio !== streamConfig.audio || 
       prevState.streamConfig.audioDevice !== streamConfig.audioDevice) {
