@@ -198,17 +198,27 @@ configStore.subscribe(config => {
   prevConfigState = { ...config };
 });
 
-// Set up subscription to streamConfig changes
-streamStore.subscribe(async (state) => {
-  const prevState = getStreamState();
-  const streamConfig = state.streamConfig;
-  const globalConfig = getAllConfig();
+// Create derived stores for the specific values we need to watch
+import { derived } from 'svelte/store';
 
-  // Handle audio stream changes
-  if (prevState.streamConfig.audio !== streamConfig.audio) {
-    if (streamConfig.audio !== null) {
+// Derived store for audio device changes
+const audioDevice = derived(streamStore, $state => $state.streamConfig.audio);
+// Derived store for camera device changes
+const cameraDevice = derived(streamStore, $state => $state.streamConfig.camera);
+// Derived store for screen sharing state
+const screenSharing = derived(streamStore, $state => $state.streamConfig.screen);
+// Derived store for file streaming
+const fileStream = derived(streamStore, $state => $state.streamConfig.file);
+
+// Subscribe to audio device changes
+audioDevice.subscribe(async (audio) => {
+  const prevState = getStreamState();
+  const globalConfig = getAllConfig();
+  
+  if (prevState.streamConfig.audio !== audio) {
+    if (audio !== null) {
       // Set up audio stream
-      const deviceInfo = streamConfig.audio.split('|') || [];
+      const deviceInfo = audio.split('|') || [];
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: deviceInfo.length === 2 ? {
           groupId: deviceInfo[0],
@@ -262,12 +272,17 @@ streamStore.subscribe(async (state) => {
       }
     }
   }
+});
+
+// Subscribe to camera device changes
+cameraDevice.subscribe(async (camera) => {
+  const prevState = getStreamState();
+  const globalConfig = getAllConfig();
   
-  // Handle camera stream changes
-  if (prevState.streamConfig.camera !== streamConfig.camera) {
-    if (streamConfig.camera !== null) {
+  if (prevState.streamConfig.camera !== camera) {
+    if (camera !== null) {
       // Set up camera stream
-      const deviceInfo = streamConfig.camera.split('|') || [];
+      const deviceInfo = camera.split('|') || [];
       const stream = await navigator.mediaDevices.getUserMedia({
         video: deviceInfo.length === 2 ? {
           groupId: deviceInfo[0],
@@ -319,10 +334,14 @@ streamStore.subscribe(async (state) => {
       }
     }
   }
+});
+
+// Subscribe to screen sharing changes
+screenSharing.subscribe(async (screen) => {
+  const prevState = getStreamState();
   
-  // Handle screen sharing changes
-  if (prevState.streamConfig.screen !== streamConfig.screen) {
-    if (streamConfig.screen) {
+  if (prevState.streamConfig.screen !== screen) {
+    if (screen) {
       // Set up screen sharing
       const stream = await navigator.mediaDevices.getDisplayMedia({
         audio: true,
@@ -343,13 +362,17 @@ streamStore.subscribe(async (state) => {
       }
     }
   }
+});
+
+// Subscribe to file stream changes
+fileStream.subscribe(async (file) => {
+  const prevState = getStreamState();
   
-  // Handle file stream changes
-  if (prevState.streamConfig.file !== streamConfig.file) {
-    if (streamConfig.file !== null) {
+  if (prevState.streamConfig.file !== file) {
+    if (file !== null) {
       // File stream is handled differently - the actual stream setup happens in handleFilePlay
       // Just add the placeholder to the store
-      addLocalStream('file', null, streamConfig.file);
+      addLocalStream('file', null, file);
     } else {
       // Clean up file stream
       const localStreamData = state.localStreams['file'];
