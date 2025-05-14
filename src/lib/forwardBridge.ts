@@ -3,17 +3,25 @@ import { getDirectClient, getAllDirectClients } from '../stores/connectionStore.
 import { registerCleanup } from '../stores/appStateStore.js'; // Import store function
 
 // Forward state interface
+export interface LogMessage {
+  id: string;
+  text: string;
+  status: string; // e.g., '🌀', '✅', '❌', '⭕'
+}
+
 export interface ForwardState {
   allowedHost: string | null;
   forwardPeer: string | null;
   inflight: Record<string, (data: any) => void>;
+  logMessages: LogMessage[];
 }
 
 // Initial state
 const initialState: ForwardState = {
   allowedHost: null,
   forwardPeer: null,
-  inflight: {}
+  inflight: {},
+  logMessages: []
 };
 
 // Create the store
@@ -54,6 +62,29 @@ export function removeInflight(id: string): void {
   });
 }
 
+export function addLogMessage(id: string, text: string): void {
+  forwardStore.update(state => ({
+    ...state,
+    logMessages: [...state.logMessages, { id, text, status: '🌀' }]
+  }));
+}
+
+export function updateLogMessageStatus(id: string, status: string): void {
+  forwardStore.update(state => ({
+    ...state,
+    logMessages: state.logMessages.map(msg =>
+      msg.id === id ? { ...msg, status } : msg
+    )
+  }));
+}
+
+export function clearLogMessages(): void {
+  forwardStore.update(state => ({
+    ...state,
+    logMessages: []
+  }));
+}
+
 /**
  * Initialize the forward module
  * This maintains compatibility with the original forwardInit function
@@ -72,6 +103,7 @@ export function forwardInit(): void {
     // Update the Svelte store
     setAllowedHost(null);
     setForwardPeer(null);
+    clearLogMessages();
   });
 }
 
@@ -152,69 +184,48 @@ export function setupForwardChannel(cid: string): void {
           sendHostInterval = null;
         }
         sendHostInterval = window.setInterval(sendHost, 10000);
-
-        const mediaElement = document.getElementById('media');
-        if (mediaElement) {
-          let iframeElement = document.createElement('iframe');
-          mediaElement.appendChild(iframeElement);
-          iframeElement.src = `/iframe-content.html?host=${data.host}`;
-          iframeElement.id = `iframe-${data.host}`;
-          iframeElement.classList.add('w-full', 'h-screen', 'bg-white');
-          iframeElement.setAttribute('allowTransparency', 'false');
-        }
+        // Iframe creation will be handled by Svelte component based on allowedHost
         break;
 
       case "request":
+        addLogMessage(data.id, data.url);
+
         // Use allowed_host from the store via state variable
-        const logElement = document.getElementById(`log-${state.allowedHost}`);
-        if (logElement) {
-          let logLine = document.createElement('p');
-          logLine.id = `ll-${data.id}`;
-          logElement.insertBefore(logLine, logElement.firstChild);
-          logLine.innerHTML = `${data.url}`;
-          const status = document.createElement('span');
-          status.id = `lls-${data.id}`;
-          status.classList.add("right");
-          status.innerHTML = '🌀';
-          logLine.appendChild(status);
-
-          // Use allowed_host from the store via state variable
-          if (!data.url.startsWith(state.allowedHost || '')) {
-            console.log("not allowed", state.allowedHost, data.url);
-            status.innerHTML = '❌';
-            return;
-          }
-
-          fetch(data.url, data).then(async response => {
-            (currentClient as ForwardClient).forward?.send(JSON.stringify({ // Use currentClient
-              type: "response",
-              id: data.id,
-              status: response.status,
-              statusText: response.statusText,
-              headers: Object.fromEntries(Array.from(response.headers.entries())),
-            }));
-            
-            return (async function(): Promise<void> {
-              if (response.body === null) {
-                (currentClient as ForwardClient).forward?.send(JSON.stringify({ // Use currentClient
-                  type: "end",
-                  id: data.id,
-                }));
-                return; // Return void, not null
-              }
-              const reader = response.body.getReader();
-              // Pass currentClient's forward channel to sendData
-              await sendData(reader, data.id, (currentClient as ForwardClient).forward);
-              if (status) status.innerHTML = '✅';
-            }());
-          }).catch(err => {
-            (currentClient as ForwardClient).forward?.send(JSON.stringify({ // Use currentClient
-              type: "error",
-              err: JSON.stringify(err, Object.getOwnPropertyNames(err)),
-            }));
-            if (status) status.innerHTML = '⭕';
-          });
+        if (!data.url.startsWith(state.allowedHost || '')) {
+          console.log("not allowed", state.allowedHost, data.url);
+          updateLogMessageStatus(data.id, '❌');
+          return;
         }
+
+        fetch(data.url, data).then(async response => {
+          (currentClient as ForwardClient).forward?.send(JSON.stringify({ // Use currentClient
+            type: "response",
+            id: data.id,
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries(Array.from(response.headers.entries())),
+          }));
+          
+          return (async function(): Promise<void> {
+            if (response.body === null) {
+              (currentClient as ForwardClient).forward?.send(JSON.stringify({ // Use currentClient
+                type: "end",
+                id: data.id,
+              }));
+              return; // Return void, not null
+            }
+            const reader = response.body.getReader();
+            // Pass currentClient's forward channel to sendData
+            await sendData(reader, data.id, (currentClient as ForwardClient).forward);
+            updateLogMessageStatus(data.id, '✅');
+          }());
+        }).catch(err => {
+          (currentClient as ForwardClient).forward?.send(JSON.stringify({ // Use currentClient
+            type: "error",
+            err: JSON.stringify(err, Object.getOwnPropertyNames(err)),
+          }));
+          updateLogMessageStatus(data.id, '⭕');
+        });
         break;
         
       case "response":
@@ -238,8 +249,8 @@ export function setupForwardChannel(cid: string): void {
           clearInterval(sendHostInterval);
           sendHostInterval = null;
         }
-        const iframeElem = document.getElementById(`iframe-${data.host}`);
-        if (iframeElem) iframeElem.remove();
+        // Iframe removal will be handled by Svelte component
+        clearLogMessages();
         break;
         
       case "offer.error":
@@ -294,20 +305,13 @@ export const toggleForwardHandler = async (): Promise<void> => {
 
     // Update the store (app object syncs via subscription if needed)
     setAllowedHost(val);
+    // Log container creation will be handled by Svelte component
 
     for (const clientId in clients) { // Iterate over clients from store
       const client = clients[clientId] as ForwardClient;
       if (client.forward && client.forward.readyState === 'open') {
         client.forward.send(JSON.stringify({ type: "offer", host: val }));
       }
-    }
-
-    const mediaElement = document.getElementById('media');
-    if (mediaElement) {
-      let logElement = document.createElement('div');
-      mediaElement.appendChild(logElement);
-      logElement.id = `log-${val}`;
-      logElement.classList.add('w-full', 'max-h-screen', 'bg-white', 'overflow-x-hidden', 'overflow-y-scroll');
     }
   } else {
     // Send offer.end to clients from store
@@ -320,18 +324,13 @@ export const toggleForwardHandler = async (): Promise<void> => {
         }));
       }
     }
-
-    const logElement = document.getElementById(`log-${state.allowedHost}`);
-    if (logElement) logElement.remove();
     
+    // Log container removal will be handled by Svelte component
     // Update both the app and the store
     setAllowedHost(null);
+    clearLogMessages();
   }
-  
-  const startForwardButton = document.getElementById('start-forward');
-  if (startForwardButton) {
-    setButton(startForwardButton, state.allowedHost);
-  }
+  // Button state will be handled reactively in Svelte component
 };
 
 // Type definitions
