@@ -3,6 +3,7 @@ import { writable, get } from 'svelte/store';
 import { normalizeStreamId } from './stream.js';
 import { getAllDirectClients } from '../../stores/connectionStore.js';
 import { getStreamState, type StreamState } from '../../stores/streamStore.js';
+import { calculateStreamLayout } from '../utils/streamLayout.js';
 
 // Constants
 const FW = 1920;
@@ -178,10 +179,8 @@ async function setupStreams(merger: any): Promise<void> {
   // Update last streams
   recorderStore.update(s => ({ ...s, lastStreams: streamKeys }));
   
-  // Calculate grid layout
-  const rcs = Math.ceil(Math.sqrt(streams.length));
-  const cols = rcs;
-  const rows = cols * (cols - 1) >= streams.length ? cols - 1 : cols;
+  // Calculate grid layout using the shared function
+  const { rows, cols } = calculateStreamLayout(FW, FH, streams.length);
   console.log(`${videoStreamsLength} streams will be displayed in ${rows}x${cols}`);
   
   // Add streams to merger
