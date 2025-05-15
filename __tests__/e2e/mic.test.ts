@@ -8,7 +8,7 @@ import {
     teardownMicTestMedia,
     performMicTest,
     type PageInfo,
-} from '../shared/mediaTestHelpers'; // Updated import
+} from './shared/mediaTestHelpers'; // Updated import
 
 // --- Jest Test Suite ---
 describe('WebRTC Microphone E2E Test (2 Peers)', () => {

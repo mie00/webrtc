@@ -8,7 +8,7 @@ import {
     teardownWatchTestMedia,
     performWatchTest,
     type PageInfo,
-} from '../shared/mediaTestHelpers'; // Updated import
+} from './shared/mediaTestHelpers'; // Updated import
 
 // --- Jest Test Suite ---
 describe('WebRTC Watch (Share Video File) E2E Test (2 Peers)', () => {

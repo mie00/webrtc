@@ -11,9 +11,9 @@ module.exports = {
       `--use-fake-device-for-media-stream`,
       `--use-fake-ui-for-media-stream`,
       // Use the generated MJPEG for fake video
-      `--use-file-for-fake-video-capture=./__tests__/e2e/setup/camera.mjpeg`,
+      `--use-file-for-fake-video-capture=./__tests__/e2e/setup/camera_test_generated_video.mjpeg`,
       // Use a generated WAV for fake audio (path relative to project root)
-      `--use-file-for-fake-audio-capture=./__tests__/e2e/setup/mic.wav`,
+      `--use-file-for-fake-audio-capture=./__tests__/e2e/setup/mic_test_generated_audio.wav`,
       '--window-size=2540,1080',
     ],
     ignoreDefaultArgs: ['--mute-audio'],

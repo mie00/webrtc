@@ -8,7 +8,7 @@ import {
     teardownCameraTestMedia,
     performCameraTest,
     type PageInfo,
-} from '../shared/mediaTestHelpers'; // Updated import
+} from './shared/mediaTestHelpers'; // Updated import
 
 // --- Jest Test Suite ---
 describe('WebRTC Camera E2E Test (2 Peers)', () => {

@@ -64,7 +64,7 @@ export async function teardownMicTestMedia(): Promise<void> {
 // --- Camera Test Media ---
 export const CAMERA_TEST_VIDEO_FILE_NAME = 'camera_test_generated_video.mjpeg';
 export const cameraTestVideoPath = path.join(MEDIA_SETUP_DIR, CAMERA_TEST_VIDEO_FILE_NAME);
-export const CAMERA_TEST_QR_CONTENT = "camera_test_qr_code";
+export const CAMERA_TEST_QR_CONTENT = "book";
 let cameraTestTempFramesDir: string | undefined;
 
 export async function setupCameraTestMedia(): Promise<void> {
@@ -271,13 +271,7 @@ export async function performWatchTest(
     console.log(`${sender.name}: "Share Video" button indicates video is shared.`);
     await new Promise(resolve => setTimeout(resolve, 3000)); // Allow time for video to load and play locally
 
-    // 2. Verify local playback on Sender
-    console.log(`${sender.name}: Verifying local video playback...`);
-    await verifyVideoStreamOnPage(sender.page, sender.name, LOCAL_VIDEO_ELEMENT_SELECTOR_FILE, WATCH_TEST_QR_CONTENT);
-    console.log(`${sender.name}: Verifying local audio playback...`);
-    await verifyAudioStreamOnPage(sender.page, sender.name, true);
-
-    // 3. Verify remote stream on Receivers
+    // 2. Verify remote stream on Receivers
     for (const receiver of receivers) {
         console.log(`${receiver.name}: Waiting for remote video element...`);
         await receiver.page.waitForSelector(REMOTE_VIDEO_ELEMENT_SELECTOR, { visible: true, timeout: PUPPETEER_TIMEOUT * 2 });
@@ -285,6 +279,12 @@ export async function performWatchTest(
         await verifyVideoStreamOnPage(receiver.page, receiver.name, REMOTE_VIDEO_ELEMENT_SELECTOR, WATCH_TEST_QR_CONTENT);
         await verifyAudioStreamOnPage(receiver.page, receiver.name, true);
     }
+
+    // 3. Verify local playback on Sender
+    console.log(`${sender.name}: Verifying local video playback...`);
+    await verifyVideoStreamOnPage(sender.page, sender.name, LOCAL_VIDEO_ELEMENT_SELECTOR_FILE, WATCH_TEST_QR_CONTENT);
+    console.log(`${sender.name}: Verifying local audio playback...`);
+    await verifyAudioStreamOnPage(sender.page, sender.name, true);
 
     // 4. On Sender: Stop sharing
     console.log(`${sender.name}: Clicking "Share Video" button again to stop sharing...`);
