@@ -8,14 +8,7 @@
     "build": "vite build",
     "dev": "vite dev",
     "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json",
-    "test": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest  --testPathIgnorePatterns 'e2e'",
-    "test:watch": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest --watch",
-    "test:coverage": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest --coverage",
-    "test:unit": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest __tests__/unit",
-    "test:integration": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest __tests__/integration",
-    "test:e2e": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest --config jest-puppeteer.config.cjs --rootDir . --runInBand __tests__/e2e",
-    "test:cur": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --enable-source-maps\" jest --config jest-puppeteer.config.cjs --rootDir . --runInBand"
+    "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "keywords": [
     "webrtc",
