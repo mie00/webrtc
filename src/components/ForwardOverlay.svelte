@@ -148,6 +148,7 @@
         class="resize-handle"
         onmousedown={handleResizeMouseDown}
         role="slider"
+        aria-valuenow="0"
         aria-label="Resize overlay"
         tabindex="0"
       ></div>
