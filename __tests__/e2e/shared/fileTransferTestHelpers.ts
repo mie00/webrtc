@@ -9,7 +9,7 @@ import {
     calculateSHA256, // For buffer hashing
     // CONTROL_PANEL_TOGGLE_SELECTOR is handled by ensurePanelOpen
 } from '../setup/testHelpers';
-import { ensurePanelOpen as ensurePanelOpenUtil } from './chatTestHelpers'; // Renaming to avoid conflict if we define a local one
+import { ensurePanelOpen as ensurePanelOpenUtil } from './panelUtils'; // Renaming to avoid conflict if we define a local one
 
 // --- Test Configuration ---
 const __filename = fileURLToPath(import.meta.url);

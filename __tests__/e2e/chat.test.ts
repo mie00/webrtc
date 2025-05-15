@@ -10,7 +10,8 @@ import {
     CHAT_INPUT_SELECTOR,
     CHAT_OUTPUT_CONTAINER_SELECTOR // Used by verifyMessageReceived
 } from './setup/testHelpers'; // Import selectors from helpers
-import { ensurePanelOpen, verifyMessageReceived } from './shared/chatTestHelpers';
+import { verifyMessageReceived } from './shared/chatTestHelpers';
+import { ensurePanelOpen } from './shared/panelUtils';
 
 // --- Jest Test Suite ---
 describe('WebRTC Chat E2E Test', () => {
