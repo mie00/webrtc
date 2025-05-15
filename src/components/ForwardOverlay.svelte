@@ -15,6 +15,10 @@
   let dragStart = $state({ x: 0, y: 0 });
   let overlayElement: HTMLElement | undefined = $state();
 
+  let isResizing = $state(false);
+  let resizeStart = $state({ x: 0, y: 0, width: 0, height: 0 });
+  const minSize = $state({ width: 200, height: 150 }); // Minimum dimensions
+
   const unsubscribeForwardStore = forwardStore.subscribe(value => {
     allowedHosts = value.allowedHosts;
     forwardHost = value.forwardHost;
@@ -29,9 +33,11 @@
     unsubscribeForwardStore();
     window.removeEventListener('mousemove', handleMouseMove);
     window.removeEventListener('mouseup', handleMouseUp);
+    window.removeEventListener('mousemove', handleResizeMouseMove);
+    window.removeEventListener('mouseup', handleResizeMouseUp);
   });
 
-  function handleMouseDown(event: MouseEvent) {
+  function handleOverlayMouseDown(event: MouseEvent) {
     if (event.target !== overlayElement && !(event.target as HTMLElement).closest('.overlay-header')) {
       return;
     }
@@ -57,6 +63,32 @@
     window.removeEventListener('mouseup', handleMouseUp);
   }
 
+  function handleResizeMouseDown(event: MouseEvent) {
+    event.stopPropagation(); // Prevent triggering overlay drag
+    isResizing = true;
+    resizeStart.x = event.clientX;
+    resizeStart.y = event.clientY;
+    resizeStart.width = size.width;
+    resizeStart.height = size.height;
+    window.addEventListener('mousemove', handleResizeMouseMove);
+    window.addEventListener('mouseup', handleResizeMouseUp);
+  }
+
+  function handleResizeMouseMove(event: MouseEvent) {
+    if (!isResizing) return;
+    event.preventDefault();
+    const dx = event.clientX - resizeStart.x;
+    const dy = event.clientY - resizeStart.y;
+    size.width = Math.max(minSize.width, resizeStart.width + dx);
+    size.height = Math.max(minSize.height, resizeStart.height + dy);
+  }
+
+  function handleResizeMouseUp() {
+    isResizing = false;
+    window.removeEventListener('mousemove', handleResizeMouseMove);
+    window.removeEventListener('mouseup', handleResizeMouseUp);
+  }
+
   function toggleMinimize() {
     isMinimized = !isMinimized;
   }
@@ -74,7 +106,7 @@
   >
     <div
       class="overlay-header bg-gray-800 p-2 rounded-t-lg cursor-grab flex justify-between items-center"
-      onmousedown={handleMouseDown} role="button" tabindex="0"
+      onmousedown={handleOverlayMouseDown} role="button" tabindex="0"
     >
       <span class="font-semibold">Forwarded Content</span>
       <div class="flex space-x-2">
@@ -123,5 +155,22 @@
   }
   .iframe-container, .log-container {
     min-height: 50px; /* Ensure they don't collapse completely */
+  }
+  .resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+    /* Optional: add a visual indicator for the handle */
+    /* background: rgba(255,255,255,0.2); */
+    /* border-top: 2px solid transparent;
+    border-left: 2px solid transparent;
+    border-right: 2px solid #fff;
+    border-bottom: 2px solid #fff; */
+  }
+  .resize-handle:hover {
+    /* background: rgba(255,255,255,0.4); */
   }
 </style>
