@@ -35,3 +35,10 @@ export async function checkConnectionEstablished(page: Page, description: string
 // Playwright's context.close() and page.close() handle resource cleanup.
 // Specific storage clearing can be done via context.clearCookies() or page.evaluate().
 // For this migration, we'll rely on context closure for general cleanup.
+
+// --- Hashing Helper ---
+// This is a direct port from the Puppeteer testHelpers.ts
+import crypto from 'crypto';
+export function calculateSHA256(content: string | Buffer): string {
+    return crypto.createHash('sha256').update(content).digest('hex');
+}
