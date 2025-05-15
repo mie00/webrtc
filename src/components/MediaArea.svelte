@@ -41,8 +41,8 @@
   const isVideoShared = $derived($streamStore.streamConfig.file !== null);
   const isBlurEnabled = $derived($configStore['blur-video'] === 'yes');
 
-  // Forwarding state - button still needs allowedHost to change its text/color
-  const allowedHost = $derived($forwardStore.allowedHost);
+  // Forwarding state - button still needs allowedHosts to change its text/color
+  const allowedHosts = $derived($forwardStore.allowedHosts);
 
   // Stream layout state
   const currentLayout = $derived($streamStore.activeView.layout);
@@ -407,12 +407,11 @@
     id="test-start-forward-button" 
     onclick={handleStartForward} 
     class="text-white p-3 rounded-full pointer-events-auto"
-    class:bg-red-500={allowedHost}
-    class:hover:bg-red-600={allowedHost}
-    class:bg-blue-500={!allowedHost}
-    class:hover:bg-blue-600={!allowedHost}
+    class:bg-red-500={allowedHosts.length}
+    class:hover:bg-red-600={allowedHosts.length}
+    class:hover:bg-blue-600={!allowedHosts.length}
   >
-    {allowedHost ? '⏹️ Stop Forward' : '⏩ Start Forward'}
+    {allowedHosts.length ? '⏹️' : '⏩'}
   </button>
   <button id="test-share-video-button" onclick={handleShareVideo} class="hover:bg-blue-600 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoShared}>
     📹 <!-- Share Video -->

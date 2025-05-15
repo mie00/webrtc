@@ -2,23 +2,25 @@
   import { onDestroy } from 'svelte';
   import { forwardStore, toggleForwardHandler, type LogMessage } from '../lib/forwardBridge.js';
 
-  let allowedHost: string | null = null;
-  let logMessages: LogMessage[] = [];
-  let showOverlay = false;
+  let allowedHosts: string[] = $state([]);
+  let forwardHost : string | null = $state(null);
+  let logMessages: LogMessage[] = $state([]);
+  let showOverlay = $state(false);
 
-  let isMinimized = false;
-  let position = { x: 100, y: 100 }; // Initial position
-  let size = { width: 400, height: 300 }; // Default size, can be made resizable later
+  let isMinimized = $state(false);
+  let position = $state({ x: 100, y: 100 }); // Initial position
+  let size = $state({ width: 400, height: 300 }); // Default size, can be made resizable later
 
-  let isDragging = false;
-  let dragStart = { x: 0, y: 0 };
-  let overlayElement: HTMLElement;
+  let isDragging = $state(false);
+  let dragStart = $state({ x: 0, y: 0 });
+  let overlayElement: HTMLElement | undefined = $state();
 
   const unsubscribeForwardStore = forwardStore.subscribe(value => {
-    allowedHost = value.allowedHost;
+    allowedHosts = value.allowedHosts;
+    forwardHost = value.forwardHost;
     logMessages = value.logMessages;
-    showOverlay = !!allowedHost;
-    if (!allowedHost) {
+    showOverlay = !!(allowedHosts.length) || !!forwardHost;
+    if (!(allowedHosts.length) && !forwardHost) {
       isMinimized = false; // Reset minimized state when forwarding stops
     }
   });
@@ -60,7 +62,7 @@
   }
 
   async function handleClose() {
-    await toggleForwardHandler(); // This will set allowedHost to null and hide the overlay
+    await toggleForwardHandler();
   }
 </script>
 
@@ -72,14 +74,14 @@
   >
     <div
       class="overlay-header bg-gray-800 p-2 rounded-t-lg cursor-grab flex justify-between items-center"
-      onmousedown={handleMouseDown}
+      onmousedown={handleMouseDown} role="button" tabindex="0"
     >
       <span class="font-semibold">Forwarded Content</span>
       <div class="flex space-x-2">
-        <button on:click|stopPropagation={toggleMinimize} class="hover:bg-gray-600 p-1 rounded">
+        <button onclick={toggleMinimize} class="hover:bg-gray-600 p-1 rounded">
           {isMinimized ? '🗖' : '🗕'}
         </button>
-        <button on:click|stopPropagation={handleClose} class="hover:bg-red-500 p-1 rounded">
+        <button onclick={handleClose} class="hover:bg-red-500 p-1 rounded">
           ✕
         </button>
       </div>
@@ -87,10 +89,10 @@
 
     {#if !isMinimized}
       <div class="flex-grow flex flex-col overflow-hidden p-1">
-        {#if allowedHost}
+        {#if forwardHost}
           <div class="iframe-container flex-grow mb-1 border border-gray-600 rounded">
             <iframe
-              src={`/iframe-content.html?host=${allowedHost}`}
+              src={`/iframe-content.html?host=${forwardHost}`}
               class="w-full h-full bg-white"
               allowTransparency={false}
               title="Forwarded Content"
@@ -98,7 +100,7 @@
           </div>
         {/if}
         {#if logMessages.length > 0}
-          <div class="log-container flex-grow bg-gray-800 p-2 overflow-y-auto text-xs border border-gray-600 rounded" style="max-height: 40%;">
+          <div class="log-container flex-grow bg-gray-800 p-2 overflow-y-auto text-xs border border-gray-600 rounded">
             <h3 class="text-sm font-semibold mb-1 sticky top-0 bg-gray-800">Requests:</h3>
             {#each logMessages as log (log.id)}
               <p class="font-mono break-all">

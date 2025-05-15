@@ -10,16 +10,18 @@ export interface LogMessage {
 }
 
 export interface ForwardState {
-  allowedHost: string | null;
+  allowedHosts: string[];
   forwardPeer: string | null;
+  forwardHost: string | null;
   inflight: Record<string, (data: any) => void>;
   logMessages: LogMessage[];
 }
 
 // Initial state
 const initialState: ForwardState = {
-  allowedHost: null,
+  allowedHosts: [],
   forwardPeer: null,
+  forwardHost: null,
   inflight: {},
   logMessages: []
 };
@@ -32,10 +34,10 @@ export function getForwardState() {
   return get(forwardStore);
 }
 
-export function setAllowedHost(host: string | null): void {
+export function setAllowedHosts(host: string[]): void {
   forwardStore.update(state => ({
     ...state,
-    allowedHost: host
+    allowedHosts: host
   }));
 }
 
@@ -43,6 +45,13 @@ export function setForwardPeer(peer: string | null): void {
   forwardStore.update(state => ({
     ...state,
     forwardPeer: peer
+  }));
+}
+
+export function setForwardHost(host: string | null): void {
+  forwardStore.update(state => ({
+    ...state,
+    forwardHost: host
   }));
 }
 
@@ -101,8 +110,9 @@ export function forwardInit(): void {
     }
     
     // Update the Svelte store
-    setAllowedHost(null);
+    setAllowedHosts([]);
     setForwardPeer(null);
+    setForwardHost(null);
     clearLogMessages();
   });
 }
@@ -162,6 +172,7 @@ export function setupForwardChannel(cid: string): void {
         
         // Update the forward peer in the store
         setForwardPeer(cid);
+        setForwardHost(data.host);
 
         // add hosts_host to url params of current page
         const url = new URL(window.location.href);
@@ -184,15 +195,15 @@ export function setupForwardChannel(cid: string): void {
           sendHostInterval = null;
         }
         sendHostInterval = window.setInterval(sendHost, 10000);
-        // Iframe creation will be handled by Svelte component based on allowedHost
+        // Iframe creation will be handled by Svelte component based on allowedHosts
         break;
 
       case "request":
         addLogMessage(data.id, data.url);
 
         // Use allowed_host from the store via state variable
-        if (!data.url.startsWith(state.allowedHost || '')) {
-          console.log("not allowed", state.allowedHost, data.url);
+        if (!data.url.startsWith(state.allowedHosts || '')) {
+          console.log("not allowed", state.allowedHosts, data.url);
           updateLogMessageStatus(data.id, '❌');
           return;
         }
@@ -274,7 +285,7 @@ export const toggleForwardHandler = async (): Promise<void> => {
   const clients = getAllDirectClients(); // Get clients from store
   const state = getForwardState();
 
-  if (!state.allowedHost) {
+  if (!state.allowedHosts.length) {
     let val = prompt("Please enter the url to forward", lastForwardedUrl);
     
     if (val) {
@@ -304,7 +315,7 @@ export const toggleForwardHandler = async (): Promise<void> => {
     }
 
     // Update the store (app object syncs via subscription if needed)
-    setAllowedHost(val);
+    setAllowedHosts([val]);
     // Log container creation will be handled by Svelte component
 
     for (const clientId in clients) { // Iterate over clients from store
@@ -320,14 +331,14 @@ export const toggleForwardHandler = async (): Promise<void> => {
       if (client.forward && client.forward.readyState === 'open') {
         client.forward.send(JSON.stringify({
           type: "offer.end",
-          host: state.allowedHost // Use host from store state
+          host: state.allowedHosts // Use host from store state
         }));
       }
     }
     
     // Log container removal will be handled by Svelte component
     // Update both the app and the store
-    setAllowedHost(null);
+    setAllowedHosts([]);
     clearLogMessages();
   }
   // Button state will be handled reactively in Svelte component

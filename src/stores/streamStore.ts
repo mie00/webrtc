@@ -10,7 +10,7 @@ export interface StreamConfig {
 }
 
 // Stream type definitions
-export type StreamType = 'camera' | 'screen' | 'audio' | 'file' | 'custom';
+export type StreamType = 'camera' | 'screen' | 'audio' | 'file';
 export type LayoutType = 'grid' | 'focus' | 'presentation';
 
 // Local stream interface
