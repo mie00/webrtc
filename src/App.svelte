@@ -6,6 +6,7 @@
   import ConfigOverlay from './components/ConfigOverlay.svelte';
   import { io, Socket } from 'socket.io-client';
   import ContextMenu from './components/ContextMenu.svelte';
+  import ForwardOverlay from './components/ForwardOverlay.svelte';
   import { configStore, getAllConfig } from './stores/configStore.js';
   import { streamStore } from './stores/streamStore.js';
   import { connectionStore, getDirectClient } from './stores/connectionStore.js';
@@ -458,6 +459,8 @@
   onclose={() => showConfigOverlay = false}
   onconfigUpdated={handleReset}
 />
+
+<ForwardOverlay />
 
 <!-- <ContextMenu /> -->
 

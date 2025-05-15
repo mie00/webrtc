@@ -41,9 +41,8 @@
   const isVideoShared = $derived($streamStore.streamConfig.file !== null);
   const isBlurEnabled = $derived($configStore['blur-video'] === 'yes');
 
-  // Forwarding state
+  // Forwarding state - button still needs allowedHost to change its text/color
   const allowedHost = $derived($forwardStore.allowedHost);
-  const logMessages = $derived($forwardStore.logMessages);
 
   // Stream layout state
   const currentLayout = $derived($streamStore.activeView.layout);
@@ -63,14 +62,14 @@
     id: string,
     streamKey: string,
     stream: MediaStream | null,
-    type: 'camera' | 'screen' | 'audio' | 'file' | 'forward-iframe' | 'forward-log',
+    type: 'camera' | 'screen' | 'audio' | 'file', // Removed forward types
     isLocal: boolean,
     src: string | null,
   
     peerId?: string | null,
     audioStream?: MediaStream | null,
     hasAudio?: boolean | null,
-    logMessages?: LogMessage[] | null, // For forward-log
+    // logMessages prop removed
   }
 
   // Group streams by peer ID
@@ -150,32 +149,7 @@
       }
     });
 
-    // Add forward iframe if allowedHost is set
-    if (allowedHost) {
-      result.push({
-        id: 'forward-iframe',
-        streamKey: 'forward-iframe',
-        stream: null,
-        type: 'forward-iframe',
-        isLocal: true,
-        src: `/iframe-content.html?host=${allowedHost}`,
-        peerId: null,
-      });
-
-      // Add forward log area if there are log messages
-      if (logMessages.length > 0) {
-        result.push({
-          id: 'forward-log',
-          streamKey: 'forward-log',
-          stream: null,
-          type: 'forward-log',
-          isLocal: true,
-          src: null,
-          peerId: null,
-          logMessages: logMessages,
-        });
-      }
-    }
+    // Forwarding elements are now handled by ForwardOverlay.svelte
     
     return result;
   });
