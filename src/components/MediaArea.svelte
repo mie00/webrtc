@@ -370,24 +370,7 @@
           {/if}
         </StreamView>
       </div>
-      {:else if stream.type === 'forward-iframe' && stream.src}
-        <iframe
-          id={`iframe-${allowedHost}`}
-          src={stream.src}
-          class="w-full h-full bg-white"
-          allowTransparency={false}
-          title="Forwarded Content"
-        ></iframe>
-      {:else if stream.type === 'forward-log' && stream.logMessages}
-        <div class="w-full h-full bg-gray-800 text-white p-2 overflow-y-auto text-xs">
-          <h3 class="text-sm font-semibold mb-1">Forward Requests:</h3>
-          {#each stream.logMessages as log (log.id)}
-            <p id={`ll-${log.id}`} class="font-mono break-all">
-              <span class="mr-2">{log.status}</span>{log.text}
-            </p>
-          {/each}
-        </div>
-      {/if}
+    {/if}
   {/each}
 </div>
 
