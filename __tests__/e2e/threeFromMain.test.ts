@@ -7,7 +7,8 @@ import {
     PUPPETEER_TIMEOUT,
     CHAT_INPUT_SELECTOR
 } from './setup/testHelpers';
-import { ensurePanelOpen, verifyMessageReceived } from './shared/chatTestHelpers';
+import { verifyMessageReceived } from './shared/chatTestHelpers';
+import { ensurePanelOpen, ensurePanelClosed } from './shared/panelUtils';
 import {
     setupTestFiles,
     teardownTestFiles,
@@ -90,6 +91,9 @@ describe('Three Client E2E Tests (Page A as primary sender)', () => {
 
     describe('Microphone Functionality (A sends, B & C receive)', () => {
         test('Page A should stream audio and Page B & C should receive it', async () => {
+            await ensurePanelClosed(pageA, 'Page A');
+            await ensurePanelClosed(pageB, 'Page B');
+            await ensurePanelClosed(pageC, 'Page C');
             await performMicTest(senderInfoA, receiversInfoForA);
             console.log('--- Mic test (A -> B,C) successful ---');
         }, JEST_TIMEOUT * 2);
@@ -97,6 +101,9 @@ describe('Three Client E2E Tests (Page A as primary sender)', () => {
 
     describe('Camera Functionality (A sends, B & C receive)', () => {
         test('Page A should stream video and Page B & C should receive it and verify QR', async () => {
+            await ensurePanelClosed(pageA, 'Page A');
+            await ensurePanelClosed(pageB, 'Page B');
+            await ensurePanelClosed(pageC, 'Page C');
             await performCameraTest(senderInfoA, receiversInfoForA);
             console.log('--- Camera test (A -> B,C) successful ---');
         }, JEST_TIMEOUT * 3);
@@ -104,6 +111,9 @@ describe('Three Client E2E Tests (Page A as primary sender)', () => {
 
     describe('Watch Functionality (A shares, B & C receive)', () => {
         test('Page A should share a video file and Page B & C should receive it', async () => {
+            await ensurePanelClosed(pageA, 'Page A');
+            await ensurePanelClosed(pageB, 'Page B');
+            await ensurePanelClosed(pageC, 'Page C');
             await performWatchTest(senderInfoA, receiversInfoForA);
             console.log('--- Watch test (A -> B,C) successful ---');
         }, JEST_TIMEOUT * 4);

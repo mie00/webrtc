@@ -7,7 +7,8 @@ import {
     PUPPETEER_TIMEOUT,
     CHAT_INPUT_SELECTOR
 } from './setup/testHelpers';
-import { ensurePanelOpen, verifyMessageReceived } from './shared/chatTestHelpers';
+import { verifyMessageReceived } from './shared/chatTestHelpers';
+import { ensurePanelOpen, ensurePanelClosed } from './shared/panelUtils';
 import {
     setupTestFiles,
     teardownTestFiles,
@@ -89,6 +90,9 @@ describe('Three Client E2E Tests (Page B as primary sender)', () => {
 
     describe('Microphone Functionality (B sends, A & C receive)', () => {
         test('Page B should stream audio and Page A & C should receive it', async () => {
+            await ensurePanelClosed(pageA, 'Page A');
+            await ensurePanelClosed(pageB, 'Page B');
+            await ensurePanelClosed(pageC, 'Page C');
             await performMicTest(senderInfoB, receiversInfoForB);
             console.log('--- Mic test (B -> A,C) successful ---');
         }, JEST_TIMEOUT * 2); // Individual timeout for this test
@@ -96,6 +100,9 @@ describe('Three Client E2E Tests (Page B as primary sender)', () => {
 
     describe('Camera Functionality (B sends, A & C receive)', () => {
         test('Page B should stream video and Page A & C should receive it and verify QR', async () => {
+            await ensurePanelClosed(pageA, 'Page A');
+            await ensurePanelClosed(pageB, 'Page B');
+            await ensurePanelClosed(pageC, 'Page C');
             await performCameraTest(senderInfoB, receiversInfoForB);
             console.log('--- Camera test (B -> A,C) successful ---');
         }, JEST_TIMEOUT * 3); // Individual timeout for this test
@@ -103,6 +110,9 @@ describe('Three Client E2E Tests (Page B as primary sender)', () => {
 
     describe('Watch Functionality (B shares, A & C receive)', () => {
         test('Page B should share a video file and Page A & C should receive it', async () => {
+            await ensurePanelClosed(pageA, 'Page A');
+            await ensurePanelClosed(pageB, 'Page B');
+            await ensurePanelClosed(pageC, 'Page C');
             await performWatchTest(senderInfoB, receiversInfoForB);
             console.log('--- Watch test (B -> A,C) successful ---');
         }, JEST_TIMEOUT * 4); // Individual timeout for this test
