@@ -143,6 +143,15 @@
         {/if}
       </div>
     {/if}
+    {#if !isMinimized}
+      <div
+        class="resize-handle"
+        onmousedown={handleResizeMouseDown}
+        role="slider"
+        aria-label="Resize overlay"
+        tabindex="0"
+      ></div>
+    {/if}
   </div>
 {/if}
 
