@@ -169,6 +169,12 @@ export function setupForwardChannel(cid: string): void {
           }));
           return;
         }
+
+        // ask the user if they want to accept the forward request
+        const accepted = confirm(`Accept forwarding from ${data.host}?`);
+        if (!accepted) {
+          return;
+        }
         
         // Update the forward peer in the store
         setForwardPeer(cid);
@@ -276,7 +282,7 @@ export function setupForwardChannel(cid: string): void {
 }
 
 // Store the last forwarded URL
-let lastForwardedUrl: string = "http://127.0.0.1:5001";
+let lastForwardedUrls: string = "http://127.0.0.1:11434";
 
 /**
  * Toggle forward handler - adapted to work with Svelte store
@@ -286,42 +292,45 @@ export const toggleForwardHandler = async (): Promise<void> => {
   const state = getForwardState();
 
   if (!state.allowedHosts.length) {
-    let val = prompt("Please enter the url to forward", lastForwardedUrl);
+    let vals = prompt("Please enter the url to forward", lastForwardedUrls);
     
-    if (val) {
-      lastForwardedUrl = val;
+    if (vals) {
+      lastForwardedUrls = vals;
     } else {
       alert("empty value");
       return;
     }
+    const valsArray = vals.split(",").map(val => val.trim());
 
-    try {
-      const res = await fetch(val);
-      await res.arrayBuffer();
-    } catch {
-      if (val.startsWith('http://127.0.0.1') || val.startsWith('http://localhost')) {
-        val = val.replace(/http:\/\/[^/:]+/, 'http://local.mie00.com');
-        try {
-          const res = await fetch(val);
-          await res.arrayBuffer();
-        } catch {
-          alert(`error doing fetch, use firefox. Or if you want to keep using chrome, click on the site settings besides the url and choose "Allow" for "Insecure content"`);
+    for (const i in valsArray) {
+      try {
+        const res = await fetch(valsArray[i]);
+        await res.arrayBuffer();
+      } catch {
+        if (valsArray[i].startsWith('http://127.0.0.1') || valsArray[i].startsWith('http://localhost')) {
+          valsArray[i] = valsArray[i].replace(/http:\/\/[^/:]+/, 'http://local.mie00.com');
+          try {
+            const res = await fetch(valsArray[i]);
+            await res.arrayBuffer();
+          } catch {
+            alert(`error doing fetch, use firefox. Or if you want to keep using chrome, click on the site settings besides the url and choose "Allow" for "Insecure content"`);
+            return;
+          }
+        } else {
+          alert("error doing fetch, make sure CORS is set to allow requests from " + window.location.host);
           return;
         }
-      } else {
-        alert("error doing fetch, make sure CORS is set to allow requests from " + window.location.host);
-        return;
       }
     }
 
     // Update the store (app object syncs via subscription if needed)
-    setAllowedHosts([val]);
+    setAllowedHosts(valsArray);
     // Log container creation will be handled by Svelte component
 
     for (const clientId in clients) { // Iterate over clients from store
       const client = clients[clientId] as ForwardClient;
       if (client.forward && client.forward.readyState === 'open') {
-        client.forward.send(JSON.stringify({ type: "offer", host: val }));
+        client.forward.send(JSON.stringify({ type: "offer", host: valsArray[0] }));
       }
     }
   } else {

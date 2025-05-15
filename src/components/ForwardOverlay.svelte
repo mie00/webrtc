@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { forwardStore, toggleForwardHandler, type LogMessage } from '../lib/forwardBridge.js';
+  import { forwardStore, setForwardHost, setForwardPeer, toggleForwardHandler, type LogMessage } from '../lib/forwardBridge.js';
 
   let allowedHosts: string[] = $state([]);
   let forwardHost : string | null = $state(null);
@@ -94,7 +94,13 @@
   }
 
   async function handleClose() {
-    await toggleForwardHandler();
+    if (allowedHosts.length) {
+      await toggleForwardHandler();
+    }
+    if (forwardHost) {
+      setForwardHost(null);
+      setForwardPeer(null);
+    }
   }
 </script>
 
@@ -174,13 +180,13 @@
     height: 16px;
     cursor: nwse-resize;
     /* Optional: add a visual indicator for the handle */
-    /* background: rgba(255,255,255,0.2); */
-    /* border-top: 2px solid transparent;
+    background: rgba(255,255,255,0.2);
+    border-top: 2px solid transparent;
     border-left: 2px solid transparent;
     border-right: 2px solid #fff;
-    border-bottom: 2px solid #fff; */
+    border-bottom: 2px solid #fff;
   }
   .resize-handle:hover {
-    /* background: rgba(255,255,255,0.4); */
+    background: rgba(255,255,255,0.4);
   }
 </style>
