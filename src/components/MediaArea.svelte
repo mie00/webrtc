@@ -395,6 +395,7 @@
             {/key}
           {/if}
         </StreamView>
+      </div>
       {:else if stream.type === 'forward-iframe' && stream.src}
         <iframe
           id={`iframe-${allowedHost}`}
@@ -413,8 +414,6 @@
           {/each}
         </div>
       {/if}
-      </div>
-    {/if}
   {/each}
 </div>
 
