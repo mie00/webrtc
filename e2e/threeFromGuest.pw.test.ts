@@ -41,18 +41,18 @@ test.describe('Three Client E2E Tests with Playwright (Page B as primary sender)
             { page: pageC, name: 'Page C (Receiver)' }
         ];
 
-        await setupTestFiles();
-        await setupMicTestMediaPw();
-        await setupCameraTestMediaPw();
-        await setupWatchTestMediaPw();
+        // await setupTestFiles(); // Moved to globalSetup
+        // await setupMicTestMediaPw(); // Moved to globalSetup
+        // await setupCameraTestMediaPw(); // Moved to globalSetup
+        // await setupWatchTestMediaPw(); // Moved to globalSetup
     });
 
     test.afterAll(async () => {
         await pwThreeClientTeardown({ pageA, contextA, pageB, contextB, pageC, contextC });
-        await teardownTestFiles();
-        await teardownMicTestMediaPw();
-        await teardownCameraTestMediaPw();
-        await teardownWatchTestMediaPw();
+        // await teardownTestFiles(); // Moved to globalTeardown
+        // await teardownMicTestMediaPw(); // Moved to globalTeardown
+        // await teardownCameraTestMediaPw(); // Moved to globalTeardown
+        // await teardownWatchTestMediaPw(); // Moved to globalTeardown
     });
 
     test.describe('Chat Functionality (B sends, A & C receive)', () => {

@@ -24,7 +24,7 @@ test.describe('WebRTC Microphone E2E Test with Playwright (2 Peers)', () => {
     let receiverInfo: PageInfoPw[];
 
     test.beforeAll(async ({ browser }) => {
-        await setupMicTestMediaPw();
+        // await setupMicTestMediaPw(); // Moved to globalSetup
 
         const setupResult: StandardSetupResult = await standardSetup(browser);
         pageA = setupResult.pageA;
@@ -38,7 +38,7 @@ test.describe('WebRTC Microphone E2E Test with Playwright (2 Peers)', () => {
 
     test.afterAll(async () => {
         await standardTeardown({ pageA, contextA, pageB, contextB });
-        await teardownMicTestMediaPw();
+        // await teardownMicTestMediaPw(); // Moved to globalTeardown
     });
 
     test('Page A should stream audio to Page B, verify frequencies on B, then verify Page A is effectively muted for self-analysis', async () => {

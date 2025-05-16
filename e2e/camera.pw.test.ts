@@ -22,7 +22,7 @@ test.describe('WebRTC Camera E2E Test with Playwright (2 Peers)', () => {
     let receiverInfo: PageInfoPw[];
 
     test.beforeAll(async ({ browser }) => {
-        await setupCameraTestMediaPw();
+        // await setupCameraTestMediaPw(); // Moved to globalSetup
 
         const setupResult: StandardSetupResult = await standardSetup(browser);
         pageA = setupResult.pageA;
@@ -37,7 +37,7 @@ test.describe('WebRTC Camera E2E Test with Playwright (2 Peers)', () => {
     test.afterAll(async () => {
         // Pass contextA and contextB to standardTeardown
         await standardTeardown({ pageA, contextA, pageB, contextB });
-        await teardownCameraTestMediaPw();
+        // await teardownCameraTestMediaPw(); // Moved to globalTeardown
     });
 
     test('Page A should stream video to Page B and QR code movement should be verified on Page B', async () => {

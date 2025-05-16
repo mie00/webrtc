@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test';
+import path from 'path';
 
 export default defineConfig({
 	webServer: {
@@ -6,6 +7,8 @@ export default defineConfig({
 		port: 4173
 	},
 	testDir: 'e2e',
+    globalSetup: path.resolve(__dirname, 'e2e/setup/globalSetup.ts'),
+    globalTeardown: path.resolve(__dirname, 'e2e/setup/globalTeardown.ts'),
 	use: {
 		launchOptions: {                                                                                                                                                                                         
 			args: [                                                                                                                                                                                                

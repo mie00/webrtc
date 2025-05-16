@@ -2,6 +2,15 @@ import { execSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 
+async function fileExists(filePath: string): Promise<boolean> {
+    try {
+        await fs.access(filePath);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 // --- Audio Generation ---
 export const DEFAULT_AUDIO_DURATION_SECONDS = 6;
 export const DEFAULT_START_FREQ_HZ = 40; // A4-ish note start
@@ -15,6 +24,10 @@ export async function generateChirpAudioFile(
     endFreq: number = DEFAULT_END_FREQ_HZ,
     sampleRate: number = DEFAULT_SAMPLE_RATE
 ): Promise<void> {
+    if (await fileExists(outputPath)) {
+        console.log(`Audio file ${outputPath} already exists. Skipping generation.`);
+        return;
+    }
     try {
         await fs.mkdir(path.dirname(outputPath), { recursive: true });
         const chirpExpression = `sin(2*PI*(${startFreq}*t + (${endFreq}-${startFreq})/(2*${duration})*t*t))`;
@@ -101,7 +114,11 @@ export async function generateMovingQrVideoFile(
     bgColor: string = DEFAULT_BG_COLOR,
     framerate: number = DEFAULT_VIDEO_FRAMERATE,
     format: 'mjpeg' | 'mp4' = 'mjpeg'
-): Promise<{ tempFramesDir: string }> {
+): Promise<{ tempFramesDir: string | undefined }> {
+    if (await fileExists(outputVideoPath)) {
+        console.log(`Video file ${outputVideoPath} already exists. Skipping generation.`);
+        return { tempFramesDir: undefined };
+    }
     const tempFramesDir = path.join(path.dirname(outputVideoPath), `temp_frames_${path.basename(outputVideoPath)}_${Date.now()}`);
     try {
         await generateMovingQrVideoFrames(tempFramesDir, numFrames, qrContent, qrSize, videoWidth, videoHeight, bgColor);
@@ -133,6 +150,10 @@ export async function combineAudioAndVideo(
     audioInputPath: string,
     outputMp4Path: string
 ): Promise<void> {
+    if (await fileExists(outputMp4Path)) {
+        console.log(`Combined video file ${outputMp4Path} already exists. Skipping generation.`);
+        return;
+    }
     try {
         await fs.mkdir(path.dirname(outputMp4Path), { recursive: true });
         const isInputMjpeg = videoInputPath.toLowerCase().endsWith('.mjpeg');

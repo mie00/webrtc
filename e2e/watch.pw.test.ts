@@ -22,7 +22,7 @@ test.describe('WebRTC Watch (Share Video File) E2E Test with Playwright (2 Peers
     let receiverInfo: PageInfoPw[];
 
     test.beforeAll(async ({ browser }) => {
-        await setupWatchTestMediaPw();
+        // await setupWatchTestMediaPw(); // Moved to globalSetup
 
         const setupResult: StandardSetupResult = await standardSetup(browser);
         pageA = setupResult.pageA;
@@ -36,7 +36,7 @@ test.describe('WebRTC Watch (Share Video File) E2E Test with Playwright (2 Peers
 
     test.afterAll(async () => {
         await standardTeardown({ pageA, contextA, pageB, contextB });
-        await teardownWatchTestMediaPw();
+        // await teardownWatchTestMediaPw(); // Moved to globalTeardown
     });
 
     test('Page A should share an MP4 file, play on A, and verify audio/video on Page A & Page B', async () => {

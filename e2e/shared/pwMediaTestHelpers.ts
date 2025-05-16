@@ -58,7 +58,10 @@ export async function setupMicTestMediaPw(): Promise<void> {
     );
 }
 export async function teardownMicTestMediaPw(): Promise<void> {
-    await cleanupMedia([micTestAudioPathPw], []); // No specific temp dir for chirp audio
+    // Main mic audio file (micTestAudioPathPw) is preserved.
+    // Chirp generation doesn't create other temp dirs that this function manages.
+    console.log(`Skipping cleanup of main mic audio file: ${micTestAudioPathPw}`);
+    await cleanupMedia([], []); 
 }
 
 // --- Camera Test Media ---
@@ -80,11 +83,19 @@ export async function setupCameraTestMediaPw(): Promise<void> {
         DEFAULT_VIDEO_FRAMERATE,
         'mjpeg'
     );
-    cameraTestTempFramesDirPw = videoGenResult.tempFramesDir;
+    if (videoGenResult.tempFramesDir) {
+        cameraTestTempFramesDirPw = videoGenResult.tempFramesDir;
+    }
 }
 export async function teardownCameraTestMediaPw(): Promise<void> {
+    // Main camera video file (cameraTestVideoPathPw) is preserved.
     const dirsToClean = cameraTestTempFramesDirPw ? [cameraTestTempFramesDirPw] : [];
-    await cleanupMedia([cameraTestVideoPathPw], dirsToClean);
+    if (dirsToClean.length > 0) {
+        console.log(`Cleaning up temporary camera frames directory: ${cameraTestTempFramesDirPw}`);
+    }
+    console.log(`Skipping cleanup of main camera video file: ${cameraTestVideoPathPw}`);
+    await cleanupMedia([], dirsToClean);
+    cameraTestTempFramesDirPw = undefined; // Reset for subsequent runs if any issue
 }
 
 // --- Watch Test Media ---
@@ -114,8 +125,13 @@ export async function setupWatchTestMediaPw(): Promise<void> {
         DEFAULT_VIDEO_FRAMERATE,
         'mp4'
     );
-    watchTestTempVideoFramesDirPw = videoGenResult.tempFramesDir;
+    if (videoGenResult.tempFramesDir) {
+        watchTestTempVideoFramesDirPw = videoGenResult.tempFramesDir;
+    }
 
+    // These are intermediate files, so they should be generated if the final file doesn't exist.
+    // The generateChirpAudioFile and combineAudioAndVideo will handle their own existence checks
+    // for their direct outputs.
     await generateChirpAudioFile(
         watchTestAudioPathPw,
         DEFAULT_AUDIO_DURATION_SECONDS,
@@ -126,8 +142,18 @@ export async function setupWatchTestMediaPw(): Promise<void> {
     await combineAudioAndVideo(watchTestTempVideoPathPw, watchTestAudioPathPw, watchTestFinalMp4PathPw);
 }
 export async function teardownWatchTestMediaPw(): Promise<void> {
+    // Main watch video file (watchTestFinalMp4PathPw) is preserved.
+    // Intermediate files used for its creation are cleaned up.
+    const intermediateFiles = [watchTestTempVideoPathPw, watchTestAudioPathPw];
     const dirsToClean = watchTestTempVideoFramesDirPw ? [watchTestTempVideoFramesDirPw] : [];
-    await cleanupMedia(watchTestFilesToCleanPw, dirsToClean);
+    
+    console.log(`Cleaning up intermediate files for watch test: ${intermediateFiles.join(', ')}`);
+    if (dirsToClean.length > 0) {
+        console.log(`Cleaning up temporary watch frames directory: ${watchTestTempVideoFramesDirPw}`);
+    }
+    console.log(`Skipping cleanup of main watch video file: ${watchTestFinalMp4PathPw}`);
+    await cleanupMedia(intermediateFiles, dirsToClean);
+    watchTestTempVideoFramesDirPw = undefined; // Reset
 }
 
 // --- Helper Verification Functions (Playwright) ---
