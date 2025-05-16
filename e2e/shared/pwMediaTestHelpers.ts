@@ -306,3 +306,83 @@ export async function performWatchTestPw(
     await expect(sender.page.locator(LOCAL_VIDEO_CONTAINER_SELECTOR_FILE)).toBeHidden({ timeout: PW_TIMEOUT });
     console.log(`${sender.name}: Local video element for shared file is hidden/removed.`);
 }
+
+export async function performCombinedMediaTestPw(
+    sender: PageInfoPw,
+    receivers: PageInfoPw[],
+    order: 'audioFirst' | 'videoFirst'
+): Promise<void> {
+    console.log(`--- Starting Combined Media Test (Playwright): ${sender.name} sends to ${receivers.map(r => r.name).join(', ')}, order: ${order} ---`);
+
+    const audioButton = sender.page.locator(TOGGLE_AUDIO_BUTTON_SELECTOR);
+    const videoButton = sender.page.locator(TOGGLE_VIDEO_BUTTON_SELECTOR);
+
+    // Turn on media
+    if (order === 'audioFirst') {
+        console.log(`${sender.name}: Clicking audio button.`);
+        await audioButton.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+        await audioButton.click();
+        await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+        console.log(`${sender.name}: Audio button ON.`);
+        await sender.page.waitForTimeout(1000); // Wait briefly before next action
+
+        console.log(`${sender.name}: Clicking video button.`);
+        await videoButton.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+        await videoButton.click();
+        await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+        console.log(`${sender.name}: Video button ON.`);
+    } else { // videoFirst
+        console.log(`${sender.name}: Clicking video button.`);
+        await videoButton.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+        await videoButton.click();
+        await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+        console.log(`${sender.name}: Video button ON.`);
+        await sender.page.waitForTimeout(1000); // Wait briefly before next action
+
+        console.log(`${sender.name}: Clicking audio button.`);
+        await audioButton.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+        await audioButton.click();
+        await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+        console.log(`${sender.name}: Audio button ON.`);
+    }
+
+    console.log(`${sender.name}: Waiting for stream propagation...`);
+    await sender.page.waitForTimeout(2000); // Main wait after both media types are enabled
+
+    // Verify streams on receivers
+    for (const receiver of receivers) {
+        console.log(`${receiver.name}: Verifying audio stream...`);
+        await verifyAudioStreamOnPagePw(receiver.page, receiver.name, true);
+        
+        console.log(`${receiver.name}: Verifying video stream...`);
+        await expect(receiver.page.locator(REMOTE_VIDEO_ELEMENT_SELECTOR)).toBeVisible({ timeout: PW_TIMEOUT * 2 });
+        console.log(`${receiver.name}: Remote video element found.`);
+        await verifyVideoStreamOnPagePw(receiver.page, receiver.name, REMOTE_VIDEO_ELEMENT_SELECTOR, CAMERA_TEST_QR_CONTENT_PW);
+    }
+
+    // Turn off media in reverse order of activation
+    if (order === 'audioFirst') { // Activated A then V. Turn off V then A.
+        console.log(`${sender.name}: Clicking video button to turn OFF.`);
+        await videoButton.click();
+        await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+        console.log(`${sender.name}: Video button OFF.`);
+        await sender.page.waitForTimeout(500);
+
+        console.log(`${sender.name}: Clicking audio button to turn OFF.`);
+        await audioButton.click();
+        await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+        console.log(`${sender.name}: Audio button OFF.`);
+    } else { // videoFirst. Activated V then A. Turn off A then V.
+        console.log(`${sender.name}: Clicking audio button to turn OFF.`);
+        await audioButton.click();
+        await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+        console.log(`${sender.name}: Audio button OFF.`);
+        await sender.page.waitForTimeout(500);
+
+        console.log(`${sender.name}: Clicking video button to turn OFF.`);
+        await videoButton.click();
+        await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+        console.log(`${sender.name}: Video button OFF.`);
+    }
+    console.log(`--- Combined Media Test (Order: ${order}) Completed ---`);
+}
