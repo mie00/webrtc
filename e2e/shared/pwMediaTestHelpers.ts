@@ -197,7 +197,23 @@ async function verifyVideoStreamOnPagePw(page: PlaywrightPage, pageName: string,
         expect(result).not.toBeNull();
         const qrResult = result as QrCodeResult; // Cast since we expect it not to be null
         expect(qrResult.result).toBe(expectedQrContent);
-        qrMinXCoords.push(Math.min(...qrResult.points.map(p => p.x)));
+
+        // Verify QR code is reasonably square
+        const xCoords = qrResult.points.map(p => p.x);
+        const yCoords = qrResult.points.map(p => p.y);
+        const minX = Math.min(...xCoords);
+        const maxX = Math.max(...xCoords);
+        const minY = Math.min(...yCoords);
+        const maxY = Math.max(...yCoords);
+        const qrWidth = maxX - minX;
+        const qrHeight = maxY - minY;
+
+        // Allow a small tolerance for squareness (e.g., 10% of the smaller dimension)
+        const tolerance = Math.min(qrWidth, qrHeight) * 0.15; // 15% tolerance
+        expect(Math.abs(qrWidth - qrHeight)).toBeLessThanOrEqual(tolerance);
+        console.log(`${pageName}: QR code squareness verified (Width: ${qrWidth.toFixed(2)}, Height: ${qrHeight.toFixed(2)}).`);
+
+        qrMinXCoords.push(minX);
     }
     const uniqueXCoords = new Set(qrMinXCoords);
     expect(uniqueXCoords.size).toBeGreaterThan(1);
