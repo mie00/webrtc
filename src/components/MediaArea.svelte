@@ -150,7 +150,7 @@
     });
 
     // Forwarding elements are now handled by ForwardOverlay.svelte
-    
+
     return result;
   });
   // Stream positions
@@ -170,7 +170,7 @@
       focusedStream
     );
   }
-  
+
   onMount(() => {
     // Set up interval for updating stream positions
     refreshInterval = window.setInterval(updateStreamPositions, 1000);
@@ -345,7 +345,7 @@
   <!-- Hidden video element for file uploads -->
   
   <!-- Unified stream rendering using calculated positions -->
-  {#each activeStreams as stream (stream.id)}
+  {#each activeStreams as stream (stream.id + (stream.audioStream?.id || ''))}
     {#if streamPositions.find(pos => pos.id === stream.id)}
       {@const position = streamPositions.find(pos => pos.id === stream.id)}
       <div class="stream-container absolute"

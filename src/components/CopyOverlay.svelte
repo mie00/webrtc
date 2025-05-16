@@ -36,7 +36,6 @@
   let copyButtonText = $state('Copy');
   let qrCodeDataURL: string = $state("");
 
-  $inspect(copyButtonText)
   // Define the structure of the detail for the 'accept' event
   interface AcceptEventDetail {
     pasteValue: string;

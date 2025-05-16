@@ -114,13 +114,7 @@ export function removeLocalStream(id: string): void {
 
 export function addRemoteStream(peerId: string, streamId: string, stream: MediaStream): void {
   streamStore.update(state => {
-    const remoteStreams = { ...state.remoteStreams };
-    
-    if (!remoteStreams[peerId]) {
-      remoteStreams[peerId] = { peerId, streams: {} };
-    }
-    
-    remoteStreams[peerId].streams[streamId] = stream;
+    const remoteStreams = { ...state.remoteStreams, [peerId]: { peerId, streams: {...(state.remoteStreams[peerId]?.streams || {}), [streamId]: stream} } };
     return { ...state, remoteStreams };
   });
 }

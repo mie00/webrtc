@@ -27,6 +27,7 @@
     hasAudio?: boolean;
   } = $props();
 
+
   let mediaElement: HTMLVideoElement | HTMLAudioElement | undefined = $state();
   import { processAudio, stopProcessingAudio, drawVisualization, type AudioNodes } from '../lib/media/stream.js';
   
@@ -128,6 +129,7 @@
         
         // Add all audio tracks from the audio stream
         audioStream.getAudioTracks().forEach(track => {
+          console.log("adding audio stream")
           combinedStream.addTrack(track);
         });
         
