@@ -234,10 +234,11 @@ export async function takeScreenshotAndDecodeQR(
     page: PlaywrightPage, // Use Playwright's Page type
     screenshotElementSelector?: string,
     maxAttempts: number = 3,
-    retryDelayMs: number = 500
+    retryDelayMs: number = 500,
+    isLocalStreamView: boolean = false // New parameter to indicate if the view is mirrored
 ): Promise<QrCodeResult | null> {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        console.log(`Attempt ${attempt}/${maxAttempts}: Taking screenshot and attempting to decode QR code...`);
+        console.log(`Attempt ${attempt}/${maxAttempts}: Taking screenshot (isLocalStreamView: ${isLocalStreamView}) and attempting to decode QR code...`);
         try {
             let screenshotBuffer: Buffer;
             if (screenshotElementSelector) {
@@ -255,6 +256,12 @@ export async function takeScreenshotAndDecodeQR(
             const image = await Jimp.read(screenshotBuffer);
             // await image.writeAsync(`./debug-image-attempt-${attempt}.png`); // For debugging
             console.log(` Attempt ${attempt}: Screenshot read into Jimp image.`);
+
+            if (isLocalStreamView) {
+                console.log(` Attempt ${attempt}: Flipping image horizontally for local stream view.`);
+                image.flip(true, false); // Flip horizontally, not vertically
+                // await image.writeAsync(`./debug-image-flipped-attempt-${attempt}.png`); // For debugging flipped image
+            }
 
             const result = await decodeQrCodeWithTimeout(image.bitmap, 2000);
 

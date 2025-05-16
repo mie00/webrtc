@@ -199,8 +199,9 @@ async function verifyVideoStreamOnPagePw(page: PlaywrightPage, pageName: string,
         if (i > 0) await page.waitForTimeout(1500);
         else await page.waitForTimeout(500);
 
-        const result = await takeScreenshotAndDecodeQR(page, videoElementSelector);
-        console.log(`${pageName}: Screenshot ${i + 1}/${numScreenshots} taken for QR check.`);
+        const isLocalView = videoElementSelector === LOCAL_VIDEO_ELEMENT_SELECTOR_CAMERA || videoElementSelector === LOCAL_VIDEO_ELEMENT_SELECTOR_FILE;
+        const result = await takeScreenshotAndDecodeQR(page, videoElementSelector, 3, 500, isLocalView);
+        console.log(`${pageName}: Screenshot ${i + 1}/${numScreenshots} taken for QR check (isLocalView: ${isLocalView}).`);
         expect(result).not.toBeNull();
         const qrResult = result as QrCodeResult; // Cast since we expect it not to be null
         expect(qrResult.result).toBe(expectedQrContent);
