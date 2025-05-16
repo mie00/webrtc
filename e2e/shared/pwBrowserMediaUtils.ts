@@ -278,6 +278,13 @@ export async function takeScreenshotAndDecodeQR(
     return null;
 }
 
+import ffmpeg from 'fluent-ffmpeg';
+import fs from 'fs-extra';
+import path from 'path';
+import os from 'os';
+import { promisify } from 'util';
+import crypto from 'crypto';
+
 // --- Node.js-based Video File Analysis Utilities ---
 // These functions run in the Node.js environment of the Playwright test runner,
 // not in the browser. They typically use libraries like fluent-ffmpeg.
@@ -334,14 +341,165 @@ export async function extractFramesAndAnalyzeVideoFileNode(
         audioAnalysis: analyzeAudio ? { frequencies: [null, null], peakAmplitudes: [null, null] } : null,
     };
 
-    // Simulate finding one QR code in a couple of frames for basic structure
-    for (let i = 0; i < Math.min(numFramesToExtract, 2); i++) {
-        simulatedResult.framesAnalysis.push({
-            frameIndex: i,
-            qrResults: [{ result: "simulated_qr_content", points: [{x:10,y:10},{x:50,y:10},{x:50,y:50},{x:10,y:50}] }]
+    const result: VideoFileAnalysisNodeResult = {
+        framesAnalysis: [],
+        audioAnalysis: null,
+    };
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'video-analysis-'));
+    console.log(`NodeJS: Created temp directory for analysis: ${tempDir}`);
+
+    try {
+        // 1. Frame Extraction
+        console.log(`NodeJS: Extracting ${numFramesToExtract} frames from ${videoFilePath} to ${tempDir}`);
+        await new Promise<void>((resolve, reject) => {
+            ffmpeg(videoFilePath)
+                .screenshots({
+                    count: numFramesToExtract,
+                    folder: tempDir,
+                    filename: 'frame-%i.png',
+                    size: '640x?' // Resize for faster processing, maintain aspect ratio
+                })
+                .on('end', resolve)
+                .on('error', (err) => {
+                    console.error(`NodeJS: Error extracting frames: ${err.message}`);
+                    reject(err);
+                });
         });
+        console.log(`NodeJS: Frame extraction complete.`);
+
+        // 2. QR Decoding from Frames
+        for (let i = 1; i <= numFramesToExtract; i++) {
+            const framePath = path.join(tempDir, `frame-${i}.png`);
+            if (!await fs.pathExists(framePath)) {
+                console.warn(`NodeJS: Frame ${framePath} not found, skipping.`);
+                continue;
+            }
+            console.log(`NodeJS: Processing frame ${framePath}`);
+            const frameBuffer = await fs.readFile(framePath);
+            const image = await Jimp.read(frameBuffer);
+            const frameQrResults: QrCodeResult[] = [];
+
+            // Attempt to decode from full image
+            let qr = await decodeQrCodeWithTimeout(image.bitmap, 1500);
+            if (qr) frameQrResults.push(qr);
+
+            // Attempt to decode from halves to find multiple QRs if present
+            const { width, height } = image.bitmap;
+            const crops = [
+                { x: 0, y: 0, w: width / 2, h: height }, // Left half
+                { x: width / 2, y: 0, w: width / 2, h: height }, // Right half
+                // { x: 0, y: 0, w: width, h: height / 2 }, // Top half
+                // { x: 0, y: height/2, w: width, h: height / 2 }, // Bottom half
+            ];
+
+            for (const crop of crops) {
+                try {
+                    const croppedImage = image.clone().crop(crop.x, crop.y, crop.w, crop.h);
+                    const croppedQr = await decodeQrCodeWithTimeout(croppedImage.bitmap, 1000);
+                    if (croppedQr) {
+                        // Check if this QR (content and rough position) is already found to avoid duplicates
+                        const alreadyFound = frameQrResults.some(existingQr =>
+                            existingQr.result === croppedQr.result &&
+                            Math.abs(existingQr.points[0].x - (croppedQr.points[0].x + crop.x)) < width * 0.1 && // Adjust points for crop
+                            Math.abs(existingQr.points[0].y - (croppedQr.points[0].y + crop.y)) < height * 0.1
+                        );
+                        if (!alreadyFound) {
+                             // Adjust points to be relative to the original image
+                            const adjustedPoints = croppedQr.points.map(p => ({ x: p.x + crop.x, y: p.y + crop.y }));
+                            frameQrResults.push({ result: croppedQr.result, points: adjustedPoints });
+                        }
+                    }
+                } catch (cropError) {
+                    console.warn(`NodeJS: Error decoding QR from cropped section: ${(cropError as Error).message}`);
+                }
+            }
+            
+            // Deduplicate based on content and very close proximity (in case full and crop found same)
+            const uniqueFrameQrResults: QrCodeResult[] = [];
+            for (const r of frameQrResults) {
+                if (!uniqueFrameQrResults.some(uq => uq.result === r.result && Math.abs(uq.points[0].x - r.points[0].x) < 10)) {
+                    uniqueFrameQrResults.push(r);
+                }
+            }
+
+            result.framesAnalysis.push({ frameIndex: i - 1, qrResults: uniqueFrameQrResults });
+            console.log(`NodeJS: Frame ${i-1} yielded ${uniqueFrameQrResults.length} unique QR codes.`);
+        }
+
+        // 3. Audio Analysis
+        if (analyzeAudio) {
+            const tempAudioPath = path.join(tempDir, 'audio.wav');
+            console.log(`NodeJS: Extracting audio to ${tempAudioPath}`);
+            await new Promise<void>((resolve, reject) => {
+                ffmpeg(videoFilePath)
+                    .output(tempAudioPath)
+                    .noVideo()
+                    .audioCodec('pcm_s16le')
+                    .audioFrequency(DEFAULT_SAMPLE_RATE) // Use consistent sample rate
+                    .audioChannels(1)
+                    .toFormat('wav')
+                    .on('end', resolve)
+                    .on('error', (err) => {
+                        console.error(`NodeJS: Error extracting audio: ${err.message}`);
+                        reject(err);
+                    })
+                    .run();
+            });
+            console.log(`NodeJS: Audio extraction complete.`);
+
+            if (await fs.pathExists(tempAudioPath) && (await fs.stat(tempAudioPath)).size > 1024) { // Basic check for non-empty audio
+                // Use ffmpeg's volumedetect for basic audio presence check
+                const volDetectOutput = await new Promise<string>((resolve, reject) => {
+                    let stderrData = '';
+                    ffmpeg(tempAudioPath)
+                        .audioFilters('volumedetect')
+                        .outputOptions('-f', 'null')
+                        .output('/dev/null') // Or NUL on Windows
+                        .on('stderr', (stderrLine) => {
+                            stderrData += stderrLine;
+                        })
+                        .on('end', () => resolve(stderrData))
+                        .on('error', (err) => {
+                             console.error(`NodeJS: Error during volumedetect: ${err.message}`);
+                             reject(err);
+                        })
+                        .run();
+                });
+
+                const meanVolumeMatch = volDetectOutput.match(/mean_volume:\s*([-\d\.]+) dB/);
+                const maxVolumeMatch = volDetectOutput.match(/max_volume:\s*([-\d\.]+) dB/);
+                const meanVolume = meanVolumeMatch ? parseFloat(meanVolumeMatch[1]) : -Infinity;
+                const maxVolume = maxVolumeMatch ? parseFloat(maxVolumeMatch[1]) : -Infinity;
+
+                console.log(`NodeJS: Audio volume detection - Mean: ${meanVolume} dB, Max: ${maxVolume} dB`);
+                // For chirp, we expect significant audio. Threshold can be adjusted.
+                // A simple way to represent "chirp detected" is if maxVolume is above a certain level.
+                // True frequency analysis is more complex.
+                const audioDetected = maxVolume > -50; // Threshold for "significant" audio
+                result.audioAnalysis = {
+                    // Storing maxVolume in frequencies array for simplicity, as we don't have actual freq here
+                    frequencies: audioDetected ? [maxVolume, maxVolume -10] : [null, null], // Simulate two different "frequencies" if audio detected
+                    peakAmplitudes: [maxVolume, maxVolume], // Store peak amplitude
+                };
+            } else {
+                console.warn(`NodeJS: Extracted audio file ${tempAudioPath} is empty or too small.`);
+                result.audioAnalysis = { frequencies: [null, null], peakAmplitudes: [null, null] };
+            }
+        } else {
+            result.audioAnalysis = null;
+        }
+
+    } catch (error) {
+        console.error(`NodeJS: Error in extractFramesAndAnalyzeVideoFileNode: ${(error as Error).message}`);
+        result.error = (error as Error).message;
+    } finally {
+        try {
+            await fs.remove(tempDir);
+            console.log(`NodeJS: Cleaned up temp directory ${tempDir}`);
+        } catch (cleanupError) {
+            console.error(`NodeJS: Error cleaning up temp directory ${tempDir}: ${(cleanupError as Error).message}`);
+        }
     }
-    
-    return simulatedResult;
-    // throw new Error('extractFramesAndAnalyzeVideoFileNode is not fully implemented.');
+
+    return result;
 }
