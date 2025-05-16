@@ -133,8 +133,8 @@ export async function teardownWatchTestMediaPw(): Promise<void> {
 // --- Helper Verification Functions (Playwright) ---
 async function verifyAudioStreamOnPagePw(page: PlaywrightPage, pageName: string, expectedToPlay: boolean = true): Promise<void> {
     console.log(`${pageName}: Verifying audio stream (expected: ${expectedToPlay ? 'playing' : 'silent/no source'})...`);
-    const analysisOptions = { silenceThresholdDb: -70 };
-    const audioResult: AudioAnalysisResult = await page.evaluate(analyzeAudioInBrowser, 'frequency', analysisOptions);
+    const analysisOptions = { analysisType: 'frequency', silenceThresholdDb: -70 };
+    const audioResult: AudioAnalysisResult = await page.evaluate(analyzeAudioInBrowser, analysisOptions);
 
     expect(audioResult.err).toBeUndefined();
 
@@ -200,7 +200,7 @@ export async function performMicTestPw(
 
     if (checkSenderMutedState) {
         console.log(`${sender.name}: Verifying its own audio state (expected: no playable chirp for self-analysis).`);
-        const analysisResultA: AudioAnalysisResult = await sender.page.evaluate(analyzeAudioInBrowser, 'amplitude', {silenceThresholdDb: -80});
+        const analysisResultA: AudioAnalysisResult = await sender.page.evaluate(analyzeAudioInBrowser, {analysisType: 'amplitude', silenceThresholdDb: -80});
         expect(analysisResultA.peakAmplitudes.length).toBe(1);
         expect(analysisResultA.peakAmplitudes[0]).toBe(null);
         console.log(`${sender.name}: Own audio state verified (no suitable source found for self-analysis).`);

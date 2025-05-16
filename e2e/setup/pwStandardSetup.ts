@@ -21,14 +21,6 @@ export interface StandardSetupResult {
 export async function standardSetup(browser: Browser): Promise<StandardSetupResult> {
     console.log('\n--- Playwright Standard E2E Setup (Pages & Connection) ---');
 
-    const serverUrl = globalThis.__SERVER_URL__;
-    if (!serverUrl) {
-        // In Playwright, you'd typically get the baseURL from the config or pass it explicitly.
-        // For now, we adhere to the existing pattern of __SERVER_URL__.
-        throw new Error("Server URL (__SERVER_URL__) not found in global scope. Ensure it's set (e.g., by Playwright globalSetup).");
-    }
-    console.log(`Using server URL from global setup: ${serverUrl}`);
-
     // Create two separate browser contexts for isolation
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
@@ -42,10 +34,9 @@ export async function standardSetup(browser: Browser): Promise<StandardSetupResu
 
     console.log('Opening Page A...');
     const pageA = await contextA.newPage();
-    await pageA.evaluate(() => localStorage.clear()); // Clear localStorage
 
-    console.log(`Page A navigating to: ${serverUrl}`);
-    await pageA.goto(serverUrl, { waitUntil: 'networkidle', timeout: PW_TIMEOUT });
+    console.log(`Page A navigating to: /`);
+    await pageA.goto('/', { waitUntil: 'networkidle', timeout: PW_TIMEOUT });
     console.log('Page A navigation complete.');
 
     console.log('Waiting for invite URL copy button on Page A...');
@@ -60,7 +51,6 @@ export async function standardSetup(browser: Browser): Promise<StandardSetupResu
 
     console.log('Opening Page B...');
     const pageB = await contextB.newPage();
-    await pageB.evaluate(() => localStorage.clear()); // Clear localStorage
 
     console.log('Page B navigating to invite URL...');
     await pageB.goto(inviteUrl, { waitUntil: 'networkidle', timeout: PW_TIMEOUT });

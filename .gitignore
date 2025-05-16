@@ -1,3 +1,4 @@
+test-results
 # Dependencies
 node_modules/
 package-lock.json
@@ -28,3 +29,6 @@ yarn-error.log*
 
 # Aider files
 .aider*
+
+# tests
+generated-media-pw/

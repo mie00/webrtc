@@ -8,9 +8,9 @@ import {
 import { verifyMessageReceived } from './shared/pwChatTestHelpers';
 import { ensurePanelOpen, ensurePanelClosed } from './shared/pwPanelUtils';
 import {
-    setupTestFilesPw,
-    teardownTestFilesPw,
-    performFileTransferTestPw,
+    setupTestFiles,
+    teardownTestFiles,
+    performFileTransferTest,
     preparedTestCases, // Assuming preparedTestCases is compatible or a Pw version exists
     type TestCaseData // Assuming TestCaseData is compatible
 } from './shared/pwFileTransferTestHelpers'; // Or from a shared data file if pure data
@@ -41,7 +41,7 @@ test.describe('Three Client E2E Tests with Playwright (Page B as primary sender)
             { page: pageC, name: 'Page C (Receiver)' }
         ];
 
-        await setupTestFilesPw();
+        await setupTestFiles();
         await setupMicTestMediaPw();
         await setupCameraTestMediaPw();
         await setupWatchTestMediaPw();
@@ -49,7 +49,7 @@ test.describe('Three Client E2E Tests with Playwright (Page B as primary sender)
 
     test.afterAll(async () => {
         await pwThreeClientTeardown({ pageA, contextA, pageB, contextB, pageC, contextC });
-        await teardownTestFilesPw();
+        await teardownTestFiles();
         await teardownMicTestMediaPw();
         await teardownCameraTestMediaPw();
         await teardownWatchTestMediaPw();
@@ -75,7 +75,7 @@ test.describe('Three Client E2E Tests with Playwright (Page B as primary sender)
     test.describe('File Transfer Functionality (B sends, A & C receive)', () => {
         for (const testCase of preparedTestCases) {
             test(`Page B should send file ${testCase.fileName} (${testCase.description}) and Page A & C should receive it`, async () => {
-                await performFileTransferTestPw(
+                await performFileTransferTest(
                     pageB,
                     'Page B',
                     [pageA, pageC],

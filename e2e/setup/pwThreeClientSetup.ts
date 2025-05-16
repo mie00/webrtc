@@ -6,10 +6,6 @@ import {
     checkConnectionEstablished
 } from './pwTestHelpers';
 
-// Assuming globalThis.__SERVER_URL__ is set by a Playwright global setup or similar mechanism.
-declare global {
-    var __SERVER_URL__: string | undefined;
-}
 
 export interface ThreeClientSetupResult {
     pageA: Page;
@@ -22,13 +18,6 @@ export interface ThreeClientSetupResult {
 
 export async function pwThreeClientSetup(browser: Browser): Promise<ThreeClientSetupResult> {
     console.log('\n--- Playwright Three Client E2E Setup (Pages & Connection) ---');
-
-    const serverUrl = globalThis.__SERVER_URL__;
-    if (!serverUrl) {
-        throw new Error("Server URL (__SERVER_URL__) not found in global scope. Ensure Playwright globalSetup ran successfully.");
-    }
-    console.log(`Using server URL from global setup: ${serverUrl}`);
-
     // Create three separate browser contexts for isolation
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
@@ -43,8 +32,8 @@ export async function pwThreeClientSetup(browser: Browser): Promise<ThreeClientS
 
     console.log('Opening Page A...');
     const pageA = await contextA.newPage();
-    console.log(`Page A navigating to: ${serverUrl}`);
-    await pageA.goto(serverUrl, { waitUntil: 'networkidle', timeout: PW_TIMEOUT });
+    console.log(`Page A navigating to: /`);
+    await pageA.goto('/', { waitUntil: 'networkidle', timeout: PW_TIMEOUT });
     console.log('Page A navigation complete.');
 
     console.log('Waiting for invite URL copy button on Page A...');

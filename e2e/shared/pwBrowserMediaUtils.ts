@@ -2,7 +2,7 @@ import type { Page as PlaywrightPage } from '@playwright/test'; // Renamed to av
 import QrCode from 'qrcode-reader';
 // Jimp needs to be imported differently depending on its version and setup.
 // Assuming a setup compatible with: import Jimp from 'jimp';
-import Jimp from 'jimp';
+import { Jimp } from 'jimp';
 import { type Bitmap } from "@jimp/types";
 // import fs from 'fs/promises'; // Only if saving debug screenshots
 
@@ -16,17 +16,18 @@ export interface AudioAnalysisResult {
 }
 
 export async function analyzeAudioInBrowser(
-    analysisType: 'frequency' | 'amplitude',
     options: {
+        analysisType: 'frequency' | 'amplitude',
         silenceThresholdDb?: number
-    } = {silenceThresholdDb: -80}
+    }
 ): Promise<AudioAnalysisResult> {
     // This function's body is executed in the browser context.
     // It's copied verbatim from the original browserMediaUtils.ts
-    console.log(`--- Starting Audio Analysis in Browser --- Type: ${analysisType}`);
     const {
+        analysisType,
         silenceThresholdDb = -80
     } = options;
+    console.log(`--- Starting Audio Analysis in Browser --- Type: ${analysisType}`);
     const MAX_FREQ_SAMPLES = 4;
 
     const results: AudioAnalysisResult = {

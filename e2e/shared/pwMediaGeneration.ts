@@ -80,10 +80,10 @@ async function createVideoFromFrames(
     framerate: number,
     videoCodec: string,
     pixelFormat: string,
-    crfOrQv: string
+    extraArgs: string
 ): Promise<void> {
     const inputFramesPattern = path.join(tempFramesDir, 'frame_%03d.jpg');
-    const ffmpegCommand = `ffmpeg -y -framerate ${framerate} -i "${inputFramesPattern}" -c:v ${videoCodec} ${crfOrQv} -pix_fmt ${pixelFormat} ${outputVideoPath}`;
+    const ffmpegCommand = `ffmpeg -y -framerate ${framerate} -i "${inputFramesPattern}" -c:v ${videoCodec} ${extraArgs} -pix_fmt ${pixelFormat} ${outputVideoPath}`;
 
     console.log(`Creating video (${outputVideoPath}) with codec ${videoCodec}, pixel format ${pixelFormat}...`);
     console.log(`Executing: ${ffmpegCommand}`);
@@ -108,18 +108,18 @@ export async function generateMovingQrVideoFile(
 
         let videoCodec: string;
         let pixelFormat: string;
-        let crfOrQv: string;
+        let extraArgs: string;
 
         if (format === 'mp4') {
-            videoCodec = 'libx264';
+            videoCodec = 'libvpx-vp9';
             pixelFormat = 'yuv420p';
-            crfOrQv = '-crf 23';
+            extraArgs = '-b:v 2M';
         } else { // mjpeg
             videoCodec = 'mjpeg';
             pixelFormat = 'yuvj420p';
-            crfOrQv = '-q:v 5';
+            extraArgs = '-q:v 5';
         }
-        await createVideoFromFrames(tempFramesDir, outputVideoPath, framerate, videoCodec, pixelFormat, crfOrQv);
+        await createVideoFromFrames(tempFramesDir, outputVideoPath, framerate, videoCodec, pixelFormat, extraArgs);
         return { tempFramesDir };
     } catch (error) {
         console.error(`Error generating moving QR video file ${outputVideoPath}:`, error);
@@ -137,7 +137,7 @@ export async function combineAudioAndVideo(
         await fs.mkdir(path.dirname(outputMp4Path), { recursive: true });
         const isInputMjpeg = videoInputPath.toLowerCase().endsWith('.mjpeg');
         const videoCodecParams = isInputMjpeg ? '-c:v libx264 -pix_fmt yuv420p -crf 23' : '-c:v copy';
-        const ffmpegCommand = `ffmpeg -y -i "${videoInputPath}" -i "${audioInputPath}" ${videoCodecParams} -c:a aac -shortest "${outputMp4Path}"`;
+        const ffmpegCommand = `ffmpeg -y -i "${videoInputPath}" -i "${audioInputPath}" ${videoCodecParams} -c:a libopus -shortest "${outputMp4Path}"`;
 
         console.log(`Combining video from "${videoInputPath}" and audio from "${audioInputPath}" into "${outputMp4Path}"...`);
         console.log(`Executing: ${ffmpegCommand}`);
