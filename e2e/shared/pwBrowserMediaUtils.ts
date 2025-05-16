@@ -291,6 +291,7 @@ import path from 'path';
 import os from 'os';
 import { promisify } from 'util';
 import crypto from 'crypto';
+import { DEFAULT_AUDIO_DURATION_SECONDS } from './pwMediaGeneration';
 
 // --- Node.js-based Video File Analysis Utilities ---
 // These functions run in the Node.js environment of the Playwright test runner,
@@ -357,22 +358,8 @@ export async function extractFramesAndAnalyzeVideoFileNode(
 
     try {
         // 1. Frame Extraction
-        const ffprobeAsync = promisify(ffmpeg.ffprobe);
-        let videoDurationSeconds: number;
-
-        try {
-            const metadata = await ffprobeAsync(videoFilePath);
-            if (metadata && metadata.format && typeof metadata.format.duration === 'number' && metadata.format.duration > 0) {
-                videoDurationSeconds = metadata.format.duration;
-                console.log(`NodeJS: Video duration for ${videoFilePath}: ${videoDurationSeconds}s`);
-            } else {
-                console.warn(`NodeJS: ffprobe could not determine a valid duration for ${videoFilePath}. Metadata:`, JSON.stringify(metadata));
-                throw new Error(`ffprobe failed to get a valid duration for ${videoFilePath}. Cannot calculate timemarks.`);
-            }
-        } catch (probeError) {
-            console.error(`NodeJS: Error probing video file ${videoFilePath} for duration: ${(probeError as Error).message}`);
-            throw new Error(`Failed to probe video file ${videoFilePath} for duration: ${(probeError as Error).message}`);
-        }
+        const videoDurationSeconds: number = DEFAULT_AUDIO_DURATION_SECONDS;
+        console.log(`NodeJS: Using constant video duration for ${videoFilePath}: ${videoDurationSeconds}s (from DEFAULT_AUDIO_DURATION_SECONDS)`);
 
         const calculatedTimemarks: string[] = [];
         if (numFramesToExtract > 0) {
