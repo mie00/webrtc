@@ -47,7 +47,7 @@ export async function generateChirpAudioFile(
 export const DEFAULT_VIDEO_WIDTH = 640;
 export const DEFAULT_VIDEO_HEIGHT = 480;
 export const DEFAULT_VIDEO_FRAMES = 100; // Number of frames for the video
-export const DEFAULT_QR_SIZE = 100; // Pixels
+export const DEFAULT_QR_SIZE = 200; // Pixels
 export const DEFAULT_BG_COLOR = "white";
 export const DEFAULT_VIDEO_FRAMERATE = 25;
 
