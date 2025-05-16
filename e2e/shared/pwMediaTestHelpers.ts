@@ -17,7 +17,6 @@ import {
     DEFAULT_VIDEO_FRAMERATE,
     DEFAULT_QR_SIZE,
     DEFAULT_BG_COLOR,
-    DEFAULT_SAMPLE_RATE, // Added for use in audio analysis
 } from './pwMediaGeneration'; // Use Playwright version
 import {
     analyzeAudioInBrowser,
@@ -485,7 +484,7 @@ async function verifyVideoFilePw(
     // A more robust check for 2 QRs:
     const framesWithAtLeastTwoQrs = analysisResult.framesAnalysis.filter(f => f.qrResults.length >= 2).length;
     // Loosen this: expect at least one frame to show two QRs, or a significant number of total QRs
-    expect(totalQrDetections).toBeGreaterThanOrEqual(numFramesToAnalyze * 1.5, `${pageName}: Expected to find evidence of two QR streams (total detections >= ${numFramesToAnalyze * 1.5})`);
+    expect(totalQrDetections).toBeGreaterThanOrEqual(numFramesToAnalyze * 1.5);
 
 
     // 3. Verify QR movement for distinct instances
@@ -495,7 +494,7 @@ async function verifyVideoFilePw(
         const qrMinXCoords = allFoundQrs.map(qr => Math.min(...qr.points.map(p => p.x)));
         const uniqueXCoords = new Set(qrMinXCoords);
         // Expect movement if multiple QR codes (from different frames or different instances) were found
-        expect(uniqueXCoords.size).toBeGreaterThan(1, `${pageName}: Expected QR movement (unique X positions > 1)`);
+        expect(uniqueXCoords.size).toBeGreaterThan(1);
         console.log(`${pageName}: Video QR movement verified (${uniqueXCoords.size} unique X positions among all detected QRs).`);
     } else if (allFoundQrs.length === 1) {
         console.warn(`${pageName}: Only one QR code instance found in analyzed frames. Cannot verify movement robustly.`);
@@ -510,16 +509,16 @@ async function verifyVideoFilePw(
         expect(analysisResult.audioAnalysis?.err).toBeUndefined();
         // Check if any "frequency" (placeholder for audio activity) was detected
         const audioActivityDetected = analysisResult.audioAnalysis!.frequencies.some(f => f !== null && f > -50); // Using -50dB as threshold from node analysis
-        expect(audioActivityDetected).toBe(true, `${pageName}: Expected audio activity, but none detected above threshold.`);
+        expect(audioActivityDetected).toBe(true);
         
         // For a chirp, we expect varying "frequencies" (or sustained significant audio)
         const uniqueFreqs = new Set(analysisResult.audioAnalysis!.frequencies.filter(f => f !== null));
-        expect(uniqueFreqs.size).toBeGreaterThanOrEqual(1, `${pageName}: Expected varying audio signals for chirp.`); // At least one type of sound
+        expect(uniqueFreqs.size).toBeGreaterThanOrEqual(1); // At least one type of sound
         console.log(`${pageName}: Audio presence verified (Found ${uniqueFreqs.size} unique 'frequency' indicators/levels).`);
     } else {
         if (analysisResult.audioAnalysis) { // Audio might not have been analyzed if expectedAudio was false from start
             const audioActivityDetected = analysisResult.audioAnalysis.frequencies.some(f => f !== null && f > -50);
-            expect(audioActivityDetected).toBe(false, `${pageName}: Expected no audio activity, but some was detected.`);
+            expect(audioActivityDetected).toBe(false);
             console.log(`${pageName}: Verified audio is silent or not present as expected.`);
         } else {
             console.log(`${pageName}: Audio analysis was not performed (as expectedAudio=false), considered silent.`);
