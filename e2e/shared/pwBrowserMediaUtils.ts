@@ -357,24 +357,57 @@ export async function extractFramesAndAnalyzeVideoFileNode(
 
     try {
         // 1. Frame Extraction
-        console.log(`NodeJS: Extracting ${numFramesToExtract} frames from ${videoFilePath} to ${tempDir}`);
-        await new Promise<void>((resolve, reject) => {
-            ffmpeg(videoFilePath)
-                .screenshots({
-                    count: numFramesToExtract,
-                    folder: tempDir,
-                    filename: 'frame-%i.png',
-                    size: '640x?', // Resize for faster processing, maintain aspect ratio
-                    fastSeek: true,
-                    timemarks: [] // TODO: fill in the timemarks
-                })
-                .on('end', resolve)
-                .on('error', (err) => {
-                    console.error(`NodeJS: Error extracting frames: ${err.message}`);
-                    reject(err);
-                });
-        });
-        console.log(`NodeJS: Frame extraction complete.`);
+        const ffprobeAsync = promisify(ffmpeg.ffprobe);
+        let videoDurationSeconds: number;
+
+        try {
+            const metadata = await ffprobeAsync(videoFilePath);
+            if (metadata && metadata.format && typeof metadata.format.duration === 'number' && metadata.format.duration > 0) {
+                videoDurationSeconds = metadata.format.duration;
+                console.log(`NodeJS: Video duration for ${videoFilePath}: ${videoDurationSeconds}s`);
+            } else {
+                console.warn(`NodeJS: ffprobe could not determine a valid duration for ${videoFilePath}. Metadata:`, JSON.stringify(metadata));
+                throw new Error(`ffprobe failed to get a valid duration for ${videoFilePath}. Cannot calculate timemarks.`);
+            }
+        } catch (probeError) {
+            console.error(`NodeJS: Error probing video file ${videoFilePath} for duration: ${(probeError as Error).message}`);
+            throw new Error(`Failed to probe video file ${videoFilePath} for duration: ${(probeError as Error).message}`);
+        }
+
+        const calculatedTimemarks: string[] = [];
+        if (numFramesToExtract > 0) {
+            for (let i = 1; i <= numFramesToExtract; i++) {
+                const timePoint = videoDurationSeconds * (i / (numFramesToExtract + 1));
+                calculatedTimemarks.push(timePoint.toFixed(6));
+            }
+            console.log(`NodeJS: Calculated timemarks for ${numFramesToExtract} frames: ${calculatedTimemarks}`);
+        }
+
+        if (numFramesToExtract <= 0) {
+            console.log("NodeJS: numFramesToExtract is 0 or less, no frames will be extracted.");
+        } else {
+            console.log(`NodeJS: Extracting ${numFramesToExtract} frames from ${videoFilePath} to ${tempDir} using calculated timemarks.`);
+            if (calculatedTimemarks.length === 0) {
+                 // This should not be reached if numFramesToExtract > 0 due to the duration check above.
+                console.error("NodeJS: No timemarks calculated for frame extraction despite numFramesToExtract > 0. This indicates an issue.");
+                throw new Error("No timemarks available for frame extraction.");
+            }
+            await new Promise<void>((resolve, reject) => {
+                ffmpeg(videoFilePath)
+                    .screenshots({
+                        timemarks: calculatedTimemarks,
+                        folder: tempDir,
+                        filename: 'frame-%i.png',
+                        size: '640x?',
+                    })
+                    .on('end', resolve)
+                    .on('error', (err) => {
+                        console.error(`NodeJS: Error extracting frames with timemarks: ${err.message}`);
+                        reject(err);
+                    });
+            });
+            console.log(`NodeJS: Frame extraction complete.`);
+        }
 
         // 2. QR Decoding from Frames
         for (let i = 1; i <= numFramesToExtract; i++) {
