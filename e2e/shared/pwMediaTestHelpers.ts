@@ -29,6 +29,7 @@ import {
     TOGGLE_VIDEO_BUTTON_SELECTOR,
     SHARE_VIDEO_BUTTON_SELECTOR,
     UPLOAD_VIDEO_INPUT_SELECTOR,
+    RECORD_BUTTON_SELECTOR, // Added
     PW_TIMEOUT, // Use Playwright timeout
 } from '../setup/pwTestHelpers'; // Use Playwright helpers
 
@@ -40,6 +41,10 @@ const __dirname = dirname(__filename); // This will be e2e/shared
 export const MEDIA_SETUP_DIR_PW = path.join(__dirname, '..', 'setup', 'generated-media-pw');
 const REMOTE_VIDEO_CONTAINER_SELECTOR = 'div.stream-container[id^="test-remote-video-"]';
 const REMOTE_VIDEO_ELEMENT_SELECTOR = `${REMOTE_VIDEO_CONTAINER_SELECTOR} video`;
+
+const LOCAL_VIDEO_CONTAINER_SELECTOR_CAMERA = 'div#test-local-video-camera'; // Added
+const LOCAL_VIDEO_ELEMENT_SELECTOR_CAMERA = `${LOCAL_VIDEO_CONTAINER_SELECTOR_CAMERA} video`; // Added
+
 const LOCAL_VIDEO_CONTAINER_SELECTOR_FILE = 'div#test-local-video-file';
 const LOCAL_VIDEO_ELEMENT_SELECTOR_FILE = `${LOCAL_VIDEO_CONTAINER_SELECTOR_FILE} video`;
 
@@ -401,4 +406,171 @@ export async function performCombinedMediaTestPw(
         console.log(`${sender.name}: Video button OFF.`);
     }
     console.log(`--- Combined Media Test (Order: ${order}) Completed ---`);
+}
+
+interface VideoFileAnalysisResult {
+    qrCodesDetected: Array<{ content: string, points: { x: number, y: number }[], frameIndex: number, instanceId?: string }>;
+    audioAnalysis: AudioAnalysisResult | null;
+    // Add other relevant fields like movement verification, squareness, etc.
+}
+
+async function verifyVideoFilePw(
+    filePath: string,
+    expectedQrContent: string,
+    expectedAudio: boolean,
+    pageName: string // For logging
+): Promise<void> {
+    console.log(`${pageName}: Verifying downloaded video file: ${filePath}`);
+    console.log(`${pageName}: Expected QR content: "${expectedQrContent}", Expected Audio: ${expectedAudio}`);
+
+    // This function will use helpers from pwBrowserMediaUtils.ts (Node.js context)
+    // to process the video file.
+    // 1. Extract ~4 frames using ffmpeg.
+    // 2. For each frame:
+    //    - Load frame into Jimp.
+    //    - Attempt to decode *two* QR codes. This is the complex part.
+    //      Strategy: If the recorded layout is a grid (e.g., 2x1),
+    //      crop the frame into two halves and run QR decoder on each.
+    //      Alternatively, if a QR library can find multiple, use that.
+    //      For now, we'll aim to find at least two distinct QR instances across frames.
+    //    - Store all QR results (content, points, frame index).
+    // 3. Analyze collected QR results:
+    //    - Expect `expectedQrContent` to be found.
+    //    - Expect at least two distinct QR "instances" (based on coordinates/movement)
+    //      if the recording captured two video streams.
+    //    - Verify squareness for all found QRs.
+    //    - Verify movement for these QR instances across the frames.
+    // 4. Extract audio from the video file using ffmpeg.
+    // 5. Analyze the extracted audio for the chirp if expectedAudio is true.
+
+    // Placeholder for actual implementation:
+    // const analysisResult = await extractFramesAndAnalyzeVideoFileNode(filePath, expectedQrContent, expectedAudio);
+    
+    // Example assertions (these would use data from analysisResult):
+    // expect(analysisResult.qrCodesDetected.length).toBeGreaterThanOrEqual(4 * 2); // e.g. 4 frames, 2 QRs per frame
+    // expect(all QR contents match expectedQrContent)
+    // expect(qr codes are square)
+    // expect(qr codes show movement for two distinct instances)
+    // if (expectedAudio) {
+    //   expect(analysisResult.audioAnalysis?.frequencies.length).toBeGreaterThanOrEqual(2);
+    //   expect(unique freqs > 1)
+    // } else {
+    //   expect(audio is silent or not present)
+    // }
+
+    console.warn(`${pageName}: Actual video file verification (QR, audio) in verifyVideoFilePw is not fully implemented yet.`);
+    // For now, just check if the file exists and is non-empty as a basic step
+    const fs = require('fs');
+    expect(fs.existsSync(filePath)).toBe(true);
+    const stats = fs.statSync(filePath);
+    expect(stats.size).toBeGreaterThan(0);
+    console.log(`${pageName}: Basic file check passed for ${filePath} (exists and non-empty). Full analysis pending.`);
+}
+
+
+export async function performRecordingTestPw(
+    pageInfoA: PageInfoPw,
+    pageInfoB: PageInfoPw
+): Promise<void> {
+    console.log(`--- Starting Recording Test (Playwright): ${pageInfoA.name} and ${pageInfoB.name} ---`);
+    const recordingDurationMs = 5000;
+
+    // 1. Enable camera on Page A
+    console.log(`${pageInfoA.name}: Clicking video button.`);
+    const videoButtonA = pageInfoA.page.locator(TOGGLE_VIDEO_BUTTON_SELECTOR);
+    await videoButtonA.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+    await videoButtonA.click();
+    await expect(pageInfoA.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+    console.log(`${pageInfoA.name}: Video button ON.`);
+
+    // 2. Enable camera on Page B
+    console.log(`${pageInfoB.name}: Clicking video button.`);
+    const videoButtonB = pageInfoB.page.locator(TOGGLE_VIDEO_BUTTON_SELECTOR);
+    await videoButtonB.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+    await videoButtonB.click();
+    await expect(pageInfoB.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+    console.log(`${pageInfoB.name}: Video button ON.`);
+
+    // 3. Enable mic on Page A
+    console.log(`${pageInfoA.name}: Clicking audio button.`);
+    const audioButtonA = pageInfoA.page.locator(TOGGLE_AUDIO_BUTTON_SELECTOR);
+    await audioButtonA.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+    await audioButtonA.click();
+    await expect(pageInfoA.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+    console.log(`${pageInfoA.name}: Audio button ON.`);
+
+    await pageInfoA.page.waitForTimeout(3000); // Wait for streams to establish
+
+    // 4. Verify Page A sees its local camera and remote camera from B
+    console.log(`${pageInfoA.name}: Verifying local camera stream.`);
+    await verifyVideoStreamOnPagePw(pageInfoA.page, `${pageInfoA.name} (local view)`, LOCAL_VIDEO_ELEMENT_SELECTOR_CAMERA, CAMERA_TEST_QR_CONTENT_PW);
+    console.log(`${pageInfoA.name}: Verifying remote camera stream from ${pageInfoB.name}.`);
+    await verifyVideoStreamOnPagePw(pageInfoA.page, `${pageInfoA.name} (remote view of ${pageInfoB.name})`, REMOTE_VIDEO_ELEMENT_SELECTOR, CAMERA_TEST_QR_CONTENT_PW);
+    
+    // 5. Verify Page B sees its local camera and remote camera from A
+    console.log(`${pageInfoB.name}: Verifying local camera stream.`);
+    await verifyVideoStreamOnPagePw(pageInfoB.page, `${pageInfoB.name} (local view)`, LOCAL_VIDEO_ELEMENT_SELECTOR_CAMERA, CAMERA_TEST_QR_CONTENT_PW);
+    console.log(`${pageInfoB.name}: Verifying remote camera stream from ${pageInfoA.name}.`);
+    await verifyVideoStreamOnPagePw(pageInfoB.page, `${pageInfoB.name} (remote view of ${pageInfoA.name})`, REMOTE_VIDEO_ELEMENT_SELECTOR, CAMERA_TEST_QR_CONTENT_PW);
+
+    // 6. Verify Page B hears audio from Page A
+    console.log(`${pageInfoB.name}: Verifying audio stream from ${pageInfoA.name}.`);
+    await verifyAudioStreamOnPagePw(pageInfoB.page, pageInfoB.name, true);
+
+    // 7. Start recording on Page A
+    console.log(`${pageInfoA.name}: Clicking record button.`);
+    const recordButtonA = pageInfoA.page.locator(RECORD_BUTTON_SELECTOR);
+    await recordButtonA.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+    await recordButtonA.click();
+    await expect(pageInfoA.page.locator(`${RECORD_BUTTON_SELECTOR}[class*="bg-red-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+    console.log(`${pageInfoA.name}: Record button ON.`);
+
+    // 8. Start recording on Page B
+    console.log(`${pageInfoB.name}: Clicking record button.`);
+    const recordButtonB = pageInfoB.page.locator(RECORD_BUTTON_SELECTOR);
+    await recordButtonB.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+    await recordButtonB.click();
+    await expect(pageInfoB.page.locator(`${RECORD_BUTTON_SELECTOR}[class*="bg-red-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+    console.log(`${pageInfoB.name}: Record button ON.`);
+
+    // 9. Wait for recording duration
+    console.log(`Waiting ${recordingDurationMs}ms for recording...`);
+    await pageInfoA.page.waitForTimeout(recordingDurationMs);
+
+    // 10. Stop recording on Page A (triggers download_A)
+    console.log(`${pageInfoA.name}: Clicking record button to stop and download.`);
+    const downloadPromiseA = pageInfoA.page.waitForEvent('download', {timeout: PW_TIMEOUT * 2});
+    await recordButtonA.click();
+    await expect(pageInfoA.page.locator(`${RECORD_BUTTON_SELECTOR}:not([class*="bg-red-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+    const downloadA = await downloadPromiseA;
+    const filePathA = path.join(MEDIA_SETUP_DIR_PW, `recording_${pageInfoA.name.replace(' ', '_')}_${Date.now()}.webm`);
+    await downloadA.saveAs(filePathA);
+    console.log(`${pageInfoA.name}: Downloaded recording to ${filePathA}`);
+
+    // 11. Stop recording on Page B (triggers download_B)
+    console.log(`${pageInfoB.name}: Clicking record button to stop and download.`);
+    const downloadPromiseB = pageInfoB.page.waitForEvent('download', {timeout: PW_TIMEOUT * 2});
+    await recordButtonB.click();
+    await expect(pageInfoB.page.locator(`${RECORD_BUTTON_SELECTOR}:not([class*="bg-red-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+    const downloadB = await downloadPromiseB;
+    const filePathB = path.join(MEDIA_SETUP_DIR_PW, `recording_${pageInfoB.name.replace(' ', '_')}_${Date.now()}.webm`);
+    await downloadB.saveAs(filePathB);
+    console.log(`${pageInfoB.name}: Downloaded recording to ${filePathB}`);
+
+    // 12. Analyze download_A
+    // Expected: 2 QRs (CAMERA_TEST_QR_CONTENT_PW from local, CAMERA_TEST_QR_CONTENT_PW from remote B), movement for both, audio chirp (from A's mic).
+    await verifyVideoFilePw(filePathA, CAMERA_TEST_QR_CONTENT_PW, true, `${pageInfoA.name} recording`);
+
+    // 13. Analyze download_B
+    // Expected: 2 QRs (CAMERA_TEST_QR_CONTENT_PW from local, CAMERA_TEST_QR_CONTENT_PW from remote A), movement for both, audio chirp (from A's mic, received by B).
+    await verifyVideoFilePw(filePathB, CAMERA_TEST_QR_CONTENT_PW, true, `${pageInfoB.name} recording`);
+
+    // Cleanup: Turn off media
+    console.log(`${pageInfoA.name}: Turning off audio and video.`);
+    await audioButtonA.click();
+    await videoButtonA.click();
+    console.log(`${pageInfoB.name}: Turning off video.`);
+    await videoButtonB.click();
+
+    console.log(`--- Recording Test Completed ---`);
 }
