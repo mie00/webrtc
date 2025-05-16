@@ -1,6 +1,6 @@
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import { checkConnectionEstablished } from './setup/pwTestHelpers';
-import { pwStandardClientSetup } from './setup/pwStandardClientSetup';
+import { standardServerSetup } from './setup/pwStandardServerSetup';
 import { standardTeardown } from './setup/pwStandardTeardown';
 
 test.describe('WebRTC Peer Connection E2E Test (Playwright - Standard Client)', () => {
@@ -10,7 +10,7 @@ test.describe('WebRTC Peer Connection E2E Test (Playwright - Standard Client)', 
     let contextB: BrowserContext;
 
     test.beforeAll(async ({ browser }) => {
-        const setupResult = await pwStandardClientSetup(browser);
+        const setupResult = await standardServerSetup(browser);
         pageA = setupResult.pageA;
         pageB = setupResult.pageB;
         contextA = setupResult.contextA;
