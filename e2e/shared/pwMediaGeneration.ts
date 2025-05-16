@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 
-async function fileExists(filePath: string): Promise<boolean> {
+export async function fileExists(filePath: string): Promise<boolean> {
     try {
         await fs.access(filePath);
         return true;

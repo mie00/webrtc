@@ -3,7 +3,7 @@ module.exports = {
   // Puppeteer launch options
   launch: {
     headless: process.env.DEBUG_WAIT?false:'new', // Set to false to run in non-headless mode
-    slowMo: 50, // Optional: Slow down operations to observe better
+    // slowMo: 50, // Optional: Slow down operations to observe better
     args: [
       '--mute-audio',
       // Essential on macOS for the fake audio file:
@@ -16,15 +16,10 @@ module.exports = {
       `--use-file-for-fake-audio-capture=./__tests__/e2e/setup/mic_test_generated_audio.wav`,
       '--window-size=2540,1080',
     ],
-    ignoreDefaultArgs: ['--mute-audio'],
   },
   maxWorkers: 3,
   // Using jest-puppeteer preset is often simpler for E2E with Puppeteer
   preset: 'jest-puppeteer', // Recommended preset for Puppeteer tests
-  // testEnvironment is usually handled by the preset, but keep if custom logic exists
-  testEnvironment: './__tests__/e2e/setup/jest.puppeteer-environment.ts', // Keep custom env for page setup
-  globalSetup: '<rootDir>/__tests__/e2e/setup/globalSetup.ts', // Use TS file for global setup
-  globalTeardown: '<rootDir>/__tests__/e2e/setup/globalTeardown.ts', // Use TS file for global teardown
   moduleNameMapper: {
     // Handle module aliases (if you have them in tsconfig.json)
     // Example: '^@components/(.*)$': '<rootDir>/src/components/$1',

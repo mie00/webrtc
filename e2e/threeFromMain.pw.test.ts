@@ -42,7 +42,7 @@ test.describe('Three Client E2E Tests with Playwright (Page A as primary sender)
             { page: pageC, name: 'Page C (Receiver)' }
         ];
 
-        // await setupTestFiles(); // Moved to globalSetup
+        await setupTestFiles(); // Moved to globalSetup
         // await setupMicTestMediaPw(); // Moved to globalSetup
         // await setupCameraTestMediaPw(); // Moved to globalSetup
         // await setupWatchTestMediaPw(); // Moved to globalSetup

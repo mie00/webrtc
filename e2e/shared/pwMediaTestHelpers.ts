@@ -7,6 +7,7 @@ import {
     generateMovingQrVideoFile,
     combineAudioAndVideo,
     cleanupMedia,
+    fileExists,
     DEFAULT_AUDIO_DURATION_SECONDS,
     DEFAULT_START_FREQ_HZ,
     DEFAULT_END_FREQ_HZ,
@@ -36,7 +37,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename); // This will be e2e/shared
 
 // Store generated media in a Playwright-specific subdirectory within e2e/setup
-const MEDIA_SETUP_DIR_PW = path.join(__dirname, '..', 'setup', 'generated-media-pw');
+export const MEDIA_SETUP_DIR_PW = path.join(__dirname, '..', 'setup', 'generated-media-pw');
 const REMOTE_VIDEO_CONTAINER_SELECTOR = 'div.stream-container[id^="test-remote-video-"]';
 const REMOTE_VIDEO_ELEMENT_SELECTOR = `${REMOTE_VIDEO_CONTAINER_SELECTOR} video`;
 const LOCAL_VIDEO_CONTAINER_SELECTOR_FILE = 'div#test-local-video-file';
@@ -113,6 +114,10 @@ let watchTestTempVideoFramesDirPw: string | undefined;
 const watchTestFilesToCleanPw: string[] = [watchTestTempVideoPathPw, watchTestAudioPathPw, watchTestFinalMp4PathPw];
 
 export async function setupWatchTestMediaPw(): Promise<void> {
+    if (await fileExists(watchTestFinalMp4PathPw)) {
+        console.log(`Watch file ${watchTestFinalMp4PathPw} already exists. Skipping generation.`);
+        return;
+    }
     console.log('--- Generating test media for Watch Test (Playwright) ---');
     const videoGenResult = await generateMovingQrVideoFile(
         watchTestTempVideoPathPw,

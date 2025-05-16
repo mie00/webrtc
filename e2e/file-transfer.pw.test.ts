@@ -35,7 +35,7 @@ test.describe('WebRTC File Transfer E2E Test with Playwright (Standard A to B)',
 
     test.afterAll(async () => {
         await standardTeardown({ pageA, contextA, pageB, contextB });
-        await teardownTestFiles();
+        // await teardownTestFiles();
     });
 
     // Loop through preparedTestCases to create a test for each
