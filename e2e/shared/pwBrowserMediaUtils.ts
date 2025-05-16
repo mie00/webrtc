@@ -259,7 +259,7 @@ export async function takeScreenshotAndDecodeQR(
 
             if (isLocalStreamView) {
                 console.log(` Attempt ${attempt}: Flipping image horizontally for local stream view.`);
-                image.flip(true, false); // Flip horizontally, not vertically
+                image.flip({horizontal: true}); // Flip horizontally, not vertically
                 // await image.writeAsync(`./debug-image-flipped-attempt-${attempt}.png`); // For debugging flipped image
             }
 
@@ -364,7 +364,9 @@ export async function extractFramesAndAnalyzeVideoFileNode(
                     count: numFramesToExtract,
                     folder: tempDir,
                     filename: 'frame-%i.png',
-                    size: '640x?' // Resize for faster processing, maintain aspect ratio
+                    size: '640x?', // Resize for faster processing, maintain aspect ratio
+                    fastSeek: true,
+                    timemarks: [] // TODO: fill in the timemarks
                 })
                 .on('end', resolve)
                 .on('error', (err) => {
