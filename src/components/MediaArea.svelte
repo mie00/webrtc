@@ -183,7 +183,7 @@
 
   onDestroy(() => {
     clearInterval(refreshInterval);
-    if (get(transcriberStore).isTranscribingOverall) { // Use get() for one-time check
+    if ($transcriberStore.isTranscribingOverall) { // Use get() for one-time check
       stopOverallTranscription();
     }
   });

@@ -1,5 +1,5 @@
 import { writable, get } from 'svelte/store';
-import { getStreamState, type LocalStreamData, type RemoteStreamData } from '../../stores/streamStore'; // Assuming StreamState is exported
+import { getStreamState, type LocalStreamData, type RemoteStreamData } from '../../stores/streamStore.js'; // Assuming StreamState is exported
 
 const WEBSOCKET_URL = 'ws://localhost:8888/asr';
 const TRANSCRIPTION_CHUNK_DURATION_MS = 1000;
