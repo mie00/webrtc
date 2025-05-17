@@ -38,11 +38,13 @@ export interface TranscriptionSegment {
 export interface TranscriptionDisplayStoreState {
   segments: TranscriptionSegment[]; 
   activeBuffers: Record<string, { sessionId: string, speakerLabel: string, text: string }>; // Keyed by sessionId
+  lastTextBySpeaker: Record<string, { text: string, utteranceId: string }>; // Track last text per speaker
 }
 
 const initialDisplayState: TranscriptionDisplayStoreState = {
   segments: [],
   activeBuffers: {},
+  lastTextBySpeaker: {},
 };
 export const transcriptionDisplayStore = writable<TranscriptionDisplayStoreState>(initialDisplayState);
 // --- End New Store ---
@@ -123,11 +125,8 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
         const currentSegmentsMap = new Map<string, TranscriptionSegment>(s.segments.map(seg => [seg.utteranceId, seg]));
         let segmentsChanged = false;
         
-        // Keep track of the last speaker for speaker change detection
-        let lastSpeakerLabel = '';
-        if (s.segments.length > 0) {
-          lastSpeakerLabel = s.segments[s.segments.length - 1].speakerLabel;
-        }
+        // Create a copy of the last text by speaker tracking
+        const lastTextBySpeaker = { ...s.lastTextBySpeaker };
 
         // Process finalized lines from ASR
         if (data.lines && Array.isArray(data.lines)) {
@@ -143,38 +142,52 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
               const utteranceId = `${sessionId}-${line.speaker}-${line.beg}`; // Identifies an utterance
               const currentText = line.text.trim();
               const svelteKeyId = `${utteranceId}-${messageTimestamp}-${index}`; // Unique key for Svelte's #each
-
-              const existingSegment = currentSegmentsMap.get(utteranceId);
-
-              if (existingSegment) {
-                // Only update existing segment if:
-                // 1. The speaker is the same as the last segment (to prevent modifying previous speaker's text)
-                // 2. Text or end time has changed
-                if (existingSegment.speakerLabel === lastSpeakerLabel && 
-                    (existingSegment.text !== currentText || existingSegment.end !== line.end)) {
+              
+              // Create a unique key for this speaker
+              const speakerKey = `${sessionId}-${speakerLabel}`;
+              
+              // Check if we have seen this speaker before
+              if (lastTextBySpeaker[speakerKey]) {
+                const lastInfo = lastTextBySpeaker[speakerKey];
+                const existingSegment = currentSegmentsMap.get(lastInfo.utteranceId);
+                
+                if (existingSegment) {
+                  // If this is the same speaker as the last segment, update that segment
                   existingSegment.text = currentText;
                   existingSegment.end = line.end;
-                  existingSegment.timestamp = messageTimestamp + index; // Update timestamp for sorting
-                  existingSegment.id = svelteKeyId; // Update svelte key if needed
+                  existingSegment.timestamp = messageTimestamp + index;
+                  existingSegment.id = svelteKeyId;
                   segmentsChanged = true;
-                } else if (existingSegment.speakerLabel !== lastSpeakerLabel) {
-                  // If speaker changed, create a new segment instead of modifying the existing one
-                  const newUtteranceId = `${utteranceId}-${messageTimestamp}`; // Create a unique ID
-                  currentSegmentsMap.set(newUtteranceId, {
-                    id: `${newUtteranceId}-${index}`,
-                    utteranceId: newUtteranceId,
+                  
+                  // Update our tracking of the last text for this speaker
+                  lastTextBySpeaker[speakerKey] = { 
+                    text: currentText, 
+                    utteranceId: lastInfo.utteranceId 
+                  };
+                } else {
+                  // The segment was removed or not found, create a new one
+                  const newSegment = {
+                    id: svelteKeyId,
+                    utteranceId,
                     sessionId,
                     speakerLabel,
                     text: currentText,
                     beg: line.beg,
                     end: line.end,
                     timestamp: messageTimestamp + index,
-                  });
+                  };
+                  currentSegmentsMap.set(utteranceId, newSegment);
                   segmentsChanged = true;
+                  
+                  // Update our tracking for this speaker
+                  lastTextBySpeaker[speakerKey] = { 
+                    text: currentText, 
+                    utteranceId 
+                  };
                 }
               } else {
-                // Add new segment
-                currentSegmentsMap.set(utteranceId, {
+                // This is a new speaker or first time seeing this speaker
+                const newSegment = {
                   id: svelteKeyId,
                   utteranceId,
                   sessionId,
@@ -183,10 +196,15 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
                   beg: line.beg,
                   end: line.end,
                   timestamp: messageTimestamp + index,
-                });
+                };
+                currentSegmentsMap.set(utteranceId, newSegment);
                 segmentsChanged = true;
-                // Update last speaker
-                lastSpeakerLabel = speakerLabel;
+                
+                // Start tracking this speaker
+                lastTextBySpeaker[speakerKey] = { 
+                  text: currentText, 
+                  utteranceId 
+                };
               }
             }
           });
@@ -218,6 +236,7 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
         return {
           segments: finalSegments,
           activeBuffers: newActiveBuffers,
+          lastTextBySpeaker,
         };
       });
 
@@ -263,11 +282,24 @@ function stopTranscriptionForSession(sessionId: string, closeWebSocket = true) {
         // console.log(`WebSocket connection closed for ${sessionId}.`); // Already logged by onclose
       }
 
-      // Clear buffer for this session from the display store
+      // Clear buffer and lastTextBySpeaker entries for this session from the display store
       transcriptionDisplayStore.update(s => {
         const newBuffers = { ...s.activeBuffers };
         delete newBuffers[sessionId];
-        return { ...s, activeBuffers: newBuffers };
+        
+        // Remove all lastTextBySpeaker entries for this session
+        const newLastTextBySpeaker = { ...s.lastTextBySpeaker };
+        Object.keys(newLastTextBySpeaker).forEach(key => {
+          if (key.startsWith(`${sessionId}-`)) {
+            delete newLastTextBySpeaker[key];
+          }
+        });
+        
+        return { 
+          ...s, 
+          activeBuffers: newBuffers,
+          lastTextBySpeaker: newLastTextBySpeaker
+        };
       });
 
       const { [sessionId]: _, ...remainingSessions } = state.activeSessions;
