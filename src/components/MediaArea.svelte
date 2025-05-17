@@ -540,16 +540,33 @@
       return;
     }
     
-    const model = 'base-en-q5_1';
+    const model = 'base-q5_1';
     const urls: Record<string, string> = {
-        'base-en-q5_1':  'https://whisper.ggerganov.com/ggml-model-whisper-base.en-q5_1.bin',
+      'tiny':     'https://whisper.ggerganov.com/ggml-model-whisper-tiny.bin',
+      'base':     'https://whisper.ggerganov.com/ggml-model-whisper-base.bin',
+      'small':    'https://whisper.ggerganov.com/ggml-model-whisper-small.bin',
+
+      'tiny-q5_1':     'https://whisper.ggerganov.com/ggml-model-whisper-tiny-q5_1.bin',
+      'base-q5_1':     'https://whisper.ggerganov.com/ggml-model-whisper-base-q5_1.bin',
+      'small-q5_1':    'https://whisper.ggerganov.com/ggml-model-whisper-small-q5_1.bin',
+      'medium-q5_0':   'https://whisper.ggerganov.com/ggml-model-whisper-medium-q5_0.bin',
+      'large-q5_0':    'https://whisper.ggerganov.com/ggml-model-whisper-large-q5_0.bin',
     };
     const sizes: Record<string, number> = {
-        'base-en-q5_1':   57,
+      'tiny':     75,
+      'base':     142,
+      'small':    466,
+
+      'tiny-q5_1':      31,
+      'base-q5_1':      57,
+      'small-q5_1':     182,
+      'medium-q5_0':    515,
+      'large-q5_0':     1030,
     };
     const modelUrl = urls[model];
     const modelDst = 'whisper.bin'; 
     const modelSizeMb = sizes[model];
+    const lang = "ar";
 
     printWhisperLog(`Loading model "${model}"...`);
 
@@ -566,7 +583,7 @@
         printWhisperLog(`Stored model: ${modelDst}, size: ${modelData.length}`);
         
         isWhisperModelLoaded = true;
-        whisperInstance = window.Module.init(modelDst); // Module.init is from stream.js
+        whisperInstance = window.Module.init(modelDst, lang); // Module.init is from stream.js
 
         if (whisperInstance) {
           printWhisperLog(`Whisper initialized, instance: ${whisperInstance}`);
