@@ -52,7 +52,8 @@
   // Audio capture related state for Whisper
   let whisperAudioContext: AudioContext | null = $state(null);
   let whisperMediaRecorder: MediaRecorder | null = $state(null);
-  let accumulatedAudioData: Float32Array | null = $state(null);
+  let accumulatedAudioData: Float32Array | null = $state(null); // This will hold the Float32Array for the current session's audio
+  let currentSessionBlobs: Blob[] = $state([]); // Stores raw blobs from MediaRecorder for the current session
   let whisperModuleReady = $state(false);
   let transcriptionPollInterval: number | null = $state(null);
 
@@ -600,44 +601,61 @@
         echoCancellation: false, autoGainControl:  true, noiseSuppression: true,
     });
 
+    currentSessionBlobs = []; // Reset blob accumulator for the new recording session
+    accumulatedAudioData = null; // Reset final Float32Array
+
     navigator.mediaDevices.getUserMedia({ audio: true, video: false })
       .then(stream => {
         if (whisperMediaRecorder && whisperMediaRecorder.state === "recording") {
           whisperMediaRecorder.stop();
         }
-        whisperMediaRecorder = new MediaRecorder(stream);
-        accumulatedAudioData = null; 
+        
+        // MediaRecorder is created without specific mimeType, like in the example.
+        // The mimeType will be specified when creating the Blob.
+        whisperMediaRecorder = new MediaRecorder(stream); 
 
-        whisperMediaRecorder.ondataavailable = async (event) => {
+        whisperMediaRecorder.ondataavailable = (event) => { // Removed async, FileReader is callback based
           if (event.data.size > 0 && whisperAudioContext) {
-            const arrayBuffer = await event.data.arrayBuffer();
-            // It's important that decodeAudioData uses the same AudioContext instance
-            whisperAudioContext.decodeAudioData(arrayBuffer, (audioBuffer) => {
-              // Resample/process audio to Float32Array as expected by Whisper
-              // The example uses OfflineAudioContext to ensure it's processed correctly.
-              const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
-              const source = offlineCtx.createBufferSource();
-              source.buffer = audioBuffer;
-              source.connect(offlineCtx.destination);
-              source.start(0);
+            currentSessionBlobs.push(event.data);
 
-              offlineCtx.startRendering().then((renderedBuffer) => {
-                const newAudio = renderedBuffer.getChannelData(0); // Get Float32Array
-                
-                if (accumulatedAudioData) {
-                  const combined = new Float32Array(accumulatedAudioData.length + newAudio.length);
-                  combined.set(accumulatedAudioData, 0);
-                  combined.set(newAudio, accumulatedAudioData.length);
-                  accumulatedAudioData = combined;
-                } else {
-                  accumulatedAudioData = newAudio;
-                }
+            // Create a new Blob from all chunks received so far in this session,
+            // using the specific MIME type from the example.
+            const combinedBlob = new Blob(currentSessionBlobs, { 'type' : 'audio/ogg; codecs=opus' });
+            
+            const reader = new FileReader();
 
-                if (whisperInstance && window.Module?.set_audio) {
-                  window.Module.set_audio(whisperInstance, accumulatedAudioData);
-                }
-              }).catch(e => console.error("Error rendering offline audio:", e));
-            }, (e) => console.error("Error decoding audio data for Whisper:", e));
+            reader.onload = () => {
+              if (!whisperAudioContext || !reader.result) {
+                console.error("Whisper audio context or FileReader result is missing.");
+                return; 
+              }
+              const arrayBuffer = reader.result as ArrayBuffer;
+
+              whisperAudioContext.decodeAudioData(arrayBuffer, (audioBuffer) => {
+                const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
+                const source = offlineCtx.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(offlineCtx.destination);
+                source.start(0);
+
+                offlineCtx.startRendering().then((renderedBuffer) => {
+                  // This Float32Array represents the audio from the start of the current
+                  // recording session up to this point.
+                  const currentSessionFloat32Audio = renderedBuffer.getChannelData(0);
+                  accumulatedAudioData = currentSessionFloat32Audio; 
+
+                  if (whisperInstance && window.Module?.set_audio && accumulatedAudioData) {
+                    window.Module.set_audio(whisperInstance, accumulatedAudioData);
+                  }
+                }).catch(e => console.error("Error rendering offline audio:", e));
+              }, (e) => console.error("Error decoding audio data for Whisper:", e));
+            };
+
+            reader.onerror = (e) => {
+              console.error("FileReader error:", e);
+            };
+
+            reader.readAsArrayBuffer(combinedBlob);
           }
         };
         
@@ -681,6 +699,9 @@
       transcriptionPollInterval = null;
     }
     
+    currentSessionBlobs = []; // Clear accumulated blobs on stop
+    // accumulatedAudioData will be reset when/if transcription restarts
+
     if (window.Module?.set_status) window.Module.set_status("paused");
     printWhisperLog("Transcription stopped.");
     isTranscribing = false;
