@@ -51,7 +51,7 @@ export const transcriptionDisplayStore = writable<TranscriptionDisplayStoreState
 function generateSessionId(isLocal: boolean, streamId: string, peerId?: string): string {
   // Normalize streamId by removing potential curly braces from some WebRTC implementations
   const normalizedStreamId = streamId.replace(/[{}]/g, "");
-  return isLocal ? `local-${normalizedStreamId}` : `remote-${peerId}-${normalizedStreamId}`;
+  return isLocal ? `local|${normalizedStreamId}` : `remote|${peerId}|${normalizedStreamId}`;
 }
 
 async function startTranscriptionForStream(stream: MediaStream, streamId: string, isLocal: boolean, peerId?: string) {
@@ -312,7 +312,7 @@ function getSpeakerLabelFromAsr(sessionId: string, asrSpeakerId: number, text: s
   if (asrSpeakerId === -2) return "Silence"; // Typically, ASR indicates silence.
   // if (asrSpeakerId === 0) return "Processing..."; // ASR might use 0 for segments under diarization.
 
-  const sessionParts = sessionId.split('-');
+  const sessionParts = sessionId.split('|');
   let baseLabel = "Unknown Speaker";
 
   if (sessionParts[0] === 'local') {
@@ -367,15 +367,16 @@ streamStore.subscribe(currentStreamState => {
   allCurrentAudioStreamSessionIds.forEach(sessionId => {
     if (!transcriberState.activeSessions[sessionId]) {
       // Extract details to call startTranscriptionForStream
-      const parts = sessionId.split('-');
+      const parts = sessionId.split('|');
       const isLocal = parts[0] === 'local';
-      const streamIdInStore = isLocal ? parts.slice(1).join('-') : parts.slice(2).join('-'); // streamId might contain hyphens
+      const streamIdInStore = isLocal ? parts[1] : parts[2]; // streamId might contain hyphens
       const peerId = isLocal ? undefined : parts[1];
       
       let streamToTranscribe: MediaStream | null = null;
       if (isLocal) {
         streamToTranscribe = currentStreamState.localStreams[streamIdInStore]?.stream || null;
       } else if (peerId) {
+        console.log(currentStreamState.remoteStreams, peerId, parts)
         streamToTranscribe = currentStreamState.remoteStreams[peerId]?.streams[streamIdInStore] || null;
       }
 
