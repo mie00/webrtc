@@ -2,8 +2,8 @@
   import { tick } from 'svelte';
   import { connectionStore, type ConnectionState } from '../stores/connectionStore.js';
   import { configStore } from '../stores/configStore.js';
-  import { chatStore, type ChatState } from '../lib/chatBridge.js';
-  import { fileStore, type FileState, type FileTransfer } from '../lib/fileBridge.js';
+  import { chatStore, sendChatMessage, type ChatState } from '../lib/chatBridge.js';
+  import { fileStore, sendFile, type FileState, type FileTransfer } from '../lib/fileBridge.js';
   import MediaCarousel, { type CarouselMediaItem } from './MediaCarousel.svelte'; // Import Carousel
 
   // --- Types for Staged Files ---
@@ -255,7 +255,6 @@
       // 1. Send text message if present
       if (message.trim()) {
         const senderName = $configStore['user-name'] || 'You';
-        const { sendChatMessage } = await import('../lib/chatBridge.js');
         await sendChatMessage(message.trim(), senderName); // Assuming sendChatMessage is async
         message = ''; // Clear message input after successful send
         successfullySentSomething = true;
@@ -263,7 +262,6 @@
 
       // 2. Send all staged files
       if (stagedFiles.length > 0) {
-        const { sendFile } = await import('../lib/fileBridge.js');
         const filesToSend = [...stagedFiles];
         stagedFiles = []; // Clear staging area from UI immediately
 
