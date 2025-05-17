@@ -3,11 +3,23 @@
   declare global {
     interface Window {
       mies: HTMLElement[];
+      Module: any; // Whisper module
+      loadRemote: (
+        url: string,
+        dst: string,
+        size_mb: number,
+        cbProgress: (p: number) => void,
+        cbStoreFS: (buf: Uint8Array) => void,
+        cbCancel: () => void,
+        printTextarea: (text: string) => void
+      ) => void;
+      // MediaRecorder might need full typing if not available globally in your setup
+      MediaRecorder: typeof MediaRecorder; 
     }
   }
 </script>
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { streamStore, updateStreamConfig, setViewLayout, updateLocalStreamProperties, getLocalStreamsByType, type LayoutType } from '../stores/streamStore.js';
   import { normalizeStreamId, setupLocalFileStream, setAudioCallback } from '../lib/streamBridge.js';
   import { forwardStore, toggleForwardHandler as actualToggleForwardHandler, type LogMessage } from '../lib/forwardBridge.js';
@@ -30,6 +42,19 @@
   let audioButton: HTMLElement;
   let videoButton: HTMLElement;
   let instant = $state(0);
+
+  // Whisper state
+  let isTranscribing = $state(false);
+  let isWhisperModelLoading = $state(false);
+  let isWhisperModelLoaded = $state(false);
+  let whisperInstance: any = $state(null); // Opaque pointer/handle from Module.init
+
+  // Audio capture related state for Whisper
+  let whisperAudioContext: AudioContext | null = $state(null);
+  let whisperMediaRecorder: MediaRecorder | null = $state(null);
+  let accumulatedAudioData: Float32Array | null = $state(null);
+  let whisperModuleReady = $state(false);
+  let transcriptionPollInterval: number | null = $state(null);
 
   // References to DOM elements
   let uploadVideo: HTMLInputElement;
@@ -172,14 +197,55 @@
     );
   }
 
+  function printWhisperLog(text: string) {
+    console.log('[WhisperLib]:', text);
+  }
+
   onMount(() => {
     // Set up interval for updating stream positions
     refreshInterval = window.setInterval(updateStreamPositions, 1000);
 
-    return () => {
-      // Clean up on component destruction
-      clearInterval(refreshInterval);
-    };
+    // Setup Module for Whisper (must be done BEFORE stream.js is loaded)
+    // Ensure this runs only once, even if onMount is called multiple times in some scenarios.
+    if (!window.Module) {
+      window.Module = {
+        print: printWhisperLog,
+        printErr: printWhisperLog,
+        setStatus: function(text: string) {
+          printWhisperLog('js status: ' + text);
+        },
+        monitorRunDependencies: function(left: number) {},
+        preRun: function() {
+          printWhisperLog('js: Preparing ...');
+        },
+        postRun: function() {
+          printWhisperLog('js: Initialized successfully!');
+          // Now Module methods like ccall, FS_xyz should be available
+          whisperModuleReady = true;
+        }
+      };
+    }
+    // Ensure coi-serviceworker.js is loaded if needed for SharedArrayBuffer
+    // This often needs to be at the root and register itself.
+    // Example: if (!navigator.serviceWorker.controller && !(window as any).crossOriginIsolated) {
+    //   const coiSw = document.createElement('script');
+    //   coiSw.src = '/vendor/coi-serviceworker.js'; // Adjust path as needed
+    //   document.head.appendChild(coiSw);
+    // }
+  });
+
+  onDestroy(() => {
+    clearInterval(refreshInterval);
+    if (isTranscribing) {
+      handleStopWhisperTranscription();
+    }
+    if (transcriptionPollInterval) {
+      clearInterval(transcriptionPollInterval);
+    }
+    // Clean up Whisper audio context if it exists
+    if (whisperAudioContext && whisperAudioContext.state !== 'closed') {
+      whisperAudioContext.close();
+    }
   });
 
   // Update positions when layout or streams change
@@ -412,6 +478,228 @@
   function handleFocusStream({streamId}:{streamId: string|undefined; peerId : string | null}) {
     setViewLayout('focus', streamId);
   }
+
+  // Whisper Transcription Functions
+  async function loadScript(src: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) {
+        resolve(); // Already loaded
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.type = 'text/javascript';
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = (e) => reject(new Error(`Failed to load script: ${src}. Error: ${e}`));
+      document.head.appendChild(script);
+    });
+  }
+
+  async function ensureWhisperReady(): Promise<boolean> {
+    if (whisperModuleReady && window.Module?.FS_createDataFile && (window as any).loadRemote) {
+        return true;
+    }
+
+    try {
+      // helpers.js provides loadRemote
+      await loadScript('/vendor/whisper.wasm/helpers.js');
+      // stream.js initializes Module and its FS functions, and WASM.
+      // Module object must be pre-configured before this.
+      await loadScript('/vendor/whisper.wasm/stream.js');
+      
+      let attempts = 0;
+      while(!whisperModuleReady && attempts < 200) { // Timeout after 20s
+          await new Promise(res => setTimeout(res, 100));
+          attempts++;
+      }
+      if (!whisperModuleReady) {
+          console.error("Whisper Module did not become ready.");
+          return false;
+      }
+      if (!(window as any).loadRemote) {
+        console.error("window.loadRemote not found after loading helpers.js");
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("Error loading Whisper scripts:", error);
+      isWhisperModelLoading = false;
+      return false;
+    }
+  }
+
+  async function handleStartWhisperTranscriptionFlow() {
+    isWhisperModelLoading = true;
+
+    const ready = await ensureWhisperReady();
+    if (!ready || !(window as any).loadRemote || !window.Module?.FS_createDataFile) {
+      console.error("Whisper library not properly loaded.");
+      isWhisperModelLoading = false;
+      return;
+    }
+    
+    const model = 'base-en-q5_1';
+    const urls: Record<string, string> = {
+        'base-en-q5_1':  'https://whisper.ggerganov.com/ggml-model-whisper-base.en-q5_1.bin',
+    };
+    const sizes: Record<string, number> = {
+        'base-en-q5_1':   57,
+    };
+    const modelUrl = urls[model];
+    const modelDst = 'whisper.bin'; 
+    const modelSizeMb = sizes[model];
+
+    printWhisperLog(`Loading model "${model}"...`);
+
+    (window as any).loadRemote(
+      modelUrl, modelDst, modelSizeMb,
+      (progress: number) => printWhisperLog(`Model download progress: ${Math.round(progress * 100)}%`),
+      (buf: Uint8Array) => { // This is the storeFS callback from example
+        try {
+            window.Module.FS_unlink(modelDst);
+        } catch (e) { /* ignore */ }
+        window.Module.FS_createDataFile("/", modelDst, buf, true, true);
+        printWhisperLog(`Stored model: ${modelDst}, size: ${buf.length}`);
+        
+        isWhisperModelLoaded = true;
+        whisperInstance = window.Module.init(modelDst); // Module.init is from stream.js
+
+        if (whisperInstance) {
+          printWhisperLog(`Whisper initialized, instance: ${whisperInstance}`);
+          isWhisperModelLoading = false;
+          isTranscribing = true;
+          startAudioCaptureForWhisper();
+          startTranscriptionPolling();
+        } else {
+          console.error("Failed to initialize whisper instance.");
+          isWhisperModelLoading = false;
+        }
+      },
+      () => { // cbCancel
+        console.error("Model loading cancelled or failed.");
+        isWhisperModelLoading = false;
+      },
+      printWhisperLog 
+    );
+  }
+
+  function startAudioCaptureForWhisper() {
+    if (!whisperInstance) return;
+
+    const kSampleRate = 16000;
+    const kIntervalAudio_ms = 5000; // Pass audio to C++ instance at this rate
+
+    if (whisperAudioContext && whisperAudioContext.state !== 'closed') {
+      whisperAudioContext.close();
+    }
+    whisperAudioContext = new AudioContext({
+        sampleRate: kSampleRate, channelCount: 1,
+        echoCancellation: false, autoGainControl:  true, noiseSuppression: true,
+    });
+
+    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      .then(stream => {
+        if (whisperMediaRecorder && whisperMediaRecorder.state === "recording") {
+          whisperMediaRecorder.stop();
+        }
+        whisperMediaRecorder = new MediaRecorder(stream);
+        accumulatedAudioData = null; 
+
+        whisperMediaRecorder.ondataavailable = async (event) => {
+          if (event.data.size > 0 && whisperAudioContext) {
+            const arrayBuffer = await event.data.arrayBuffer();
+            // It's important that decodeAudioData uses the same AudioContext instance
+            whisperAudioContext.decodeAudioData(arrayBuffer, (audioBuffer) => {
+              // Resample/process audio to Float32Array as expected by Whisper
+              // The example uses OfflineAudioContext to ensure it's processed correctly.
+              const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
+              const source = offlineCtx.createBufferSource();
+              source.buffer = audioBuffer;
+              source.connect(offlineCtx.destination);
+              source.start(0);
+
+              offlineCtx.startRendering().then((renderedBuffer) => {
+                const newAudio = renderedBuffer.getChannelData(0); // Get Float32Array
+                
+                if (accumulatedAudioData) {
+                  const combined = new Float32Array(accumulatedAudioData.length + newAudio.length);
+                  combined.set(accumulatedAudioData, 0);
+                  combined.set(newAudio, accumulatedAudioData.length);
+                  accumulatedAudioData = combined;
+                } else {
+                  accumulatedAudioData = newAudio;
+                }
+
+                if (whisperInstance && window.Module?.set_audio) {
+                  window.Module.set_audio(whisperInstance, accumulatedAudioData);
+                }
+              }).catch(e => console.error("Error rendering offline audio:", e));
+            }, (e) => console.error("Error decoding audio data for Whisper:", e));
+          }
+        };
+        
+        whisperMediaRecorder.start(kIntervalAudio_ms);
+        if (window.Module?.set_status) window.Module.set_status("recording");
+      })
+      .catch(err => {
+        console.error('Error getting audio stream for Whisper:', err);
+        isTranscribing = false; 
+        isWhisperModelLoading = false;
+      });
+  }
+
+  function startTranscriptionPolling() {
+    if (transcriptionPollInterval) clearInterval(transcriptionPollInterval);
+    transcriptionPollInterval = window.setInterval(() => {
+      if (whisperInstance && window.Module?.get_transcribed) {
+        const transcribedText = window.Module.get_transcribed();
+        if (transcribedText && transcribedText.length > 0) {
+          console.log("Whisper Transcription:", transcribedText);
+        }
+      }
+    }, 1000); // Poll every second
+  }
+
+  function handleStopWhisperTranscription() {
+    if (whisperMediaRecorder && whisperMediaRecorder.state === "recording") {
+      whisperMediaRecorder.stop();
+    }
+    whisperMediaRecorder?.stream?.getTracks().forEach(track => track.stop());
+    
+    // Do not close the main AudioContext here, as it might be reused.
+    // The example closes and recreates it on each start. Let's follow that.
+    if (whisperAudioContext && whisperAudioContext.state !== 'closed') {
+      whisperAudioContext.close();
+    }
+    whisperAudioContext = null; // Allow it to be recreated
+
+    if (transcriptionPollInterval) {
+      clearInterval(transcriptionPollInterval);
+      transcriptionPollInterval = null;
+    }
+    
+    if (window.Module?.set_status) window.Module.set_status("paused");
+    printWhisperLog("Transcription stopped.");
+    isTranscribing = false;
+  }
+
+  function handleToggleTranscription() {
+    if (isTranscribing) {
+      handleStopWhisperTranscription();
+    } else {
+      if (!isWhisperModelLoaded) {
+        handleStartWhisperTranscriptionFlow(); 
+      } else if (whisperInstance) {
+        isTranscribing = true;
+        startAudioCaptureForWhisper(); // Re-capture audio
+        startTranscriptionPolling();   // Restart polling
+      } else {
+        // Fallback if model was marked loaded but instance is lost
+        handleStartWhisperTranscriptionFlow();
+      }
+    }
+  }
 </script>
 
 <div id="media" bind:this={mediaContainerElement} class="w-full w-svw h-svh relative bg-black" style="width: 100svw; height: 100svh;">
@@ -466,6 +754,19 @@
   </button>
   <button id="test-toggle-audio-button" bind:this={audioButton} onclick={handleToggleAudio} oncontextmenu={e => handleContextMenu('audio', e)} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isAudioEnabled} style={isAudioEnabled?`background: linear-gradient(0deg, rgb(59 130 246) ${instant}%, white ${instant}%)`:""}>
     {isAudioEnabled ? '🎤' : '🔇'} <!-- Microphone -->
+  </button>
+  <button id="test-toggle-transcription-button"
+          onclick={handleToggleTranscription}
+          class="text-white p-3 rounded-full pointer-events-auto"
+          class:bg-green-600={isTranscribing && !isWhisperModelLoading}
+          class:hover:bg-green-700={isTranscribing && !isWhisperModelLoading}
+          class:bg-gray-700={!isTranscribing && !isWhisperModelLoading}
+          class:hover:bg-blue-700={!isTranscribing && !isWhisperModelLoading && !isWhisperModelLoaded}
+          class:hover:bg-gray-600={!isTranscribing && !isWhisperModelLoading && isWhisperModelLoaded}
+          class:bg-yellow-500={isWhisperModelLoading}
+          class:cursor-not-allowed={isWhisperModelLoading}
+          disabled={isWhisperModelLoading}>
+    {isWhisperModelLoading ? '⏳' : (isTranscribing ? '🛑' : '✍️')}
   </button>
   <button id="test-toggle-video-button" bind:this={videoButton} onclick={handleToggleVideo} oncontextmenu={e => handleContextMenu('camera', e)} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isCameraEnabled}>
     {isCameraEnabled ? '🎥' : '📷'} <!-- Video Camera -->
