@@ -15,7 +15,7 @@
   import { calculateStreamPositions } from '../lib/media/streamLayout.js';
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, configStore } from '../stores/configStore.js';
-  import type { MenuItem } from '../types/menu';
+  import type { MenuItem } from '../types/menu.js';
   import StreamView from './StreamView.svelte';
   import { addLocalFileStream, removeLocalFileStream } from '../stores/localFileStreamStore.js';
 
@@ -207,7 +207,7 @@
     selectedButton = type;
 
     const devices = await navigator.mediaDevices.enumerateDevices();
-    const filtered = devices.filter(device => device.kind === `${type}input`);
+    const filtered = devices.filter(device => device.kind === `${type === 'camera'?'video':type}input`);
 
     if (filtered.length === 0) {
       alert(`No ${type} devices found`);
@@ -502,7 +502,6 @@
 <ContextMenu
   {menuItems}
   position={menuPosition}
-  cb={handleContextSelect}
   hide={() => showMenu = false}
 />
 {/if}

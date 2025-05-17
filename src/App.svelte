@@ -5,7 +5,6 @@
   import CopyOverlay from './components/CopyOverlay.svelte';
   import ConfigOverlay from './components/ConfigOverlay.svelte';
   import { io, Socket } from 'socket.io-client';
-  import ContextMenu from './components/ContextMenu.svelte';
   import ForwardOverlay from './components/ForwardOverlay.svelte';
   import { configStore, getAllConfig } from './stores/configStore.js';
   import { connectionStore, getDirectClient } from './stores/connectionStore.js';
@@ -460,7 +459,5 @@
 />
 
 <ForwardOverlay />
-
-<!-- <ContextMenu /> -->
 
 <div id="diffs" class="whitespace-pre-line hidden"></div>

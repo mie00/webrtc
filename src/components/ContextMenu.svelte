@@ -1,20 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { MenuItem } from '../types/menu';
+  import type { MenuItem } from '../types/menu.js';
 
   // Props
   let { 
     position = { x: 0, y: 0 }, 
     menuItems = [], 
-    cb, 
     hide 
   } = $props<{
     position: { x: number, y: number },
     menuItems: MenuItem[] | string[],
-    cb: (item: MenuItem | string) => void,
     hide: () => void
   }>();
 
+  console.log("MIE", menuItems);
   // State for tracking open submenus
   let openSubmenus = $state<Record<string, boolean>>({});
   
@@ -24,7 +23,8 @@
       ? (menuItems as string[]).map(item => ({
           id: item,
           label: item,
-          type: 'item' as const
+          type: 'item' as const,
+          disabled: false,
         }))
       : menuItems as MenuItem[]
   );
@@ -46,18 +46,10 @@
       item.action();
     }
     
-    // Call the callback with the item
-    cb(item);
-    
     // Only hide for regular items and toggles (not for submenus)
-    if (item.type !== 'submenu') {
+    if (item.type !== 'toggle') {
       hide();
     }
-  }
-
-  function handleStringItemClick(item: string) {
-    cb(item);
-    hide();
   }
 
   // Close submenus when clicking outside
@@ -103,72 +95,58 @@
   onkeydown={handleKeyDown}
 >
   <ul id="ul-contextMenu" class="menu flex flex-col overflow-hidden">
-    {#if Array.isArray(menuItems) && menuItems.length > 0 && typeof menuItems[0] === 'string'}
-      {#each menuItems as item}
-        <li>
-          <button 
-            onclick={() => handleStringItemClick(item)} 
-            class="w-full text-left px-4 py-2 hover:bg-gray-200 transition-colors"
-          >
-            {item}
-          </button>
-        </li>
-      {/each}
-    {:else}
-      {#each normalizedMenuItems as item}
-        <li class="relative">
-          <button 
-            onclick={() => handleItemClick(item)} 
-            class="w-full text-left px-4 py-2 hover:bg-gray-200 transition-colors flex items-center justify-between gap-2 {item.disabled ? 'opacity-50 cursor-not-allowed' : ''}"
-            disabled={item.disabled}
-          >
-            <span class="flex items-center gap-2">
-              {#if item.icon}<span class="menu-icon">{item.icon}</span>{/if}
-              <span>{item.label}</span>
-            </span>
-            
-            {#if item.type === 'toggle'}
-              <span class="w-4 h-4 border border-gray-400 rounded flex items-center justify-center bg-white">
-                {#if item.checked}
-                  <span class="w-2 h-2 bg-blue-600 rounded-sm"></span>
-                {/if}
-              </span>
-            {:else if item.type === 'submenu'}
-              <span class="text-gray-500">▶</span>
-            {/if}
-          </button>
+    {#each normalizedMenuItems as item}
+      <li class="relative">
+        <button 
+          onclick={() => handleItemClick(item)} 
+          class="w-full text-left px-4 py-2 hover:bg-gray-200 transition-colors flex items-center justify-between gap-2 {item.disabled ? 'opacity-50 cursor-not-allowed' : ''}"
+          disabled={item.disabled}
+        >
+          <span class="flex items-center gap-2">
+            <span>{item.label}</span>
+          </span>
           
-          {#if item.type === 'submenu' && item.children && openSubmenus[item.id]}
-            <div class="absolute left-full top-0 bg-white rounded-md shadow-xl -mt-1 ml-1">
-              <ul class="menu flex flex-col overflow-hidden">
-                {#each item.children as subItem}
-                  <li>
-                    <button 
-                      onclick={() => handleItemClick(subItem)} 
-                      class="w-full text-left px-4 py-2 hover:bg-gray-200 transition-colors flex items-center justify-between gap-2 {subItem.disabled ? 'opacity-50 cursor-not-allowed' : ''}"
-                      disabled={subItem.disabled}
-                    >
-                      <span class="flex items-center gap-2">
-                        {#if subItem.icon}<span class="menu-icon">{subItem.icon}</span>{/if}
-                        <span>{subItem.label}</span>
-                      </span>
-                      
-                      {#if subItem.type === 'toggle'}
-                        <span class="w-4 h-4 border border-gray-400 rounded flex items-center justify-center bg-white">
-                          {#if subItem.checked}
-                            <span class="w-2 h-2 bg-blue-600 rounded-sm"></span>
-                          {/if}
-                        </span>
-                      {/if}
-                    </button>
-                  </li>
-                {/each}
-              </ul>
-            </div>
+          {#if item.type === 'toggle'}
+            <span class="w-4 h-4 border border-gray-400 rounded flex items-center justify-center bg-white">
+              {#if item.checked}
+                <span class="w-2 h-2 bg-blue-600 rounded-sm"></span>
+              {/if}
+            </span>
+          {:else if item.type === 'submenu'}
+            <span class="text-gray-500">▶</span>
           {/if}
-        </li>
-      {/each}
-    {/if}
+        </button>
+        
+        {#if item.type === 'submenu' && item.children && openSubmenus[item.id]}
+          <div class="absolute left-full top-0 bg-white rounded-md shadow-xl -mt-1 ml-1">
+            <ul class="menu flex flex-col overflow-hidden">
+              {#each item.children as subItem}
+                <li>
+                  <button 
+                    onclick={() => handleItemClick(subItem)} 
+                    class="w-full text-left px-4 py-2 hover:bg-gray-200 transition-colors flex items-center justify-between gap-2 {subItem.disabled ? 'opacity-50 cursor-not-allowed' : ''}"
+                    disabled={subItem.disabled}
+                  >
+                    <span class="flex items-center gap-2">
+                      {#if subItem.icon}<span class="menu-icon">{subItem.icon}</span>{/if}
+                      <span>{subItem.label}</span>
+                    </span>
+                    
+                    {#if subItem.type === 'toggle'}
+                      <span class="w-4 h-4 border border-gray-400 rounded flex items-center justify-center bg-white">
+                        {#if subItem.checked}
+                          <span class="w-2 h-2 bg-blue-600 rounded-sm"></span>
+                        {/if}
+                      </span>
+                    {/if}
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          </div>
+        {/if}
+      </li>
+    {/each}
   </ul>
 </div>
 <svelte:window on:click={handleWindowClick} />
