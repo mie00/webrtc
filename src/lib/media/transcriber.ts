@@ -1,5 +1,5 @@
 import { writable, get } from 'svelte/store';
-import { getStreamState, type LocalStreamData, type RemoteStreamData } from '../../stores/streamStore.js';
+import { streamStore, getStreamState, type LocalStreamData, type RemoteStreamData, type StreamState } from '../../stores/streamStore.js';
 
 const WEBSOCKET_URL = 'ws://localhost:8888/asr'; // Ensure this matches your ASR backend
 const TRANSCRIPTION_CHUNK_DURATION_MS = 1000;
@@ -294,6 +294,8 @@ export function stopOverallTranscription(): void {
     stopTranscriptionForSession(sessionId);
   });
   // isTranscribingOverall will be set to false by the last call to stopTranscriptionForSession
+  // Also, explicitly set it here to ensure it's false if no sessions were active to begin with.
+  transcriberStore.update(s => ({ ...s, isTranscribingOverall: false, activeSessions: {} }));
 }
 
 export function toggleOverallTranscription(): void {
@@ -334,3 +336,63 @@ function getSpeakerLabelFromAsr(sessionId: string, asrSpeakerId: number, text: s
   }
   return baseLabel; // For speakerId 0 or if no specific handling
 }
+
+// Subscribe to streamStore to dynamically manage transcription sessions
+streamStore.subscribe(currentStreamState => {
+  const transcriberState = get(transcriberStore);
+  if (!transcriberState.isTranscribingOverall) {
+    return; // Only manage sessions if overall transcription is active
+  }
+
+  const allCurrentAudioStreamSessionIds = new Set<string>();
+
+  // Identify all current audio streams from streamStore
+  // Local streams
+  Object.entries(currentStreamState.localStreams).forEach(([localStreamId, data]) => {
+    if (data.stream && data.stream.getAudioTracks().length > 0) {
+      allCurrentAudioStreamSessionIds.add(generateSessionId(true, localStreamId));
+    }
+  });
+
+  // Remote streams
+  Object.entries(currentStreamState.remoteStreams).forEach(([peerId, remoteData]) => {
+    Object.entries(remoteData.streams).forEach(([remoteStreamId, stream]) => {
+      if (stream.getAudioTracks().length > 0) {
+        allCurrentAudioStreamSessionIds.add(generateSessionId(false, remoteStreamId, peerId));
+      }
+    });
+  });
+
+  // Start transcription for new audio streams
+  allCurrentAudioStreamSessionIds.forEach(sessionId => {
+    if (!transcriberState.activeSessions[sessionId]) {
+      // Extract details to call startTranscriptionForStream
+      const parts = sessionId.split('-');
+      const isLocal = parts[0] === 'local';
+      const streamIdInStore = isLocal ? parts.slice(1).join('-') : parts.slice(2).join('-'); // streamId might contain hyphens
+      const peerId = isLocal ? undefined : parts[1];
+      
+      let streamToTranscribe: MediaStream | null = null;
+      if (isLocal) {
+        streamToTranscribe = currentStreamState.localStreams[streamIdInStore]?.stream || null;
+      } else if (peerId) {
+        streamToTranscribe = currentStreamState.remoteStreams[peerId]?.streams[streamIdInStore] || null;
+      }
+
+      if (streamToTranscribe) {
+        console.log(`Dynamically starting transcription for new/updated stream: ${sessionId}`);
+        startTranscriptionForStream(streamToTranscribe, streamIdInStore, isLocal, peerId);
+      } else {
+        console.warn(`Stream for session ID ${sessionId} not found in current stream state. Cannot start transcription.`);
+      }
+    }
+  });
+
+  // Stop transcription for streams that are no longer present
+  Object.keys(transcriberState.activeSessions).forEach(activeSessionId => {
+    if (!allCurrentAudioStreamSessionIds.has(activeSessionId)) {
+      console.log(`Dynamically stopping transcription for removed stream: ${activeSessionId}`);
+      stopTranscriptionForSession(activeSessionId);
+    }
+  });
+});
