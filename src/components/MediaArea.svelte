@@ -216,63 +216,62 @@
 
     // Get current device ID
     const currentDeviceId = $streamStore.streamConfig[type];
-    
-    // Create menu items with device options
-    menuItems = filtered.map(device => {
-      const deviceString = `${device.groupId}|${device.deviceId}`;
-      const isCurrentDevice = currentDeviceId === deviceString;
-      
-      return {
-        id: deviceString,
-        label: device.label,
-        type: 'toggle' as const,
-        checked: isCurrentDevice,
+
+    menuItems = [
+      {
+        id: 'enable-disable',
+        label: $streamStore.streamConfig[type] === null ? `Enable ${type}` : `Disable ${type}`,
+        type: 'item' as const,
         action: () => {
-          // Update both stores for compatibility
-          updateConfig(`${type}-device`, deviceString);
-          
-          // If the stream is already enabled, update it with the new device
-          if ($streamStore.streamConfig[type] !== null) {
-            // Temporarily disable the stream and then re-enable it with the new device
-            updateStreamConfig({ [type]: null });
-            // Short delay to ensure cleanup completes before restarting
-            setTimeout(() => updateStreamConfig({ [type]: deviceString }), 100);
+          if (type === 'audio') {
+            handleToggleAudio();
           } else {
-            // If not enabled, just enable it with the new device
-            updateStreamConfig({ [type]: deviceString });
+            handleToggleVideo();
           }
         }
-      };
-    });
-    
-    // Add additional options in a submenu
+      },
+    ];
+
+    if (type === 'camera') {
+      menuItems.push({
+        id: 'blur',
+        label: 'Blur background',
+        type: 'toggle' as const,
+        checked: isBlurEnabled,
+        action: () => handleToggleBlur()
+      });
+    }
+
     menuItems.push({
-      id: 'options',
-      label: 'Options',
+      id: 'select-device',
+      label: 'Select Device',
       type: 'submenu' as const,
-      children: [
-        {
-          id: 'enable',
-          label: $streamStore.streamConfig[type] === null ? `Enable ${type}` : `Disable ${type}`,
-          type: 'item' as const,
+      children: filtered.map(device => {
+        const deviceString = `${device.groupId}|${device.deviceId}`;
+        const isCurrentDevice = currentDeviceId === deviceString;
+        
+        return {
+          id: deviceString,
+          label: device.label,
+          type: 'toggle' as const,
+          checked: isCurrentDevice,
           action: () => {
-            if (type === 'audio') {
-              handleToggleAudio();
+            // Update both stores for compatibility
+            updateConfig(`${type}-device`, deviceString);
+            
+            // If the stream is already enabled, update it with the new device
+            if ($streamStore.streamConfig[type] !== null) {
+              // Temporarily disable the stream and then re-enable it with the new device
+              updateStreamConfig({ [type]: null });
+              // Short delay to ensure cleanup completes before restarting
+              setTimeout(() => updateStreamConfig({ [type]: deviceString }), 100);
             } else {
-              handleToggleVideo();
+              // If not enabled, just enable it with the new device
+              updateStreamConfig({ [type]: deviceString });
             }
           }
-        },
-        ...(type === 'camera' ? [
-          {
-            id: 'blur',
-            label: 'Blur background',
-            type: 'toggle' as const,
-            checked: isBlurEnabled,
-            action: () => handleToggleBlur()
-          }
-        ] : [])
-      ]
+        };
+      })
     });
     
     menuPosition = { x: event.pageX, y: event.pageY };
@@ -469,9 +468,6 @@
   </button>
   <button id="test-toggle-video-button" bind:this={videoButton} onclick={handleToggleVideo} oncontextmenu={e => handleContextMenu('camera', e)} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isCameraEnabled}>
     {isCameraEnabled ? '🎥' : '📷'} <!-- Video Camera -->
-  </button>
-  <button id="test-toggle-blur-button" onclick={handleToggleBlur} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isBlurEnabled}>
-    🌫️ <!-- Blur effect -->
   </button>
   <button id="test-toggle-screen-button" onclick={handleToggleScreen} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isScreenSharing}>
     🖥️ <!-- Monitor for Share Screen -->
