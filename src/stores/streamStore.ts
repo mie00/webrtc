@@ -19,6 +19,8 @@ export interface LocalStreamData {
   stream: MediaStream | null;
   src: string | null;
   active: boolean;
+  viewable: boolean;
+  sendable: boolean;
 }
 
 // Remote stream interface
@@ -83,10 +85,10 @@ export function updateStreamConfig(config: Partial<StreamConfig>): void {
 }
 
 // Enhanced stream management functions
-export function addLocalStream(type: StreamType, stream: MediaStream | null, src: string | null): void {
+export function addLocalStream(type: StreamType, stream: MediaStream | null, src: string | null, viewable: boolean = true, sendable: boolean = true): void {
   streamStore.update(state => {
     const localStreams = { ...state.localStreams };
-    localStreams[type] = { type, stream, active: true, src: src  };
+    localStreams[type] = { type, stream, active: true, src: src, viewable, sendable };
     return { ...state, localStreams };
   });
 }
@@ -99,6 +101,19 @@ export function toggleLocalStream(id: string, active: boolean): void {
     localStreams[id] = { 
       ...localStreams[id],
       active 
+    };
+    return { ...state, localStreams };
+  });
+}
+
+export function updateLocalStreamProperties(id: string, properties: Partial<LocalStreamData>): void {
+  streamStore.update(state => {
+    if (!state.localStreams[id]) return state;
+    
+    const localStreams = { ...state.localStreams };
+    localStreams[id] = { 
+      ...localStreams[id],
+      ...properties
     };
     return { ...state, localStreams };
   });
