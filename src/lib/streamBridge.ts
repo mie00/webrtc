@@ -24,7 +24,6 @@ import {
   setupStream,
   processAudio,
   stopProcessingAudio,
-  setupTrack,
   tearDownStream,
 } from './media/stream.js'
 // Export background utilities
@@ -456,12 +455,7 @@ export function setAudioCallback(callback: (instant: number) => void) {
 }
 
 export const setupLocalFileStream = (stream: MediaStream): void => {
-  stream.getTracks().forEach(track => {
-    setupTrack(track, stream!, "medium", undefined, false);
-  });
-  stream.onaddtrack = (ev: MediaStreamTrackEvent) => {
-    setupTrack(ev.track, stream!, "medium", undefined, false);
-  };
+  setupStream(stream!, "medium", undefined, false);
 }
 
 // Export utility functions from the original stream.ts

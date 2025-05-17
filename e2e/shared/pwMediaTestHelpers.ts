@@ -44,10 +44,10 @@ export const MEDIA_SETUP_DIR_PW = path.join(__dirname, '..', 'setup', 'generated
 const REMOTE_VIDEO_CONTAINER_SELECTOR = 'div.stream-container[id^="test-remote-video-"]';
 const REMOTE_VIDEO_ELEMENT_SELECTOR = `${REMOTE_VIDEO_CONTAINER_SELECTOR} video`;
 
-const LOCAL_VIDEO_CONTAINER_SELECTOR_CAMERA = 'div#test-local-video-camera'; // Added
+const LOCAL_VIDEO_CONTAINER_SELECTOR_CAMERA = 'div[id^="test-local-video-camera"]'; // Added
 const LOCAL_VIDEO_ELEMENT_SELECTOR_CAMERA = `${LOCAL_VIDEO_CONTAINER_SELECTOR_CAMERA} video`; // Added
 
-const LOCAL_VIDEO_CONTAINER_SELECTOR_FILE = 'div#test-local-video-file';
+const LOCAL_VIDEO_CONTAINER_SELECTOR_FILE = 'div[id^="test-local-video-file"]';
 const LOCAL_VIDEO_ELEMENT_SELECTOR_FILE = `${LOCAL_VIDEO_CONTAINER_SELECTOR_FILE} video`;
 
 // --- Mic Test Media ---

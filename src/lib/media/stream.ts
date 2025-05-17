@@ -178,6 +178,9 @@ const setupStream = (stream: MediaStream, priority: RTCPriorityType, contentHint
     stream.getTracks().forEach((track) => {
         setupTrack(track, stream, priority, contentHint, simulcast);
     });
+    stream.onaddtrack = (ev: MediaStreamTrackEvent) => {
+        setupTrack(ev.track, stream, "medium", undefined, false);
+    };
 };
 
 // setupStream remains the same as it calls setupTrack
@@ -191,7 +194,6 @@ export {
     stopProcessingAudio,
     drawVisualization,
     tearDownStream,
-    setupTrack,
     setupStream,
     type AudioNodes, // Export the new type
 };
