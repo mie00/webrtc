@@ -387,7 +387,7 @@ export async function extractFramesAndAnalyzeVideoFileNode(
                         filename: 'frame-%i.png',
                         size: '640x?',
                     })
-                    .on('end', resolve)
+                    .on('end', () => resolve())
                     .on('error', (err) => {
                         console.error(`NodeJS: Error extracting frames with timemarks: ${err.message}`);
                         reject(err);
@@ -463,7 +463,7 @@ export async function extractFramesAndAnalyzeVideoFileNode(
                     .audioFrequency(DEFAULT_SAMPLE_RATE) // Use consistent sample rate
                     .audioChannels(1)
                     .toFormat('wav')
-                    .on('end', resolve)
+                    .on('end', () => resolve())
                     .on('error', (err) => {
                         console.error(`NodeJS: Error extracting audio: ${err.message}`);
                         reject(err);
