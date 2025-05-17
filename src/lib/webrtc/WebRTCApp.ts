@@ -22,6 +22,11 @@ import { diffChars } from 'diff';
 import { streamInit } from '../streamBridge.js';
 import { forwardInit } from '../forwardBridge.js';
 
+import { setupTrackHandler } from '../streamBridge.js';
+import { setupForwardChannel } from '../forwardBridge.js';
+import { setupChatChannel } from '../chatBridge.js';
+import { setupFileChannel } from '../fileBridge.js';
+
 
 // Type definitions for local use
 interface NegoMessage {
@@ -321,11 +326,6 @@ export class WebRTCApp {
       // The store state isn't directly used for signaling here.
     };
 
-    // Import dynamically to avoid circular dependencies
-    const { setupTrackHandler } = await import('../streamBridge.js');
-    const { setupForwardChannel } = await import('../forwardBridge.js');
-    const { setupChatChannel } = await import('../chatBridge.js');
-    const { setupFileChannel } = await import('../fileBridge.js');
     setupTrackHandler(cid);
     setupChatChannel(cid);
     setupFileChannel(cid); // Pass app for config/context if needed, but setup uses store for client

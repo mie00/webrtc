@@ -236,10 +236,10 @@ export async function takeScreenshotAndDecodeQR(
     screenshotElementSelector?: string,
     maxAttempts: number = 3,
     retryDelayMs: number = 500,
-    isLocalStreamView: boolean = false // New parameter to indicate if the view is mirrored
+    flip: boolean = false // New parameter to indicate if the view is mirrored
 ): Promise<QrCodeResult | null> {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        console.log(`Attempt ${attempt}/${maxAttempts}: Taking screenshot (isLocalStreamView: ${isLocalStreamView}) and attempting to decode QR code...`);
+        console.log(`Attempt ${attempt}/${maxAttempts}: Taking screenshot (flip: ${flip}) and attempting to decode QR code...`);
         try {
             let screenshotBuffer: Buffer;
             if (screenshotElementSelector) {
@@ -258,12 +258,11 @@ export async function takeScreenshotAndDecodeQR(
             // await image.writeAsync(`./debug-image-attempt-${attempt}.png`); // For debugging
             console.log(` Attempt ${attempt}: Screenshot read into Jimp image.`);
 
-            if (isLocalStreamView) {
+            if (flip) {
                 console.log(` Attempt ${attempt}: Flipping image horizontally for local stream view.`);
                 image.flip({horizontal: true}); // Flip horizontally, not vertically
                 // await image.writeAsync(`./debug-image-flipped-attempt-${attempt}.png`); // For debugging flipped image
             }
-
             const result = await decodeQrCodeWithTimeout(image.bitmap, 2000);
 
             console.log(` Attempt ${attempt}: QR code decoding attempt complete.`);
@@ -274,7 +273,7 @@ export async function takeScreenshotAndDecodeQR(
             console.log(` Attempt ${attempt}: QR Code not found or could not be decoded (result: ${result}).`);
 
         } catch (error) {
-            console.error(` Attempt ${attempt}: Error during screenshot or QR decoding:`, (error as Error).message);
+            console.error(` Attempt ${attempt}: Error during screenshot or QR decoding:`, (error as Error).message || error);
         }
 
         if (attempt < maxAttempts) {
