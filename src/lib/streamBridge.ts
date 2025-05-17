@@ -59,16 +59,16 @@ export function streamInit(): void {
       // Clean up all local streams when the app is torn down globally
       const state = getStreamState(); // Get current stream state
       const clients = getAllDirectClients(); // Get clients from store
-      Object.entries(state.localStreams).forEach(([key, localStreamData]) => {
+      Object.entries(state.localStreams).forEach(([streamId, localStreamData]) => {
         const stream = localStreamData.stream;
         if (stream) {
-          const streamId = normalizeStreamId(stream.id);
+          const normalizedStreamId = normalizeStreamId(stream.id);
 
           try {
             // Iterate over client objects from the store
             Object.values(clients).forEach((client) => {
               // Use window.webRTCApp.sendNego
-              window.webRTCApp.sendNego(client, { type: 'stream.end', stream: streamId })
+              window.webRTCApp.sendNego(client, { type: 'stream.end', stream: normalizedStreamId })
             });
           } catch (e) {
               console.error("Error sending stream.end during global cleanup:", e);
@@ -77,12 +77,12 @@ export function streamInit(): void {
           stream.getTracks().forEach((track: MediaStreamTrack) => track.stop()); // Use forEach for clarity
         }
         // Remove from enhanced store structure
-        removeLocalStream(key);
+        removeLocalStream(streamId);
 
         // Clean up associated audio context if any
-        if (audioProcessingContexts[key]) {
-          stopProcessingAudio(audioProcessingContexts[key]);
-          delete audioProcessingContexts[key];
+        if (audioProcessingContexts[streamId]) {
+          stopProcessingAudio(audioProcessingContexts[streamId]);
+          delete audioProcessingContexts[streamId];
         }
       });
     }
@@ -148,9 +148,10 @@ export function setupTrackHandler(cid: string): void { // app might be needed fo
   const targetClient = getDirectClient(cid); // Get the client again from store
   if (!targetClient || !targetClient.pc) return; // Add null check
 
+  // Iterate through all local streams
   Object.values(state.localStreams).forEach((localStreamData) => {
-    if (localStreamData.sendable) { // Only add active and sendable streams
-        localStreamData.stream?.getTracks().forEach(track => {
+    if (localStreamData.sendable && localStreamData.stream) { // Only add active and sendable streams
+        localStreamData.stream.getTracks().forEach(track => {
             try {
                 targetClient.pc?.addTrack(track, localStreamData.stream as MediaStream);
             } catch (e) {
@@ -215,7 +216,24 @@ const fileStream = derived(streamStore, $state => $state.streamConfig.file);
 // Subscribe to audio device changes
 audioDevice.subscribe(async (audio) => {
   if (audio !== null) {
-    // Set up audio stream
+    // First, clean up any existing audio streams
+    const state = getStreamState();
+    const audioStreams = getLocalStreamsByType('audio');
+    
+    // Clean up all existing audio streams
+    for (const [streamId, streamData] of Object.entries(audioStreams)) {
+      if (streamData.stream) {
+        await tearDownStream(streamData.stream);
+        
+        // Handle audio processing cleanup
+        const audioNodes = audioProcessingContexts[streamId];
+        stopProcessingAudio(audioNodes);
+        delete audioProcessingContexts[streamId];
+      }
+      removeLocalStream(streamId);
+    }
+    
+    // Set up new audio stream
     const deviceInfo = audio.split('|') || [];
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: deviceInfo.length === 2 ? {
@@ -227,10 +245,13 @@ audioDevice.subscribe(async (audio) => {
     // Set up the stream for WebRTC
     setupStream(stream, "high");
 
+    // Add to enhanced store structure - audio is both viewable and sendable
+    const streamId = addLocalStream('audio', stream, null, true, true);
+    
     // Process audio for visualization if callback provided
     if (audioCbFunction) {
-      // Store the returned context/nodes
-      audioProcessingContexts['audio'] = await processAudio(
+      // Store the returned context/nodes with the new stream ID
+      audioProcessingContexts[streamId] = await processAudio(
         stream, 
         (dataArray, analyser) => {
           // Calculate the average level from the frequency data
@@ -248,26 +269,27 @@ audioDevice.subscribe(async (audio) => {
         }
       );
     }
-    
-    // Add to enhanced store structure - audio is both viewable and sendable
-    addLocalStream('audio', stream, null, true, true);
   } else {
-    // Clean up audio stream
-    const state = getStreamState(); // Get current stream state
-    const localStreamData = state.localStreams['audio'];
-    if (localStreamData?.stream) {
-      await tearDownStream(localStreamData.stream);
-      
-      // Handle audio processing cleanup
-      const audioNodes = audioProcessingContexts['audio'];
-      stopProcessingAudio(audioNodes);
-      delete audioProcessingContexts['audio']; // Remove from tracking
-      if (audioCbFunction) {
-        audioCbFunction(0); // Reset visualization
+    // Clean up all audio streams
+    const audioStreams = getLocalStreamsByType('audio');
+    
+    for (const [streamId, streamData] of Object.entries(audioStreams)) {
+      if (streamData.stream) {
+        await tearDownStream(streamData.stream);
+        
+        // Handle audio processing cleanup
+        const audioNodes = audioProcessingContexts[streamId];
+        stopProcessingAudio(audioNodes);
+        delete audioProcessingContexts[streamId];
       }
       
       // Remove from store
-      removeLocalStream('audio');
+      removeLocalStream(streamId);
+    }
+    
+    // Reset visualization
+    if (audioCbFunction) {
+      audioCbFunction(0);
     }
   }
 });
@@ -275,8 +297,20 @@ audioDevice.subscribe(async (audio) => {
 // Subscribe to camera device changes
 cameraDevice.subscribe(async (camera) => {
   const globalConfig = getAllConfig();
+  
   if (camera !== null) {
-    // Set up camera stream
+    // First, clean up any existing camera streams
+    const cameraStreams = getLocalStreamsByType('camera');
+    
+    // Clean up all existing camera streams
+    for (const [streamId, streamData] of Object.entries(cameraStreams)) {
+      if (streamData.stream) {
+        await tearDownStream(streamData.stream);
+      }
+      removeLocalStream(streamId);
+    }
+    
+    // Set up new camera stream
     const deviceInfo = camera.split('|') || [];
     const stream = await navigator.mediaDevices.getUserMedia({
       video: deviceInfo.length === 2 ? {
@@ -319,14 +353,15 @@ cameraDevice.subscribe(async (camera) => {
       addLocalStream('camera', stream, null, true, true);
     }
   } else {
-    // Clean up camera stream
-    const state = getStreamState(); // Get current stream state
-    const localStreamData = state.localStreams['camera'];
-    if (localStreamData?.stream) {
-      await tearDownStream(localStreamData.stream);
-      
+    // Clean up all camera streams
+    const cameraStreams = getLocalStreamsByType('camera');
+    
+    for (const [streamId, streamData] of Object.entries(cameraStreams)) {
+      if (streamData.stream) {
+        await tearDownStream(streamData.stream);
+      }
       // Remove from store
-      removeLocalStream('camera');
+      removeLocalStream(streamId);
     }
   }
 });
@@ -334,6 +369,17 @@ cameraDevice.subscribe(async (camera) => {
 // Subscribe to screen sharing changes
 screenSharing.subscribe(async (screen) => {
   if (screen) {
+    // First, clean up any existing screen streams
+    const screenStreams = getLocalStreamsByType('screen');
+    
+    // Clean up all existing screen streams
+    for (const [streamId, streamData] of Object.entries(screenStreams)) {
+      if (streamData.stream) {
+        await tearDownStream(streamData.stream);
+      }
+      removeLocalStream(streamId);
+    }
+    
     // Set up screen sharing
     const stream = await navigator.mediaDevices.getDisplayMedia({
       audio: true,
@@ -344,14 +390,15 @@ screenSharing.subscribe(async (screen) => {
     // Add to enhanced store structure - screen sharing is viewable and sendable
     addLocalStream('screen', stream, null, true, true);
   } else {
-    // Clean up screen sharing
-    const state = getStreamState(); // Get current stream state
-    const localStreamData = state.localStreams['screen'];
-    if (localStreamData?.stream) {
-      await tearDownStream(localStreamData.stream);
-      
+    // Clean up all screen streams
+    const screenStreams = getLocalStreamsByType('screen');
+    
+    for (const [streamId, streamData] of Object.entries(screenStreams)) {
+      if (streamData.stream) {
+        await tearDownStream(streamData.stream);
+      }
       // Remove from store
-      removeLocalStream('screen');
+      removeLocalStream(streamId);
     }
   }
 });
@@ -359,27 +406,45 @@ screenSharing.subscribe(async (screen) => {
 // Subscribe to file stream changes
 fileStream.subscribe(async (file) => {
   if (file !== null) {
+    // First, clean up any existing file streams
+    const fileStreams = getLocalStreamsByType('file');
+    
+    // Clean up all existing file streams
+    for (const [streamId, streamData] of Object.entries(fileStreams)) {
+      if (streamData.stream) {
+        await tearDownStream(streamData.stream);
+      } else if (streamData.src) {
+        // cleanup blob url
+        URL.revokeObjectURL(streamData.src);
+        const stream = getLocalFileStreamState().localFileStreams[streamData.src];
+        if (stream) {
+          await tearDownStream(stream);
+        }
+      }
+      removeLocalStream(streamId);
+    }
+    
     // File stream is handled differently - the actual stream setup happens in handleFilePlay
     // Just add the placeholder to the store - file is viewable but not sendable initially
     addLocalStream('file', null, file, true, false);
   } else {
-    // Clean up file stream
-    const state = getStreamState(); // Get current stream state
-    const localStreamData = state.localStreams['file'];
-    if (localStreamData) {
-      if (localStreamData.stream) {
-        await tearDownStream(localStreamData.stream);
-      } else if (localStreamData.src) {
+    // Clean up all file streams
+    const fileStreams = getLocalStreamsByType('file');
+    
+    for (const [streamId, streamData] of Object.entries(fileStreams)) {
+      if (streamData.stream) {
+        await tearDownStream(streamData.stream);
+      } else if (streamData.src) {
         // cleanup blob url
-        URL.revokeObjectURL(localStreamData.src);
-        const stream = getLocalFileStreamState().localFileStreams[localStreamData.src];
+        URL.revokeObjectURL(streamData.src);
+        const stream = getLocalFileStreamState().localFileStreams[streamData.src];
         if (stream) {
           await tearDownStream(stream);
         }
       }
       
       // Remove from store
-      removeLocalStream('file');
+      removeLocalStream(streamId);
     }
   }
 });

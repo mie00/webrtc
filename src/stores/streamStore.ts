@@ -15,6 +15,7 @@ export type LayoutType = 'grid' | 'focus' | 'presentation';
 
 // Local stream interface
 export interface LocalStreamData {
+  id: string; // Unique identifier for the stream
   type: StreamType;
   stream: MediaStream | null;
   src: string | null;
@@ -31,7 +32,7 @@ export interface RemoteStreamData {
 // Stream state interface
 export interface StreamState {
   // Enhanced structure
-  localStreams: Record<string, LocalStreamData>;
+  localStreams: Record<string, LocalStreamData>; // Key is now a unique ID, not just the type
   remoteStreams: Record<string, RemoteStreamData>;
   
   // View configuration
@@ -84,12 +85,17 @@ export function updateStreamConfig(config: Partial<StreamConfig>): void {
 }
 
 // Enhanced stream management functions
-export function addLocalStream(type: StreamType, stream: MediaStream | null, src: string | null, viewable: boolean = true, sendable: boolean = true): void {
+export function addLocalStream(type: StreamType, stream: MediaStream | null, src: string | null, viewable: boolean = true, sendable: boolean = true): string {
+  // Generate a unique ID for the stream
+  const streamId = `${type}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  
   streamStore.update(state => {
     const localStreams = { ...state.localStreams };
-    localStreams[type] = { type, stream, src: src, viewable, sendable };
+    localStreams[streamId] = { id: streamId, type, stream, src, viewable, sendable };
     return { ...state, localStreams };
   });
+  
+  return streamId;
 }
 
 export function updateLocalStreamProperties(id: string, properties: Partial<LocalStreamData>): void {
@@ -111,6 +117,21 @@ export function removeLocalStream(id: string): void {
     delete localStreams[id];
     return { ...state, localStreams };
   });
+}
+
+// Helper to get all local streams of a specific type
+export function getLocalStreamsByType(type: StreamType): Record<string, LocalStreamData> {
+  const state = getStreamState();
+  return Object.fromEntries(
+    Object.entries(state.localStreams).filter(([_, data]) => data.type === type)
+  );
+}
+
+// Helper to get the first local stream of a specific type
+export function getFirstLocalStreamByType(type: StreamType): [string, LocalStreamData] | null {
+  const streams = getLocalStreamsByType(type);
+  const entries = Object.entries(streams);
+  return entries.length > 0 ? entries[0] : null;
 }
 
 export function addRemoteStream(peerId: string, streamId: string, stream: MediaStream): void {

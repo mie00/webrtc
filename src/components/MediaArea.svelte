@@ -85,9 +85,9 @@
       peerId: null,
       streams: localStreams
         .filter(([_, data]) => data.viewable)
-        .map(([id, data]) => ({
+        .map(([streamId, data]) => ({
           id: normalizeStreamId(data.stream?.id || data.src || ''),
-          streamKey: id,
+          streamKey: streamId,
           stream: data.stream,
           type: data.type,
           isLocal: true,
@@ -331,8 +331,14 @@
     addLocalFileStream($streamStore.streamConfig.file!, videoStream);
     setupLocalFileStream(videoStream);
     
-    // Update the file stream to be sendable now that it's playing
-    updateLocalStreamProperties('file', { sendable: true });
+    // Find the file stream ID to update
+    const fileStreams = getLocalStreamsByType('file');
+    const fileStreamEntry = Object.entries(fileStreams)[0]; // Get the first file stream
+    
+    if (fileStreamEntry) {
+      // Update the file stream to be sendable now that it's playing
+      updateLocalStreamProperties(fileStreamEntry[0], { sendable: true });
+    }
   }
 
   function handleChangeLayout(layout: LayoutType) {
