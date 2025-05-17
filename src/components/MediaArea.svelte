@@ -555,12 +555,14 @@
     (window as any).loadRemote(
       modelUrl, modelDst, modelSizeMb,
       (progress: number) => printWhisperLog(`Model download progress: ${Math.round(progress * 100)}%`),
-      (buf: Uint8Array) => { // This is the storeFS callback from example
+      (filename: string, modelData: Uint8Array) => { // Corrected callback signature
         try {
+            // modelDst from outer scope is the correct path for FS operations
             window.Module.FS_unlink(modelDst);
         } catch (e) { /* ignore */ }
-        window.Module.FS_createDataFile("/", modelDst, buf, true, true);
-        printWhisperLog(`Stored model: ${modelDst}, size: ${buf.length}`);
+        // Use modelData (the actual binary data) here
+        window.Module.FS_createDataFile("/", modelDst, modelData, true, true);
+        printWhisperLog(`Stored model: ${modelDst}, size: ${modelData.length}`);
         
         isWhisperModelLoaded = true;
         whisperInstance = window.Module.init(modelDst); // Module.init is from stream.js
