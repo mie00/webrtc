@@ -25,11 +25,14 @@ export const transcriberStore = writable<TranscriberState>({
 
 // --- New Store for Displayable Transcription Data ---
 export interface TranscriptionSegment {
-  id: string; // Unique ID for the segment (e.g., sessionId + messageTimestamp + lineIndex)
-  sessionId: string; 
-  speakerLabel: string; 
+  id: string; // Unique ID for Svelte's #each block (e.g., utteranceId + lastUpdateTime)
+  utteranceId: string; // Key for identifying the same utterance across updates (sessionId-speaker-beg)
+  sessionId: string;
+  speakerLabel: string;
   text: string;
-  timestamp: number; // For ordering
+  beg: string; // From ASR, e.g., "0:00:00"
+  end: string; // From ASR, e.g., "0:00:04"
+  timestamp: number; // Message arrival timestamp, for tie-breaking in sort
 }
 
 export interface TranscriptionDisplayStoreState {
@@ -116,55 +119,89 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
       const data = JSON.parse(event.data as string);
       const messageTimestamp = Date.now();
 
-      // Process finalized lines from ASR
-      if (data.lines && Array.isArray(data.lines)) {
-        const newSegments: TranscriptionSegment[] = [];
-        data.lines.forEach((line: any, index: number) => {
-          if (line.text && line.text.trim().length > 0) {
-            const speakerLabel = getSpeakerLabelFromAsr(sessionId, line.speaker, line.text);
-            
-            // Avoid adding "Silence" or "Processing" as full segments if they have no meaningful text,
-            // or if we decide to handle them differently (e.g., just via buffer or not at all).
-            // For now, if it has text, it's a segment.
-            if (speakerLabel === "Silence" && !line.text.trim()) return; // Skip empty silence lines
+    try {
+      const data = JSON.parse(event.data as string);
+      const messageTimestamp = Date.now();
 
-            newSegments.push({
-              id: `${sessionId}-${messageTimestamp}-${index}`, // Create a unique ID
-              sessionId,
-              speakerLabel,
-              text: line.text.trim(),
-              timestamp: messageTimestamp + index, // Add index to ensure order within same message
-            });
-          }
-        });
-
-        if (newSegments.length > 0) {
-          transcriptionDisplayStore.update(s => ({
-            ...s,
-            // Add new segments and re-sort. Consider performance for very long transcriptions.
-            segments: [...s.segments, ...newSegments].sort((a, b) => a.timestamp - b.timestamp),
-          }));
-        }
-      }
-
-      // Process buffer_transcription
-      const bufferText = data.buffer_transcription;
-      // Determine speaker for buffer based on last line or default if no lines
-      const lastSpeakerInMessage = data.lines && data.lines.length > 0 ? data.lines[data.lines.length - 1].speaker : -1; // Default to a common speaker ID
-      const bufferSpeakerLabel = getSpeakerLabelFromAsr(sessionId, lastSpeakerInMessage, bufferText || "");
-      
       transcriptionDisplayStore.update(s => {
-        const newBuffers = { ...s.activeBuffers };
-        if (bufferText && bufferText.trim().length > 0) {
-          newBuffers[sessionId] = { sessionId, speakerLabel: bufferSpeakerLabel, text: bufferText.trim() };
-        } else {
-          delete newBuffers[sessionId]; // Remove buffer if it's now empty
+        const currentSegmentsMap = new Map<string, TranscriptionSegment>(s.segments.map(seg => [seg.utteranceId, seg]));
+        let segmentsChanged = false;
+
+        // Process finalized lines from ASR
+        if (data.lines && Array.isArray(data.lines)) {
+          data.lines.forEach((line: any, index: number) => {
+            // Ensure essential fields are present
+            if (line.text && line.text.trim().length > 0 && typeof line.speaker === 'number' && typeof line.beg === 'string' && typeof line.end === 'string') {
+              const speakerLabel = getSpeakerLabelFromAsr(sessionId, line.speaker, line.text);
+              
+              // Skip fully empty "Silence" lines, but allow "Silence" segments if they have duration/context.
+              // The main check is line.text.trim().length > 0.
+              // if (speakerLabel === "Silence" && !line.text.trim()) return;
+
+              const utteranceId = `${sessionId}-${line.speaker}-${line.beg}`; // Identifies an utterance
+              const currentText = line.text.trim();
+              const svelteKeyId = `${utteranceId}-${messageTimestamp}-${index}`; // Unique key for Svelte's #each
+
+              const existingSegment = currentSegmentsMap.get(utteranceId);
+
+              if (existingSegment) {
+                // Update existing segment if text or end time has changed
+                if (existingSegment.text !== currentText || existingSegment.end !== line.end) {
+                  existingSegment.text = currentText;
+                  existingSegment.end = line.end;
+                  existingSegment.timestamp = messageTimestamp + index; // Update timestamp for sorting
+                  existingSegment.id = svelteKeyId; // Update svelte key if needed, though not strictly necessary if utteranceId is stable
+                  segmentsChanged = true;
+                }
+              } else {
+                // Add new segment
+                currentSegmentsMap.set(utteranceId, {
+                  id: svelteKeyId,
+                  utteranceId,
+                  sessionId,
+                  speakerLabel,
+                  text: currentText,
+                  beg: line.beg,
+                  end: line.end,
+                  timestamp: messageTimestamp + index,
+                });
+                segmentsChanged = true;
+              }
+            }
+          });
         }
-        return { ...s, activeBuffers: newBuffers };
+
+        let finalSegments = Array.from(currentSegmentsMap.values());
+        if (segmentsChanged) {
+          // Sort by 'beg' time (lexicographical for "H:MM:SS" format), then by original message timestamp
+          finalSegments.sort((a, b) => {
+            if (a.beg < b.beg) return -1;
+            if (a.beg > b.beg) return 1;
+            return a.timestamp - b.timestamp;
+          });
+        }
+
+        // Process buffer_transcription
+        const bufferText = data.buffer_transcription;
+        // Determine speaker for buffer based on last line or default if no lines
+        const lastFinalizedSpeaker = data.lines && data.lines.length > 0 ? data.lines[data.lines.length - 1].speaker : -1;
+        const bufferSpeakerLabel = getSpeakerLabelFromAsr(sessionId, lastFinalizedSpeaker, bufferText || "");
+        
+        const newActiveBuffers = { ...s.activeBuffers };
+        if (bufferText && bufferText.trim().length > 0) {
+          newActiveBuffers[sessionId] = { sessionId, speakerLabel: bufferSpeakerLabel, text: bufferText.trim() };
+        } else {
+          delete newActiveBuffers[sessionId];
+        }
+        
+        return {
+          segments: finalSegments,
+          activeBuffers: newActiveBuffers,
+        };
       });
 
     } catch (e) {
-      console.error(`Error processing transcription message for ${sessionId}:`, e, event.data);
+      console.error(`Error processing transcription message for ${sessionId}:`, e, event.data as string);
     }
   };
 
