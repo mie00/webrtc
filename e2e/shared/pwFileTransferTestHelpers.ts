@@ -23,6 +23,7 @@ export interface TestCase {
     description: string;
     sizeBytes: number;
     fileName: string;
+    tag?: string;
 }
 
 export interface TestCaseData extends TestCase {
@@ -37,10 +38,8 @@ export const testCases: TestCase[] = [
     { description: '1 Bytes again', sizeBytes: 1, fileName: 'test-1B-2.bin' },
     { description: '100 Bytes', sizeBytes: 100, fileName: 'test-100B.bin' },
     { description: '1 MB', sizeBytes: 1 * 1024 * 1024, fileName: 'test-1MB.bin' },
-    // commented out becuase it's slow
-    // { description: '100 MB', sizeBytes: 100 * 1024 * 1024, fileName: 'test-100MB.bin' },
-    // TODO: fix for threeFromGuest
-    // { description: '1 GB', sizeBytes: 1024 * 1024 * 1024, fileName: 'test-1GB.bin' },
+    { description: '100 MB', sizeBytes: 100 * 1024 * 1024, fileName: 'test-100MB.bin', tag: '@slow' },
+    { description: '1 GB', sizeBytes: 1024 * 1024 * 1024, fileName: 'test-1GB.bin', tag: '@slow' },
 ];
 
 export const preparedTestCases: TestCaseData[] = [];

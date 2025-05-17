@@ -74,7 +74,8 @@ test.describe('Three Client E2E Tests with Playwright (Page B as primary sender)
 
     test.describe('File Transfer Functionality (B sends, A & C receive)', () => {
         for (const testCase of preparedTestCases) {
-            test(`Page B should send file ${testCase.fileName} (${testCase.description}) and Page A & C should receive it`, async () => {
+            test(`Page B should send file ${testCase.fileName} (${testCase.description}) and Page A & C should receive it ${testCase.tag || ''}`, async () => {
+                test.skip(testCase.sizeBytes >= 1024*1024*1024, 'Still working on it');
                 await performFileTransferTest(
                     pageB,
                     'Page B',

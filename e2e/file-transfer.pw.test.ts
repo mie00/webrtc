@@ -40,7 +40,7 @@ test.describe('WebRTC File Transfer E2E Test with Playwright (Standard A to B)',
 
     // Loop through preparedTestCases to create a test for each
     for (const testCase of preparedTestCases) {
-        test(`Page A should send file ${testCase.fileName} (${testCase.description}) and Page B should receive it`, async () => {
+        test(`Page A should send file ${testCase.fileName} (${testCase.description}) and Page B should receive it ${testCase.tag || ''}`, async () => {
             // Individual test timeout, can be adjusted based on testCase.timeoutMultiplier
             test.setTimeout(PW_TIMEOUT * 8 * testCase.timeoutMultiplier);
             await performFileTransferTest(

@@ -77,7 +77,7 @@ test.describe('Three Client E2E Tests with Playwright (Page A as primary sender)
         // Assuming preparedTestCases and TestCaseData are compatible.
         // If not, use preparedTestCasesPw and TestCaseDataPw.
         for (const testCase of preparedTestCases) {
-            test(`Page A should send file ${testCase.fileName} (${testCase.description}) and Page B & C should receive it`, async () => {
+            test(`Page A should send file ${testCase.fileName} (${testCase.description}) and Page B & C should receive it ${testCase.tag || ''}`, async () => {
                 await performFileTransferTest(
                     pageA,
                     'Page A',
