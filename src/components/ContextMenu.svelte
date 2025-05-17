@@ -118,7 +118,7 @@
         </button>
         
         {#if item.type === 'submenu' && item.children && openSubmenus[item.id]}
-          <div class="absolute left-full top-0 bg-white rounded-md shadow-xl -mt-1 ml-1">
+          <div class="absolute left-full top-0 bg-white rounded-md shadow-xl -mt-1 ml-1" onclick={(event) => event.stopPropagation()}>
             <ul class="menu flex flex-col overflow-hidden">
               {#each item.children as subItem}
                 <li>
