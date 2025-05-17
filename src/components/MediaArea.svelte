@@ -84,7 +84,7 @@
     groups[localPeerId] = {
       peerId: null,
       streams: localStreams
-        .filter(([_, data]) => data.active)
+        .filter(([_, data]) => data.active && data.viewable)
         .map(([id, data]) => ({
           id: normalizeStreamId(data.stream?.id || data.src || ''),
           streamKey: id,
@@ -330,6 +330,9 @@
     });
     addLocalFileStream($streamStore.streamConfig.file!, videoStream);
     setupLocalFileStream(videoStream);
+    
+    // Update the file stream to be sendable now that it's playing
+    updateLocalStreamProperties('file', { sendable: true });
   }
 
   function handleChangeLayout(layout: LayoutType) {

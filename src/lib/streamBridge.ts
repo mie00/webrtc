@@ -149,7 +149,7 @@ export function setupTrackHandler(cid: string): void { // app might be needed fo
   if (!targetClient || !targetClient.pc) return; // Add null check
 
   Object.values(state.localStreams).forEach((localStreamData) => {
-    if (localStreamData.active) { // Only add active streams
+    if (localStreamData.active && localStreamData.sendable) { // Only add active and sendable streams
         localStreamData.stream?.getTracks().forEach(track => {
             try {
                 targetClient.pc?.addTrack(track, localStreamData.stream as MediaStream);
@@ -249,8 +249,8 @@ audioDevice.subscribe(async (audio) => {
       );
     }
     
-    // Add to enhanced store structure
-    addLocalStream('audio', stream, null);
+    // Add to enhanced store structure - audio is both viewable and sendable
+    addLocalStream('audio', stream, null, true, true);
   } else {
     // Clean up audio stream
     const state = getStreamState(); // Get current stream state
@@ -302,21 +302,21 @@ cameraDevice.subscribe(async (camera) => {
         const blurredStream = await backgroundChange(videoElem);
         setupStream(blurredStream, "low", "motion", true);
         
-        // Add to enhanced store structure
-        addLocalStream('camera', blurredStream, null);
+        // Add to enhanced store structure - blurred camera is viewable and sendable
+        addLocalStream('camera', blurredStream, null, true, true);
       } catch (error) {
         console.error('Failed to apply background blur:', error);
         // Fallback to original stream if blur fails
         setupStream(stream, "low", "motion", true);
         
-        // Add to enhanced store structure
-        addLocalStream('camera', stream, null);
+        // Add to enhanced store structure - regular camera is viewable and sendable
+        addLocalStream('camera', stream, null, true, true);
       }
     } else {
       setupStream(stream, "low", "motion", true);
       
-      // Add to enhanced store structure
-      addLocalStream('camera', stream, null);
+      // Add to enhanced store structure - regular camera is viewable and sendable
+      addLocalStream('camera', stream, null, true, true);
     }
   } else {
     // Clean up camera stream
@@ -341,8 +341,8 @@ screenSharing.subscribe(async (screen) => {
     });
     setupStream(stream, "medium", 'detail', false);
     
-    // Add to enhanced store structure
-    addLocalStream('screen', stream, null);
+    // Add to enhanced store structure - screen sharing is viewable and sendable
+    addLocalStream('screen', stream, null, true, true);
   } else {
     // Clean up screen sharing
     const state = getStreamState(); // Get current stream state
@@ -360,8 +360,8 @@ screenSharing.subscribe(async (screen) => {
 fileStream.subscribe(async (file) => {
   if (file !== null) {
     // File stream is handled differently - the actual stream setup happens in handleFilePlay
-    // Just add the placeholder to the store
-    addLocalStream('file', null, file);
+    // Just add the placeholder to the store - file is viewable but not sendable initially
+    addLocalStream('file', null, file, true, false);
   } else {
     // Clean up file stream
     const state = getStreamState(); // Get current stream state

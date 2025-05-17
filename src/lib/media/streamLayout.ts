@@ -197,7 +197,7 @@ export function calculateStreamPositions(
   groupedStreams[localPeerId] = {
     peerId: null,
     streams: Object.entries(state.localStreams)
-      .filter(([_, data]) => data.active)
+      .filter(([_, data]) => data.active && data.viewable)
       .map(([_, data]) => ({
         id: normalizeStreamId(data.stream?.id || data.src || ''),
         type: data.type,
