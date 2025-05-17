@@ -122,6 +122,12 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
       transcriptionDisplayStore.update(s => {
         const currentSegmentsMap = new Map<string, TranscriptionSegment>(s.segments.map(seg => [seg.utteranceId, seg]));
         let segmentsChanged = false;
+        
+        // Keep track of the last speaker for speaker change detection
+        let lastSpeakerLabel = '';
+        if (s.segments.length > 0) {
+          lastSpeakerLabel = s.segments[s.segments.length - 1].speakerLabel;
+        }
 
         // Process finalized lines from ASR
         if (data.lines && Array.isArray(data.lines)) {
@@ -141,12 +147,29 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
               const existingSegment = currentSegmentsMap.get(utteranceId);
 
               if (existingSegment) {
-                // Update existing segment if text or end time has changed
-                if (existingSegment.text !== currentText || existingSegment.end !== line.end) {
+                // Only update existing segment if:
+                // 1. The speaker is the same as the last segment (to prevent modifying previous speaker's text)
+                // 2. Text or end time has changed
+                if (existingSegment.speakerLabel === lastSpeakerLabel && 
+                    (existingSegment.text !== currentText || existingSegment.end !== line.end)) {
                   existingSegment.text = currentText;
                   existingSegment.end = line.end;
                   existingSegment.timestamp = messageTimestamp + index; // Update timestamp for sorting
-                  existingSegment.id = svelteKeyId; // Update svelte key if needed, though not strictly necessary if utteranceId is stable
+                  existingSegment.id = svelteKeyId; // Update svelte key if needed
+                  segmentsChanged = true;
+                } else if (existingSegment.speakerLabel !== lastSpeakerLabel) {
+                  // If speaker changed, create a new segment instead of modifying the existing one
+                  const newUtteranceId = `${utteranceId}-${messageTimestamp}`; // Create a unique ID
+                  currentSegmentsMap.set(newUtteranceId, {
+                    id: `${newUtteranceId}-${index}`,
+                    utteranceId: newUtteranceId,
+                    sessionId,
+                    speakerLabel,
+                    text: currentText,
+                    beg: line.beg,
+                    end: line.end,
+                    timestamp: messageTimestamp + index,
+                  });
                   segmentsChanged = true;
                 }
               } else {
@@ -162,6 +185,8 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
                   timestamp: messageTimestamp + index,
                 });
                 segmentsChanged = true;
+                // Update last speaker
+                lastSpeakerLabel = speakerLabel;
               }
             }
           });
