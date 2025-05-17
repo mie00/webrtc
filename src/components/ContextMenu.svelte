@@ -13,7 +13,6 @@
     hide: () => void
   }>();
 
-  console.log("MIE", menuItems);
   // State for tracking open submenus
   let openSubmenus = $state<Record<string, boolean>>({});
   
@@ -94,7 +93,7 @@
   onkeypress={(event) => event.stopPropagation()}
   onkeydown={handleKeyDown}
 >
-  <ul id="ul-contextMenu" class="menu flex flex-col overflow-hidden">
+  <ul id="ul-contextMenu" class="menu flex flex-col overflow-visible">
     {#each normalizedMenuItems as item}
       <li class="relative">
         <button 
@@ -118,8 +117,8 @@
         </button>
         
         {#if item.type === 'submenu' && item.children && openSubmenus[item.id]}
-          <div class="absolute left-full top-0 bg-white rounded-md shadow-xl -mt-1 ml-1" onclick={(event) => event.stopPropagation()}>
-            <ul class="menu flex flex-col overflow-hidden">
+          <div class="absolute left-full top-0 bg-white rounded-md shadow-xl -mt-1 ml-1" role="button" tabindex="0" onclick={(event) => event.stopPropagation()} onkeydown={(event) => event.stopPropagation()}>
+            <ul class="menu flex flex-col overflow-visible">
               {#each item.children as subItem}
                 <li>
                   <button 
