@@ -35,7 +35,7 @@ async function setupStreams(merger: VideoStreamMerger): Promise<void> {
   
   // Add local video streams
   Object.entries(streamState.localStreams).forEach(([key, data]) => {
-    if (data.stream && data.active && data.sendable && data.stream.getVideoTracks().length > 0) {
+    if (data.stream && data.sendable && data.stream.getVideoTracks().length > 0) {
       videoStreams.push({ 
         id: normalizeStreamId(data.stream.id || ''),
         key,
@@ -62,7 +62,7 @@ async function setupStreams(merger: VideoStreamMerger): Promise<void> {
   
   // Add local audio streams
   Object.entries(streamState.localStreams).forEach(([key, data]) => {
-    if (data.stream && data.active && data.sendable && 
+    if (data.stream && data.sendable && 
         data.stream.getVideoTracks().length === 0 && 
         data.stream.getAudioTracks().length > 0) {
       audioStreams.push({ key, stream: data.stream });

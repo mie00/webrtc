@@ -8,7 +8,7 @@
 </script>
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { streamStore, updateStreamConfig, setViewLayout, type LayoutType } from '../stores/streamStore.js';
+  import { streamStore, updateStreamConfig, setViewLayout, updateLocalStreamProperties, type LayoutType } from '../stores/streamStore.js';
   import { normalizeStreamId, setupLocalFileStream, setAudioCallback } from '../lib/streamBridge.js';
   import { forwardStore, toggleForwardHandler as actualToggleForwardHandler, type LogMessage } from '../lib/forwardBridge.js';
   import { recorderStore, toggleRecording } from '../lib/media/recorder.js';
@@ -84,7 +84,7 @@
     groups[localPeerId] = {
       peerId: null,
       streams: localStreams
-        .filter(([_, data]) => data.active && data.viewable)
+        .filter(([_, data]) => data.viewable)
         .map(([id, data]) => ({
           id: normalizeStreamId(data.stream?.id || data.src || ''),
           streamKey: id,

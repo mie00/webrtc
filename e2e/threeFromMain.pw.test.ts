@@ -89,7 +89,7 @@ test.describe('Three Client E2E Tests with Playwright (Page A as primary sender)
         }
     });
 
-    test.describe('Microphone Functionality (A sends, B & C receive)', () => {
+    test.describe('Microphone Functionality (A sends, B & C receive) @media', () => {
         test('Page A should stream audio and Page B & C should receive it', async () => {
             test.setTimeout(PW_TIMEOUT * 4); // Individual test timeout
             await ensurePanelClosed(pageA, 'Page A');
@@ -100,7 +100,7 @@ test.describe('Three Client E2E Tests with Playwright (Page A as primary sender)
         });
     });
 
-    test.describe('Camera Functionality (A sends, B & C receive)', () => {
+    test.describe('Camera Functionality (A sends, B & C receive) @media', () => {
         test('Page A should stream video and Page B & C should receive it and verify QR', async () => {
             test.setTimeout(PW_TIMEOUT * 6); // Individual test timeout
             await ensurePanelClosed(pageA, 'Page A');
@@ -111,7 +111,7 @@ test.describe('Three Client E2E Tests with Playwright (Page A as primary sender)
         });
     });
 
-    test.describe('Watch Functionality (A shares, B & C receive)', () => {
+    test.describe('Watch Functionality (A shares, B & C receive) @media', () => {
         test('Page A should share a video file and Page B & C should receive it', async () => {
             test.setTimeout(PW_TIMEOUT * 8); // Individual test timeout
             await ensurePanelClosed(pageA, 'Page A');

@@ -9,7 +9,7 @@ import {
 } from './shared/pwMediaTestHelpers';
 import { PW_TIMEOUT } from './setup/pwTestHelpers';
 
-test.describe('WebRTC Media E2E Tests (2 Peers)', () => {
+test.describe('WebRTC Media E2E Tests (2 Peers) @media', () => {
     // Give more time for media processing, stream establishment, and QR decoding
     test.setTimeout(PW_TIMEOUT * 10);
 

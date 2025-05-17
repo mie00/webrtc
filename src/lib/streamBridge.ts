@@ -149,7 +149,7 @@ export function setupTrackHandler(cid: string): void { // app might be needed fo
   if (!targetClient || !targetClient.pc) return; // Add null check
 
   Object.values(state.localStreams).forEach((localStreamData) => {
-    if (localStreamData.active && localStreamData.sendable) { // Only add active and sendable streams
+    if (localStreamData.sendable) { // Only add active and sendable streams
         localStreamData.stream?.getTracks().forEach(track => {
             try {
                 targetClient.pc?.addTrack(track, localStreamData.stream as MediaStream);

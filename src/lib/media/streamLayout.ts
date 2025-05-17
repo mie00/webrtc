@@ -197,7 +197,7 @@ export function calculateStreamPositions(
   groupedStreams[localPeerId] = {
     peerId: null,
     streams: Object.entries(state.localStreams)
-      .filter(([_, data]) => data.active && data.viewable)
+      .filter(([_, data]) => data.viewable)
       .map(([_, data]) => ({
         id: normalizeStreamId(data.stream?.id || data.src || ''),
         type: data.type,
@@ -260,8 +260,8 @@ export function calculateStreamPositions(
     case 'presentation':
       // Find a screen share stream
       const screenStream = Object.entries(state.localStreams)
-        .find(([_, data]) => data.active && data.type === 'screen');
-      
+        .find(([_, data]) => data.viewable && data.type === 'screen');
+
       if (screenStream) {
         const screenStreamId = normalizeStreamId(screenStream[1].stream?.id || screenStream[1].src || '');
         return calculatePresentationPositions(containerWidth, containerHeight, screenStreamId, activeStreams);

@@ -9,7 +9,7 @@ import {
 } from './shared/pwMediaTestHelpers';
 import { PW_TIMEOUT } from './setup/pwTestHelpers';
 
-test.describe('WebRTC Watch (Share Video File) E2E Test with Playwright (2 Peers)', () => {
+test.describe('WebRTC Watch (Share Video File) E2E Test with Playwright (2 Peers) @media', () => {
     // Increased timeout for media generation, upload, and analysis
     test.setTimeout(PW_TIMEOUT * 12); // Adjusted timeout
 

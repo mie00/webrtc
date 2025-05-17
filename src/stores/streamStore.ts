@@ -18,7 +18,6 @@ export interface LocalStreamData {
   type: StreamType;
   stream: MediaStream | null;
   src: string | null;
-  active: boolean;
   viewable: boolean;
   sendable: boolean;
 }
@@ -88,20 +87,7 @@ export function updateStreamConfig(config: Partial<StreamConfig>): void {
 export function addLocalStream(type: StreamType, stream: MediaStream | null, src: string | null, viewable: boolean = true, sendable: boolean = true): void {
   streamStore.update(state => {
     const localStreams = { ...state.localStreams };
-    localStreams[type] = { type, stream, active: true, src: src, viewable, sendable };
-    return { ...state, localStreams };
-  });
-}
-
-export function toggleLocalStream(id: string, active: boolean): void {
-  streamStore.update(state => {
-    if (!state.localStreams[id]) return state;
-    
-    const localStreams = { ...state.localStreams };
-    localStreams[id] = { 
-      ...localStreams[id],
-      active 
-    };
+    localStreams[type] = { type, stream, src: src, viewable, sendable };
     return { ...state, localStreams };
   });
 }
