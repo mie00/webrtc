@@ -3,16 +3,6 @@
   declare global {
     interface Window {
       mies: HTMLElement[];
-      Module: any; // Whisper module
-      loadRemote: (
-        url: string,
-        dst: string,
-        size_mb: number,
-        cbProgress: (p: number) => void,
-        cbStoreFS: (buf: Uint8Array) => void,
-        cbCancel: () => void,
-        printTextarea: (text: string) => void
-      ) => void;
       // MediaRecorder might need full typing if not available globally in your setup
       MediaRecorder: typeof MediaRecorder; 
     }
@@ -45,17 +35,12 @@
 
   // Whisper state
   let isTranscribing = $state(false);
-  let isWhisperModelLoading = $state(false);
-  let isWhisperModelLoaded = $state(false);
-  let whisperInstance: any = $state(null); // Opaque pointer/handle from Module.init
-
-  // Audio capture related state for Whisper
-  let whisperAudioContext: AudioContext | null = $state(null);
-  let whisperMediaRecorder: MediaRecorder | null = $state(null);
-  let accumulatedAudioData: Float32Array | null = $state(null); // This will hold the Float32Array for the current session's audio
-  let currentSessionBlobs: Blob[] = $state([]); // Stores raw blobs from MediaRecorder for the current session
-  let whisperModuleReady = $state(false);
-  let transcriptionPollInterval: number | null = $state(null);
+  
+  // WebSocket and MediaRecorder for transcription
+  let transcriptionWebsocket: WebSocket | null = $state(null);
+  const websocketUrl = 'ws://localhost:8888'; // Target WebSocket URL
+  let mediaRecorderForTranscription: MediaRecorder | null = $state(null);
+  const transcriptionChunkDurationMs = 1000; // Send audio chunk every 1 second, similar to example's chunkDuration
 
   // References to DOM elements
   let uploadVideo: HTMLInputElement;
@@ -198,54 +183,15 @@
     );
   }
 
-  function printWhisperLog(text: string) {
-    console.log('[WhisperLib]:', text);
-  }
-
   onMount(() => {
     // Set up interval for updating stream positions
     refreshInterval = window.setInterval(updateStreamPositions, 1000);
-
-    // Setup Module for Whisper (must be done BEFORE stream.js is loaded)
-    // Ensure this runs only once, even if onMount is called multiple times in some scenarios.
-    if (!window.Module) {
-      window.Module = {
-        print: printWhisperLog,
-        printErr: printWhisperLog,
-        setStatus: function(text: string) {
-          printWhisperLog('js status: ' + text);
-        },
-        monitorRunDependencies: function(left: number) {},
-        preRun: function() {
-          printWhisperLog('js: Preparing ...');
-        },
-        postRun: function() {
-          printWhisperLog('js: Initialized successfully!');
-          // Now Module methods like ccall, FS_xyz should be available
-          whisperModuleReady = true;
-        }
-      };
-    }
-    // Ensure coi-serviceworker.js is loaded if needed for SharedArrayBuffer
-    // This often needs to be at the root and register itself.
-    // Example: if (!navigator.serviceWorker.controller && !(window as any).crossOriginIsolated) {
-    //   const coiSw = document.createElement('script');
-    //   coiSw.src = '/vendor/coi-serviceworker.js'; // Adjust path as needed
-    //   document.head.appendChild(coiSw);
-    // }
   });
 
   onDestroy(() => {
     clearInterval(refreshInterval);
     if (isTranscribing) {
       handleStopWhisperTranscription();
-    }
-    if (transcriptionPollInterval) {
-      clearInterval(transcriptionPollInterval);
-    }
-    // Clean up Whisper audio context if it exists
-    if (whisperAudioContext && whisperAudioContext.state !== 'closed') {
-      whisperAudioContext.close();
     }
   });
 
@@ -480,247 +426,116 @@
     setViewLayout('focus', streamId);
   }
 
-  // Whisper Transcription Functions
-  async function loadScript(src: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (document.querySelector(`script[src="${src}"]`)) {
-        resolve(); // Already loaded
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = src;
-      script.type = 'text/javascript';
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = (e) => reject(new Error(`Failed to load script: ${src}. Error: ${e}`));
-      document.head.appendChild(script);
-    });
-  }
-
-  async function ensureWhisperReady(): Promise<boolean> {
-    if (whisperModuleReady && window.Module?.FS_createDataFile && (window as any).loadRemote) {
-        return true;
-    }
-
-    try {
-      // helpers.js provides loadRemote
-      await loadScript('/vendor/whisper.wasm/helpers.js');
-      // stream.js initializes Module and its FS functions, and WASM.
-      // Module object must be pre-configured before this.
-      await loadScript('/vendor/whisper.wasm/stream.js');
-      
-      let attempts = 0;
-      while(!whisperModuleReady && attempts < 200) { // Timeout after 20s
-          await new Promise(res => setTimeout(res, 100));
-          attempts++;
-      }
-      if (!whisperModuleReady) {
-          console.error("Whisper Module did not become ready.");
-          return false;
-      }
-      if (!(window as any).loadRemote) {
-        console.error("window.loadRemote not found after loading helpers.js");
-        return false;
-      }
-      return true;
-    } catch (error) {
-      console.error("Error loading Whisper scripts:", error);
-      isWhisperModelLoading = false;
-      return false;
-    }
-  }
-
-  async function handleStartWhisperTranscriptionFlow() {
-    isWhisperModelLoading = true;
-
-    const ready = await ensureWhisperReady();
-    if (!ready || !(window as any).loadRemote || !window.Module?.FS_createDataFile) {
-      console.error("Whisper library not properly loaded.");
-      isWhisperModelLoading = false;
+  // WebSocket Transcription Functions
+  function connectAndStartTranscription() {
+    if (transcriptionWebsocket && transcriptionWebsocket.readyState === WebSocket.OPEN) {
+      console.log("WebSocket already open. Starting audio capture.");
+      startAudioCaptureForWhisper();
       return;
     }
-    
-    const model = 'base-q5_1';
-    const urls: Record<string, string> = {
-      'tiny':     'https://whisper.ggerganov.com/ggml-model-whisper-tiny.bin',
-      'base':     'https://whisper.ggerganov.com/ggml-model-whisper-base.bin',
-      'small':    'https://whisper.ggerganov.com/ggml-model-whisper-small.bin',
 
-      'tiny-q5_1':     'https://whisper.ggerganov.com/ggml-model-whisper-tiny-q5_1.bin',
-      'base-q5_1':     'https://whisper.ggerganov.com/ggml-model-whisper-base-q5_1.bin',
-      'small-q5_1':    'https://whisper.ggerganov.com/ggml-model-whisper-small-q5_1.bin',
-      'medium-q5_0':   'https://whisper.ggerganov.com/ggml-model-whisper-medium-q5_0.bin',
-      'large-q5_0':    'https://whisper.ggerganov.com/ggml-model-whisper-large-q5_0.bin',
+    console.log(`Attempting to connect to WebSocket: ${websocketUrl}`);
+    transcriptionWebsocket = new WebSocket(websocketUrl);
+
+    transcriptionWebsocket.onopen = () => {
+      console.log("WebSocket connection established.");
+      isTranscribing = true;
+      startAudioCaptureForWhisper();
     };
-    const sizes: Record<string, number> = {
-      'tiny':     75,
-      'base':     142,
-      'small':    466,
 
-      'tiny-q5_1':      31,
-      'base-q5_1':      57,
-      'small-q5_1':     182,
-      'medium-q5_0':    515,
-      'large-q5_0':     1030,
+    transcriptionWebsocket.onmessage = (event) => {
+      console.log("Transcription (WS):", event.data);
+      // Here you would parse event.data if it's JSON and update UI accordingly
+      // For now, just logging as per request.
     };
-    const modelUrl = urls[model];
-    const modelDst = 'whisper.bin'; 
-    const modelSizeMb = sizes[model];
-    const lang = "ar";
 
-    printWhisperLog(`Loading model "${model}"...`);
+    transcriptionWebsocket.onclose = (event) => {
+      console.log("WebSocket connection closed.", event.code, event.reason);
+      isTranscribing = false;
+      if (mediaRecorderForTranscription && mediaRecorderForTranscription.state === "recording") {
+        mediaRecorderForTranscription.stop();
+      }
+      mediaRecorderForTranscription = null;
+      transcriptionWebsocket = null;
+    };
 
-    (window as any).loadRemote(
-      modelUrl, modelDst, modelSizeMb,
-      (progress: number) => printWhisperLog(`Model download progress: ${Math.round(progress * 100)}%`),
-      (filename: string, modelData: Uint8Array) => { // Corrected callback signature
-        try {
-            // modelDst from outer scope is the correct path for FS operations
-            window.Module.FS_unlink(modelDst);
-        } catch (e) { /* ignore */ }
-        // Use modelData (the actual binary data) here
-        window.Module.FS_createDataFile("/", modelDst, modelData, true, true);
-        printWhisperLog(`Stored model: ${modelDst}, size: ${modelData.length}`);
-        
-        isWhisperModelLoaded = true;
-        whisperInstance = window.Module.init(modelDst, lang); // Module.init is from stream.js
-
-        if (whisperInstance) {
-          printWhisperLog(`Whisper initialized, instance: ${whisperInstance}`);
-          isWhisperModelLoading = false;
-          isTranscribing = true;
-          startAudioCaptureForWhisper();
-          startTranscriptionPolling();
-        } else {
-          console.error("Failed to initialize whisper instance.");
-          isWhisperModelLoading = false;
-        }
-      },
-      () => { // cbCancel
-        console.error("Model loading cancelled or failed.");
-        isWhisperModelLoading = false;
-      },
-      printWhisperLog 
-    );
+    transcriptionWebsocket.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      isTranscribing = false;
+      if (mediaRecorderForTranscription && mediaRecorderForTranscription.state === "recording") {
+        mediaRecorderForTranscription.stop();
+      }
+      mediaRecorderForTranscription = null;
+      transcriptionWebsocket = null; // Ensure it's nulled on error too
+    };
   }
 
   function startAudioCaptureForWhisper() {
-    if (!whisperInstance) return;
-
-    const kSampleRate = 16000;
-    const kIntervalAudio_ms = 5000; // Pass audio to C++ instance at this rate
-
-    if (whisperAudioContext && whisperAudioContext.state !== 'closed') {
-      whisperAudioContext.close();
-    }
-    whisperAudioContext = new AudioContext({
-        sampleRate: kSampleRate, channelCount: 1,
-        echoCancellation: false, autoGainControl:  true, noiseSuppression: true,
-    });
-
-    currentSessionBlobs = []; // Reset blob accumulator for the new recording session
-    accumulatedAudioData = null; // Reset final Float32Array
-
     navigator.mediaDevices.getUserMedia({ audio: true, video: false })
       .then(stream => {
-        if (whisperMediaRecorder && whisperMediaRecorder.state === "recording") {
-          whisperMediaRecorder.stop();
+        if (mediaRecorderForTranscription && mediaRecorderForTranscription.state === "recording") {
+          mediaRecorderForTranscription.stop();
         }
         
-        // MediaRecorder is created without specific mimeType, like in the example.
-        // The mimeType will be specified when creating the Blob.
-        whisperMediaRecorder = new MediaRecorder(stream); 
+        const options = { mimeType: 'audio/webm' }; // As per example
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+          console.warn(`${options.mimeType} is not supported. Trying default.`);
+          // Fallback to default if 'audio/webm' is not supported, though it's widely available.
+          // Or, you could try 'audio/ogg; codecs=opus' if that was a previous consideration.
+          // For now, let MediaRecorder use its default if 'audio/webm' fails.
+          try {
+            mediaRecorderForTranscription = new MediaRecorder(stream);
+          } catch (e) {
+             console.error("MediaRecorder could not be created with default mimeType:", e);
+             handleStopWhisperTranscription(); // Clean up
+             return;
+          }
+        } else {
+          mediaRecorderForTranscription = new MediaRecorder(stream, options);
+        }
 
-        whisperMediaRecorder.ondataavailable = (event) => { // Removed async, FileReader is callback based
-          if (event.data.size > 0 && whisperAudioContext) {
-            currentSessionBlobs.push(event.data);
-
-            // Create a new Blob from all chunks received so far in this session,
-            // using the specific MIME type from the example.
-            const combinedBlob = new Blob(currentSessionBlobs, { 'type' : 'audio/ogg; codecs=opus' });
-            
-            const reader = new FileReader();
-
-            reader.onload = () => {
-              if (!whisperAudioContext || !reader.result) {
-                console.error("Whisper audio context or FileReader result is missing.");
-                return; 
-              }
-              const arrayBuffer = reader.result as ArrayBuffer;
-
-              whisperAudioContext.decodeAudioData(arrayBuffer, (audioBuffer) => {
-                const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
-                const source = offlineCtx.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(offlineCtx.destination);
-                source.start(0);
-
-                offlineCtx.startRendering().then((renderedBuffer) => {
-                  // This Float32Array represents the audio from the start of the current
-                  // recording session up to this point.
-                  const currentSessionFloat32Audio = renderedBuffer.getChannelData(0);
-                  accumulatedAudioData = currentSessionFloat32Audio; 
-
-                  if (whisperInstance && window.Module?.set_audio && accumulatedAudioData) {
-                    window.Module.set_audio(whisperInstance, accumulatedAudioData);
-                  }
-                }).catch(e => console.error("Error rendering offline audio:", e));
-              }, (e) => console.error("Error decoding audio data for Whisper:", e));
-            };
-
-            reader.onerror = (e) => {
-              console.error("FileReader error:", e);
-            };
-
-            reader.readAsArrayBuffer(combinedBlob);
+        mediaRecorderForTranscription.ondataavailable = (event) => {
+          if (event.data.size > 0 && transcriptionWebsocket && transcriptionWebsocket.readyState === WebSocket.OPEN) {
+            transcriptionWebsocket.send(event.data);
           }
         };
         
-        whisperMediaRecorder.start(kIntervalAudio_ms);
-        if (window.Module?.set_status) window.Module.set_status("recording");
+        mediaRecorderForTranscription.start(transcriptionChunkDurationMs);
+        console.log("Audio capture for transcription started.");
       })
       .catch(err => {
-        console.error('Error getting audio stream for Whisper:', err);
+        console.error('Error getting audio stream for transcription:', err);
         isTranscribing = false; 
-        isWhisperModelLoading = false;
+        // Clean up WebSocket if it was opened but mic failed
+        if (transcriptionWebsocket && transcriptionWebsocket.readyState === WebSocket.OPEN) {
+            transcriptionWebsocket.close();
+        }
+        transcriptionWebsocket = null;
       });
   }
 
-  function startTranscriptionPolling() {
-    if (transcriptionPollInterval) clearInterval(transcriptionPollInterval);
-    transcriptionPollInterval = window.setInterval(() => {
-      if (whisperInstance && window.Module?.get_transcribed) {
-        const transcribedText = window.Module.get_transcribed();
-        if (transcribedText && transcribedText.length > 0) {
-          console.log("Whisper Transcription:", transcribedText);
-        }
-      }
-    }, 1000); // Poll every second
-  }
-
   function handleStopWhisperTranscription() {
-    if (whisperMediaRecorder && whisperMediaRecorder.state === "recording") {
-      whisperMediaRecorder.stop();
+    console.log("Stopping transcription.");
+    if (mediaRecorderForTranscription && mediaRecorderForTranscription.state === "recording") {
+      mediaRecorderForTranscription.stop();
+      // ondataavailable might fire one last time after stop with remaining buffer.
+      // The example sends an empty blob to signal end.
+      if (transcriptionWebsocket && transcriptionWebsocket.readyState === WebSocket.OPEN) {
+        const emptyBlob = new Blob([], { type: 'audio/webm' });
+        transcriptionWebsocket.send(emptyBlob);
+        console.log("Sent empty blob to signal end of audio.");
+      }
     }
-    whisperMediaRecorder?.stream?.getTracks().forEach(track => track.stop());
-    
-    // Do not close the main AudioContext here, as it might be reused.
-    // The example closes and recreates it on each start. Let's follow that.
-    if (whisperAudioContext && whisperAudioContext.state !== 'closed') {
-      whisperAudioContext.close();
-    }
-    whisperAudioContext = null; // Allow it to be recreated
+    mediaRecorderForTranscription?.stream?.getTracks().forEach(track => track.stop());
+    mediaRecorderForTranscription = null;
 
-    if (transcriptionPollInterval) {
-      clearInterval(transcriptionPollInterval);
-      transcriptionPollInterval = null;
+    if (transcriptionWebsocket) {
+      if (transcriptionWebsocket.readyState === WebSocket.OPEN || transcriptionWebsocket.readyState === WebSocket.CONNECTING) {
+        transcriptionWebsocket.close();
+        console.log("WebSocket connection closed.");
+      }
     }
-    
-    currentSessionBlobs = []; // Clear accumulated blobs on stop
-    // accumulatedAudioData will be reset when/if transcription restarts
-
-    if (window.Module?.set_status) window.Module.set_status("paused");
-    printWhisperLog("Transcription stopped.");
+    transcriptionWebsocket = null; // Ensure it's cleared
     isTranscribing = false;
   }
 
@@ -728,16 +543,7 @@
     if (isTranscribing) {
       handleStopWhisperTranscription();
     } else {
-      if (!isWhisperModelLoaded) {
-        handleStartWhisperTranscriptionFlow(); 
-      } else if (whisperInstance) {
-        isTranscribing = true;
-        startAudioCaptureForWhisper(); // Re-capture audio
-        startTranscriptionPolling();   // Restart polling
-      } else {
-        // Fallback if model was marked loaded but instance is lost
-        handleStartWhisperTranscriptionFlow();
-      }
+      connectAndStartTranscription();
     }
   }
 </script>
@@ -798,15 +604,11 @@
   <button id="test-toggle-transcription-button"
           onclick={handleToggleTranscription}
           class="text-white p-3 rounded-full pointer-events-auto"
-          class:bg-green-600={isTranscribing && !isWhisperModelLoading}
-          class:hover:bg-green-700={isTranscribing && !isWhisperModelLoading}
-          class:bg-gray-700={!isTranscribing && !isWhisperModelLoading}
-          class:hover:bg-blue-700={!isTranscribing && !isWhisperModelLoading && !isWhisperModelLoaded}
-          class:hover:bg-gray-600={!isTranscribing && !isWhisperModelLoading && isWhisperModelLoaded}
-          class:bg-yellow-500={isWhisperModelLoading}
-          class:cursor-not-allowed={isWhisperModelLoading}
-          disabled={isWhisperModelLoading}>
-    {isWhisperModelLoading ? '⏳' : (isTranscribing ? '🛑' : '✍️')}
+          class:bg-green-600={isTranscribing}
+          class:hover:bg-green-700={isTranscribing}
+          class:bg-gray-700={!isTranscribing}
+          class:hover:bg-blue-700={!isTranscribing}>
+    {isTranscribing ? '🛑' : '✍️'}
   </button>
   <button id="test-toggle-video-button" bind:this={videoButton} onclick={handleToggleVideo} oncontextmenu={e => handleContextMenu('camera', e)} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isCameraEnabled}>
     {isCameraEnabled ? '🎥' : '📷'} <!-- Video Camera -->
