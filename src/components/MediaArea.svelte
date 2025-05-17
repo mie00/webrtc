@@ -14,6 +14,7 @@
   import { normalizeStreamId, setupLocalFileStream, setAudioCallback } from '../lib/streamBridge.js';
   import { forwardStore, toggleForwardHandler as actualToggleForwardHandler, type LogMessage } from '../lib/forwardBridge.js';
   import { recorderStore, toggleRecording } from '../lib/media/recorder.js';
+  import { transcriberStore, toggleOverallTranscription, stopOverallTranscription } from '../lib/media/transcriber.js';
   import { calculateStreamPositions } from '../lib/media/streamLayout.js';
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, configStore } from '../stores/configStore.js';
@@ -33,15 +34,6 @@
   let videoButton: HTMLElement;
   let instant = $state(0);
 
-  // Whisper state
-  let isTranscribing = $state(false);
-  
-  // WebSocket and MediaRecorder for transcription
-  let transcriptionWebsocket: WebSocket | null = $state(null);
-  const websocketUrl = 'ws://localhost:8888/asr'; // Target WebSocket URL
-  let mediaRecorderForTranscription: MediaRecorder | null = $state(null);
-  const transcriptionChunkDurationMs = 1000; // Send audio chunk every 1 second, similar to example's chunkDuration
-
   // References to DOM elements
   let uploadVideo: HTMLInputElement;
   let refreshInterval: number;
@@ -52,6 +44,7 @@
   const isScreenSharing = $derived($streamStore.streamConfig.screen);
   const isVideoShared = $derived($streamStore.streamConfig.file !== null);
   const isBlurEnabled = $derived($configStore['blur-video'] === 'yes');
+  const isTranscribing = $derived($transcriberStore.isTranscribingOverall);
 
   // Forwarding state - button still needs allowedHosts to change its text/color
   const allowedHosts = $derived($forwardStore.allowedHosts);
@@ -190,8 +183,8 @@
 
   onDestroy(() => {
     clearInterval(refreshInterval);
-    if (isTranscribing) {
-      handleStopWhisperTranscription();
+    if (get(transcriberStore).isTranscribingOverall) { // Use get() for one-time check
+      stopOverallTranscription();
     }
   });
 
@@ -426,125 +419,8 @@
     setViewLayout('focus', streamId);
   }
 
-  // WebSocket Transcription Functions
-  function connectAndStartTranscription() {
-    if (transcriptionWebsocket && transcriptionWebsocket.readyState === WebSocket.OPEN) {
-      console.log("WebSocket already open. Starting audio capture.");
-      startAudioCaptureForWhisper();
-      return;
-    }
-
-    console.log(`Attempting to connect to WebSocket: ${websocketUrl}`);
-    transcriptionWebsocket = new WebSocket(websocketUrl);
-
-    transcriptionWebsocket.onopen = () => {
-      console.log("WebSocket connection established.");
-      isTranscribing = true;
-      startAudioCaptureForWhisper();
-    };
-
-    transcriptionWebsocket.onmessage = (event) => {
-      console.log("Transcription (WS):", event.data);
-      // Here you would parse event.data if it's JSON and update UI accordingly
-      // For now, just logging as per request.
-    };
-
-    transcriptionWebsocket.onclose = (event) => {
-      console.log("WebSocket connection closed.", event.code, event.reason);
-      isTranscribing = false;
-      if (mediaRecorderForTranscription && mediaRecorderForTranscription.state === "recording") {
-        mediaRecorderForTranscription.stop();
-      }
-      mediaRecorderForTranscription = null;
-      transcriptionWebsocket = null;
-    };
-
-    transcriptionWebsocket.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      isTranscribing = false;
-      if (mediaRecorderForTranscription && mediaRecorderForTranscription.state === "recording") {
-        mediaRecorderForTranscription.stop();
-      }
-      mediaRecorderForTranscription = null;
-      transcriptionWebsocket = null; // Ensure it's nulled on error too
-    };
-  }
-
-  function startAudioCaptureForWhisper() {
-    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-      .then(stream => {
-        if (mediaRecorderForTranscription && mediaRecorderForTranscription.state === "recording") {
-          mediaRecorderForTranscription.stop();
-        }
-        
-        const options = { mimeType: 'audio/webm' }; // As per example
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-          console.warn(`${options.mimeType} is not supported. Trying default.`);
-          // Fallback to default if 'audio/webm' is not supported, though it's widely available.
-          // Or, you could try 'audio/ogg; codecs=opus' if that was a previous consideration.
-          // For now, let MediaRecorder use its default if 'audio/webm' fails.
-          try {
-            mediaRecorderForTranscription = new MediaRecorder(stream);
-          } catch (e) {
-             console.error("MediaRecorder could not be created with default mimeType:", e);
-             handleStopWhisperTranscription(); // Clean up
-             return;
-          }
-        } else {
-          mediaRecorderForTranscription = new MediaRecorder(stream, options);
-        }
-
-        mediaRecorderForTranscription.ondataavailable = (event) => {
-          if (event.data.size > 0 && transcriptionWebsocket && transcriptionWebsocket.readyState === WebSocket.OPEN) {
-            transcriptionWebsocket.send(event.data);
-          }
-        };
-        
-        mediaRecorderForTranscription.start(transcriptionChunkDurationMs);
-        console.log("Audio capture for transcription started.");
-      })
-      .catch(err => {
-        console.error('Error getting audio stream for transcription:', err);
-        isTranscribing = false; 
-        // Clean up WebSocket if it was opened but mic failed
-        if (transcriptionWebsocket && transcriptionWebsocket.readyState === WebSocket.OPEN) {
-            transcriptionWebsocket.close();
-        }
-        transcriptionWebsocket = null;
-      });
-  }
-
-  function handleStopWhisperTranscription() {
-    console.log("Stopping transcription.");
-    if (mediaRecorderForTranscription && mediaRecorderForTranscription.state === "recording") {
-      mediaRecorderForTranscription.stop();
-      // ondataavailable might fire one last time after stop with remaining buffer.
-      // The example sends an empty blob to signal end.
-      if (transcriptionWebsocket && transcriptionWebsocket.readyState === WebSocket.OPEN) {
-        const emptyBlob = new Blob([], { type: 'audio/webm' });
-        transcriptionWebsocket.send(emptyBlob);
-        console.log("Sent empty blob to signal end of audio.");
-      }
-    }
-    mediaRecorderForTranscription?.stream?.getTracks().forEach(track => track.stop());
-    mediaRecorderForTranscription = null;
-
-    if (transcriptionWebsocket) {
-      if (transcriptionWebsocket.readyState === WebSocket.OPEN || transcriptionWebsocket.readyState === WebSocket.CONNECTING) {
-        transcriptionWebsocket.close();
-        console.log("WebSocket connection closed.");
-      }
-    }
-    transcriptionWebsocket = null; // Ensure it's cleared
-    isTranscribing = false;
-  }
-
   function handleToggleTranscription() {
-    if (isTranscribing) {
-      handleStopWhisperTranscription();
-    } else {
-      connectAndStartTranscription();
-    }
+    toggleOverallTranscription();
   }
 </script>
 
