@@ -221,7 +221,8 @@
       {
         id: 'enable-disable',
         label: $streamStore.streamConfig[type] === null ? `Enable ${type}` : `Disable ${type}`,
-        type: 'item' as const,
+        type: 'toggle' as const,
+        checked: $streamStore.streamConfig[type] !== null,
         action: () => {
           if (type === 'audio') {
             handleToggleAudio();
