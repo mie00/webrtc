@@ -33,3 +33,4 @@ yarn-error.log*
 # tests
 generated-media-pw/
 test-transfer-files/
+tests-out/
