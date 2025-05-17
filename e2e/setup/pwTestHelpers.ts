@@ -14,6 +14,7 @@ export const ATTACH_FILE_BUTTON_SELECTOR = '#test-attach-file-button';
 export const TOGGLE_AUDIO_BUTTON_SELECTOR = '#test-toggle-audio-button';
 export const TOGGLE_VIDEO_BUTTON_SELECTOR = '#test-toggle-video-button';
 export const SHARE_VIDEO_BUTTON_SELECTOR = '#test-share-video-button';
+export const RECORD_BUTTON_SELECTOR = '#test-record-button';
 export const UPLOAD_VIDEO_INPUT_SELECTOR = 'input[type="file"][accept="video/*"]';
 
 export const PW_TIMEOUT = 7000; // Playwright specific timeout

@@ -5,6 +5,7 @@ import QrCode from 'qrcode-reader';
 import { Jimp } from 'jimp';
 import { type Bitmap } from "@jimp/types";
 // import fs from 'fs/promises'; // Only if saving debug screenshots
+import { DEFAULT_SAMPLE_RATE } from './pwMediaGeneration';
 
 // --- Browser-Side Audio Analysis ---
 // (This function is identical to the one in __tests__/e2e/shared/browserMediaUtils.ts
@@ -222,7 +223,7 @@ async function decodeQrCodeWithTimeout(bitmap: Bitmap, timeoutMs: number = 2000)
     try {
         return await Promise.race([decodePromise, timeoutPromise]);
     } catch (error) {
-        if ((error as Error).message.includes("timed out")) {
+        if ((error as Error).message?.includes("timed out")) {
             console.warn((error as Error).message);
             return null;
         }
@@ -408,10 +409,6 @@ export async function extractFramesAndAnalyzeVideoFileNode(
             const image = await Jimp.read(frameBuffer);
             const frameQrResults: QrCodeResult[] = [];
 
-            // Attempt to decode from full image
-            let qr = await decodeQrCodeWithTimeout(image.bitmap, 1500);
-            if (qr) frameQrResults.push(qr);
-
             // Attempt to decode from halves to find multiple QRs if present
             const { width, height } = image.bitmap;
             const crops = [
@@ -423,7 +420,7 @@ export async function extractFramesAndAnalyzeVideoFileNode(
 
             for (const crop of crops) {
                 try {
-                    const croppedImage = image.clone().crop(crop.x, crop.y, crop.w, crop.h);
+                    const croppedImage = image.clone().crop(crop);
                     const croppedQr = await decodeQrCodeWithTimeout(croppedImage.bitmap, 1000);
                     if (croppedQr) {
                         // Check if this QR (content and rough position) is already found to avoid duplicates
@@ -519,11 +516,11 @@ export async function extractFramesAndAnalyzeVideoFileNode(
         }
 
     } catch (error) {
-        console.error(`NodeJS: Error in extractFramesAndAnalyzeVideoFileNode: ${(error as Error).message}`);
-        result.error = (error as Error).message;
+        console.error(`NodeJS: Error in extractFramesAndAnalyzeVideoFileNode: ${(error as Error).message || error}`);
+        result.error = (error as Error).message || error;
     } finally {
         try {
-            await fs.remove(tempDir);
+            // await fs.remove(tempDir);
             console.log(`NodeJS: Cleaned up temp directory ${tempDir}`);
         } catch (cleanupError) {
             console.error(`NodeJS: Error cleaning up temp directory ${tempDir}: ${(cleanupError as Error).message}`);
