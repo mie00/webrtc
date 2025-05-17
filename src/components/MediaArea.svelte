@@ -38,7 +38,7 @@
   
   // WebSocket and MediaRecorder for transcription
   let transcriptionWebsocket: WebSocket | null = $state(null);
-  const websocketUrl = 'ws://localhost:8888'; // Target WebSocket URL
+  const websocketUrl = 'ws://localhost:8888/asr'; // Target WebSocket URL
   let mediaRecorderForTranscription: MediaRecorder | null = $state(null);
   const transcriptionChunkDurationMs = 1000; // Send audio chunk every 1 second, similar to example's chunkDuration
 
