@@ -119,10 +119,6 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
       const data = JSON.parse(event.data as string);
       const messageTimestamp = Date.now();
 
-    try {
-      const data = JSON.parse(event.data as string);
-      const messageTimestamp = Date.now();
-
       transcriptionDisplayStore.update(s => {
         const currentSegmentsMap = new Map<string, TranscriptionSegment>(s.segments.map(seg => [seg.utteranceId, seg]));
         let segmentsChanged = false;
