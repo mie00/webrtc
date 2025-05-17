@@ -5,7 +5,8 @@ import {
   removeLocalStream,
   addRemoteStream,
   removeRemoteStream,
-  updateStreamConfig
+  updateStreamConfig,
+  getLocalStreamsByType
 } from '../stores/streamStore.js';
 import {
   getAllConfig,
