@@ -15,6 +15,7 @@
   import { forwardStore, toggleForwardHandler as actualToggleForwardHandler, type LogMessage } from '../lib/forwardBridge.js';
   import { recorderStore, toggleRecording } from '../lib/media/recorder.js';
   import { transcriberStore, toggleOverallTranscription, stopOverallTranscription } from '../lib/media/transcriber.js';
+  import TranscriptionOverlay from './TranscriptionOverlay.svelte';
   import { calculateStreamPositions } from '../lib/media/streamLayout.js';
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, configStore } from '../stores/configStore.js';
@@ -521,6 +522,9 @@
   hide={() => showMenu = false}
 />
 {/if}
+
+<TranscriptionOverlay />
+
 <svelte:window on:resize={updateStreamPositions} />
 
 <style>
