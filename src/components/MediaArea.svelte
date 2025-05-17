@@ -15,6 +15,7 @@
   import { calculateStreamPositions } from '../lib/media/streamLayout.js';
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, configStore } from '../stores/configStore.js';
+  import type { MenuItem } from '../types/menu';
   import StreamView from './StreamView.svelte';
   import { addLocalFileStream, removeLocalFileStream } from '../stores/localFileStreamStore.js';
 
@@ -24,7 +25,7 @@
   // Context menu state
   let showMenu = $state(false);
   let menuPosition = $state({ x: 0, y: 0 });
-  let menuItems: string[] = $state([]);
+  let menuItems: MenuItem[] = $state([]);
   let selectedButton: 'audio'|'camera'|null = $state(null);
   let audioButton: HTMLElement;
   let videoButton: HTMLElement;
@@ -213,33 +214,96 @@
       return;
     }
 
-    menuItems = filtered.map(d => d.label);
+    // Get current device ID
+    const currentDeviceId = $streamStore.streamConfig[type];
+    
+    // Create menu items with device options
+    menuItems = filtered.map(device => {
+      const deviceString = `${device.groupId}|${device.deviceId}`;
+      const isCurrentDevice = currentDeviceId === deviceString;
+      
+      return {
+        id: deviceString,
+        label: device.label,
+        type: 'toggle' as const,
+        checked: isCurrentDevice,
+        action: () => {
+          // Update both stores for compatibility
+          updateConfig(`${type}-device`, deviceString);
+          
+          // If the stream is already enabled, update it with the new device
+          if ($streamStore.streamConfig[type] !== null) {
+            // Temporarily disable the stream and then re-enable it with the new device
+            updateStreamConfig({ [type]: null });
+            // Short delay to ensure cleanup completes before restarting
+            setTimeout(() => updateStreamConfig({ [type]: deviceString }), 100);
+          } else {
+            // If not enabled, just enable it with the new device
+            updateStreamConfig({ [type]: deviceString });
+          }
+        }
+      };
+    });
+    
+    // Add additional options in a submenu
+    menuItems.push({
+      id: 'options',
+      label: 'Options',
+      type: 'submenu' as const,
+      children: [
+        {
+          id: 'enable',
+          label: $streamStore.streamConfig[type] === null ? `Enable ${type}` : `Disable ${type}`,
+          type: 'item' as const,
+          action: () => {
+            if (type === 'audio') {
+              handleToggleAudio();
+            } else {
+              handleToggleVideo();
+            }
+          }
+        },
+        ...(type === 'camera' ? [
+          {
+            id: 'blur',
+            label: 'Blur background',
+            type: 'toggle' as const,
+            checked: isBlurEnabled,
+            action: () => handleToggleBlur()
+          }
+        ] : [])
+      ]
+    });
+    
     menuPosition = { x: event.pageX, y: event.pageY };
     showMenu = true;
   }
 
-  async function handleContextSelect(item: string) {
+  async function handleContextSelect(item: MenuItem | string) {
+    // This function is now mostly handled by the action callbacks in the menu items
     showMenu = false;
-    if (!selectedButton) return;
-
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const device = devices.find(d => d.label === item && d.kind === `${selectedButton}input`);
     
-    if (device) {
-      const deviceString = `${device.groupId}|${device.deviceId}`;
+    // Handle legacy string items for backward compatibility
+    if (typeof item === 'string' && selectedButton) {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const device = devices.find(d => d.label === item && d.kind === `${selectedButton}input`);
       
-      // Update both stores for compatibility
-      updateConfig(`${selectedButton}-device`, deviceString);
-      
-      // If the stream is already enabled, update it with the new device
-      if ($streamStore.streamConfig[selectedButton] !== null) {
-        // Temporarily disable the stream and then re-enable it with the new device
-        updateStreamConfig({ [selectedButton]: null });
-        // Short delay to ensure cleanup completes before restarting
-        setTimeout(() => updateStreamConfig({ [selectedButton!]: deviceString }), 100);
-      } else {
-        // If not enabled, just enable it with the new device
-        updateStreamConfig({ [selectedButton]: deviceString });
+      if (device) {
+        const deviceString = `${device.groupId}|${device.deviceId}`;
+        
+        // Update both stores for compatibility
+        updateConfig(`${selectedButton}-device`, deviceString);
+        
+        // If the stream is already enabled, update it with the new device
+        if ($streamStore.streamConfig[selectedButton] !== null) {
+          // Temporarily disable the stream and then re-enable it with the new device
+          updateStreamConfig({ [selectedButton]: null });
+          // Short delay to ensure cleanup completes before restarting
+          setTimeout(() => updateStreamConfig({ [selectedButton!]: deviceString }), 100);
+        } else {
+          // If not enabled, just enable it with the new device
+          updateStreamConfig({ [selectedButton]: deviceString });
+        }
       }
     }
   }
