@@ -297,32 +297,18 @@ import { DEFAULT_AUDIO_DURATION_SECONDS } from './pwMediaGeneration';
 // These functions run in the Node.js environment of the Playwright test runner,
 // not in the browser. They typically use libraries like fluent-ffmpeg.
 
-// --- Browser-Side Green Screen Analysis ---
-export interface GreenScreenAnalysisResult {
-    isMostlyGreen: boolean;
-    averageRed: number;
-    averageGreen: number;
-    averageBlue: number;
-    greenDominantPixelPercentage: number;
+// --- Browser-Side YCbCr Analysis ---
+export interface YuvAnalysisResult {
+    averageY: number;
+    averageCb: number;
+    averageCr: number;
     error?: string;
 }
 
-export async function analyzeImageForGreenDominanceInBrowser(
-    options?: {
-        imageBase64: string,
-        greenDominanceThreshold?: number; // e.g., 0.6 (60% of pixels should be green dominant)
-        greenBlueMin?: number; // e.g., 100 (green channel value to be considered significantly green)
-        redMax?: number; // e.g., 80 (red channels should be below this for green dominance)
-    }
-): Promise<GreenScreenAnalysisResult> {
+export async function analyzeImageForYuvAveragesInBrowser(
+    imageBase64: string
+): Promise<YuvAnalysisResult> {
     // This function's body is executed in the browser context.
-    const {
-        imageBase64,
-        greenDominanceThreshold = 0.6, // 60% of pixels should be green-dominant
-        greenBlueMin = 200,       // Green channel should be at least this
-        redMax = 20             // Red and Blue channels should be at most this for a pixel to be "green"
-    } = options || {};
-
     return new Promise((resolve) => {
         const image = new Image();
         image.onload = () => {
@@ -332,47 +318,46 @@ export async function analyzeImageForGreenDominanceInBrowser(
             const ctx = canvas.getContext('2d');
             if (!ctx) {
                 resolve({
-                    isMostlyGreen: false, averageRed: 0, averageGreen: 0, averageBlue: 0,
-                    greenDominantPixelPercentage: 0, error: 'Could not get 2D context'
+                    averageY: 0, averageCb: 0, averageCr: 0,
+                    error: 'Could not get 2D context'
                 });
                 return;
             }
             ctx.drawImage(image, 0, 0);
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imageData.data;
-            let totalPixels = data.length / 4;
-            let greenDominantPixels = 0;
-            let sumR = 0, sumG = 0, sumB = 0;
+            const totalPixels = data.length / 4;
+
+            let sumY = 0, sumCb = 0, sumCr = 0;
 
             for (let i = 0; i < data.length; i += 4) {
                 const r = data[i];
                 const g = data[i + 1];
                 const b = data[i + 2];
-                sumR += r;
-                sumG += g;
-                sumB += b;
-                if (g + b > 2 * r && g + b >= greenBlueMin && r < redMax) {
-                    greenDominantPixels++;
-                }
+
+                // RGB to YCbCr conversion (ITU-R BT.601 standard for digital video)
+                // Y' = 0.299R + 0.587G + 0.114B
+                // Cb = -0.168736R - 0.331264G + 0.5B + 128
+                // Cr = 0.5R - 0.418688G - 0.081312B + 128
+                const y = 0.299 * r + 0.587 * g + 0.114 * b;
+                const cb = -0.168736 * r - 0.331264 * g + 0.5 * b + 128;
+                const cr = 0.5 * r - 0.418688 * g - 0.081312 * b + 128;
+
+                sumY += y;
+                sumCb += cb;
+                sumCr += cr;
             }
 
-            const avgR = sumR / totalPixels;
-            const avgG = sumG / totalPixels;
-            const avgB = sumB / totalPixels;
-            const greenPercentage = greenDominantPixels / totalPixels;
-
             resolve({
-                isMostlyGreen: greenPercentage >= greenDominanceThreshold,
-                averageRed: avgR,
-                averageGreen: avgG,
-                averageBlue: avgB,
-                greenDominantPixelPercentage: greenPercentage,
+                averageY: sumY / totalPixels,
+                averageCb: sumCb / totalPixels,
+                averageCr: sumCr / totalPixels,
             });
         };
         image.onerror = () => {
             resolve({
-                isMostlyGreen: false, averageRed: 0, averageGreen: 0, averageBlue: 0,
-                greenDominantPixelPercentage: 0, error: 'Image failed to load'
+                averageY: 0, averageCb: 0, averageCr: 0,
+                error: 'Image failed to load'
             });
         };
         image.src = `data:image/png;base64,${imageBase64}`;

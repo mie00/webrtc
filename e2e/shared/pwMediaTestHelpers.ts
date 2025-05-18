@@ -22,11 +22,11 @@ import {
     analyzeAudioInBrowser,
     takeScreenshotAndDecodeQR,
     extractFramesAndAnalyzeVideoFileNode, // Added
-    analyzeImageForGreenDominanceInBrowser, // Added for Firefox
+    analyzeImageForYuvAveragesInBrowser, // Renamed from analyzeImageForGreenDominanceInBrowser
     type AudioAnalysisResult,
     type QrCodeResult,
     type VideoFileAnalysisNodeResult, // Added
-    type GreenScreenAnalysisResult, // Added for Firefox
+    type YuvAnalysisResult, // Renamed from GreenScreenAnalysisResult
 } from './pwBrowserMediaUtils'; // Use Playwright version
 import {
     TOGGLE_AUDIO_BUTTON_SELECTOR,
@@ -201,13 +201,12 @@ async function verifyAudioStreamOnPagePw(page: PlaywrightPage, pageName: string,
     }
 }
 
-async function verifyGreenScreenVideoOnPagePw(page: PlaywrightPage, pageName: string, videoElementSelector: string): Promise<void> {
-    console.log(`${pageName}: Verifying video stream (Firefox - Green Screen Check) from element "${videoElementSelector}"...`);
+async function verifyDynamicYuvVideoOnPagePw(page: PlaywrightPage, pageName: string, videoElementSelector: string): Promise<void> {
+    console.log(`${pageName}: Verifying video stream (Firefox - YCbCr Dynamic Check) from element "${videoElementSelector}"...`);
     const numScreenshots = 3;
-    const collectedAverageColors: { r: number, g: number, b: number }[] = [];
-    const greenDominanceThreshold = 0.5; // 50% of pixels should be green-dominant
-    const greenBlueMin = 200;
-    const redMax = 20; // Allow slightly higher for Firefox's default green
+    const collectedYuvAvgs: { y: number, cb: number, cr: number }[] = [];
+    const yAverageMin = 120; // Expected Y' range for Firefox green screen with white elements
+    const yAverageMax = 190; // Tune these values as needed
 
     for (let i = 0; i < numScreenshots; i++) {
         await page.locator(videoElementSelector).waitFor({ state: 'visible', timeout: PW_TIMEOUT });
@@ -215,33 +214,39 @@ async function verifyGreenScreenVideoOnPagePw(page: PlaywrightPage, pageName: st
         else await page.waitForTimeout(500); // Initial wait
 
         const screenshotBuffer = await page.locator(videoElementSelector).screenshot({ type: 'png' });
-        console.log(`${pageName}: Screenshot ${i + 1}/${numScreenshots} taken for green screen check.`);
+        console.log(`${pageName}: Screenshot ${i + 1}/${numScreenshots} taken for YCbCr check.`);
 
-        const analysisResult: GreenScreenAnalysisResult = await page.evaluate(
-            analyzeImageForGreenDominanceInBrowser,
-            { imageBase64: screenshotBuffer.toString('base64'), greenDominanceThreshold, greenBlueMin, redMax }
+        const analysisResult: YuvAnalysisResult = await page.evaluate(
+            analyzeImageForYuvAveragesInBrowser,
+            screenshotBuffer.toString('base64')
         );
-        console.log(analysisResult)
-        expect(analysisResult.error).toBeUndefined();
-        expect(analysisResult.isMostlyGreen).toBe(true);
-        console.log(`${pageName}: Screenshot ${i + 1} is mostly green (Green dominant pixel percentage: ${(analysisResult.greenDominantPixelPercentage * 100).toFixed(2)}%). Avg RGB: (${analysisResult.averageRed.toFixed(0)}, ${analysisResult.averageGreen.toFixed(0)}, ${analysisResult.averageBlue.toFixed(0)})`);
-        collectedAverageColors.push({ r: analysisResult.averageRed, g: analysisResult.averageGreen, b: analysisResult.averageBlue });
+        
+        expect(analysisResult.error, `Error in YCbCr analysis: ${analysisResult.error}`).toBeUndefined();
+        expect(analysisResult.averageY).toBeGreaterThanOrEqual(yAverageMin);
+        expect(analysisResult.averageY).toBeLessThanOrEqual(yAverageMax);
+
+        console.log(`${pageName}: Screenshot ${i + 1} YCbCr Avg: Y=${analysisResult.averageY.toFixed(2)}, Cb=${analysisResult.averageCb.toFixed(2)}, Cr=${analysisResult.averageCr.toFixed(2)}`);
+        collectedYuvAvgs.push({ y: analysisResult.averageY, cb: analysisResult.averageCb, cr: analysisResult.averageCr });
     }
 
-    // Verify that the average color changes, indicating a dynamic video
-    const uniqueColorStrings = new Set(collectedAverageColors.map(c => `${c.r.toFixed(0)},${c.g.toFixed(0)},${c.b.toFixed(0)}`));
-    expect(uniqueColorStrings.size).toBeGreaterThan(1);
-    console.log(`${pageName}: Video green screen color change verified (${uniqueColorStrings.size} unique average RGB values).`);
+    // Verify that the average Cb and Cr values change, indicating a dynamic video
+    const uniqueCbValues = new Set(collectedYuvAvgs.map(yuv => yuv.cb.toFixed(1))); // Use toFixed to avoid floating point noise
+    const uniqueCrValues = new Set(collectedYuvAvgs.map(yuv => yuv.cr.toFixed(1)));
+
+    expect(uniqueCbValues.size).toBeGreaterThan(1);
+    console.log(`${pageName}: Video Cb change verified (${uniqueCbValues.size} unique average Cb values: ${Array.from(uniqueCbValues).join(', ')}).`);
+    expect(uniqueCrValues.size).toBeGreaterThan(1);
+    console.log(`${pageName}: Video Cr change verified (${uniqueCrValues.size} unique average Cr values: ${Array.from(uniqueCrValues).join(', ')}).`);
 }
 
 
 async function verifyVideoStreamOnPagePw(page: PlaywrightPage, pageName: string, videoElementSelector: string, expectedQrContent: string): Promise<void> {
     const browserName = page.context().browser()?.browserType().name();
 
-    // For Firefox, use green screen check ONLY for non-watch tests (e.g., camera tests).
+    // For Firefox, use YCbCr dynamic check ONLY for non-watch tests (e.g., camera tests).
     // Watch tests (file sharing) on Firefox should use QR code verification.
     if (browserName === 'firefox' && expectedQrContent !== WATCH_TEST_QR_CONTENT_PW) {
-        await verifyGreenScreenVideoOnPagePw(page, pageName, videoElementSelector);
+        await verifyDynamicYuvVideoOnPagePw(page, pageName, videoElementSelector);
     } else {
         console.log(`${pageName}: Verifying video stream (QR content: "${expectedQrContent}") from element "${videoElementSelector}"...`);
         const qrMinXCoords: number[] = [];
