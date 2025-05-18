@@ -32,7 +32,7 @@
 			inflight: {},
 			file_stuff: {}
 		};
-		window.isFirefox = typeof InstallTrigger !== 'undefined';
+		window.isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
 	</script>
 </body>
 </html>
