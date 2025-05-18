@@ -310,7 +310,7 @@ export interface YuvAnalysisResult {
 export async function analyzeImageForYuvAveragesInBrowser(
     imageBase64: string,
     targetY: number = 128,
-    yTolerance: number = 0.10 // 10%
+    yTolerance: number = 0.30 // 30%
 ): Promise<YuvAnalysisResult> {
     // This function's body is executed in the browser context.
     return new Promise((resolve) => {
