@@ -91,6 +91,7 @@ interface Window {
   WebRTCApp: typeof WebRTCApp;
   uuidv4: () => string;
   VideoStreamMerger: any;
+  isFirefox?: boolean;
 }
 
 
