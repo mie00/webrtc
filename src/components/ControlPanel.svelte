@@ -4,6 +4,7 @@
   import { configStore } from '../stores/configStore.js';
   import { chatStore, sendChatMessage, type ChatState } from '../lib/chatBridge.js';
   import { fileStore, sendFile, type FileState, type FileTransfer } from '../lib/fileBridge.js';
+  import { transcriberStore, transcriptionDisplayStore, type TranscriptionSegment } from '../lib/media/transcriber.js'; // Added
   import MediaCarousel, { type CarouselMediaItem } from './MediaCarousel.svelte'; // Import Carousel
 
   // --- Types for Staged Files ---
@@ -16,12 +17,13 @@
   // --- Types for Combined Feed ---
   interface FeedItem { // This is for the general feed
     id: string; // Unique ID for the #each block key
-    type: 'chat' | 'file';
-    sender: string;
+    type: 'chat' | 'file' | 'transcription'; // Added 'transcription'
+    sender: string; // For chat/transcription, or file sender
     timestamp: number; // For sorting
     text?: string; // For chat
     transfer?: FileTransfer; // For files
-    cid?: string; // Added: Original sender CID (if available)
+    segment?: TranscriptionSegment; // For transcriptions // Added
+    cid?: string; // Added: Original sender CID (if available for chat/file)
   }
 
   // State for panel toggle, chat, file upload
@@ -36,6 +38,9 @@
   // --- New State for Staged Files & Sending ---
   let stagedFiles = $state<StagedFile[]>([]);
   let isSending = $state(false); // To disable input/buttons during send operation
+
+  // --- State for Transcription Display ---
+  let showPendingTranscriptions = $state(true); // Added: Toggle for pending transcriptions
 
   // --- State for Unread Notifications ---
   let unreadCount = $state(0);
@@ -161,8 +166,22 @@
       };
     });
 
+    // Transcription Items
+    const transcriptionItems: FeedItem[] = (
+      $transcriberStore.isTranscribingOverall && $transcriptionDisplayStore.segments 
+        ? $transcriptionDisplayStore.segments 
+        : []
+    ).map((seg, i) => ({
+      id: `transcription-${seg.id || `${seg.utteranceId}-${i}`}`, // Ensure unique ID
+      type: 'transcription',
+      sender: seg.speakerLabel, // Speaker label from ASR (e.g., "You", "Peer X (Spk Y)")
+      timestamp: seg.timestamp, // Timestamp of segment finalization
+      segment: seg, // The full segment data
+      // cid is not directly applicable here like for chat/file, but speakerLabel might contain peer info
+    }));
+    
     // Combine and sort by timestamp
-    const allItems = [...chatItems, ...fileItems];
+    const allItems = [...chatItems, ...fileItems, ...transcriptionItems];
     allItems.sort((a, b) => a.timestamp - b.timestamp);
     return allItems;
   })());
@@ -420,7 +439,11 @@
             <!-- Determine if the item is from the local user -->
             {@const isLocalUser = item.type === 'chat'
               ? item.sender === localUserName // Local chat message if sender matches
-              : !item.cid // Local file transfer if senderCid is missing
+              : item.type === 'file'
+                ? !item.cid // Local file transfer if senderCid is missing
+                : item.type === 'transcription' && item.segment
+                  ? item.segment.sessionId.startsWith('local|') // Local transcription segment
+                  : false
             }
             <!-- Add data-filename for file transfers to help test selectors -->
             <div class="flex" class:justify-end={isLocalUser} class:justify-start={!isLocalUser} data-filename={item.type === 'file' ? item.transfer?.name : null}>
@@ -538,6 +561,13 @@
                       <p data-testid="status" class="text-xs text-red-600" title={transfer.error}>Error: {transfer.error || 'Transfer failed'}</p>
                     {/if}
                   </div>
+                {:else if item.type === 'transcription' && item.segment}
+                  {@const segment = item.segment}
+                  <div class="transcription-segment text-sm" data-testid="transcription-segment">
+                    <p class="text-gray-700">{segment.text}</p>
+                    <!-- Optionally, display beg/end times or other segment details if needed -->
+                    <!-- <p class="text-xs text-gray-400">{segment.beg} - {segment.end}</p> -->
+                  </div>
                 {/if}
               </div>
             </div>
@@ -577,8 +607,22 @@
         </div>
       {/if}
 
+      <!-- Pending Transcriptions Area -->
+      {#if $transcriberStore.isTranscribingOverall && showPendingTranscriptions && Object.values($transcriptionDisplayStore.activeBuffers).some(b => b.text && b.text.length > 0)}
+        <div class="pending-transcriptions px-4 py-2 text-xs text-gray-500 border-t border-gray-300 bg-gray-50">
+          {#each Object.values($transcriptionDisplayStore.activeBuffers) as buffer (buffer.sessionId)}
+            {#if buffer.text && buffer.text.length > 0}
+              <div class="py-0.5" data-testid="pending-transcription-buffer">
+                <span class="font-semibold">{buffer.speakerLabel} (thinking...):</span>
+                <span class="ml-1 italic">{buffer.text}</span>
+              </div>
+            {/if}
+          {/each}
+        </div>
+      {/if}
+
       <!-- Message Input and Upload Button (Remains at the bottom) -->
-      <div class="flex items-center space-x-2 p-4 border-t border-gray-300 mt-auto">
+      <div class="flex items-center space-x-2 p-4 border-t border-gray-300 mt-auto bg-gray-100">
         <input id="test-chat-input" type="text" placeholder="Type message..."
           bind:value={message}
           bind:this={chatInput}
@@ -597,6 +641,19 @@
             class:bg-gray-500={isSending}
             title={!isSending ? "Attach file" : "Sending..."}
           >📎</button>
+          {#if $transcriberStore.isTranscribingOverall}
+            <button
+              type="button"
+              onclick={() => showPendingTranscriptions = !showPendingTranscriptions}
+              class="text-white px-3 py-2 rounded-md text-lg hover:opacity-80"
+              class:bg-blue-500={showPendingTranscriptions}
+              class:bg-gray-400={!showPendingTranscriptions}
+              title={showPendingTranscriptions ? "Hide pending transcriptions" : "Show pending transcriptions"}
+              aria-label={showPendingTranscriptions ? "Hide pending transcriptions" : "Show pending transcriptions"}
+            >
+              {showPendingTranscriptions ? '💬' : '💭'}
+            </button>
+          {/if}
           <input
             id="test-file-upload"
             type="file"

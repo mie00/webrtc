@@ -340,6 +340,13 @@ export function stopOverallTranscription(): void {
   // isTranscribingOverall will be set to false by the last call to stopTranscriptionForSession
   // Also, explicitly set it here to ensure it's false if no sessions were active to begin with.
   transcriberStore.update(s => ({ ...s, isTranscribingOverall: false, activeSessions: {} }));
+  // Clear displayable segments and buffers when stopping overall transcription
+  transcriptionDisplayStore.update(s => ({
+    ...s,
+    segments: [],
+    activeBuffers: {},
+    // lastTextBySpeaker could be cleared too, or left if resuming might benefit
+  }));
 }
 
 export function toggleOverallTranscription(): void {
