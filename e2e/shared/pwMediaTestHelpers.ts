@@ -24,10 +24,14 @@ import {
     takeScreenshotAndDecodeQR,
     extractFramesAndAnalyzeVideoFileNode, // Added
     analyzeImageForYuvAveragesInBrowser, // Renamed from analyzeImageForGreenDominanceInBrowser
+    takeScreenshotAndRecognizeText, // Added for WebKit OCR
+    WEBKIT_CAMERA_TEXT_BIP, // Added
+    WEBKIT_CAMERA_TEXT_BOP, // Added
     type AudioAnalysisResult,
     type QrCodeResult,
     type VideoFileAnalysisNodeResult, // Added
     type YuvAnalysisResult, // Renamed from GreenScreenAnalysisResult
+    type OcrResult, // Added
 } from './pwBrowserMediaUtils'; // Use Playwright version
 import {
     TOGGLE_AUDIO_BUTTON_SELECTOR,
@@ -265,12 +269,42 @@ async function verifyDynamicYuvVideoOnPagePw(page: PlaywrightPage, pageName: str
 
 async function verifyVideoStreamOnPagePw(page: PlaywrightPage, pageName: string, videoElementSelector: string, expectedQrContent: string): Promise<void> {
     const browserName = page.context().browser()?.browserType().name();
+    const isWebKitCamera = browserName === 'webkit' && expectedQrContent === CAMERA_TEST_QR_CONTENT_PW;
+    const isFirefoxCamera = browserName === 'firefox' && expectedQrContent === CAMERA_TEST_QR_CONTENT_PW; // Watch tests use QR
 
-    // For Firefox, use YCbCr dynamic check ONLY for non-watch tests (e.g., camera tests).
-    // Watch tests (file sharing) on Firefox should use QR code verification.
-    if (browserName === 'firefox' && expectedQrContent !== WATCH_TEST_QR_CONTENT_PW) {
+    if (isFirefoxCamera) {
         await verifyDynamicYuvVideoOnPagePw(page, pageName, videoElementSelector);
-    } else {
+    } else if (isWebKitCamera) {
+        console.log(`${pageName}: Verifying video stream (WebKit OCR: "${WEBKIT_CAMERA_TEXT_BIP}", "${WEBKIT_CAMERA_TEXT_BOP}") from element "${videoElementSelector}"...`);
+        let foundBip = false;
+        let foundBop = false;
+        const maxAttempts = 10; // Try up to 10 times to find both texts
+        const flip = videoElementSelector === LOCAL_VIDEO_ELEMENT_SELECTOR_CAMERA;
+
+        for (let i = 0; i < maxAttempts && (!foundBip || !foundBop); i++) {
+            await page.locator(videoElementSelector).waitFor({ state: 'visible', timeout: getEffectiveTimeout(page) });
+            if (i > 0) await page.waitForTimeout(1000); // Wait for video to change
+            else await page.waitForTimeout(500); // Initial wait
+
+            const ocrResult: OcrResult | null = await takeScreenshotAndRecognizeText(page, videoElementSelector, 1, 0, flip); // 1 attempt, no extra delay here
+            console.log(`${pageName}: Screenshot ${i + 1}/${maxAttempts} for OCR (flip: ${flip}). Result: ${JSON.stringify(ocrResult)}`);
+
+            if (ocrResult && ocrResult.text) {
+                if (ocrResult.text.includes(WEBKIT_CAMERA_TEXT_BIP)) {
+                    foundBip = true;
+                    console.log(`${pageName}: Found "${WEBKIT_CAMERA_TEXT_BIP}" (Confidence: ${ocrResult.confidence})`);
+                }
+                if (ocrResult.text.includes(WEBKIT_CAMERA_TEXT_BOP)) {
+                    foundBop = true;
+                    console.log(`${pageName}: Found "${WEBKIT_CAMERA_TEXT_BOP}" (Confidence: ${ocrResult.confidence})`);
+                }
+            }
+        }
+        expect(foundBip, `${pageName}: Text "${WEBKIT_CAMERA_TEXT_BIP}" not found in video stream.`).toBe(true);
+        expect(foundBop, `${pageName}: Text "${WEBKIT_CAMERA_TEXT_BOP}" not found in video stream.`).toBe(true);
+        console.log(`${pageName}: WebKit video OCR verification successful. Both "${WEBKIT_CAMERA_TEXT_BIP}" and "${WEBKIT_CAMERA_TEXT_BOP}" found.`);
+
+    } else { // Default to QR code verification (Chromium camera, all Watch tests)
         console.log(`${pageName}: Verifying video stream (QR content: "${expectedQrContent}") from element "${videoElementSelector}"...`);
         const qrMinXCoords: number[] = [];
         const numScreenshots = 2;
@@ -521,6 +555,7 @@ async function verifyVideoFilePw(
     expect(analysisResult.error, `Error during video file analysis: ${analysisResult.error}`).toBeUndefined();
 
     const isFirefoxCamera = browserName === 'firefox' && expectedQrContent === CAMERA_TEST_QR_CONTENT_PW;
+    const isWebKitCamera = browserName === 'webkit' && expectedQrContent === CAMERA_TEST_QR_CONTENT_PW;
 
     if (isFirefoxCamera) {
         // --- YUV Verification for Firefox Camera Recording ---
@@ -557,9 +592,41 @@ async function verifyVideoFilePw(
         expect(uniqueCbCrPairs.size).toBeGreaterThan(1); // Expect at least some change
         console.log(`${pageName}: Video YUV dynamism verified (${uniqueCbCrPairs.size} unique avg (Cb,Cr) pairs from ${numFramesToAnalyze} frames).`);
 
-    } else {
-        // --- QR Code Verification (Non-Firefox Camera or other QR-based tests) ---
-        console.log(`${pageName}: Performing QR code verification.`);
+    } else if (isWebKitCamera) {
+        // --- OCR Verification for WebKit Camera Recording ---
+        console.log(`${pageName}: Performing OCR verification for WebKit camera recording.`);
+        expect(analysisResult.ocrFramesAnalysis).toBeDefined();
+        expect(analysisResult.ocrFramesAnalysis!.length).toBe(numFramesToAnalyze);
+
+        let foundBip = false;
+        let foundBop = false;
+        let totalOcrDetectionsWithTargetText = 0;
+
+        analysisResult.ocrFramesAnalysis!.forEach((ocrFrame, index) => {
+            console.log(`${pageName}: Frame ${index} OCR Analysis: Text: "${ocrFrame.ocrResult?.text}", Confidence: ${ocrFrame.ocrResult?.confidence}`);
+            expect(ocrFrame.ocrResult?.error, `Error in OCR analysis for frame ${index}: ${ocrFrame.ocrResult?.error}`).toBeUndefined();
+            
+            if (ocrFrame.ocrResult?.text) {
+                if (ocrFrame.ocrResult.text.includes(WEBKIT_CAMERA_TEXT_BIP)) {
+                    foundBip = true;
+                    totalOcrDetectionsWithTargetText++;
+                    console.log(`${pageName}: Found "${WEBKIT_CAMERA_TEXT_BIP}" in frame ${index} (Confidence: ${ocrFrame.ocrResult.confidence})`);
+                }
+                if (ocrFrame.ocrResult.text.includes(WEBKIT_CAMERA_TEXT_BOP)) {
+                    foundBop = true;
+                    totalOcrDetectionsWithTargetText++;
+                    console.log(`${pageName}: Found "${WEBKIT_CAMERA_TEXT_BOP}" in frame ${index} (Confidence: ${ocrFrame.ocrResult.confidence})`);
+                }
+            }
+        });
+        
+        expect(totalOcrDetectionsWithTargetText).toBeGreaterThanOrEqual(2); // Expect at least two detections (one Bip, one Bop)
+        expect(foundBip, `${pageName}: Text "${WEBKIT_CAMERA_TEXT_BIP}" not found in recorded video OCR analysis.`).toBe(true);
+        expect(foundBop, `${pageName}: Text "${WEBKIT_CAMERA_TEXT_BOP}" not found in recorded video OCR analysis.`).toBe(true);
+        console.log(`${pageName}: WebKit recorded video OCR verification successful. Both "${WEBKIT_CAMERA_TEXT_BIP}" and "${WEBKIT_CAMERA_TEXT_BOP}" found.`);
+
+    } else { // Default to QR Code Verification (Chromium Camera or other QR-based tests like Watch)
+        console.log(`${pageName}: Performing QR code verification (Browser: ${browserName}, Expected Content: ${expectedQrContent}).`);
         const allFoundQrs: { result: string, points: { x: number, y: number }[], frameIndex: number }[] = [];
         let totalQrDetections = 0;
 

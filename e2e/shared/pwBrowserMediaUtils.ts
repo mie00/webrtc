@@ -6,6 +6,11 @@ import { Jimp } from 'jimp';
 import { type Bitmap } from "@jimp/types";
 // import fs from 'fs/promises'; // Only if saving debug screenshots
 import { DEFAULT_SAMPLE_RATE } from './pwMediaGeneration';
+import Tesseract from 'tesseract.js';
+
+// --- Constants for WebKit Camera OCR ---
+export const WEBKIT_CAMERA_TEXT_BIP = "Bip";
+export const WEBKIT_CAMERA_TEXT_BOP = "Bop";
 
 // --- Browser-Side Audio Analysis ---
 // (This function is identical to the one in __tests__/e2e/shared/browserMediaUtils.ts
@@ -194,13 +199,75 @@ export async function analyzeAudioInBrowser(
     return results;
 }
 
-// --- Browser-Side QR Code Decoding from Screenshot ---
+// --- OCR Helper (Node.js side) ---
+export interface OcrResult {
+    text: string | null;
+    confidence: number;
+    error?: string;
+}
+
+async function recognizeTextInImageBuffer(imageBuffer: Buffer): Promise<OcrResult> {
+    try {
+        const { data: { text, confidence } } = await Tesseract.recognize(imageBuffer, 'eng');
+        return { text, confidence };
+    } catch (error) {
+        console.error(`NodeJS: Error during Tesseract OCR: ${(error as Error).message}`);
+        return { text: null, confidence: 0, error: (error as Error).message };
+    }
+}
+
+// --- Browser-Side QR Code Decoding from Screenshot / OCR ---
 export interface QrCodeResult {
   result: string;
   points: { x: number; y: number }[];
 }
 
 const qr = new QrCode();
+
+export async function takeScreenshotAndRecognizeText(
+    page: PlaywrightPage,
+    screenshotElementSelector?: string,
+    maxAttempts: number = 5, // Increased attempts for text recognition
+    retryDelayMs: number = 1000,
+    flip: boolean = false
+): Promise<OcrResult | null> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        console.log(`Attempt ${attempt}/${maxAttempts}: Taking screenshot (flip: ${flip}) and attempting OCR...`);
+        try {
+            let screenshotBuffer: Buffer;
+            if (screenshotElementSelector) {
+                const element = page.locator(screenshotElementSelector);
+                await element.waitFor({ state: 'visible', timeout: 5000 });
+                screenshotBuffer = await element.screenshot({ type: 'png' });
+            } else {
+                screenshotBuffer = await page.screenshot({ type: 'png' });
+            }
+
+            if (flip) {
+                console.log(` Attempt ${attempt}: Flipping image horizontally for local stream view.`);
+                const image = await Jimp.read(screenshotBuffer);
+                image.flip({ horizontal: true });
+                screenshotBuffer = await image.getBufferAsync(Jimp.MIME_PNG);
+            }
+
+            const ocrResult = await recognizeTextInImageBuffer(screenshotBuffer);
+            console.log(` Attempt ${attempt}: OCR attempt complete. Text: "${ocrResult.text}", Confidence: ${ocrResult.confidence}`);
+            if (ocrResult.text && (ocrResult.text.includes(WEBKIT_CAMERA_TEXT_BIP) || ocrResult.text.includes(WEBKIT_CAMERA_TEXT_BOP))) {
+                return ocrResult;
+            }
+        } catch (error) {
+            console.error(` Attempt ${attempt}: Error during screenshot or OCR:`, (error as Error).message || error);
+        }
+
+        if (attempt < maxAttempts) {
+            console.log(` Waiting ${retryDelayMs}ms before next attempt...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+        }
+    }
+    console.error(`Failed to recognize target text after ${maxAttempts} attempts.`);
+    return null;
+}
+
 
 async function decodeQrCodeWithTimeout(bitmap: Bitmap, timeoutMs: number = 2000): Promise<QrCodeResult | null> {
     const decodePromise = new Promise<QrCodeResult | null>((resolve, reject) => {
@@ -454,9 +521,15 @@ export interface FrameAnalysis {
     qrResults: QrCodeResult[]; // Array to hold multiple QR codes found in one frame
 }
 
+export interface OcrFrameAnalysis {
+    frameIndex: number;
+    ocrResult: OcrResult | null;
+}
+
 export interface VideoFileAnalysisNodeResult {
     framesAnalysis: FrameAnalysis[]; // For QR code based analysis
     yuvFramesAnalysis?: YuvAnalysisResult[]; // For YUV based analysis (e.g. Firefox camera)
+    ocrFramesAnalysis?: OcrFrameAnalysis[]; // For OCR based analysis (e.g. WebKit camera)
     audioAnalysis: AudioAnalysisResult | null;
     error?: string;
 }
@@ -479,8 +552,9 @@ export async function extractFramesAndAnalyzeVideoFileNode(
     console.log(`NodeJS: Expected QR content (for context): "${expectedQrContent}", Analyze audio: ${analyzeAudio}, Frames to extract: ${numFramesToExtract}, Browser: ${browserName}`);
 
     const result: VideoFileAnalysisNodeResult = {
-        framesAnalysis: [], // For QR results
-        yuvFramesAnalysis: [], // For YUV results
+        framesAnalysis: [],
+        yuvFramesAnalysis: [],
+        ocrFramesAnalysis: [], // Initialize OCR analysis results
         audioAnalysis: null,
     };
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'video-analysis-'));
@@ -526,11 +600,13 @@ export async function extractFramesAndAnalyzeVideoFileNode(
             console.log(`NodeJS: Frame extraction complete.`);
         }
 
-        // 2. Frame Analysis (QR or YUV)
-        const isFirefoxCamera = browserName === 'firefox' && expectedQrContent === CAMERA_TEST_QR_CONTENT_PW; // Inferring camera source
+        // 2. Frame Analysis (QR, YUV, or OCR)
+        const isFirefoxCamera = browserName === 'firefox' && expectedQrContent === CAMERA_TEST_QR_CONTENT_PW;
+        const isWebKitCamera = browserName === 'webkit' && expectedQrContent === CAMERA_TEST_QR_CONTENT_PW;
+
         if (isFirefoxCamera) {
             console.log(`NodeJS: Performing YUV analysis for Firefox camera recording.`);
-            result.yuvFramesAnalysis = result.yuvFramesAnalysis || [];
+            result.yuvFramesAnalysis = result.yuvFramesAnalysis || []; // Ensure array is initialized
             for (let i = 1; i <= numFramesToExtract; i++) {
                 const framePath = path.join(tempDir, `frame-${i}.png`);
                 if (!await fs.pathExists(framePath)) {
@@ -546,8 +622,24 @@ export async function extractFramesAndAnalyzeVideoFileNode(
                             `Avg Cb=${yuvResult.averageCbForMidLuminancePixels?.toFixed(2)}, ` +
                             `Avg Cr=${yuvResult.averageCrForMidLuminancePixels?.toFixed(2)}`);
             }
-        } else {
-            console.log(`NodeJS: Performing QR code analysis for frames.`);
+        } else if (isWebKitCamera) {
+            console.log(`NodeJS: Performing OCR analysis for WebKit camera recording.`);
+            result.ocrFramesAnalysis = result.ocrFramesAnalysis || []; // Ensure array is initialized
+            for (let i = 1; i <= numFramesToExtract; i++) {
+                const framePath = path.join(tempDir, `frame-${i}.png`);
+                if (!await fs.pathExists(framePath)) {
+                    console.warn(`NodeJS: Frame ${framePath} for OCR analysis not found, skipping.`);
+                    result.ocrFramesAnalysis.push({ frameIndex: i - 1, ocrResult: { text: null, confidence: 0, error: "Frame not found" } });
+                    continue;
+                }
+                console.log(`NodeJS: OCR analyzing frame ${framePath}`);
+                const frameBuffer = await fs.readFile(framePath);
+                const ocrScanResult = await recognizeTextInImageBuffer(frameBuffer);
+                result.ocrFramesAnalysis.push({ frameIndex: i - 1, ocrResult: ocrScanResult });
+                console.log(`NodeJS: Frame ${i-1} OCR analysis complete. Text: "${ocrScanResult.text}", Confidence: ${ocrScanResult.confidence}`);
+            }
+        } else { // Default to QR code analysis
+            console.log(`NodeJS: Performing QR code analysis for frames (Browser: ${browserName}, Expected Content: ${expectedQrContent}).`);
             for (let i = 1; i <= numFramesToExtract; i++) {
                 const framePath = path.join(tempDir, `frame-${i}.png`);
                 if (!await fs.pathExists(framePath)) {
