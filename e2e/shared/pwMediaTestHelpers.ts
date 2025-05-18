@@ -195,6 +195,12 @@ async function verifyAudioStreamOnPagePw(page: PlaywrightPage, pageName: string,
     const browserName = page.context().browser()?.browserType().name();
 
     if (expectedToPlay) {
+        if (!isWatchTestAudio) { // This is a mic test, check for remote stream container visibility
+            console.log(`${pageName}: Mic test, ensuring remote stream container is visible before frequency validation...`);
+            await expect(page.locator(REMOTE_VIDEO_CONTAINER_SELECTOR)).toBeVisible({ timeout: getEffectiveTimeout(page) });
+            console.log(`${pageName}: Remote stream container is visible.`);
+        }
+
         const validFrequencies = audioResult.frequencies.filter(f => f !== null);
         // Ensure at least one valid (non-null) frequency reading was captured.
         // analyzeAudioInBrowser aims for multiple samples but might get fewer if conditions are met or on error.
