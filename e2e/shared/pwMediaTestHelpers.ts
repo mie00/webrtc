@@ -1,5 +1,6 @@
 import type { Page as PlaywrightPage } from '@playwright/test';
 import { expect } from '@playwright/test';
+import os from 'os'; // Added for OS detection
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import {
@@ -36,6 +37,18 @@ import {
     RECORD_BUTTON_SELECTOR, // Added
     PW_TIMEOUT, // Use Playwright timeout
 } from '../setup/pwTestHelpers'; // Use Playwright helpers
+
+// --- Timeout Helper ---
+const WEBKIT_MACOS_TIMEOUT = 30000; // 30 seconds
+
+function getEffectiveTimeout(page: PlaywrightPage, multiplier: number = 1): number {
+    const browserName = page.context().browser()?.browserType().name();
+    const isMac = os.platform() === 'darwin';
+    if (browserName === 'webkit' && isMac) {
+        return WEBKIT_MACOS_TIMEOUT * multiplier;
+    }
+    return PW_TIMEOUT * multiplier;
+}
 
 // --- Constants ---
 const __filename = fileURLToPath(import.meta.url);
@@ -212,7 +225,7 @@ async function verifyDynamicYuvVideoOnPagePw(page: PlaywrightPage, pageName: str
     const minPercentageOfMidLuminancePixels = 0.20; // Expect at least 20% of pixels to be in Y tolerance.
 
     for (let i = 0; i < numScreenshots; i++) {
-        await page.locator(videoElementSelector).waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+        await page.locator(videoElementSelector).waitFor({ state: 'visible', timeout: getEffectiveTimeout(page) });
         if (i > 0) await page.waitForTimeout(1000); // Wait for potential change in video
         else await page.waitForTimeout(500); // Initial wait
 
@@ -263,7 +276,7 @@ async function verifyVideoStreamOnPagePw(page: PlaywrightPage, pageName: string,
         const numScreenshots = 2;
 
         for (let i = 0; i < numScreenshots; i++) {
-            await page.locator(videoElementSelector).waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+            await page.locator(videoElementSelector).waitFor({ state: 'visible', timeout: getEffectiveTimeout(page) });
             if (i > 0) await page.waitForTimeout(1500);
             else await page.waitForTimeout(500);
 
@@ -312,9 +325,9 @@ export async function performMicTestPw(
 
     console.log(`${sender.name}: Clicking audio button.`);
     const audioButton = sender.page.locator(TOGGLE_AUDIO_BUTTON_SELECTOR);
-    await audioButton.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+    await audioButton.waitFor({ state: 'visible', timeout: getEffectiveTimeout(sender.page) });
     await audioButton.click();
-    await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+    await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
     console.log(`${sender.name}: Audio button ON. Waiting for stream propagation...`);
     await sender.page.waitForTimeout(2000);
 
@@ -332,7 +345,7 @@ export async function performMicTestPw(
 
     console.log(`${sender.name}: Clicking audio button to turn OFF.`);
     await audioButton.click();
-    await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+    await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
     console.log(`${sender.name}: Audio button OFF.`);
 }
 
@@ -344,21 +357,21 @@ export async function performCameraTestPw(
 
     console.log(`${sender.name}: Clicking video button.`);
     const videoButton = sender.page.locator(TOGGLE_VIDEO_BUTTON_SELECTOR);
-    await videoButton.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+    await videoButton.waitFor({ state: 'visible', timeout: getEffectiveTimeout(sender.page) });
     await videoButton.click();
-    await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+    await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
     console.log(`${sender.name}: Video button ON. Waiting for stream propagation...`);
     await sender.page.waitForTimeout(2000);
 
     for (const receiver of receivers) {
-        await expect(receiver.page.locator(REMOTE_VIDEO_ELEMENT_SELECTOR)).toBeVisible({ timeout: PW_TIMEOUT * 2 });
+        await expect(receiver.page.locator(REMOTE_VIDEO_ELEMENT_SELECTOR)).toBeVisible({ timeout: getEffectiveTimeout(receiver.page, 2) });
         console.log(`${receiver.name}: Remote video element found.`);
         await verifyVideoStreamOnPagePw(receiver.page, receiver.name, REMOTE_VIDEO_ELEMENT_SELECTOR, CAMERA_TEST_QR_CONTENT_PW);
     }
 
     console.log(`${sender.name}: Clicking video button to turn OFF.`);
     await videoButton.click();
-    await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+    await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
     console.log(`${sender.name}: Video button OFF.`);
 }
 
@@ -375,13 +388,13 @@ export async function performWatchTestPw(
     // No need to wait for hidden:true, setInputFiles works on hidden inputs
     await fileInputElement.setInputFiles(watchTestFinalMp4PathPw);
     console.log(`${sender.name}: File "${watchTestFinalMp4PathPw}" selected for upload.`);
-    await expect(sender.page.locator(`${SHARE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+    await expect(sender.page.locator(`${SHARE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
     console.log(`${sender.name}: "Share Video" button indicates video is shared.`);
     await sender.page.waitForTimeout(3000);
 
     for (const receiver of receivers) {
         console.log(`${receiver.name}: Waiting for remote video element...`);
-        await expect(receiver.page.locator(REMOTE_VIDEO_ELEMENT_SELECTOR)).toBeVisible({ timeout: PW_TIMEOUT * 2 });
+        await expect(receiver.page.locator(REMOTE_VIDEO_ELEMENT_SELECTOR)).toBeVisible({ timeout: getEffectiveTimeout(receiver.page, 2) });
         console.log(`${receiver.name}: Remote video element found. Verifying stream...`);
         await verifyVideoStreamOnPagePw(receiver.page, receiver.name, REMOTE_VIDEO_ELEMENT_SELECTOR, WATCH_TEST_QR_CONTENT_PW);
         await verifyAudioStreamOnPagePw(receiver.page, receiver.name, true);
@@ -394,9 +407,9 @@ export async function performWatchTestPw(
 
     console.log(`${sender.name}: Clicking "Share Video" button again to stop sharing...`);
     await sender.page.locator(SHARE_VIDEO_BUTTON_SELECTOR).click();
-    await expect(sender.page.locator(`${SHARE_VIDEO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+    await expect(sender.page.locator(`${SHARE_VIDEO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
     console.log(`${sender.name}: "Share Video" button indicates video sharing stopped.`);
-    await expect(sender.page.locator(LOCAL_VIDEO_CONTAINER_SELECTOR_FILE)).toBeHidden({ timeout: PW_TIMEOUT });
+    await expect(sender.page.locator(LOCAL_VIDEO_CONTAINER_SELECTOR_FILE)).toBeHidden({ timeout: getEffectiveTimeout(sender.page) });
     console.log(`${sender.name}: Local video element for shared file is hidden/removed.`);
 }
 
@@ -413,29 +426,29 @@ export async function performCombinedMediaTestPw(
     // Turn on media
     if (order === 'audioFirst') {
         console.log(`${sender.name}: Clicking audio button.`);
-        await audioButton.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+        await audioButton.waitFor({ state: 'visible', timeout: getEffectiveTimeout(sender.page) });
         await audioButton.click();
-        await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+        await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
         console.log(`${sender.name}: Audio button ON.`);
         await sender.page.waitForTimeout(1000); // Wait briefly before next action
 
         console.log(`${sender.name}: Clicking video button.`);
-        await videoButton.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+        await videoButton.waitFor({ state: 'visible', timeout: getEffectiveTimeout(sender.page) });
         await videoButton.click();
-        await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+        await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
         console.log(`${sender.name}: Video button ON.`);
     } else { // videoFirst
         console.log(`${sender.name}: Clicking video button.`);
-        await videoButton.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+        await videoButton.waitFor({ state: 'visible', timeout: getEffectiveTimeout(sender.page) });
         await videoButton.click();
-        await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+        await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
         console.log(`${sender.name}: Video button ON.`);
         await sender.page.waitForTimeout(1000); // Wait briefly before next action
 
         console.log(`${sender.name}: Clicking audio button.`);
-        await audioButton.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+        await audioButton.waitFor({ state: 'visible', timeout: getEffectiveTimeout(sender.page) });
         await audioButton.click();
-        await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+        await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
         console.log(`${sender.name}: Audio button ON.`);
     }
 
@@ -448,7 +461,7 @@ export async function performCombinedMediaTestPw(
         await verifyAudioStreamOnPagePw(receiver.page, receiver.name, true);
         
         console.log(`${receiver.name}: Verifying video stream...`);
-        await expect(receiver.page.locator(REMOTE_VIDEO_ELEMENT_SELECTOR)).toBeVisible({ timeout: PW_TIMEOUT * 2 });
+        await expect(receiver.page.locator(REMOTE_VIDEO_ELEMENT_SELECTOR)).toBeVisible({ timeout: getEffectiveTimeout(receiver.page, 2) });
         console.log(`${receiver.name}: Remote video element found.`);
         await verifyVideoStreamOnPagePw(receiver.page, receiver.name, REMOTE_VIDEO_ELEMENT_SELECTOR, CAMERA_TEST_QR_CONTENT_PW);
     }
@@ -457,24 +470,24 @@ export async function performCombinedMediaTestPw(
     if (order === 'audioFirst') { // Activated A then V. Turn off V then A.
         console.log(`${sender.name}: Clicking video button to turn OFF.`);
         await videoButton.click();
-        await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+        await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
         console.log(`${sender.name}: Video button OFF.`);
         await sender.page.waitForTimeout(500);
 
         console.log(`${sender.name}: Clicking audio button to turn OFF.`);
         await audioButton.click();
-        await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+        await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
         console.log(`${sender.name}: Audio button OFF.`);
     } else { // videoFirst. Activated V then A. Turn off A then V.
         console.log(`${sender.name}: Clicking audio button to turn OFF.`);
         await audioButton.click();
-        await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+        await expect(sender.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
         console.log(`${sender.name}: Audio button OFF.`);
         await sender.page.waitForTimeout(500);
 
         console.log(`${sender.name}: Clicking video button to turn OFF.`);
         await videoButton.click();
-        await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+        await expect(sender.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}:not([class*="bg-blue-600"])`)).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
         console.log(`${sender.name}: Video button OFF.`);
     }
     console.log(`--- Combined Media Test (Order: ${order}) Completed ---`);
@@ -625,25 +638,25 @@ export async function performRecordingTestPw(
     // 1. Enable camera on Page A
     console.log(`${pageInfoA.name}: Clicking video button.`);
     const videoButtonA = pageInfoA.page.locator(TOGGLE_VIDEO_BUTTON_SELECTOR);
-    await videoButtonA.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+    await videoButtonA.waitFor({ state: 'visible', timeout: getEffectiveTimeout(pageInfoA.page) });
     await videoButtonA.click();
-    await expect(pageInfoA.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+    await expect(pageInfoA.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: getEffectiveTimeout(pageInfoA.page) });
     console.log(`${pageInfoA.name}: Video button ON.`);
 
     // 2. Enable camera on Page B
     console.log(`${pageInfoB.name}: Clicking video button.`);
     const videoButtonB = pageInfoB.page.locator(TOGGLE_VIDEO_BUTTON_SELECTOR);
-    await videoButtonB.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+    await videoButtonB.waitFor({ state: 'visible', timeout: getEffectiveTimeout(pageInfoB.page) });
     await videoButtonB.click();
-    await expect(pageInfoB.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+    await expect(pageInfoB.page.locator(`${TOGGLE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: getEffectiveTimeout(pageInfoB.page) });
     console.log(`${pageInfoB.name}: Video button ON.`);
 
     // 3. Enable mic on Page A
     console.log(`${pageInfoA.name}: Clicking audio button.`);
     const audioButtonA = pageInfoA.page.locator(TOGGLE_AUDIO_BUTTON_SELECTOR);
-    await audioButtonA.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+    await audioButtonA.waitFor({ state: 'visible', timeout: getEffectiveTimeout(pageInfoA.page) });
     await audioButtonA.click();
-    await expect(pageInfoA.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+    await expect(pageInfoA.page.locator(`${TOGGLE_AUDIO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)).toBeVisible({ timeout: getEffectiveTimeout(pageInfoA.page) });
     console.log(`${pageInfoA.name}: Audio button ON.`);
 
     await pageInfoA.page.waitForTimeout(3000); // Wait for streams to establish
@@ -667,17 +680,17 @@ export async function performRecordingTestPw(
     // 7. Start recording on Page A
     console.log(`${pageInfoA.name}: Clicking record button.`);
     const recordButtonA = pageInfoA.page.locator(RECORD_BUTTON_SELECTOR);
-    await recordButtonA.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+    await recordButtonA.waitFor({ state: 'visible', timeout: getEffectiveTimeout(pageInfoA.page) });
     await recordButtonA.click();
-    await expect(pageInfoA.page.locator(`${RECORD_BUTTON_SELECTOR}[class*="bg-red-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+    await expect(pageInfoA.page.locator(`${RECORD_BUTTON_SELECTOR}[class*="bg-red-600"]`)).toBeVisible({ timeout: getEffectiveTimeout(pageInfoA.page) });
     console.log(`${pageInfoA.name}: Record button ON.`);
 
     // 8. Start recording on Page B
     console.log(`${pageInfoB.name}: Clicking record button.`);
     const recordButtonB = pageInfoB.page.locator(RECORD_BUTTON_SELECTOR);
-    await recordButtonB.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+    await recordButtonB.waitFor({ state: 'visible', timeout: getEffectiveTimeout(pageInfoB.page) });
     await recordButtonB.click();
-    await expect(pageInfoB.page.locator(`${RECORD_BUTTON_SELECTOR}[class*="bg-red-600"]`)).toBeVisible({ timeout: PW_TIMEOUT });
+    await expect(pageInfoB.page.locator(`${RECORD_BUTTON_SELECTOR}[class*="bg-red-600"]`)).toBeVisible({ timeout: getEffectiveTimeout(pageInfoB.page) });
     console.log(`${pageInfoB.name}: Record button ON.`);
 
     // 9. Wait for recording duration
@@ -686,9 +699,9 @@ export async function performRecordingTestPw(
 
     // 10. Stop recording on Page A (triggers download_A)
     console.log(`${pageInfoA.name}: Clicking record button to stop and download.`);
-    const downloadPromiseA = pageInfoA.page.waitForEvent('download', {timeout: PW_TIMEOUT * 2});
+    const downloadPromiseA = pageInfoA.page.waitForEvent('download', {timeout: getEffectiveTimeout(pageInfoA.page, 2)});
     await recordButtonA.click();
-    await expect(pageInfoA.page.locator(`${RECORD_BUTTON_SELECTOR}:not([class*="bg-red-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+    await expect(pageInfoA.page.locator(`${RECORD_BUTTON_SELECTOR}:not([class*="bg-red-600"])`)).toBeVisible({ timeout: getEffectiveTimeout(pageInfoA.page) });
     const downloadA = await downloadPromiseA;
     const filePathA = path.join(MEDIA_SETUP_DIR_PW, `recording_${pageInfoA.name.replace(' ', '_')}_${Date.now()}.webm`);
     await downloadA.saveAs(filePathA);
@@ -696,9 +709,9 @@ export async function performRecordingTestPw(
 
     // 11. Stop recording on Page B (triggers download_B)
     console.log(`${pageInfoB.name}: Clicking record button to stop and download.`);
-    const downloadPromiseB = pageInfoB.page.waitForEvent('download', {timeout: PW_TIMEOUT * 2});
+    const downloadPromiseB = pageInfoB.page.waitForEvent('download', {timeout: getEffectiveTimeout(pageInfoB.page, 2)});
     await recordButtonB.click();
-    await expect(pageInfoB.page.locator(`${RECORD_BUTTON_SELECTOR}:not([class*="bg-red-600"])`)).toBeVisible({ timeout: PW_TIMEOUT });
+    await expect(pageInfoB.page.locator(`${RECORD_BUTTON_SELECTOR}:not([class*="bg-red-600"])`)).toBeVisible({ timeout: getEffectiveTimeout(pageInfoB.page) });
     const downloadB = await downloadPromiseB;
     const filePathB = path.join(MEDIA_SETUP_DIR_PW, `recording_${pageInfoB.name.replace(' ', '_')}_${Date.now()}.webm`);
     await downloadB.saveAs(filePathB);
