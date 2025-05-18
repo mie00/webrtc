@@ -40,6 +40,7 @@
     "@types/puppeteer": "^5.4.7",
     "@types/qrcode": "^1.5.5",
     "@types/socket.io-client": "^3.0.0",
+    "@types/tesseract.js": "^0.0.2",
     "@types/webrtc": "^0.0.46",
     "babel-jest": "^29.7.0",
     "concurrently": "^9.1.2",
@@ -69,5 +70,8 @@
     "video-stream-merger": "^4.0.1",
     "vite": "^6.3.4",
     "vite-plugin-static-copy": "^3.0.0"
+  },
+  "dependencies": {
+    "tesseract.js": "^6.0.1"
   }
 }
