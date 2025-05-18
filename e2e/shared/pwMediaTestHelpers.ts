@@ -21,16 +21,18 @@ import {
 } from './pwMediaGeneration'; // Use Playwright version
 import {
     analyzeAudioInBrowser,
-    takeScreenshotAndDecodeQR,
-    extractFramesAndAnalyzeVideoFileNode, // Added
     analyzeImageForYuvAveragesInBrowser, // Renamed from analyzeImageForGreenDominanceInBrowser
-    takeScreenshotAndRecognizeText, // Added for WebKit OCR
     type AudioAnalysisResult,
-    type QrCodeResult,
-    type VideoFileAnalysisNodeResult, // Added
     type YuvAnalysisResult, // Renamed from GreenScreenAnalysisResult
-    type OcrResult, // Added
 } from './pwBrowserMediaUtils'; // Use Playwright version
+import {
+    takeScreenshotAndDecodeQR,
+    extractFramesAndAnalyzeVideoFileNode,
+    takeScreenshotAndRecognizeText,
+    type QrCodeResult,
+    type VideoFileAnalysisNodeResult,
+    type OcrResult,
+} from './pwNodeMediaProcessingUtils'; // Newly added import for Node.js utilities
 import {
     TOGGLE_AUDIO_BUTTON_SELECTOR,
     TOGGLE_VIDEO_BUTTON_SELECTOR,
