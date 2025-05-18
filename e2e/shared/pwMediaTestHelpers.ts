@@ -177,7 +177,7 @@ async function verifyAudioStreamOnPagePw(page: PlaywrightPage, pageName: string,
     const audioResult: AudioAnalysisResult = await page.evaluate(analyzeAudioInBrowser, analysisOptions);
 
     expect(audioResult.err).toBeUndefined();
-    const browserName = page.context().browser().browserType().name();
+    const browserName = page.context().browser()?.browserType().name();
 
     if (expectedToPlay) {
         if (browserName === 'firefox') {
@@ -219,8 +219,7 @@ async function verifyGreenScreenVideoOnPagePw(page: PlaywrightPage, pageName: st
 
         const analysisResult: GreenScreenAnalysisResult = await page.evaluate(
             analyzeImageForGreenDominanceInBrowser,
-            screenshotBuffer.toString('base64'),
-            { greenDominanceThreshold, greenChannelMin, redBlueMax }
+            { imageBase64: screenshotBuffer.toString('base64'), greenDominanceThreshold, greenChannelMin, redBlueMax }
         );
 
         expect(analysisResult.error, `Error in green screen analysis: ${analysisResult.error}`).toBeUndefined();
@@ -237,7 +236,7 @@ async function verifyGreenScreenVideoOnPagePw(page: PlaywrightPage, pageName: st
 
 
 async function verifyVideoStreamOnPagePw(page: PlaywrightPage, pageName: string, videoElementSelector: string, expectedQrContent: string): Promise<void> {
-    const browserName = page.context().browser().browserType().name();
+    const browserName = page.context().browser()?.browserType().name();
 
     if (browserName === 'firefox') {
         await verifyGreenScreenVideoOnPagePw(page, pageName, videoElementSelector);
