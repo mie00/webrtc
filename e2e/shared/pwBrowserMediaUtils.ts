@@ -307,6 +307,67 @@ export interface YuvAnalysisResult {
     error?: string;
 }
 
+// Node.js equivalent for analyzing YUV from an image buffer
+export async function analyzeImageBufferForYuvNode(
+    imageBuffer: Buffer,
+    targetY: number = 128,
+    yTolerance: number = 0.30 // Matches analyzeImageForYuvAveragesInBrowser default
+): Promise<YuvAnalysisResult> {
+    try {
+        const image = await Jimp.read(imageBuffer);
+        const { data, width, height } = image.bitmap;
+        const totalPixels = width * height;
+
+        let sumCbOfMidLuminance = 0;
+        let sumCrOfMidLuminance = 0;
+        let midLuminancePixelCount = 0;
+
+        const yMin = targetY * (1 - yTolerance);
+        const yMax = targetY * (1 + yTolerance);
+
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            // const a = data[i + 3]; // Alpha
+
+            // Standard BT.601 coefficients for YCbCr
+            const y = 0.299 * r + 0.587 * g + 0.114 * b;
+
+            if (y >= yMin && y <= yMax) {
+                midLuminancePixelCount++;
+                const cb = -0.168736 * r - 0.331264 * g + 0.5 * b + 128;
+                const cr = 0.5 * r - 0.418688 * g - 0.081312 * b + 128;
+                sumCbOfMidLuminance += cb;
+                sumCrOfMidLuminance += cr;
+            }
+        }
+
+        const percentageInTolerance = (midLuminancePixelCount / totalPixels);
+        const avgCb = midLuminancePixelCount > 0 ? sumCbOfMidLuminance / midLuminancePixelCount : null;
+        const avgCr = midLuminancePixelCount > 0 ? sumCrOfMidLuminance / midLuminancePixelCount : null;
+
+        return {
+            midLuminanceYValue: targetY,
+            yTolerancePercentage: yTolerance,
+            percentageOfPixelsInYTolerance: percentageInTolerance,
+            averageCbForMidLuminancePixels: avgCb,
+            averageCrForMidLuminancePixels: avgCr,
+        };
+    } catch (error) {
+        console.error(`NodeJS: Error during YUV analysis of image buffer: ${(error as Error).message}`);
+        return {
+            midLuminanceYValue: targetY,
+            yTolerancePercentage: yTolerance,
+            percentageOfPixelsInYTolerance: 0,
+            averageCbForMidLuminancePixels: null,
+            averageCrForMidLuminancePixels: null,
+            error: (error as Error).message,
+        };
+    }
+}
+
+
 export async function analyzeImageForYuvAveragesInBrowser(
     imageBase64: string,
     targetY: number = 128,
@@ -393,8 +454,9 @@ export interface FrameAnalysis {
 }
 
 export interface VideoFileAnalysisNodeResult {
-    framesAnalysis: FrameAnalysis[];
-    audioAnalysis: AudioAnalysisResult | null; // Reusing existing AudioAnalysisResult
+    framesAnalysis: FrameAnalysis[]; // For QR code based analysis
+    yuvFramesAnalysis?: YuvAnalysisResult[]; // For YUV based analysis (e.g. Firefox camera)
+    audioAnalysis: AudioAnalysisResult | null;
     error?: string;
 }
 
@@ -407,40 +469,17 @@ export interface VideoFileAnalysisNodeResult {
  */
 export async function extractFramesAndAnalyzeVideoFileNode(
     videoFilePath: string,
-    expectedQrContent: string, // Used for logging/guidance, actual content check is separate
+    expectedQrContent: string, 
     analyzeAudio: boolean,
-    numFramesToExtract: number = 4
+    numFramesToExtract: number = 4,
+    browserName?: string // Added browserName
 ): Promise<VideoFileAnalysisNodeResult> {
     console.log(`NodeJS: Starting analysis of video file: ${videoFilePath}`);
-    console.log(`NodeJS: Expected QR content (for context): "${expectedQrContent}", Analyze audio: ${analyzeAudio}, Frames to extract: ${numFramesToExtract}`);
-
-    // Placeholder for actual implementation using fluent-ffmpeg and Jimp/qrcode-reader for frames,
-    // and fluent-ffmpeg for audio extraction and analysis (similar to analyzeAudioInBrowser but with file input).
-
-    // 1. Use fluent-ffmpeg to extract `numFramesToExtract` frames as image buffers/files.
-    // 2. For each frame:
-    //    a. Load image buffer with Jimp.
-    //    b. Attempt to find *multiple* QR codes. This might involve:
-    //       - Cropping the image into sections (e.g., top/bottom, left/right) if a grid layout is expected in the recording.
-    //       - Running qr.decode() on each section.
-    //       - Collecting all successful QrCodeResult objects.
-    //    c. Store results in FrameAnalysis.
-    // 3. If analyzeAudio is true:
-    //    a. Use fluent-ffmpeg to extract audio to a temporary WAV file.
-    //    b. Analyze the WAV file for frequencies (similar logic to analyzeAudioInBrowser,
-    //       but adapted for Node.js, possibly using a library that can process WAV file data or
-    //       even using ffmpeg's afade/afftfilt for direct frequency data).
-    //    c. Store in AudioAnalysisResult.
-
-    console.warn(`NodeJS: Full implementation of extractFramesAndAnalyzeVideoFileNode for ${videoFilePath} is pending.`);
-    // Simulate a basic result structure
-    const simulatedResult: VideoFileAnalysisNodeResult = {
-        framesAnalysis: [],
-        audioAnalysis: analyzeAudio ? { frequencies: [null, null], peakAmplitudes: [null, null] } : null,
-    };
+    console.log(`NodeJS: Expected QR content (for context): "${expectedQrContent}", Analyze audio: ${analyzeAudio}, Frames to extract: ${numFramesToExtract}, Browser: ${browserName}`);
 
     const result: VideoFileAnalysisNodeResult = {
-        framesAnalysis: [],
+        framesAnalysis: [], // For QR results
+        yuvFramesAnalysis: [], // For YUV results
         audioAnalysis: null,
     };
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'video-analysis-'));
@@ -486,59 +525,75 @@ export async function extractFramesAndAnalyzeVideoFileNode(
             console.log(`NodeJS: Frame extraction complete.`);
         }
 
-        // 2. QR Decoding from Frames
-        for (let i = 1; i <= numFramesToExtract; i++) {
-            const framePath = path.join(tempDir, `frame-${i}.png`);
-            if (!await fs.pathExists(framePath)) {
-                console.warn(`NodeJS: Frame ${framePath} not found, skipping.`);
-                continue;
+        // 2. Frame Analysis (QR or YUV)
+        const isFirefoxCamera = browserName === 'firefox' && expectedQrContent === CAMERA_TEST_QR_CONTENT_PW; // Inferring camera source
+        if (isFirefoxCamera) {
+            console.log(`NodeJS: Performing YUV analysis for Firefox camera recording.`);
+            result.yuvFramesAnalysis = result.yuvFramesAnalysis || [];
+            for (let i = 1; i <= numFramesToExtract; i++) {
+                const framePath = path.join(tempDir, `frame-${i}.png`);
+                if (!await fs.pathExists(framePath)) {
+                    console.warn(`NodeJS: Frame ${framePath} for YUV analysis not found, skipping.`);
+                    continue;
+                }
+                console.log(`NodeJS: YUV analyzing frame ${framePath}`);
+                const frameBuffer = await fs.readFile(framePath);
+                const yuvResult = await analyzeImageBufferForYuvNode(frameBuffer); // Using defaults for targetY, yTolerance
+                result.yuvFramesAnalysis.push(yuvResult);
+                console.log(`NodeJS: Frame ${i-1} YUV analysis complete. ` +
+                            `Pixel Percentage=${(yuvResult.percentageOfPixelsInYTolerance * 100).toFixed(2)}%, ` +
+                            `Avg Cb=${yuvResult.averageCbForMidLuminancePixels?.toFixed(2)}, ` +
+                            `Avg Cr=${yuvResult.averageCrForMidLuminancePixels?.toFixed(2)}`);
             }
-            console.log(`NodeJS: Processing frame ${framePath}`);
-            const frameBuffer = await fs.readFile(framePath);
-            const image = await Jimp.read(frameBuffer);
-            const frameQrResults: QrCodeResult[] = [];
+        } else {
+            console.log(`NodeJS: Performing QR code analysis for frames.`);
+            for (let i = 1; i <= numFramesToExtract; i++) {
+                const framePath = path.join(tempDir, `frame-${i}.png`);
+                if (!await fs.pathExists(framePath)) {
+                    console.warn(`NodeJS: Frame ${framePath} for QR analysis not found, skipping.`);
+                    continue;
+                }
+                console.log(`NodeJS: QR decoding frame ${framePath}`);
+                const frameBuffer = await fs.readFile(framePath);
+                const image = await Jimp.read(frameBuffer);
+                const frameQrResults: QrCodeResult[] = [];
 
-            // Attempt to decode from halves to find multiple QRs if present
-            const { width, height } = image.bitmap;
-            const crops = [
-                { x: 0, y: 0, w: width / 2, h: height }, // Left half
-                { x: width / 2, y: 0, w: width / 2, h: height }, // Right half
-                // { x: 0, y: 0, w: width, h: height / 2 }, // Top half
-                // { x: 0, y: height/2, w: width, h: height / 2 }, // Bottom half
-            ];
+                const { width, height } = image.bitmap;
+                const crops = [
+                    { x: 0, y: 0, w: width / 2, h: height }, // Left half
+                    { x: width / 2, y: 0, w: width / 2, h: height }, // Right half
+                ];
 
-            for (const crop of crops) {
-                try {
-                    const croppedImage = image.clone().crop(crop);
-                    const croppedQr = await decodeQrCodeWithTimeout(croppedImage.bitmap, 1000);
-                    if (croppedQr) {
-                        // Check if this QR (content and rough position) is already found to avoid duplicates
-                        const alreadyFound = frameQrResults.some(existingQr =>
-                            existingQr.result === croppedQr.result &&
-                            Math.abs(existingQr.points[0].x - (croppedQr.points[0].x + crop.x)) < width * 0.1 && // Adjust points for crop
-                            Math.abs(existingQr.points[0].y - (croppedQr.points[0].y + crop.y)) < height * 0.1
-                        );
-                        if (!alreadyFound) {
-                             // Adjust points to be relative to the original image
-                            const adjustedPoints = croppedQr.points.map(p => ({ x: p.x + crop.x, y: p.y + crop.y }));
-                            frameQrResults.push({ result: croppedQr.result, points: adjustedPoints });
+                for (const crop of crops) {
+                    try {
+                        const croppedImage = image.clone().crop(crop);
+                        const croppedQr = await decodeQrCodeWithTimeout(croppedImage.bitmap, 1000);
+                        if (croppedQr) {
+                            const alreadyFound = frameQrResults.some(existingQr =>
+                                existingQr.result === croppedQr.result &&
+                                Math.abs(existingQr.points[0].x - (croppedQr.points[0].x + crop.x)) < width * 0.1 &&
+                                Math.abs(existingQr.points[0].y - (croppedQr.points[0].y + crop.y)) < height * 0.1
+                            );
+                            if (!alreadyFound) {
+                                const adjustedPoints = croppedQr.points.map(p => ({ x: p.x + crop.x, y: p.y + crop.y }));
+                                frameQrResults.push({ result: croppedQr.result, points: adjustedPoints });
+                            }
                         }
+                    } catch (cropError) {
+                        console.warn(`NodeJS: Error decoding QR from cropped section: ${(cropError as Error).message}`);
                     }
-                } catch (cropError) {
-                    console.warn(`NodeJS: Error decoding QR from cropped section: ${(cropError as Error).message}`);
                 }
-            }
-            
-            // Deduplicate based on content and very close proximity (in case full and crop found same)
-            const uniqueFrameQrResults: QrCodeResult[] = [];
-            for (const r of frameQrResults) {
-                if (!uniqueFrameQrResults.some(uq => uq.result === r.result && Math.abs(uq.points[0].x - r.points[0].x) < 10)) {
-                    uniqueFrameQrResults.push(r);
+                
+                const uniqueFrameQrResults: QrCodeResult[] = [];
+                for (const r of frameQrResults) {
+                    if (!uniqueFrameQrResults.some(uq => uq.result === r.result && Math.abs(uq.points[0].x - r.points[0].x) < 10)) {
+                        uniqueFrameQrResults.push(r);
+                    }
                 }
-            }
 
-            result.framesAnalysis.push({ frameIndex: i - 1, qrResults: uniqueFrameQrResults });
-            console.log(`NodeJS: Frame ${i-1} yielded ${uniqueFrameQrResults.length} unique QR codes.`);
+                result.framesAnalysis.push({ frameIndex: i - 1, qrResults: uniqueFrameQrResults });
+                console.log(`NodeJS: Frame ${i-1} yielded ${uniqueFrameQrResults.length} unique QR codes.`);
+            }
         }
 
         // 3. Audio Analysis

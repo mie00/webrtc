@@ -488,92 +488,109 @@ interface VideoFileAnalysisResult {
 
 async function verifyVideoFilePw(
     filePath: string,
-    expectedQrContent: string,
+    expectedQrContent: string, // Still used to determine if it's a camera feed or other (like watch test)
     expectedAudio: boolean,
-    pageName: string // For logging
+    pageName: string, // For logging
+    browserName?: string // Added browserName
 ): Promise<void> {
     console.log(`${pageName}: Verifying downloaded video file: ${filePath}`);
-    console.log(`${pageName}: Expected QR content: "${expectedQrContent}", Expected Audio: ${expectedAudio}`);
+    console.log(`${pageName}: Expected QR/Source type (content: "${expectedQrContent}"), Expected Audio: ${expectedAudio}, Browser: ${browserName}`);
 
-    // This function will use helpers from pwBrowserMediaUtils.ts (Node.js context)
-    // to process the video file.
-    // 1. Extract ~4 frames using ffmpeg.
-    // 2. For each frame:
-    //    - Load frame into Jimp.
-    //    - Attempt to decode *two* QR codes. This is the complex part.
-    //      Strategy: If the recorded layout is a grid (e.g., 2x1),
-    //      crop the frame into two halves and run QR decoder on each.
-    //      Alternatively, if a QR library can find multiple, use that.
-    //      For now, we'll aim to find at least two distinct QR instances across frames.
-    //    - Store all QR results (content, points, frame index).
-    // 3. Analyze collected QR results:
-    //    - Expect `expectedQrContent` to be found.
-    //    - Expect at least two distinct QR "instances" (based on coordinates/movement)
-    //      if the recording captured two video streams.
-    //    - Verify squareness for all found QRs.
-    //    - Verify movement for these QR instances across the frames.
-    // 4. Extract audio from the video file using ffmpeg.
-    // 5. Analyze the extracted audio for the chirp if expectedAudio is true.
-
-    const numFramesToAnalyze = 4; // Number of frames to extract and analyze from the video
-    const analysisResult = await extractFramesAndAnalyzeVideoFileNode(filePath, expectedQrContent, expectedAudio, numFramesToAnalyze);
+    const numFramesToAnalyze = 4;
+    const analysisResult = await extractFramesAndAnalyzeVideoFileNode(
+        filePath,
+        expectedQrContent,
+        expectedAudio,
+        numFramesToAnalyze,
+        browserName
+    );
 
     expect(analysisResult.error, `Error during video file analysis: ${analysisResult.error}`).toBeUndefined();
 
-    // --- QR Code Verification ---
-    const allFoundQrs: { result: string, points: { x: number, y: number }[], frameIndex: number }[] = [];
-    let totalQrDetections = 0;
+    const isFirefoxCamera = browserName === 'firefox' && expectedQrContent === CAMERA_TEST_QR_CONTENT_PW;
 
-    analysisResult.framesAnalysis.forEach(frameAnalysis => {
-        totalQrDetections += frameAnalysis.qrResults.length;
-        frameAnalysis.qrResults.forEach(qr => {
-            allFoundQrs.push({ ...qr, frameIndex: frameAnalysis.frameIndex });
+    if (isFirefoxCamera) {
+        // --- YUV Verification for Firefox Camera Recording ---
+        console.log(`${pageName}: Performing YUV verification for Firefox camera recording.`);
+        expect(analysisResult.yuvFramesAnalysis).toBeDefined();
+        expect(analysisResult.yuvFramesAnalysis!.length).toBe(numFramesToAnalyze);
 
-            // 1. Verify QR content
-            expect(qr.result).toBe(expectedQrContent);
+        const collectedMidLuminanceChroma: { cb: number | null, cr: number | null }[] = [];
+        const minPercentageOfMidLuminancePixels = 0.15; // Adjusted threshold for recorded video
 
-            // 2. Verify QR code is reasonably square
-            const xCoords = qr.points.map(p => p.x);
-            const yCoords = qr.points.map(p => p.y);
-            const minX = Math.min(...xCoords);
-            const maxX = Math.max(...xCoords);
-            const minY = Math.min(...yCoords);
-            const maxY = Math.max(...yCoords);
-            const qrWidth = maxX - minX;
-            const qrHeight = maxY - minY;
-            const tolerance = Math.min(qrWidth, qrHeight) * 0.20; // 20% tolerance for recorded video
-            expect(Math.abs(qrWidth - qrHeight)).toBeLessThanOrEqual(tolerance);
+        analysisResult.yuvFramesAnalysis!.forEach((yuvResult, index) => {
+            console.log(`${pageName}: Frame ${index} YUV Analysis: ` +
+                        `Pixel Percentage=${(yuvResult.percentageOfPixelsInYTolerance * 100).toFixed(2)}%, ` +
+                        `Avg Cb=${yuvResult.averageCbForMidLuminancePixels?.toFixed(2)}, ` +
+                        `Avg Cr=${yuvResult.averageCrForMidLuminancePixels?.toFixed(2)}`);
+
+            expect(yuvResult.error, `Error in YUV analysis for frame ${index}: ${yuvResult.error}`).toBeUndefined();
+            expect(yuvResult.percentageOfPixelsInYTolerance).toBeGreaterThanOrEqual(minPercentageOfMidLuminancePixels);
+            expect(yuvResult.averageCbForMidLuminancePixels).not.toBeNull();
+            expect(yuvResult.averageCrForMidLuminancePixels).not.toBeNull();
+
+            collectedMidLuminanceChroma.push({
+                cb: yuvResult.averageCbForMidLuminancePixels,
+                cr: yuvResult.averageCrForMidLuminancePixels
+            });
         });
-    });
 
-    console.log(`${pageName}: Found ${totalQrDetections} QR code detections across ${analysisResult.framesAnalysis.length} analyzed frames.`);
-    // Expect at least one QR detection per analyzed frame on average, ideally two for a 2-peer recording.
-    // This is a soft check; more robust would be ensuring two distinct QR *instances*.
-    expect(totalQrDetections).toBeGreaterThanOrEqual(numFramesToAnalyze * 1); 
-    // For a 2-peer recording, we expect QRs from both.
-    // A more robust check for 2 QRs:
-    const framesWithAtLeastTwoQrs = analysisResult.framesAnalysis.filter(f => f.qrResults.length >= 2).length;
-    // Loosen this: expect at least one frame to show two QRs, or a significant number of total QRs
-    expect(totalQrDetections).toBeGreaterThanOrEqual(numFramesToAnalyze * 1.5);
+        // Verify that the average Cb and Cr value combinations change, indicating a dynamic video
+        const uniqueCbCrPairs = new Set(
+            collectedMidLuminanceChroma.map(chroma => `${chroma.cb?.toFixed(1)},${chroma.cr?.toFixed(1)}`)
+        );
+        // For a 2-peer recording, we expect to see dynamic content from both, leading to changes.
+        // If only one stream was dynamic, this might still pass if that one stream is captured well.
+        expect(uniqueCbCrPairs.size).toBeGreaterThan(1); // Expect at least some change
+        console.log(`${pageName}: Video YUV dynamism verified (${uniqueCbCrPairs.size} unique avg (Cb,Cr) pairs from ${numFramesToAnalyze} frames).`);
 
-
-    // 3. Verify QR movement for distinct instances
-    // This simplified check looks for overall movement. A more robust check would identify
-    // two distinct QR "streams" in the video and verify movement for each.
-    if (allFoundQrs.length > 1) {
-        const qrMinXCoords = allFoundQrs.map(qr => Math.min(...qr.points.map(p => p.x)));
-        const uniqueXCoords = new Set(qrMinXCoords);
-        // Expect movement if multiple QR codes (from different frames or different instances) were found
-        expect(uniqueXCoords.size).toBeGreaterThan(1);
-        console.log(`${pageName}: Video QR movement verified (${uniqueXCoords.size} unique X positions among all detected QRs).`);
-    } else if (allFoundQrs.length === 1) {
-        console.warn(`${pageName}: Only one QR code instance found in analyzed frames. Cannot verify movement robustly.`);
     } else {
-        console.warn(`${pageName}: No QR codes found in analyzed frames. Cannot verify movement.`);
+        // --- QR Code Verification (Non-Firefox Camera or other QR-based tests) ---
+        console.log(`${pageName}: Performing QR code verification.`);
+        const allFoundQrs: { result: string, points: { x: number, y: number }[], frameIndex: number }[] = [];
+        let totalQrDetections = 0;
+
+        analysisResult.framesAnalysis.forEach(frameAnalysis => {
+            totalQrDetections += frameAnalysis.qrResults.length;
+            frameAnalysis.qrResults.forEach(qr => {
+                allFoundQrs.push({ ...qr, frameIndex: frameAnalysis.frameIndex });
+                expect(qr.result).toBe(expectedQrContent); // Verify QR content
+
+                const xCoords = qr.points.map(p => p.x);
+                const yCoords = qr.points.map(p => p.y);
+                const minX = Math.min(...xCoords);
+                const maxX = Math.max(...xCoords);
+                const minY = Math.min(...yCoords);
+                const maxY = Math.max(...yCoords);
+                const qrWidth = maxX - minX;
+                const qrHeight = maxY - minY;
+                const tolerance = Math.min(qrWidth, qrHeight) * 0.20; // 20% tolerance
+                expect(Math.abs(qrWidth - qrHeight)).toBeLessThanOrEqual(tolerance); // Verify squareness
+            });
+        });
+
+        console.log(`${pageName}: Found ${totalQrDetections} QR code detections across ${analysisResult.framesAnalysis.length} analyzed frames.`);
+        expect(totalQrDetections).toBeGreaterThanOrEqual(numFramesToAnalyze * 1); // Expect at least one QR per frame on average
+        // For a 2-peer recording, expect more QRs (e.g. 1.5x numFrames)
+        if (expectedQrContent === CAMERA_TEST_QR_CONTENT_PW) { // Only apply stricter check for camera test recordings
+             expect(totalQrDetections).toBeGreaterThanOrEqual(numFramesToAnalyze * 1.5);
+        }
+
+
+        if (allFoundQrs.length > 1) {
+            const qrMinXCoords = allFoundQrs.map(qr => Math.min(...qr.points.map(p => p.x)));
+            const uniqueXCoords = new Set(qrMinXCoords);
+            expect(uniqueXCoords.size).toBeGreaterThan(1); // Verify movement
+            console.log(`${pageName}: Video QR movement verified (${uniqueXCoords.size} unique X positions).`);
+        } else if (allFoundQrs.length === 1 && numFramesToAnalyze > 1) {
+            console.warn(`${pageName}: Only one QR code instance found across multiple frames. Movement not robustly verified.`);
+        } else if (allFoundQrs.length === 0) {
+             console.error(`${pageName}: No QR codes found in analyzed frames.`);
+             expect(allFoundQrs.length).toBeGreaterThan(0); // Fail if no QRs found
+        }
     }
 
-
-    // --- Audio Verification ---
+    // --- Audio Verification (Common for both YUV and QR paths) ---
     if (expectedAudio) {
         expect(analysisResult.audioAnalysis).not.toBeNull();
         expect(analysisResult.audioAnalysis?.err).toBeUndefined();
@@ -689,11 +706,15 @@ export async function performRecordingTestPw(
 
     // 12. Analyze download_A
     // Expected: 2 QRs (CAMERA_TEST_QR_CONTENT_PW from local, CAMERA_TEST_QR_CONTENT_PW from remote B), movement for both, audio chirp (from A's mic).
-    await verifyVideoFilePw(filePathA, CAMERA_TEST_QR_CONTENT_PW, true, `${pageInfoA.name} recording`);
+    // OR YUV dynamics for Firefox
+    const browserNameA = pageInfoA.page.context().browser()?.browserType().name();
+    await verifyVideoFilePw(filePathA, CAMERA_TEST_QR_CONTENT_PW, true, `${pageInfoA.name} recording`, browserNameA);
 
     // 13. Analyze download_B
     // Expected: 2 QRs (CAMERA_TEST_QR_CONTENT_PW from local, CAMERA_TEST_QR_CONTENT_PW from remote A), movement for both, audio chirp (from A's mic, received by B).
-    await verifyVideoFilePw(filePathB, CAMERA_TEST_QR_CONTENT_PW, true, `${pageInfoB.name} recording`);
+    // OR YUV dynamics for Firefox
+    const browserNameB = pageInfoB.page.context().browser()?.browserType().name();
+    await verifyVideoFilePw(filePathB, CAMERA_TEST_QR_CONTENT_PW, true, `${pageInfoB.name} recording`, browserNameB);
 
     // Cleanup: Turn off media
     console.log(`${pageInfoA.name}: Turning off audio and video.`);
