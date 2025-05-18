@@ -41,8 +41,8 @@ test.describe('WebRTC Recording E2E Tests (2 Peers) @media', () => {
         // is assumed to be handled by globalTeardown in playwright.config.ts
     });
 
-    test('Page A and Page B should record video and audio, then verify downloaded files', async () => {
-        test.skip(({ browserName }) => browserName === 'webkit', 'Recording tests with two cameras are skipped for webkit because of issues');
+    test('Page A and Page B should record video and audio, then verify downloaded files', async ({ browserName }) => {
+        test.skip(browserName === 'webkit', 'Recording tests with two cameras are skipped for webkit because of issues');
         await performRecordingTestPw(pageInfoA, pageInfoB);
         console.log('--- TEST SUCCESS (Playwright): Recording test completed for 2 peers. ---');
     });
