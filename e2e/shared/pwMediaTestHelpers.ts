@@ -25,6 +25,8 @@ import {
     type AudioAnalysisResult,
     type QrCodeResult,
     type VideoFileAnalysisNodeResult, // Added
+    analyzeImageForGreenDominanceInBrowser, // Added for Firefox
+    type GreenScreenAnalysisResult, // Added for Firefox
 } from './pwBrowserMediaUtils'; // Use Playwright version
 import {
     TOGGLE_AUDIO_BUTTON_SELECTOR,
@@ -175,57 +177,108 @@ async function verifyAudioStreamOnPagePw(page: PlaywrightPage, pageName: string,
     const audioResult: AudioAnalysisResult = await page.evaluate(analyzeAudioInBrowser, analysisOptions);
 
     expect(audioResult.err).toBeUndefined();
+    const browserName = page.context().browser().browserType().name();
 
     if (expectedToPlay) {
-        expect(audioResult.frequencies.length).toBeGreaterThanOrEqual(2);
-        audioResult.frequencies.forEach(freq => expect(freq).not.toBeNull());
-        const uniqueFreqs = new Set(audioResult.frequencies.filter(f => f !== null));
-        expect(uniqueFreqs.size).toBeGreaterThan(1);
-        console.log(`${pageName}: Audio chirp verified (Found ${uniqueFreqs.size} unique frequencies).`);
+        if (browserName === 'firefox') {
+            expect(audioResult.frequencies.some(f => f !== null)).toBe(true); // At least one sample detected sound
+            const uniqueFreqs = new Set(audioResult.frequencies.filter(f => f !== null));
+            expect(uniqueFreqs.size).toBeGreaterThanOrEqual(1); // Expect at least one consistent frequency for sine wave
+            console.log(`${pageName}: Firefox audio verified (Found ${uniqueFreqs.size} unique 'frequencies', expected >=1 for sine wave).`);
+        } else {
+            expect(audioResult.frequencies.length).toBeGreaterThanOrEqual(2);
+            audioResult.frequencies.forEach(freq => expect(freq).not.toBeNull());
+            const uniqueFreqs = new Set(audioResult.frequencies.filter(f => f !== null));
+            expect(uniqueFreqs.size).toBeGreaterThan(1);
+            console.log(`${pageName}: Audio chirp verified (Found ${uniqueFreqs.size} unique frequencies).`);
+        }
     } else {
-        const uniqueFreqs = new Set(audioResult.frequencies.filter(f => f !== null && f > 0));
-        expect(uniqueFreqs.size).toBeLessThanOrEqual(1);
-        console.log(`${pageName}: Verified audio is not playing a chirp or no suitable source found.`);
+        // For both Firefox and other browsers, if no audio is expected, verify silence.
+        const uniqueFreqs = new Set(audioResult.frequencies.filter(f => f !== null && f > 0)); // f > 0 might be too strict if silenceThresholdDb is used
+        const isActiveAudio = audioResult.frequencies.some(f => f !== null && f > (analysisOptions.silenceThresholdDb || -80));
+        expect(isActiveAudio).toBe(false);
+        console.log(`${pageName}: Verified audio is not playing or no suitable source found.`);
     }
 }
 
-async function verifyVideoStreamOnPagePw(page: PlaywrightPage, pageName: string, videoElementSelector: string, expectedQrContent: string): Promise<void> {
-    console.log(`${pageName}: Verifying video stream (QR content: "${expectedQrContent}") from element "${videoElementSelector}"...`);
-    const qrMinXCoords: number[] = [];
-    const numScreenshots = 2;
+async function verifyGreenScreenVideoOnPagePw(page: PlaywrightPage, pageName: string, videoElementSelector: string): Promise<void> {
+    console.log(`${pageName}: Verifying video stream (Firefox - Green Screen Check) from element "${videoElementSelector}"...`);
+    const numScreenshots = 3;
+    const collectedAverageColors: { r: number, g: number, b: number }[] = [];
+    const greenDominanceThreshold = 0.5; // 50% of pixels should be green-dominant
+    const greenChannelMin = 80;
+    const redBlueMax = 110; // Allow slightly higher for Firefox's default green
 
     for (let i = 0; i < numScreenshots; i++) {
         await page.locator(videoElementSelector).waitFor({ state: 'visible', timeout: PW_TIMEOUT });
-        if (i > 0) await page.waitForTimeout(1500);
-        else await page.waitForTimeout(500);
+        if (i > 0) await page.waitForTimeout(1000); // Wait for potential change in video
+        else await page.waitForTimeout(500); // Initial wait
 
-        const flip = videoElementSelector === LOCAL_VIDEO_ELEMENT_SELECTOR_CAMERA;
-        const result = await takeScreenshotAndDecodeQR(page, videoElementSelector, 3, 500, flip);
-        console.log(`${pageName}: Screenshot ${i + 1}/${numScreenshots} taken for QR check (flip: ${flip}).`);
-        expect(result).not.toBeNull();
-        const qrResult = result as QrCodeResult; // Cast since we expect it not to be null
-        expect(qrResult.result).toBe(expectedQrContent);
+        const screenshotBuffer = await page.locator(videoElementSelector).screenshot({ type: 'png' });
+        console.log(`${pageName}: Screenshot ${i + 1}/${numScreenshots} taken for green screen check.`);
 
-        // Verify QR code is reasonably square
-        const xCoords = qrResult.points.map(p => p.x);
-        const yCoords = qrResult.points.map(p => p.y);
-        const minX = Math.min(...xCoords);
-        const maxX = Math.max(...xCoords);
-        const minY = Math.min(...yCoords);
-        const maxY = Math.max(...yCoords);
-        const qrWidth = maxX - minX;
-        const qrHeight = maxY - minY;
+        const analysisResult: GreenScreenAnalysisResult = await page.evaluate(
+            analyzeImageForGreenDominanceInBrowser,
+            screenshotBuffer.toString('base64'),
+            { greenDominanceThreshold, greenChannelMin, redBlueMax }
+        );
 
-        // Allow a small tolerance for squareness (e.g., 10% of the smaller dimension)
-        const tolerance = Math.min(qrWidth, qrHeight) * 0.15; // 15% tolerance
-        expect(Math.abs(qrWidth - qrHeight)).toBeLessThanOrEqual(tolerance);
-        console.log(`${pageName}: QR code squareness verified (Width: ${qrWidth.toFixed(2)}, Height: ${qrHeight.toFixed(2)}).`);
-
-        qrMinXCoords.push(minX);
+        expect(analysisResult.error, `Error in green screen analysis: ${analysisResult.error}`).toBeUndefined();
+        expect(analysisResult.isMostlyGreen).toBe(true);
+        console.log(`${pageName}: Screenshot ${i + 1} is mostly green (Green dominant pixel percentage: ${(analysisResult.greenDominantPixelPercentage * 100).toFixed(2)}%). Avg RGB: (${analysisResult.averageRed.toFixed(0)}, ${analysisResult.averageGreen.toFixed(0)}, ${analysisResult.averageBlue.toFixed(0)})`);
+        collectedAverageColors.push({ r: analysisResult.averageRed, g: analysisResult.averageGreen, b: analysisResult.averageBlue });
     }
-    const uniqueXCoords = new Set(qrMinXCoords);
-    expect(uniqueXCoords.size).toBeGreaterThan(1);
-    console.log(`${pageName}: Video QR movement verified (${uniqueXCoords.size} unique X positions).`);
+
+    // Verify that the average color changes, indicating a dynamic video
+    const uniqueColorStrings = new Set(collectedAverageColors.map(c => `${c.r.toFixed(0)},${c.g.toFixed(0)},${c.b.toFixed(0)}`));
+    expect(uniqueColorStrings.size).toBeGreaterThan(1);
+    console.log(`${pageName}: Video green screen color change verified (${uniqueColorStrings.size} unique average RGB values).`);
+}
+
+
+async function verifyVideoStreamOnPagePw(page: PlaywrightPage, pageName: string, videoElementSelector: string, expectedQrContent: string): Promise<void> {
+    const browserName = page.context().browser().browserType().name();
+
+    if (browserName === 'firefox') {
+        await verifyGreenScreenVideoOnPagePw(page, pageName, videoElementSelector);
+    } else {
+        console.log(`${pageName}: Verifying video stream (QR content: "${expectedQrContent}") from element "${videoElementSelector}"...`);
+        const qrMinXCoords: number[] = [];
+        const numScreenshots = 2;
+
+        for (let i = 0; i < numScreenshots; i++) {
+            await page.locator(videoElementSelector).waitFor({ state: 'visible', timeout: PW_TIMEOUT });
+            if (i > 0) await page.waitForTimeout(1500);
+            else await page.waitForTimeout(500);
+
+            const flip = videoElementSelector === LOCAL_VIDEO_ELEMENT_SELECTOR_CAMERA;
+            const result = await takeScreenshotAndDecodeQR(page, videoElementSelector, 3, 500, flip);
+            console.log(`${pageName}: Screenshot ${i + 1}/${numScreenshots} taken for QR check (flip: ${flip}).`);
+            expect(result).not.toBeNull();
+            const qrResult = result as QrCodeResult; // Cast since we expect it not to be null
+            expect(qrResult.result).toBe(expectedQrContent);
+
+            // Verify QR code is reasonably square
+            const xCoords = qrResult.points.map(p => p.x);
+            const yCoords = qrResult.points.map(p => p.y);
+            const minX = Math.min(...xCoords);
+            const maxX = Math.max(...xCoords);
+            const minY = Math.min(...yCoords);
+            const maxY = Math.max(...yCoords);
+            const qrWidth = maxX - minX;
+            const qrHeight = maxY - minY;
+
+            // Allow a small tolerance for squareness (e.g., 10% of the smaller dimension)
+            const tolerance = Math.min(qrWidth, qrHeight) * 0.15; // 15% tolerance
+            expect(Math.abs(qrWidth - qrHeight)).toBeLessThanOrEqual(tolerance);
+            console.log(`${pageName}: QR code squareness verified (Width: ${qrWidth.toFixed(2)}, Height: ${qrHeight.toFixed(2)}).`);
+
+            qrMinXCoords.push(minX);
+        }
+        const uniqueXCoords = new Set(qrMinXCoords);
+        expect(uniqueXCoords.size).toBeGreaterThan(1);
+        console.log(`${pageName}: Video QR movement verified (${uniqueXCoords.size} unique X positions).`);
+    }
 }
 
 // --- Perform Test Functions (Playwright) ---

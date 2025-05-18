@@ -297,6 +297,89 @@ import { DEFAULT_AUDIO_DURATION_SECONDS } from './pwMediaGeneration';
 // These functions run in the Node.js environment of the Playwright test runner,
 // not in the browser. They typically use libraries like fluent-ffmpeg.
 
+// --- Browser-Side Green Screen Analysis ---
+export interface GreenScreenAnalysisResult {
+    isMostlyGreen: boolean;
+    averageRed: number;
+    averageGreen: number;
+    averageBlue: number;
+    greenDominantPixelPercentage: number;
+    error?: string;
+}
+
+export async function analyzeImageForGreenDominanceInBrowser(
+    imageBase64: string,
+    options?: {
+        greenDominanceThreshold?: number; // e.g., 0.6 (60% of pixels should be green dominant)
+        greenChannelMin?: number; // e.g., 100 (green channel value to be considered significantly green)
+        redBlueMax?: number; // e.g., 80 (red and blue channels should be below this for green dominance)
+    }
+): Promise<GreenScreenAnalysisResult> {
+    // This function's body is executed in the browser context.
+    const {
+        greenDominanceThreshold = 0.6, // 60% of pixels should be green-dominant
+        greenChannelMin = 90,       // Green channel should be at least this
+        redBlueMax = 100             // Red and Blue channels should be at most this for a pixel to be "green"
+    } = options || {};
+
+    return new Promise((resolve) => {
+        const image = new Image();
+        image.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = image.width;
+            canvas.height = image.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                resolve({
+                    isMostlyGreen: false, averageRed: 0, averageGreen: 0, averageBlue: 0,
+                    greenDominantPixelPercentage: 0, error: 'Could not get 2D context'
+                });
+                return;
+            }
+            ctx.drawImage(image, 0, 0);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            let totalPixels = data.length / 4;
+            let greenDominantPixels = 0;
+            let sumR = 0, sumG = 0, sumB = 0;
+
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                sumR += r;
+                sumG += g;
+                sumB += b;
+                if (g > r && g > b && g >= greenChannelMin && r < redBlueMax && b < redBlueMax) {
+                    greenDominantPixels++;
+                }
+            }
+
+            const avgR = sumR / totalPixels;
+            const avgG = sumG / totalPixels;
+            const avgB = sumB / totalPixels;
+            const greenPercentage = greenDominantPixels / totalPixels;
+
+            resolve({
+                isMostlyGreen: greenPercentage >= greenDominanceThreshold,
+                averageRed: avgR,
+                averageGreen: avgG,
+                averageBlue: avgB,
+                greenDominantPixelPercentage: greenPercentage,
+            });
+        };
+        image.onerror = () => {
+            resolve({
+                isMostlyGreen: false, averageRed: 0, averageGreen: 0, averageBlue: 0,
+                greenDominantPixelPercentage: 0, error: 'Image failed to load'
+            });
+        };
+        image.src = `data:image/png;base64,${imageBase64}`;
+    });
+}
+
+
+// --- Node.js-based Video File Analysis Utilities ---
 export interface FrameAnalysis {
     frameIndex: number;
     qrResults: QrCodeResult[]; // Array to hold multiple QR codes found in one frame
