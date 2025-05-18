@@ -474,9 +474,9 @@
   {/each}
 </div>
 
-<div class="fixed bottom-0 left-0 right-0 bg-transparent p-4 flex justify-center space-x-0 lg:space-x-4 pointer-events-none">
+<div class="fixed top-0 left-0 right-0 bg-transparent p-4 flex justify-center pointer-events-none">
   <!-- Layout controls -->
-  <div class="layout-controls pointer-events-auto flex mr-4">
+  <div class="layout-controls pointer-events-auto flex">
     <button id="test-layout-grid-button" onclick={() => handleChangeLayout('grid')} class="p-2 rounded-l-full {currentLayout === 'grid' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
       Grid
     </button>
@@ -487,7 +487,9 @@
       Present
     </button>
   </div>
+</div>
 
+<div class="fixed bottom-0 left-0 right-0 bg-transparent p-4 flex justify-center space-x-0 lg:space-x-4 pointer-events-none">
   <button id="test-open-qr-button" onclick={handleOpenQr} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto">
     ▩ <!-- QR Code -->
   </button>
