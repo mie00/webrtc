@@ -33,6 +33,7 @@
   let selectedButton: 'audio'|'camera'|null = $state(null);
   let audioButton: HTMLElement;
   let videoButton: HTMLElement;
+  let canvasElement: HTMLCanvasElement;
   let instant = $state(0);
 
   // References to DOM elements
@@ -392,9 +393,17 @@
     }
     const videoNode = (event.target as HTMLVideoElement);
     videoNode.play();
-    const videoStream = (videoNode as any).captureStream ? 
-      (videoNode as any).captureStream() : 
-      (videoNode as any).mozCaptureStream();
+    const captureStream = (videoNode as any).captureStream ? 
+      (videoNode as any).captureStream : 
+      (videoNode as any).mozCaptureStream;
+    let videoStream;
+    if (captureStream) {
+      videoStream = captureStream();
+    } else {
+      alert("the browser doesn't support video sharing");
+    }
+
+
 
     updateStreamConfig({
       videoStream
@@ -524,6 +533,7 @@
 {/if}
 
 <TranscriptionOverlay />
+<canvas bind:this={canvasElement} class="hidden"></canvas>
 
 <svelte:window on:resize={updateStreamPositions} />
 
