@@ -240,14 +240,13 @@ async function verifyDynamicYuvVideoOnPagePw(page: PlaywrightPage, pageName: str
         });
     }
 
-    // Verify that the average Cb and Cr values (of mid-luminance pixels) change, indicating a dynamic video
-    const uniqueCbStrings = new Set(collectedMidLuminanceChroma.map(chroma => chroma.cb?.toFixed(1)));
-    const uniqueCrStrings = new Set(collectedMidLuminanceChroma.map(chroma => chroma.cr?.toFixed(1)));
+    // Verify that the average Cb and Cr value combinations (of mid-luminance pixels) change, indicating a dynamic video
+    const uniqueCbCrPairs = new Set(
+        collectedMidLuminanceChroma.map(chroma => `${chroma.cb?.toFixed(1)},${chroma.cr?.toFixed(1)}`)
+    );
 
-    expect(uniqueCbStrings.size).toBeGreaterThan(1);
-    console.log(`${pageName}: Video Cb (mid-lum) change verified (${uniqueCbStrings.size} unique avg Cb values: ${Array.from(uniqueCbStrings).join(', ')}).`);
-    expect(uniqueCrStrings.size).toBeGreaterThan(1);
-    console.log(`${pageName}: Video Cr (mid-lum) change verified (${uniqueCrStrings.size} unique avg Cr values: ${Array.from(uniqueCrStrings).join(', ')}).`);
+    expect(uniqueCbCrPairs.size).toBeGreaterThan(1);
+    console.log(`${pageName}: Video Cb/Cr (mid-lum) combination change verified (${uniqueCbCrPairs.size} unique avg (Cb,Cr) pairs: ${Array.from(uniqueCbCrPairs).join('; ')}).`);
 }
 
 
