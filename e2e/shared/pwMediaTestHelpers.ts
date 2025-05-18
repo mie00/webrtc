@@ -25,8 +25,6 @@ import {
     extractFramesAndAnalyzeVideoFileNode, // Added
     analyzeImageForYuvAveragesInBrowser, // Renamed from analyzeImageForGreenDominanceInBrowser
     takeScreenshotAndRecognizeText, // Added for WebKit OCR
-    WEBKIT_CAMERA_TEXT_BIP, // Added
-    WEBKIT_CAMERA_TEXT_BOP, // Added
     type AudioAnalysisResult,
     type QrCodeResult,
     type VideoFileAnalysisNodeResult, // Added
@@ -275,13 +273,13 @@ async function verifyVideoStreamOnPagePw(page: PlaywrightPage, pageName: string,
     if (isFirefoxCamera) {
         await verifyDynamicYuvVideoOnPagePw(page, pageName, videoElementSelector);
     } else if (isWebKitCamera) {
-        console.log(`${pageName}: Verifying video stream (WebKit OCR: "${WEBKIT_CAMERA_TEXT_BIP}", "${WEBKIT_CAMERA_TEXT_BOP}") from element "${videoElementSelector}"...`);
-        let foundBip = false;
-        let foundBop = false;
-        const maxAttempts = 10; // Try up to 10 times to find both texts
+        console.log(`${pageName}: Verifying video stream (WebKit OCR: timestamp format HH:MM:SS.mmm) from element "${videoElementSelector}"...`);
+        const foundTimestamps = new Set<string>();
+        const maxAttempts = 10; // Try up to 10 times to find at least two different timestamps
         const flip = videoElementSelector === LOCAL_VIDEO_ELEMENT_SELECTOR_CAMERA;
+        const timestampRegex = /\d{2}:\d{2}:\d{2}\.\d{3}/;
 
-        for (let i = 0; i < maxAttempts && (!foundBip || !foundBop); i++) {
+        for (let i = 0; i < maxAttempts && foundTimestamps.size < 2; i++) {
             await page.locator(videoElementSelector).waitFor({ state: 'visible', timeout: getEffectiveTimeout(page) });
             if (i > 0) await page.waitForTimeout(1000); // Wait for video to change
             else await page.waitForTimeout(500); // Initial wait
@@ -290,19 +288,15 @@ async function verifyVideoStreamOnPagePw(page: PlaywrightPage, pageName: string,
             console.log(`${pageName}: Screenshot ${i + 1}/${maxAttempts} for OCR (flip: ${flip}). Result: ${JSON.stringify(ocrResult)}`);
 
             if (ocrResult && ocrResult.text) {
-                if (ocrResult.text.includes(WEBKIT_CAMERA_TEXT_BIP)) {
-                    foundBip = true;
-                    console.log(`${pageName}: Found "${WEBKIT_CAMERA_TEXT_BIP}" (Confidence: ${ocrResult.confidence})`);
-                }
-                if (ocrResult.text.includes(WEBKIT_CAMERA_TEXT_BOP)) {
-                    foundBop = true;
-                    console.log(`${pageName}: Found "${WEBKIT_CAMERA_TEXT_BOP}" (Confidence: ${ocrResult.confidence})`);
+                const match = ocrResult.text.match(timestampRegex);
+                if (match && match[0]) {
+                    foundTimestamps.add(match[0]);
+                    console.log(`${pageName}: Found timestamp "${match[0]}" (Confidence: ${ocrResult.confidence}). Total unique: ${foundTimestamps.size}`);
                 }
             }
         }
-        expect(foundBip, `${pageName}: Text "${WEBKIT_CAMERA_TEXT_BIP}" not found in video stream.`).toBe(true);
-        expect(foundBop, `${pageName}: Text "${WEBKIT_CAMERA_TEXT_BOP}" not found in video stream.`).toBe(true);
-        console.log(`${pageName}: WebKit video OCR verification successful. Both "${WEBKIT_CAMERA_TEXT_BIP}" and "${WEBKIT_CAMERA_TEXT_BOP}" found.`);
+        expect(foundTimestamps.size, `${pageName}: Expected to find at least 2 different timestamps in video stream, found ${foundTimestamps.size}. Timestamps: ${Array.from(foundTimestamps).join(', ')}`).toBeGreaterThanOrEqual(2);
+        console.log(`${pageName}: WebKit video OCR verification successful. Found ${foundTimestamps.size} unique timestamps.`);
 
     } else { // Default to QR code verification (Chromium camera, all Watch tests)
         console.log(`${pageName}: Verifying video stream (QR content: "${expectedQrContent}") from element "${videoElementSelector}"...`);
@@ -560,8 +554,8 @@ async function verifyVideoFilePw(
     if (isFirefoxCamera) {
         // --- YUV Verification for Firefox Camera Recording ---
         console.log(`${pageName}: Performing YUV verification for Firefox camera recording.`);
-        expect(analysisResult.yuvFramesAnalysis).toBeDefined();
-        expect(analysisResult.yuvFramesAnalysis!.length).toBe(numFramesToAnalyze);
+        expect(analysisResult.yuvFramesAnalysis, `${pageName}: yuvFramesAnalysis should be defined for Firefox camera.`).toBeDefined();
+        expect(analysisResult.yuvFramesAnalysis!.length, `${pageName}: Expected ${numFramesToAnalyze} YUV frames.`).toBe(numFramesToAnalyze);
 
         const collectedMidLuminanceChroma: { cb: number | null, cr: number | null }[] = [];
         const minPercentageOfMidLuminancePixels = 0.15; // Adjusted threshold for recorded video
@@ -594,36 +588,28 @@ async function verifyVideoFilePw(
 
     } else if (isWebKitCamera) {
         // --- OCR Verification for WebKit Camera Recording ---
-        console.log(`${pageName}: Performing OCR verification for WebKit camera recording.`);
-        expect(analysisResult.ocrFramesAnalysis).toBeDefined();
-        expect(analysisResult.ocrFramesAnalysis!.length).toBe(numFramesToAnalyze);
+        console.log(`${pageName}: Performing OCR verification for WebKit camera recording (timestamp format HH:MM:SS.mmm).`);
+        expect(analysisResult.ocrFramesAnalysis, `${pageName}: ocrFramesAnalysis should be defined for WebKit camera.`).toBeDefined();
+        expect(analysisResult.ocrFramesAnalysis!.length, `${pageName}: Expected ${numFramesToAnalyze} OCR frames.`).toBe(numFramesToAnalyze);
 
-        let foundBip = false;
-        let foundBop = false;
-        let totalOcrDetectionsWithTargetText = 0;
+        const foundTimestamps = new Set<string>();
+        const timestampRegex = /\d{2}:\d{2}:\d{2}\.\d{3}/;
 
         analysisResult.ocrFramesAnalysis!.forEach((ocrFrame, index) => {
             console.log(`${pageName}: Frame ${index} OCR Analysis: Text: "${ocrFrame.ocrResult?.text}", Confidence: ${ocrFrame.ocrResult?.confidence}`);
             expect(ocrFrame.ocrResult?.error, `Error in OCR analysis for frame ${index}: ${ocrFrame.ocrResult?.error}`).toBeUndefined();
             
             if (ocrFrame.ocrResult?.text) {
-                if (ocrFrame.ocrResult.text.includes(WEBKIT_CAMERA_TEXT_BIP)) {
-                    foundBip = true;
-                    totalOcrDetectionsWithTargetText++;
-                    console.log(`${pageName}: Found "${WEBKIT_CAMERA_TEXT_BIP}" in frame ${index} (Confidence: ${ocrFrame.ocrResult.confidence})`);
-                }
-                if (ocrFrame.ocrResult.text.includes(WEBKIT_CAMERA_TEXT_BOP)) {
-                    foundBop = true;
-                    totalOcrDetectionsWithTargetText++;
-                    console.log(`${pageName}: Found "${WEBKIT_CAMERA_TEXT_BOP}" in frame ${index} (Confidence: ${ocrFrame.ocrResult.confidence})`);
+                const match = ocrFrame.ocrResult.text.match(timestampRegex);
+                if (match && match[0]) {
+                    foundTimestamps.add(match[0]);
+                    console.log(`${pageName}: Found timestamp "${match[0]}" in frame ${index} (Confidence: ${ocrFrame.ocrResult.confidence}). Total unique: ${foundTimestamps.size}`);
                 }
             }
         });
         
-        expect(totalOcrDetectionsWithTargetText).toBeGreaterThanOrEqual(2); // Expect at least two detections (one Bip, one Bop)
-        expect(foundBip, `${pageName}: Text "${WEBKIT_CAMERA_TEXT_BIP}" not found in recorded video OCR analysis.`).toBe(true);
-        expect(foundBop, `${pageName}: Text "${WEBKIT_CAMERA_TEXT_BOP}" not found in recorded video OCR analysis.`).toBe(true);
-        console.log(`${pageName}: WebKit recorded video OCR verification successful. Both "${WEBKIT_CAMERA_TEXT_BIP}" and "${WEBKIT_CAMERA_TEXT_BOP}" found.`);
+        expect(foundTimestamps.size, `${pageName}: Expected to find at least 2 different timestamps in recorded video OCR analysis, found ${foundTimestamps.size}. Timestamps: ${Array.from(foundTimestamps).join(', ')}`).toBeGreaterThanOrEqual(2);
+        console.log(`${pageName}: WebKit recorded video OCR verification successful. Found ${foundTimestamps.size} unique timestamps.`);
 
     } else { // Default to QR Code Verification (Chromium Camera or other QR-based tests like Watch)
         console.log(`${pageName}: Performing QR code verification (Browser: ${browserName}, Expected Content: ${expectedQrContent}).`);

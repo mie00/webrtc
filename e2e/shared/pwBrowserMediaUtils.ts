@@ -8,9 +8,8 @@ import { type Bitmap } from "@jimp/types";
 import { DEFAULT_SAMPLE_RATE } from './pwMediaGeneration';
 import Tesseract from 'tesseract.js';
 
-// --- Constants for WebKit Camera OCR ---
-export const WEBKIT_CAMERA_TEXT_BIP = "Bip";
-export const WEBKIT_CAMERA_TEXT_BOP = "Bop";
+// Regex for HH:MM:SS.mmm timestamp
+const TIMESTAMP_REGEX = /\d{2}:\d{2}:\d{2}\.\d{3}/;
 
 // --- Browser-Side Audio Analysis ---
 // (This function is identical to the one in __tests__/e2e/shared/browserMediaUtils.ts
@@ -252,7 +251,9 @@ export async function takeScreenshotAndRecognizeText(
 
             const ocrResult = await recognizeTextInImageBuffer(screenshotBuffer);
             console.log(` Attempt ${attempt}: OCR attempt complete. Text: "${ocrResult.text}", Confidence: ${ocrResult.confidence}`);
-            if (ocrResult.text && (ocrResult.text.includes(WEBKIT_CAMERA_TEXT_BIP) || ocrResult.text.includes(WEBKIT_CAMERA_TEXT_BOP))) {
+            if (ocrResult.text && TIMESTAMP_REGEX.test(ocrResult.text)) {
+                // If text matching the timestamp pattern is found, return the result.
+                // The calling function will handle extracting the specific timestamp and checking for uniqueness.
                 return ocrResult;
             }
         } catch (error) {
