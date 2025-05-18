@@ -201,17 +201,24 @@ async function verifyAudioStreamOnPagePw(page: PlaywrightPage, pageName: string,
         expect(validFrequencies.length).toBeGreaterThanOrEqual(1); 
         const uniqueFreqs = new Set(validFrequencies);
 
-        if (browserName === 'firefox') {
-            // Firefox uses a sine wave for its fake media, expect one dominant frequency.
-            expect(uniqueFreqs.size).toBeGreaterThanOrEqual(1);
-            console.log(`${pageName}: Firefox audio verified (Found ${uniqueFreqs.size} unique non-null frequencies, expected >=1 for sine wave).`);
-        } else { // Chromium, WebKit, etc. - typically use a chirp for fake media.
-            if (isWatchTestAudio) { // Watch test audio is a chirp from a file, expect multiple distinct frequencies.
+        if (isWatchTestAudio) {
+            // Watch test audio is a chirp from a file, expect multiple distinct frequencies for all browsers.
+            expect(uniqueFreqs.size).toBeGreaterThan(1);
+            console.log(`${pageName}: Watch test audio chirp verified (Found ${uniqueFreqs.size} unique non-null frequencies, expected >1).`);
+        } else { // Mic test audio
+            if (browserName === 'chromium') {
+                // Chromium mic audio uses a chirp, expect multiple distinct frequencies.
                 expect(uniqueFreqs.size).toBeGreaterThan(1);
-                console.log(`${pageName}: Watch test audio chirp verified (Found ${uniqueFreqs.size} unique non-null frequencies, expected >1).`);
-            } else { // Mic test audio (can be a chirp, but now relaxed to "at least one frequency is enough").
+                console.log(`${pageName}: Chromium mic audio chirp verified (Found ${uniqueFreqs.size} unique non-null frequencies, expected >1).`);
+            } else if (browserName === 'webkit' || browserName === 'firefox') {
+                // WebKit and Firefox mic audio use a sine wave or simpler audio, expect at least one frequency.
                 expect(uniqueFreqs.size).toBeGreaterThanOrEqual(1);
-                console.log(`${pageName}: Mic audio verified (Found ${uniqueFreqs.size} unique non-null frequencies, expected >=1).`);
+                console.log(`${pageName}: ${browserName} mic audio verified (Found ${uniqueFreqs.size} unique non-null frequencies, expected >=1 for sine wave/simple audio).`);
+            } else {
+                // Default case for other browsers (if any) for mic audio.
+                // Assuming lenient for unhandled browsers, similar to WebKit/Firefox.
+                expect(uniqueFreqs.size).toBeGreaterThanOrEqual(1);
+                console.log(`${pageName}: Mic audio verified for ${browserName || 'unknown browser'} (Found ${uniqueFreqs.size} unique non-null frequencies, expected >=1).`);
             }
         }
     } else {
