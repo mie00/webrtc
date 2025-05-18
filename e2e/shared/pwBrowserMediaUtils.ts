@@ -247,7 +247,7 @@ export async function takeScreenshotAndRecognizeText(
                 console.log(` Attempt ${attempt}: Flipping image horizontally for local stream view.`);
                 const image = await Jimp.read(screenshotBuffer);
                 image.flip({ horizontal: true });
-                screenshotBuffer = await image.getBufferAsync(Jimp.MIME_PNG);
+                screenshotBuffer = await image.getBuffer("image/png");
             }
 
             const ocrResult = await recognizeTextInImageBuffer(screenshotBuffer);
