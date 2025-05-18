@@ -42,6 +42,7 @@ test.describe('WebRTC Recording E2E Tests (2 Peers) @media', () => {
     });
 
     test('Page A and Page B should record video and audio, then verify downloaded files', async () => {
+        test.skip(({ browserName }) => browserName === 'webkit', 'Recording tests with two cameras are skipped for webkit because when one camera starts the other exits');
         await performRecordingTestPw(pageInfoA, pageInfoB);
         console.log('--- TEST SUCCESS (Playwright): Recording test completed for 2 peers. ---');
     });
