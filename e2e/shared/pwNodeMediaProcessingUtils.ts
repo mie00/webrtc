@@ -379,7 +379,7 @@ export async function extractFramesAndAnalyzeVideoFileNode(
 
                 for (const crop of crops) {
                     try {
-                        const croppedImage = image.clone().crop(crop.x, crop.y, crop.w, crop.h);
+                        const croppedImage = image.clone().crop(crop);
                         const croppedQr = await decodeQrCodeWithTimeout(croppedImage.bitmap, 1000);
                         if (croppedQr) {
                             const alreadyFound = frameQrResults.some(existingQr =>
