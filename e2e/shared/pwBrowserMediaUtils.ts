@@ -299,14 +299,18 @@ import { DEFAULT_AUDIO_DURATION_SECONDS } from './pwMediaGeneration';
 
 // --- Browser-Side YCbCr Analysis ---
 export interface YuvAnalysisResult {
-    averageY: number;
-    averageCb: number;
-    averageCr: number;
+    midLuminanceYValue: number; // e.g. 128
+    yTolerancePercentage: number; // e.g. 0.10 for 10%
+    percentageOfPixelsInYTolerance: number;
+    averageCbForMidLuminancePixels: number | null; // Null if no pixels in tolerance
+    averageCrForMidLuminancePixels: number | null; // Null if no pixels in tolerance
     error?: string;
 }
 
 export async function analyzeImageForYuvAveragesInBrowser(
-    imageBase64: string
+    imageBase64: string,
+    targetY: number = 128,
+    yTolerance: number = 0.10 // 10%
 ): Promise<YuvAnalysisResult> {
     // This function's body is executed in the browser context.
     return new Promise((resolve) => {
@@ -318,7 +322,11 @@ export async function analyzeImageForYuvAveragesInBrowser(
             const ctx = canvas.getContext('2d');
             if (!ctx) {
                 resolve({
-                    averageY: 0, averageCb: 0, averageCr: 0,
+                    midLuminanceYValue: targetY,
+                    yTolerancePercentage: yTolerance,
+                    percentageOfPixelsInYTolerance: 0,
+                    averageCbForMidLuminancePixels: null,
+                    averageCrForMidLuminancePixels: null,
                     error: 'Could not get 2D context'
                 });
                 return;
@@ -328,35 +336,48 @@ export async function analyzeImageForYuvAveragesInBrowser(
             const data = imageData.data;
             const totalPixels = data.length / 4;
 
-            let sumY = 0, sumCb = 0, sumCr = 0;
+            let sumCbOfMidLuminance = 0;
+            let sumCrOfMidLuminance = 0;
+            let midLuminancePixelCount = 0;
+
+            const yMin = targetY * (1 - yTolerance);
+            const yMax = targetY * (1 + yTolerance);
 
             for (let i = 0; i < data.length; i += 4) {
                 const r = data[i];
                 const g = data[i + 1];
                 const b = data[i + 2];
 
-                // RGB to YCbCr conversion (ITU-R BT.601 standard for digital video)
-                // Y' = 0.299R + 0.587G + 0.114B
-                // Cb = -0.168736R - 0.331264G + 0.5B + 128
-                // Cr = 0.5R - 0.418688G - 0.081312B + 128
                 const y = 0.299 * r + 0.587 * g + 0.114 * b;
-                const cb = -0.168736 * r - 0.331264 * g + 0.5 * b + 128;
-                const cr = 0.5 * r - 0.418688 * g - 0.081312 * b + 128;
 
-                sumY += y;
-                sumCb += cb;
-                sumCr += cr;
+                if (y >= yMin && y <= yMax) {
+                    midLuminancePixelCount++;
+                    const cb = -0.168736 * r - 0.331264 * g + 0.5 * b + 128;
+                    const cr = 0.5 * r - 0.418688 * g - 0.081312 * b + 128;
+                    sumCbOfMidLuminance += cb;
+                    sumCrOfMidLuminance += cr;
+                }
             }
 
+            const percentageInTolerance = (midLuminancePixelCount / totalPixels);
+            const avgCb = midLuminancePixelCount > 0 ? sumCbOfMidLuminance / midLuminancePixelCount : null;
+            const avgCr = midLuminancePixelCount > 0 ? sumCrOfMidLuminance / midLuminancePixelCount : null;
+
             resolve({
-                averageY: sumY / totalPixels,
-                averageCb: sumCb / totalPixels,
-                averageCr: sumCr / totalPixels,
+                midLuminanceYValue: targetY,
+                yTolerancePercentage: yTolerance,
+                percentageOfPixelsInYTolerance: percentageInTolerance,
+                averageCbForMidLuminancePixels: avgCb,
+                averageCrForMidLuminancePixels: avgCr,
             });
         };
         image.onerror = () => {
             resolve({
-                averageY: 0, averageCb: 0, averageCr: 0,
+                midLuminanceYValue: targetY,
+                yTolerancePercentage: yTolerance,
+                percentageOfPixelsInYTolerance: 0,
+                averageCbForMidLuminancePixels: null,
+                averageCrForMidLuminancePixels: null,
                 error: 'Image failed to load'
             });
         };

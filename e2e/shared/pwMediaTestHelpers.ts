@@ -202,11 +202,14 @@ async function verifyAudioStreamOnPagePw(page: PlaywrightPage, pageName: string,
 }
 
 async function verifyDynamicYuvVideoOnPagePw(page: PlaywrightPage, pageName: string, videoElementSelector: string): Promise<void> {
-    console.log(`${pageName}: Verifying video stream (Firefox - YCbCr Dynamic Check) from element "${videoElementSelector}"...`);
+    console.log(`${pageName}: Verifying video stream (Firefox - Mid-Luminance YCbCr Dynamic Check) from element "${videoElementSelector}"...`);
     const numScreenshots = 3;
-    const collectedYuvAvgs: { y: number, cb: number, cr: number }[] = [];
-    const yAverageMin = 120; // Expected Y' range for Firefox green screen with white elements
-    const yAverageMax = 190; // Tune these values as needed
+    const collectedMidLuminanceChroma: { cb: number | null, cr: number | null }[] = [];
+    // Threshold for percentage of pixels that should be in the mid-luminance Y range.
+    // This might need tuning based on the actual Firefox fake video stream content.
+    // If the green background itself falls into this Y range, this could be high.
+    // If only parts of moving elements fall into it, it might be lower.
+    const minPercentageOfMidLuminancePixels = 0.20; // Expect at least 20% of pixels to be in Y tolerance.
 
     for (let i = 0; i < numScreenshots; i++) {
         await page.locator(videoElementSelector).waitFor({ state: 'visible', timeout: PW_TIMEOUT });
@@ -217,26 +220,33 @@ async function verifyDynamicYuvVideoOnPagePw(page: PlaywrightPage, pageName: str
         console.log(`${pageName}: Screenshot ${i + 1}/${numScreenshots} taken for YCbCr check.`);
 
         const analysisResult: YuvAnalysisResult = await page.evaluate(
-            analyzeImageForYuvAveragesInBrowser,
+            analyzeImageForYuvAveragesInBrowser, // Default targetY=128, yTolerance=0.10
             screenshotBuffer.toString('base64')
         );
-        console.log(analysisResult)
+        
         expect(analysisResult.error, `Error in YCbCr analysis: ${analysisResult.error}`).toBeUndefined();
-        expect(analysisResult.averageY).toBeGreaterThanOrEqual(yAverageMin);
-        expect(analysisResult.averageY).toBeLessThanOrEqual(yAverageMax);
+        expect(analysisResult.percentageOfPixelsInYTolerance).toBeGreaterThanOrEqual(minPercentageOfMidLuminancePixels);
+        expect(analysisResult.averageCbForMidLuminancePixels).not.toBeNull();
+        expect(analysisResult.averageCrForMidLuminancePixels).not.toBeNull();
 
-        console.log(`${pageName}: Screenshot ${i + 1} YCbCr Avg: Y=${analysisResult.averageY.toFixed(2)}, Cb=${analysisResult.averageCb.toFixed(2)}, Cr=${analysisResult.averageCr.toFixed(2)}`);
-        collectedYuvAvgs.push({ y: analysisResult.averageY, cb: analysisResult.averageCb, cr: analysisResult.averageCr });
+        console.log(`${pageName}: Screenshot ${i + 1} Mid-Luminance (Y=${analysisResult.midLuminanceYValue} +/-${analysisResult.yTolerancePercentage*100}%) Analysis: ` +
+                    `Pixel Percentage=${(analysisResult.percentageOfPixelsInYTolerance * 100).toFixed(2)}%, ` +
+                    `Avg Cb=${analysisResult.averageCbForMidLuminancePixels?.toFixed(2)}, ` +
+                    `Avg Cr=${analysisResult.averageCrForMidLuminancePixels?.toFixed(2)}`);
+        collectedMidLuminanceChroma.push({ 
+            cb: analysisResult.averageCbForMidLuminancePixels, 
+            cr: analysisResult.averageCrForMidLuminancePixels 
+        });
     }
 
-    // Verify that the average Cb and Cr values change, indicating a dynamic video
-    const uniqueCbValues = new Set(collectedYuvAvgs.map(yuv => yuv.cb.toFixed(1))); // Use toFixed to avoid floating point noise
-    const uniqueCrValues = new Set(collectedYuvAvgs.map(yuv => yuv.cr.toFixed(1)));
+    // Verify that the average Cb and Cr values (of mid-luminance pixels) change, indicating a dynamic video
+    const uniqueCbStrings = new Set(collectedMidLuminanceChroma.map(chroma => chroma.cb?.toFixed(1)));
+    const uniqueCrStrings = new Set(collectedMidLuminanceChroma.map(chroma => chroma.cr?.toFixed(1)));
 
-    expect(uniqueCbValues.size).toBeGreaterThan(1);
-    console.log(`${pageName}: Video Cb change verified (${uniqueCbValues.size} unique average Cb values: ${Array.from(uniqueCbValues).join(', ')}).`);
-    expect(uniqueCrValues.size).toBeGreaterThan(1);
-    console.log(`${pageName}: Video Cr change verified (${uniqueCrValues.size} unique average Cr values: ${Array.from(uniqueCrValues).join(', ')}).`);
+    expect(uniqueCbStrings.size).toBeGreaterThan(1);
+    console.log(`${pageName}: Video Cb (mid-lum) change verified (${uniqueCbStrings.size} unique avg Cb values: ${Array.from(uniqueCbStrings).join(', ')}).`);
+    expect(uniqueCrStrings.size).toBeGreaterThan(1);
+    console.log(`${pageName}: Video Cr (mid-lum) change verified (${uniqueCrStrings.size} unique avg Cr values: ${Array.from(uniqueCrStrings).join(', ')}).`);
 }
 
 
