@@ -40,7 +40,7 @@
   let isSending = $state(false); // To disable input/buttons during send operation
 
   // --- State for Transcription Display ---
-  let showPendingTranscriptions = $state(true); // Added: Toggle for pending transcriptions
+  let showCompletedTranscriptions = $state(true); // Renamed: Toggle for completed transcriptions in feed
 
   // --- State for Unread Notifications ---
   let unreadCount = $state(0);
@@ -445,6 +445,8 @@
                   ? item.segment.sessionId.startsWith('local|') // Local transcription segment
                   : false
             }
+            
+            {#if item.type === 'transcription' ? showCompletedTranscriptions : true}
             <!-- Add data-filename for file transfers to help test selectors -->
             <div class="flex" class:justify-end={isLocalUser} class:justify-start={!isLocalUser} data-filename={item.type === 'file' ? item.transfer?.name : null}>
               <div
@@ -571,6 +573,7 @@
                 {/if}
               </div>
             </div>
+            {/if} <!-- End of #if for showCompletedTranscriptions -->
           {/each}
         {/if}
       </div>
@@ -607,8 +610,8 @@
         </div>
       {/if}
 
-      <!-- Pending Transcriptions Area -->
-      {#if $transcriberStore.isTranscribingOverall && showPendingTranscriptions && Object.values($transcriptionDisplayStore.activeBuffers).some(b => b.text && b.text.length > 0)}
+      <!-- Pending Transcriptions Area - Always shown if active and has content -->
+      {#if $transcriberStore.isTranscribingOverall && Object.values($transcriptionDisplayStore.activeBuffers).some(b => b.text && b.text.length > 0)}
         <div class="pending-transcriptions px-4 py-2 text-xs text-gray-500 border-t border-gray-300 bg-gray-50">
           {#each Object.values($transcriptionDisplayStore.activeBuffers) as buffer (buffer.sessionId)}
             {#if buffer.text && buffer.text.length > 0}
@@ -644,14 +647,14 @@
           {#if $transcriberStore.isTranscribingOverall}
             <button
               type="button"
-              onclick={() => showPendingTranscriptions = !showPendingTranscriptions}
+              onclick={() => showCompletedTranscriptions = !showCompletedTranscriptions}
               class="text-white px-3 py-2 rounded-md text-lg hover:opacity-80"
-              class:bg-blue-500={showPendingTranscriptions}
-              class:bg-gray-400={!showPendingTranscriptions}
-              title={showPendingTranscriptions ? "Hide pending transcriptions" : "Show pending transcriptions"}
-              aria-label={showPendingTranscriptions ? "Hide pending transcriptions" : "Show pending transcriptions"}
+              class:bg-blue-500={showCompletedTranscriptions}
+              class:bg-gray-400={!showCompletedTranscriptions}
+              title={showCompletedTranscriptions ? "Hide Transcriptions from Feed" : "Show Transcriptions in Feed"}
+              aria-label={showCompletedTranscriptions ? "Hide Transcriptions from Feed" : "Show Transcriptions in Feed"}
             >
-              {showPendingTranscriptions ? '💬' : '💭'}
+              {showCompletedTranscriptions ? '📜' : '📝'} <!-- Icons for showing/hiding feed transcripts -->
             </button>
           {/if}
           <input
