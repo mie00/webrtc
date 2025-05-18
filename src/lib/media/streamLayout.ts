@@ -11,16 +11,31 @@ export function calculateStreamLayout(
   containerHeight: number,
   streamCount: number
 ): { rows: number; cols: number } {
-  // Calculate the best grid layout based on container dimensions and stream count
-  const ratio = containerWidth / containerHeight;
-  
-  // Start with a square-ish grid
-  let cols = Math.ceil(Math.sqrt(streamCount * ratio));
-  let rows = Math.ceil(streamCount / cols);
-  
-  // Adjust to better fit the container aspect ratio
-  if ((cols - 1) * rows >= streamCount) {
-    cols--;
+  if (streamCount === 0) {
+    return { rows: 0, cols: 0 };
+  }
+
+  let rows: number;
+  let cols: number;
+
+  if (containerWidth >= containerHeight) {
+    // Container is wide or square, prioritize columns
+    cols = Math.ceil(Math.sqrt(streamCount * (containerWidth / containerHeight)));
+    rows = Math.ceil(streamCount / cols);
+
+    // Adjust columns down if possible
+    if (cols > 1 && (cols - 1) * rows >= streamCount) {
+      cols--;
+    }
+  } else {
+    // Container is tall, prioritize rows
+    rows = Math.ceil(Math.sqrt(streamCount * (containerHeight / containerWidth)));
+    cols = Math.ceil(streamCount / rows);
+
+    // Adjust rows down if possible
+    if (rows > 1 && cols * (rows - 1) >= streamCount) {
+      rows--;
+    }
   }
   
   return { rows, cols };
