@@ -206,8 +206,8 @@ async function verifyGreenScreenVideoOnPagePw(page: PlaywrightPage, pageName: st
     const numScreenshots = 3;
     const collectedAverageColors: { r: number, g: number, b: number }[] = [];
     const greenDominanceThreshold = 0.5; // 50% of pixels should be green-dominant
-    const greenChannelMin = 80;
-    const redBlueMax = 110; // Allow slightly higher for Firefox's default green
+    const greenBlueMin = 200;
+    const redMax = 20; // Allow slightly higher for Firefox's default green
 
     for (let i = 0; i < numScreenshots; i++) {
         await page.locator(videoElementSelector).waitFor({ state: 'visible', timeout: PW_TIMEOUT });
@@ -219,10 +219,10 @@ async function verifyGreenScreenVideoOnPagePw(page: PlaywrightPage, pageName: st
 
         const analysisResult: GreenScreenAnalysisResult = await page.evaluate(
             analyzeImageForGreenDominanceInBrowser,
-            { imageBase64: screenshotBuffer.toString('base64'), greenDominanceThreshold, greenChannelMin, redBlueMax }
+            { imageBase64: screenshotBuffer.toString('base64'), greenDominanceThreshold, greenBlueMin, redMax }
         );
-
-        expect(analysisResult.error, `Error in green screen analysis: ${analysisResult.error}`).toBeUndefined();
+        console.log(analysisResult)
+        expect(analysisResult.error).toBeUndefined();
         expect(analysisResult.isMostlyGreen).toBe(true);
         console.log(`${pageName}: Screenshot ${i + 1} is mostly green (Green dominant pixel percentage: ${(analysisResult.greenDominantPixelPercentage * 100).toFixed(2)}%). Avg RGB: (${analysisResult.averageRed.toFixed(0)}, ${analysisResult.averageGreen.toFixed(0)}, ${analysisResult.averageBlue.toFixed(0)})`);
         collectedAverageColors.push({ r: analysisResult.averageRed, g: analysisResult.averageGreen, b: analysisResult.averageBlue });

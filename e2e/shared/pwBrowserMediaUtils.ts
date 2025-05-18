@@ -308,18 +308,19 @@ export interface GreenScreenAnalysisResult {
 }
 
 export async function analyzeImageForGreenDominanceInBrowser(
-    imageBase64: string,
     options?: {
+        imageBase64: string,
         greenDominanceThreshold?: number; // e.g., 0.6 (60% of pixels should be green dominant)
-        greenChannelMin?: number; // e.g., 100 (green channel value to be considered significantly green)
-        redBlueMax?: number; // e.g., 80 (red and blue channels should be below this for green dominance)
+        greenBlueMin?: number; // e.g., 100 (green channel value to be considered significantly green)
+        redMax?: number; // e.g., 80 (red channels should be below this for green dominance)
     }
 ): Promise<GreenScreenAnalysisResult> {
     // This function's body is executed in the browser context.
     const {
+        imageBase64,
         greenDominanceThreshold = 0.6, // 60% of pixels should be green-dominant
-        greenChannelMin = 90,       // Green channel should be at least this
-        redBlueMax = 100             // Red and Blue channels should be at most this for a pixel to be "green"
+        greenBlueMin = 200,       // Green channel should be at least this
+        redMax = 20             // Red and Blue channels should be at most this for a pixel to be "green"
     } = options || {};
 
     return new Promise((resolve) => {
@@ -350,7 +351,7 @@ export async function analyzeImageForGreenDominanceInBrowser(
                 sumR += r;
                 sumG += g;
                 sumB += b;
-                if (g > r && g > b && g >= greenChannelMin && r < redBlueMax && b < redBlueMax) {
+                if (g + b > 2 * r && g + b >= greenBlueMin && r < redMax) {
                     greenDominantPixels++;
                 }
             }
