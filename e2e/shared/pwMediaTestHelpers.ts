@@ -675,12 +675,34 @@ async function verifyVideoFilePw(
         expect(analysisResult.audioAnalysis?.err).toBeUndefined();
         // Check if any "frequency" (placeholder for audio activity) was detected
         const audioActivityDetected = analysisResult.audioAnalysis!.frequencies.some(f => f !== null && f > -50); // Using -50dB as threshold from node analysis
-        expect(audioActivityDetected).toBe(true);
+        expect(audioActivityDetected, `${pageName}: Expected audio activity to be detected in the recording.`).toBe(true);
         
-        // For a chirp, we expect varying "frequencies" (or sustained significant audio)
         const uniqueFreqs = new Set(analysisResult.audioAnalysis!.frequencies.filter(f => f !== null));
-        expect(uniqueFreqs.size).toBeGreaterThanOrEqual(1); // At least one type of sound
-        console.log(`${pageName}: Audio presence verified (Found ${uniqueFreqs.size} unique 'frequency' indicators/levels).`);
+        
+        const isWatchTestRecording = expectedQrContent === WATCH_TEST_QR_CONTENT_PW;
+        let conditionDescription = "";
+
+        if (isWatchTestRecording) {
+            // Watch test audio is a chirp from a file, expect multiple distinct "frequencies" (levels) for all browsers.
+            expect(uniqueFreqs.size).toBeGreaterThan(1);
+            conditionDescription = ">1 (watch test recording)";
+        } else { // Mic test recording (from CAMERA_TEST_QR_CONTENT_PW context)
+            if (browserName === 'chromium') {
+                // Chromium mic audio uses a chirp, expect multiple distinct "frequencies" (levels).
+                expect(uniqueFreqs.size).toBeGreaterThan(1);
+                conditionDescription = `>1 (Chromium mic recording)`;
+            } else if (browserName === 'webkit' || browserName === 'firefox') {
+                // WebKit and Firefox mic audio use a sine wave or simpler audio, expect at least one "frequency" (level).
+                expect(uniqueFreqs.size).toBeGreaterThanOrEqual(1);
+                conditionDescription = `>=1 (${browserName} mic recording)`;
+            } else {
+                // Default case for other browsers (if any) for mic recording.
+                // Assuming lenient for unhandled browsers, similar to WebKit/Firefox.
+                expect(uniqueFreqs.size).toBeGreaterThanOrEqual(1);
+                conditionDescription = `>=1 (${browserName || 'unknown browser'} mic recording)`;
+            }
+        }
+        console.log(`${pageName}: Audio presence verified (Found ${uniqueFreqs.size} unique 'frequency' indicators/levels, expected ${conditionDescription}).`);
     } else {
         if (analysisResult.audioAnalysis) { // Audio might not have been analyzed if expectedAudio was false from start
             const audioActivityDetected = analysisResult.audioAnalysis.frequencies.some(f => f !== null && f > -50);
