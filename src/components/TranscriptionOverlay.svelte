@@ -3,10 +3,8 @@
   import { transcriberStore, transcriptionDisplayStore, stopOverallTranscription, type TranscriptionSegment } from '../lib/media/transcriber.js';
   import { onDestroy, onMount } from 'svelte';
 
-  const currentTranscriberStore = $derived(transcriberStore);
-  const currentDisplayStore = $derived(transcriptionDisplayStore);
   
-  const show = $derived(currentTranscriberStore.isTranscribingOverall);
+  const show = $derived($transcriberStore.isTranscribingOverall);
 
   let overlayContentElement: HTMLElement | undefined = $state();
 
@@ -53,13 +51,13 @@
     initialSize={{ width: 450, height: 300 }}
   >
     <div bind:this={overlayContentElement} class="transcription-content flex-grow overflow-y-auto p-2 text-sm bg-gray-800 rounded h-full" onscroll={handleScroll}>
-      {#each currentDisplayStore.segments as segment (segment.id)}
+      {#each $transcriptionDisplayStore.segments as segment (segment.id)}
         <div class="mb-1">
           <span class="font-semibold text-blue-300">{segment.speakerLabel}:</span>
           <span class="ml-1 text-gray-100">{segment.text}</span>
         </div>
       {/each}
-      {#each Object.values(currentDisplayStore.activeBuffers) as buffer (buffer.sessionId)}
+      {#each Object.values($transcriptionDisplayStore.activeBuffers) as buffer (buffer.sessionId)}
         {#if buffer.text && buffer.text.length > 0}
           <div class="mt-1">
             <span class="font-semibold text-gray-400">{buffer.speakerLabel} (thinking...):</span>
@@ -67,7 +65,7 @@
           </div>
         {/if}
       {/each}
-      {#if currentDisplayStore.segments.length === 0 && Object.values(currentDisplayStore.activeBuffers).every(b => !b.text || b.text.length === 0)}
+      {#if $transcriptionDisplayStore.segments.length === 0 && Object.values($transcriptionDisplayStore.activeBuffers).every(b => !b.text || b.text.length === 0)}
         <p class="text-gray-500 italic">Waiting for transcription...</p>
       {/if}
     </div>

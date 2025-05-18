@@ -6,12 +6,14 @@
     show = false, 
     initialPosition = { x: 50, y: 50 }, 
     initialSize = { width: 350, height: 250 },
+    children,
     onClose = () => {}
   }: {
     title?: string;
     show?: boolean;
     initialPosition?: { x: number, y: number };
     initialSize?: { width: number, height: number };
+    children?: any;
     onClose?: () => void;
   } = $props();
 
@@ -125,7 +127,7 @@
 
     {#if !isMinimized}
       <div class="flex-grow flex flex-col overflow-hidden p-1">
-        <slot></slot> <!-- Content goes here -->
+          {@render children?.()}
       </div>
       <div
         class="resize-handle"

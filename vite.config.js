@@ -14,12 +14,8 @@ export default defineConfig({
           src: 'CNAME',
           dest: '.' // copies CNAME to the root of the outDir
         },
-        {
-          src: 'vendor/whisper.wasm/*',
-          dest: 'assets/whisper.wasm'
-        }
       ]
-    })
+    }),
   ],
   server: {
     host: '127.0.0.1', // Listen only on localhost IP

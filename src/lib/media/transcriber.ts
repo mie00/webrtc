@@ -122,7 +122,6 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
       const messageTimestamp = Date.now();
 
       transcriptionDisplayStore.update(s => {
-        const currentSegmentsMap = new Map<string, TranscriptionSegment>(s.segments.map(seg => [seg.utteranceId, seg]));
         let segmentsChanged = false;
         
         // Create a copy of the last text by speaker tracking
@@ -146,47 +145,44 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
               // Create a unique key for this speaker
               const speakerKey = `${sessionId}-${speakerLabel}`;
               
+              const lastInfo = lastTextBySpeaker[speakerKey];
+              
               // Check if we have seen this speaker before
-              if (lastTextBySpeaker[speakerKey]) {
-                const lastInfo = lastTextBySpeaker[speakerKey];
-                const existingSegment = currentSegmentsMap.get(lastInfo.utteranceId);
-                
-                if (existingSegment) {
+              if (lastInfo) {
+                if (lastInfo.text === currentText && lastInfo.utteranceId === utteranceId) {
+                } else {
+                  const isLast = s.segments[s.segments.length-1]?.utteranceId === utteranceId;
                   // If this is the same speaker as the last segment, update that segment
-                  existingSegment.text = currentText;
-                  existingSegment.end = line.end;
-                  existingSegment.timestamp = messageTimestamp + index;
-                  existingSegment.id = svelteKeyId;
-                  segmentsChanged = true;
+                  if (isLast) {
+                    s.segments[s.segments.length-1].text += currentText.substring(lastInfo.text.length)
+                    s.segments[s.segments.length-1].end = line.end;
+                    s.segments[s.segments.length-1].timestamp = messageTimestamp + index;
+                    s.segments[s.segments.length-1].id = svelteKeyId;
+                    segmentsChanged = true;
+                  } else {
+                    const newSegment = {
+                      id: svelteKeyId,
+                      utteranceId,
+                      sessionId,
+                      speakerLabel,
+                      text: currentText.substring(lastInfo.text.length),
+                      beg: line.beg,
+                      end: line.end,
+                      timestamp: messageTimestamp + index,
+                      n: currentText.length,
+                    };
+                    s.segments.push(newSegment);
+                    segmentsChanged = true;
+                  }
                   
                   // Update our tracking of the last text for this speaker
                   lastTextBySpeaker[speakerKey] = { 
                     text: currentText, 
                     utteranceId: lastInfo.utteranceId 
                   };
-                } else {
-                  // The segment was removed or not found, create a new one
-                  const newSegment = {
-                    id: svelteKeyId,
-                    utteranceId,
-                    sessionId,
-                    speakerLabel,
-                    text: currentText,
-                    beg: line.beg,
-                    end: line.end,
-                    timestamp: messageTimestamp + index,
-                  };
-                  currentSegmentsMap.set(utteranceId, newSegment);
-                  segmentsChanged = true;
-                  
-                  // Update our tracking for this speaker
-                  lastTextBySpeaker[speakerKey] = { 
-                    text: currentText, 
-                    utteranceId 
-                  };
                 }
               } else {
-                // This is a new speaker or first time seeing this speaker
+                // The segment was removed or not found, create a new one
                 const newSegment = {
                   id: svelteKeyId,
                   utteranceId,
@@ -196,27 +192,18 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
                   beg: line.beg,
                   end: line.end,
                   timestamp: messageTimestamp + index,
+                  n: currentText.length,
                 };
-                currentSegmentsMap.set(utteranceId, newSegment);
+                s.segments.push(newSegment);
                 segmentsChanged = true;
                 
-                // Start tracking this speaker
+                // Update our tracking for this speaker
                 lastTextBySpeaker[speakerKey] = { 
                   text: currentText, 
                   utteranceId 
                 };
               }
             }
-          });
-        }
-
-        let finalSegments = Array.from(currentSegmentsMap.values());
-        if (segmentsChanged) {
-          // Sort by 'beg' time (lexicographical for "H:MM:SS" format), then by original message timestamp
-          finalSegments.sort((a, b) => {
-            if (a.beg < b.beg) return -1;
-            if (a.beg > b.beg) return 1;
-            return a.timestamp - b.timestamp;
           });
         }
 
@@ -234,7 +221,7 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
         }
         
         return {
-          segments: finalSegments,
+          segments: [...s.segments],
           activeBuffers: newActiveBuffers,
           lastTextBySpeaker,
         };
