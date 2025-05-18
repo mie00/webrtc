@@ -238,7 +238,9 @@ async function verifyGreenScreenVideoOnPagePw(page: PlaywrightPage, pageName: st
 async function verifyVideoStreamOnPagePw(page: PlaywrightPage, pageName: string, videoElementSelector: string, expectedQrContent: string): Promise<void> {
     const browserName = page.context().browser()?.browserType().name();
 
-    if (browserName === 'firefox') {
+    // For Firefox, use green screen check ONLY for non-watch tests (e.g., camera tests).
+    // Watch tests (file sharing) on Firefox should use QR code verification.
+    if (browserName === 'firefox' && expectedQrContent !== WATCH_TEST_QR_CONTENT_PW) {
         await verifyGreenScreenVideoOnPagePw(page, pageName, videoElementSelector);
     } else {
         console.log(`${pageName}: Verifying video stream (QR content: "${expectedQrContent}") from element "${videoElementSelector}"...`);
