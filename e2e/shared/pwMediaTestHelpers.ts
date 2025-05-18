@@ -188,6 +188,13 @@ export async function teardownWatchTestMediaPw(): Promise<void> {
 // --- Helper Verification Functions (Playwright) ---
 async function verifyAudioStreamOnPagePw(page: PlaywrightPage, pageName: string, expectedToPlay: boolean = true, isWatchTestAudio: boolean = false): Promise<void> {
     console.log(`${pageName}: Verifying audio stream (expected: ${expectedToPlay ? 'playing' : 'silent/no source'}, type: ${isWatchTestAudio ? 'watch-test (chirp)' : 'mic (chirp/sine)'})...`);
+
+    if (expectedToPlay && !isWatchTestAudio) { // This is a mic test, check for remote stream container visibility before analyzing
+        console.log(`${pageName}: Mic test, ensuring remote stream container is visible before audio analysis...`);
+        await expect(page.locator(REMOTE_VIDEO_CONTAINER_SELECTOR)).toBeVisible({ timeout: getEffectiveTimeout(page) });
+        console.log(`${pageName}: Remote stream container is visible.`);
+    }
+
     const analysisOptions = { analysisType: 'frequency' as const, silenceThresholdDb: -70 };
     const audioResult: AudioAnalysisResult = await page.evaluate(analyzeAudioInBrowser, analysisOptions);
 
@@ -195,12 +202,6 @@ async function verifyAudioStreamOnPagePw(page: PlaywrightPage, pageName: string,
     const browserName = page.context().browser()?.browserType().name();
 
     if (expectedToPlay) {
-        if (!isWatchTestAudio) { // This is a mic test, check for remote stream container visibility
-            console.log(`${pageName}: Mic test, ensuring remote stream container is visible before frequency validation...`);
-            await expect(page.locator(REMOTE_VIDEO_CONTAINER_SELECTOR)).toBeVisible({ timeout: getEffectiveTimeout(page) });
-            console.log(`${pageName}: Remote stream container is visible.`);
-        }
-
         const validFrequencies = audioResult.frequencies.filter(f => f !== null);
         // Ensure at least one valid (non-null) frequency reading was captured.
         // analyzeAudioInBrowser aims for multiple samples but might get fewer if conditions are met or on error.
