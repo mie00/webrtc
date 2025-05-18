@@ -13,8 +13,18 @@ import { DEFAULT_AUDIO_DURATION_SECONDS, DEFAULT_SAMPLE_RATE } from './pwMediaGe
 import { CAMERA_TEST_QR_CONTENT_PW } from './pwMediaTestHelpers'; // This will create a circular dependency if not careful.
                                                                     // Let's assume CAMERA_TEST_QR_CONTENT_PW might be better moved to a constants file or passed as arg.
                                                                     // For now, proceeding with the import as it exists.
-import { type AudioAnalysisResult, type YuvAnalysisResult } from './pwBrowserMediaUtils';
+import { type AudioAnalysisResult } from './pwBrowserMediaUtils'; // YuvAnalysisResult removed from this import
 
+
+// --- YCbCr Analysis Result Interface ---
+export interface YuvAnalysisResult {
+    midLuminanceYValue: number; // e.g. 128
+    yTolerancePercentage: number; // e.g. 0.10 for 10%
+    percentageOfPixelsInYTolerance: number;
+    averageCbForMidLuminancePixels: number | null; // Null if no pixels in tolerance
+    averageCrForMidLuminancePixels: number | null; // Null if no pixels in tolerance
+    error?: string;
+}
 
 // Regex for HH:MM:SS.mmm timestamp
 const TIMESTAMP_REGEX = /\d{2}:\d{2}:\d{2}\.\d{3}/;

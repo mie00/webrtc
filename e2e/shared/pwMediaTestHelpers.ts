@@ -21,17 +21,17 @@ import {
 } from './pwMediaGeneration'; // Use Playwright version
 import {
     analyzeAudioInBrowser,
-    analyzeImageForYuvAveragesInBrowser, // Renamed from analyzeImageForGreenDominanceInBrowser
     type AudioAnalysisResult,
-    type YuvAnalysisResult, // Renamed from GreenScreenAnalysisResult
-} from './pwBrowserMediaUtils'; // Use Playwright version
+} from './pwBrowserMediaUtils'; // Use Playwright version, YuvAnalysisResult and its function removed
 import {
     takeScreenshotAndDecodeQR,
     extractFramesAndAnalyzeVideoFileNode,
     takeScreenshotAndRecognizeText,
+    analyzeImageBufferForYuvNode, // Added
     type QrCodeResult,
     type VideoFileAnalysisNodeResult,
     type OcrResult,
+    type YuvAnalysisResult, // Added
 } from './pwNodeMediaProcessingUtils'; // Newly added import for Node.js utilities
 import {
     TOGGLE_AUDIO_BUTTON_SELECTOR,
@@ -256,10 +256,8 @@ async function verifyDynamicYuvVideoOnPagePw(page: PlaywrightPage, pageName: str
         const screenshotBuffer = await page.locator(videoElementSelector).screenshot({ type: 'png' });
         console.log(`${pageName}: Screenshot ${i + 1}/${numScreenshots} taken for YCbCr check.`);
 
-        const analysisResult: YuvAnalysisResult = await page.evaluate(
-            analyzeImageForYuvAveragesInBrowser, // Default targetY=128, yTolerance=0.10
-            screenshotBuffer.toString('base64')
-        );
+        // Call the Node.js utility function directly with the buffer
+        const analysisResult: YuvAnalysisResult = await analyzeImageBufferForYuvNode(screenshotBuffer);
         
         console.log(`${pageName}: Screenshot ${i + 1} Mid-Luminance (Y=${analysisResult.midLuminanceYValue} +/-${analysisResult.yTolerancePercentage*100}%) Analysis: ` +
                     `Pixel Percentage=${(analysisResult.percentageOfPixelsInYTolerance * 100).toFixed(2)}%, ` +
