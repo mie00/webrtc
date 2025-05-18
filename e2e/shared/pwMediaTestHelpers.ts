@@ -220,7 +220,7 @@ async function verifyDynamicYuvVideoOnPagePw(page: PlaywrightPage, pageName: str
             analyzeImageForYuvAveragesInBrowser,
             screenshotBuffer.toString('base64')
         );
-        
+        console.log(analysisResult)
         expect(analysisResult.error, `Error in YCbCr analysis: ${analysisResult.error}`).toBeUndefined();
         expect(analysisResult.averageY).toBeGreaterThanOrEqual(yAverageMin);
         expect(analysisResult.averageY).toBeLessThanOrEqual(yAverageMax);
