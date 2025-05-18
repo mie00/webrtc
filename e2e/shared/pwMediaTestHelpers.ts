@@ -224,15 +224,16 @@ async function verifyDynamicYuvVideoOnPagePw(page: PlaywrightPage, pageName: str
             screenshotBuffer.toString('base64')
         );
         
+        console.log(`${pageName}: Screenshot ${i + 1} Mid-Luminance (Y=${analysisResult.midLuminanceYValue} +/-${analysisResult.yTolerancePercentage*100}%) Analysis: ` +
+                    `Pixel Percentage=${(analysisResult.percentageOfPixelsInYTolerance * 100).toFixed(2)}%, ` +
+                    `Avg Cb=${analysisResult.averageCbForMidLuminancePixels?.toFixed(2)}, ` +
+                    `Avg Cr=${analysisResult.averageCrForMidLuminancePixels?.toFixed(2)}`);
+
         expect(analysisResult.error, `Error in YCbCr analysis: ${analysisResult.error}`).toBeUndefined();
         expect(analysisResult.percentageOfPixelsInYTolerance).toBeGreaterThanOrEqual(minPercentageOfMidLuminancePixels);
         expect(analysisResult.averageCbForMidLuminancePixels).not.toBeNull();
         expect(analysisResult.averageCrForMidLuminancePixels).not.toBeNull();
 
-        console.log(`${pageName}: Screenshot ${i + 1} Mid-Luminance (Y=${analysisResult.midLuminanceYValue} +/-${analysisResult.yTolerancePercentage*100}%) Analysis: ` +
-                    `Pixel Percentage=${(analysisResult.percentageOfPixelsInYTolerance * 100).toFixed(2)}%, ` +
-                    `Avg Cb=${analysisResult.averageCbForMidLuminancePixels?.toFixed(2)}, ` +
-                    `Avg Cr=${analysisResult.averageCrForMidLuminancePixels?.toFixed(2)}`);
         collectedMidLuminanceChroma.push({ 
             cb: analysisResult.averageCbForMidLuminancePixels, 
             cr: analysisResult.averageCrForMidLuminancePixels 
