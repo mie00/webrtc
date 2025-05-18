@@ -238,52 +238,6 @@ async function verifyAudioStreamOnPagePw(page: PlaywrightPage, pageName: string,
     }
 }
 
-async function verifyDynamicYuvVideoOnPagePw(page: PlaywrightPage, pageName: string, videoElementSelector: string): Promise<void> {
-    console.log(`${pageName}: Verifying video stream (Firefox - Mid-Luminance YCbCr Dynamic Check) from element "${videoElementSelector}"...`);
-    const numScreenshots = 3;
-    const collectedMidLuminanceChroma: { cb: number | null, cr: number | null }[] = [];
-    // Threshold for percentage of pixels that should be in the mid-luminance Y range.
-    // This might need tuning based on the actual Firefox fake video stream content.
-    // If the green background itself falls into this Y range, this could be high.
-    // If only parts of moving elements fall into it, it might be lower.
-    const minPercentageOfMidLuminancePixels = 0.20; // Expect at least 20% of pixels to be in Y tolerance.
-
-    for (let i = 0; i < numScreenshots; i++) {
-        await page.locator(videoElementSelector).waitFor({ state: 'visible', timeout: getEffectiveTimeout(page) });
-        if (i > 0) await page.waitForTimeout(1000); // Wait for potential change in video
-        else await page.waitForTimeout(500); // Initial wait
-
-        const screenshotBuffer = await page.locator(videoElementSelector).screenshot({ type: 'png' });
-        console.log(`${pageName}: Screenshot ${i + 1}/${numScreenshots} taken for YCbCr check.`);
-
-        // Call the Node.js utility function directly with the buffer
-        const analysisResult: YuvAnalysisResult = await analyzeImageBufferForYuvNode(screenshotBuffer);
-        
-        console.log(`${pageName}: Screenshot ${i + 1} Mid-Luminance (Y=${analysisResult.midLuminanceYValue} +/-${analysisResult.yTolerancePercentage*100}%) Analysis: ` +
-                    `Pixel Percentage=${(analysisResult.percentageOfPixelsInYTolerance * 100).toFixed(2)}%, ` +
-                    `Avg Cb=${analysisResult.averageCbForMidLuminancePixels?.toFixed(2)}, ` +
-                    `Avg Cr=${analysisResult.averageCrForMidLuminancePixels?.toFixed(2)}`);
-
-        expect(analysisResult.error, `Error in YCbCr analysis: ${analysisResult.error}`).toBeUndefined();
-        expect(analysisResult.percentageOfPixelsInYTolerance).toBeGreaterThanOrEqual(minPercentageOfMidLuminancePixels);
-        expect(analysisResult.averageCbForMidLuminancePixels).not.toBeNull();
-        expect(analysisResult.averageCrForMidLuminancePixels).not.toBeNull();
-
-        collectedMidLuminanceChroma.push({ 
-            cb: analysisResult.averageCbForMidLuminancePixels, 
-            cr: analysisResult.averageCrForMidLuminancePixels 
-        });
-    }
-
-    // Verify that the average Cb and Cr value combinations (of mid-luminance pixels) change, indicating a dynamic video
-    const uniqueCbCrPairs = new Set(
-        collectedMidLuminanceChroma.map(chroma => `${chroma.cb?.toFixed(1)},${chroma.cr?.toFixed(1)}`)
-    );
-
-    expect(uniqueCbCrPairs.size).toBeGreaterThan(1);
-    console.log(`${pageName}: Video Cb/Cr (mid-lum) combination change verified (${uniqueCbCrPairs.size} unique avg (Cb,Cr) pairs: ${Array.from(uniqueCbCrPairs).join('; ')}).`);
-}
-
 
 async function verifyVideoStreamOnPagePw(page: PlaywrightPage, pageName: string, videoElementSelector: string, expectedQrContent: string): Promise<void> {
     const browserName = page.context().browser()?.browserType().name();
@@ -291,7 +245,43 @@ async function verifyVideoStreamOnPagePw(page: PlaywrightPage, pageName: string,
     const isFirefoxCamera = browserName === 'firefox' && expectedQrContent === CAMERA_TEST_QR_CONTENT_PW; // Watch tests use QR
 
     if (isFirefoxCamera) {
-        await verifyDynamicYuvVideoOnPagePw(page, pageName, videoElementSelector);
+        console.log(`${pageName}: Verifying video stream (Firefox - Mid-Luminance YCbCr Dynamic Check) from element "${videoElementSelector}"...`);
+        const numScreenshots = 3;
+        const collectedMidLuminanceChroma: { cb: number | null, cr: number | null }[] = [];
+        const minPercentageOfMidLuminancePixels = 0.20; // Expect at least 20% of pixels to be in Y tolerance.
+
+        for (let i = 0; i < numScreenshots; i++) {
+            await page.locator(videoElementSelector).waitFor({ state: 'visible', timeout: getEffectiveTimeout(page) });
+            if (i > 0) await page.waitForTimeout(1000); // Wait for potential change in video
+            else await page.waitForTimeout(500); // Initial wait
+
+            const screenshotBuffer = await page.locator(videoElementSelector).screenshot({ type: 'png' });
+            console.log(`${pageName}: Screenshot ${i + 1}/${numScreenshots} taken for YCbCr check.`);
+
+            const analysisResult: YuvAnalysisResult = await analyzeImageBufferForYuvNode(screenshotBuffer);
+            
+            console.log(`${pageName}: Screenshot ${i + 1} Mid-Luminance (Y=${analysisResult.midLuminanceYValue} +/-${analysisResult.yTolerancePercentage*100}%) Analysis: ` +
+                        `Pixel Percentage=${(analysisResult.percentageOfPixelsInYTolerance * 100).toFixed(2)}%, ` +
+                        `Avg Cb=${analysisResult.averageCbForMidLuminancePixels?.toFixed(2)}, ` +
+                        `Avg Cr=${analysisResult.averageCrForMidLuminancePixels?.toFixed(2)}`);
+
+            expect(analysisResult.error, `Error in YCbCr analysis: ${analysisResult.error}`).toBeUndefined();
+            expect(analysisResult.percentageOfPixelsInYTolerance).toBeGreaterThanOrEqual(minPercentageOfMidLuminancePixels);
+            expect(analysisResult.averageCbForMidLuminancePixels).not.toBeNull();
+            expect(analysisResult.averageCrForMidLuminancePixels).not.toBeNull();
+
+            collectedMidLuminanceChroma.push({ 
+                cb: analysisResult.averageCbForMidLuminancePixels, 
+                cr: analysisResult.averageCrForMidLuminancePixels 
+            });
+        }
+
+        const uniqueCbCrPairs = new Set(
+            collectedMidLuminanceChroma.map(chroma => `${chroma.cb?.toFixed(1)},${chroma.cr?.toFixed(1)}`)
+        );
+
+        expect(uniqueCbCrPairs.size).toBeGreaterThan(1);
+        console.log(`${pageName}: Video Cb/Cr (mid-lum) combination change verified (${uniqueCbCrPairs.size} unique avg (Cb,Cr) pairs: ${Array.from(uniqueCbCrPairs).join('; ')}).`);
     } else if (isWebKitCamera) {
         console.log(`${pageName}: Verifying video stream (WebKit OCR: timestamp format HH:MM:SS.mmm) from element "${videoElementSelector}"...`);
         const foundTimestamps = new Set<string>();
