@@ -3,6 +3,7 @@ import { writable, get } from 'svelte/store';
 import { normalizeStreamId } from './stream.js';
 import { getStreamState, type StreamState } from '../../stores/streamStore.js';
 import { calculateStreamLayout, calculateGridPositions, type Position } from './streamLayout.js';
+import { getStreamMetadata } from '../../stores/localFileStreamStore.js';
 
 // Constants
 const FW = 1920;
@@ -24,6 +25,12 @@ export const recorderStore = writable<RecorderState>({
   lastStreams: []
 });
 
+interface StreamInfo {
+    id: string;
+    key: string;
+    stream: MediaStream;
+};
+
 
 // Set up streams in the merger
 async function setupStreams(merger: VideoStreamMerger): Promise<void> {
@@ -31,7 +38,7 @@ async function setupStreams(merger: VideoStreamMerger): Promise<void> {
   const streamState = getStreamState();
   
   // Collect video streams
-  const videoStreams: Array<{ id: string, key: string, stream: MediaStream }> = [];
+  const videoStreams: Array<StreamInfo> = [];
   
   // Add local video streams
   Object.entries(streamState.localStreams).forEach(([key, data]) => {
@@ -39,11 +46,11 @@ async function setupStreams(merger: VideoStreamMerger): Promise<void> {
       videoStreams.push({ 
         id: normalizeStreamId(data.stream.id || ''),
         key,
-        stream: data.stream
+        stream: data.stream,
       });
     }
   });
-  
+
   // Add remote video streams
   Object.values(streamState.remoteStreams).forEach(peerData => {
     Object.entries(peerData.streams).forEach(([key, stream]) => {
@@ -51,7 +58,7 @@ async function setupStreams(merger: VideoStreamMerger): Promise<void> {
         videoStreams.push({ 
           id: normalizeStreamId(stream.id),
           key,
-          stream
+          stream,
         });
       }
     });
@@ -113,7 +120,7 @@ async function setupStreams(merger: VideoStreamMerger): Promise<void> {
     if (!position) return;
     
     // stream needs to fit at into (x, x + width) and (y, y + height)
-    const {dx, dy, width, height} = calculateFit(position, streamInfo.stream);
+    const {dx, dy, width, height} = calculateFit(position, streamInfo);
 
     merger.addStream(streamInfo.stream, {
       x: position.x + dx,
@@ -136,13 +143,19 @@ async function setupStreams(merger: VideoStreamMerger): Promise<void> {
 
 type FitResult = { dx: number; dy: number; width: number; height: number };
 
-function calculateFit(position: Position, stream: MediaStream): FitResult {
+function calculateFit(position: Position, streamInfo: StreamInfo): FitResult {
   // Calculate the aspect ratio of the video track in the stream
-  const videoTrack = stream.getVideoTracks()[0];
-  if (!videoTrack) throw new Error("No video track found");
-  const { width: videoWidth, height: videoHeight } = videoTrack.getSettings();
-  if (videoWidth === undefined || videoHeight === undefined) throw new Error("Invalid video dimensions");
-  const videoAspectRatio = videoWidth / videoHeight;
+  let videoAspectRatio: number
+  const streamMetadata = getStreamMetadata(streamInfo.id);
+  if (streamMetadata?.width && streamMetadata?.height) {
+    videoAspectRatio = streamMetadata?.width / streamMetadata?.height;
+  } else {
+    const videoTrack = streamInfo.stream.getVideoTracks()[0];
+    if (!videoTrack) throw new Error("No video track found");
+    const { width: videoWidth, height: videoHeight } = videoTrack.getSettings();
+    if (videoWidth === undefined || videoHeight === undefined) throw new Error("Invalid video dimensions");
+    videoAspectRatio = videoWidth / videoHeight;
+  }
 
   // Calculate the aspect ratio of the position
   const positionAspectRatio = position.width / position.height;
@@ -173,7 +186,7 @@ export async function startRecording(): Promise<void> {
   merger.start();
   
   // Set up media recorder
-  const options = { mimeType: "video/webm; codecs=vp9" };
+  const options = window.isFirefox?{ mimeType: "video/webm" }:{ mimeType: "video/webm; codecs=vp9" };
   const mediaRecorder = new MediaRecorder(merger.result!, options);
   
   // Handle data available event

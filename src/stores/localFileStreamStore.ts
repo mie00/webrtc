@@ -37,3 +37,36 @@ export function removeLocalFileStream(src: string) {
     ),
   }));
 }
+
+export interface StreamMetadata {
+  width?: number;
+  height?: number;
+}
+
+// Stream state interface
+export interface streamMetadataState {
+  metadata: Record<string, StreamMetadata>;
+}
+
+// Initial state
+const initialMetadataState: streamMetadataState = {
+  metadata: {},
+};
+
+// Create the store
+export const streamMetadataStore = writable<streamMetadataState>(initialMetadataState);
+
+// Helper functions
+export function getStreamMetadata(src: string) {
+  return get(streamMetadataStore).metadata[src] || {};
+}
+
+export function setStreamMetadata(src: string, metadata: StreamMetadata) {
+  streamMetadataStore.update((state) => ({
+    ...state,
+    metadata: {
+      ...state.metadata,
+      [src]: metadata
+    },
+  }));
+}

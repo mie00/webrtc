@@ -29,7 +29,8 @@
 
 
   let mediaElement: HTMLVideoElement | HTMLAudioElement | undefined = $state();
-  import { processAudio, stopProcessingAudio, drawVisualization, type AudioNodes } from '../lib/media/stream.js';
+  import { processAudio, stopProcessingAudio, drawVisualization, type AudioNodes, normalizeStreamId } from '../lib/media/stream.js';
+  import { setStreamMetadata } from '../stores/localFileStreamStore.js';
   
   let audioNodes: AudioNodes | null;
   let audioVisualizationCanvas: HTMLCanvasElement | undefined = $state();
@@ -141,6 +142,18 @@
       }
       
       mediaElement.play().catch(err => console.error('Error playing stream:', err));
+
+      // fill streamMetadataStore with width and height of video once metadata is available
+      if (type === 'video') {
+        mediaElement.onloadedmetadata = () => {
+          
+          const src = normalizeStreamId(stream?.id || '');
+          setStreamMetadata(src, {
+            width: (mediaElement as HTMLVideoElement).videoWidth,
+            height: (mediaElement as HTMLVideoElement).videoHeight,
+          });
+        }
+      }
       
       // Initial setup of audio processing
       setupAudioProcessing();

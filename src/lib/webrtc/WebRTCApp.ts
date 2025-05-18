@@ -289,7 +289,7 @@ export class WebRTCApp {
     }
 
     nego_dc.onerror = (error) => {
-      console.error('Data channel error:', error);
+      console.error('Data channel error:', error, error.error);
       client.pc?.restartIce();
     };
 

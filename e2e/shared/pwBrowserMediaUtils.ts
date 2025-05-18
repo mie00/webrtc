@@ -292,6 +292,7 @@ import os from 'os';
 import { promisify } from 'util';
 import crypto from 'crypto';
 import { DEFAULT_AUDIO_DURATION_SECONDS } from './pwMediaGeneration';
+import { CAMERA_TEST_QR_CONTENT_PW } from './pwMediaTestHelpers';
 
 // --- Node.js-based Video File Analysis Utilities ---
 // These functions run in the Node.js environment of the Playwright test runner,

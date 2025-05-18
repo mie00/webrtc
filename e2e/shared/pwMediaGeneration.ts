@@ -158,7 +158,7 @@ export async function combineAudioAndVideo(
         await fs.mkdir(path.dirname(outputMp4Path), { recursive: true });
         const isInputMjpeg = videoInputPath.toLowerCase().endsWith('.mjpeg');
         const videoCodecParams = isInputMjpeg ? '-c:v libx264 -pix_fmt yuv420p -crf 23' : '-c:v copy';
-        const ffmpegCommand = `ffmpeg -y -i "${videoInputPath}" -i "${audioInputPath}" ${videoCodecParams} -c:a libopus -shortest "${outputMp4Path}"`;
+        const ffmpegCommand = `ffmpeg -y -i "${videoInputPath}" -i "${audioInputPath}" ${videoCodecParams} -c:a flac -shortest "${outputMp4Path}"`;
 
         console.log(`Combining video from "${videoInputPath}" and audio from "${audioInputPath}" into "${outputMp4Path}"...`);
         console.log(`Executing: ${ffmpegCommand}`);
