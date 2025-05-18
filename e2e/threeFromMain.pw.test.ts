@@ -112,6 +112,7 @@ test.describe('Three Client E2E Tests with Playwright (Page A as primary sender)
     });
 
     test.describe('Watch Functionality (A shares, B & C receive) @media', () => {
+        test.skip(({ browserName }) => browserName === 'webkit', 'Watch tests are skipped on WebKit browsers (Safari/iOS)');
         test('Page A should share a video file and Page B & C should receive it', async () => {
             test.setTimeout(PW_TIMEOUT * 8); // Individual test timeout
             await ensurePanelClosed(pageA, 'Page A');

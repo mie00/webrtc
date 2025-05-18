@@ -35,6 +35,7 @@
   let videoButton: HTMLElement;
   let canvasElement: HTMLCanvasElement;
   let instant = $state(0);
+  let supportsVideoCaptureStream = $state(false);
 
   // References to DOM elements
   let uploadVideo: HTMLInputElement;
@@ -181,6 +182,12 @@
   onMount(() => {
     // Set up interval for updating stream positions
     refreshInterval = window.setInterval(updateStreamPositions, 1000);
+
+    // Check for video capture stream support
+    supportsVideoCaptureStream = typeof HTMLVideoElement !== 'undefined' &&
+                                 HTMLVideoElement.prototype &&
+                                 (typeof HTMLVideoElement.prototype.captureStream === 'function' ||
+                                  typeof (HTMLVideoElement.prototype as any).mozCaptureStream === 'function');
   });
 
   onDestroy(() => {
@@ -512,9 +519,11 @@
   >
     {allowedHosts.length ? '⏹️' : '⏩'}
   </button>
+  {#if supportsVideoCaptureStream}
   <button id="test-share-video-button" onclick={handleShareVideo} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoShared}>
     📹 <!-- Share Video -->
   </button>
+  {/if}
   <button id="test-record-button" onclick={handleRecord} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-red-600={isRecording}>
     {isRecording ? '⏹' : '⏺'}
   </button>
