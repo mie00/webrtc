@@ -46,6 +46,7 @@ interface WebRTCClient {
   dc_file?: RTCDataChannel;
   forward?: RTCDataChannel;
   nego_dc?: RTCDataChannel;
+  dc_transcription?: RTCDataChannel;
   file_stuff?: any;
   _transceiver_interval?: number;
   polite?: boolean;

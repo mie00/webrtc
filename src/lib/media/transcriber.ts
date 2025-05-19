@@ -1,5 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { streamStore, getStreamState, type LocalStreamData, type RemoteStreamData, type StreamState } from '../../stores/streamStore.js';
+import { getDirectClient, getAllDirectClients } from '../../stores/connectionStore.js'; // Added
 
 const WEBSOCKET_URL = 'ws://localhost:8888/asr'; // Ensure this matches your ASR backend
 const TRANSCRIPTION_CHUNK_DURATION_MS = 5000;
@@ -14,8 +15,17 @@ interface ActiveTranscriptionSession {
 
 export interface TranscriberState {
   isTranscribingOverall: boolean;
-  activeSessions: Record<string, ActiveTranscriptionSession>; 
+  activeSessions: Record<string, ActiveTranscriptionSession>;
 }
+
+// --- Payload for broadcasting final transcription data ---
+export interface FinalTranscriptionBroadcastPayload {
+  type: 'transcription_data';
+  finalSegments: TranscriptionSegment[]; // Array of finalized segments since last broadcast or for an utterance
+  activeBuffer?: { sessionId: string, speakerLabel: string, text: string }; // Current active buffer for a session
+  originalSessionId: string; // The sessionId from the source ASR
+}
+// --- End Payload ---
 
 // Store for overall transcription state (on/off, active sessions)
 export const transcriberStore = writable<TranscriberState>({
@@ -119,118 +129,71 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
 
   websocket.onmessage = (event) => {
     try {
-      const data = JSON.parse(event.data as string);
-      console.log(data);
+      const asrData = JSON.parse(event.data as string);
+      console.log("ASR Data Received:", asrData);
       const messageTimestamp = Date.now();
 
-      transcriptionDisplayStore.update(s => {
-        let segmentsChanged = false;
-        
-        // Create a copy of the last text by speaker tracking
-        const lastTextBySpeaker = { ...s.lastTextBySpeaker };
+      const finalSegmentsForBroadcast: TranscriptionSegment[] = [];
+      let activeBufferForBroadcast: { sessionId: string, speakerLabel: string, text: string } | undefined = undefined;
 
-        // Process finalized lines from ASR
-        if (data.lines && Array.isArray(data.lines)) {
-          data.lines.forEach((line: any, index: number) => {
-            // Ensure essential fields are present
-            if (line.text && line.text.trim().length > 0 && typeof line.speaker === 'number' && typeof line.beg === 'string' && typeof line.end === 'string') {
-              const speakerLabel = getSpeakerLabelFromAsr(sessionId, line.speaker, line.text);
-              
-              // Skip fully empty "Silence" lines, but allow "Silence" segments if they have duration/context.
-              // The main check is line.text.trim().length > 0.
-              // if (speakerLabel === "Silence" && !line.text.trim()) return;
+      // Process finalized lines from ASR to create segments for local update and broadcast
+      if (asrData.lines && Array.isArray(asrData.lines)) {
+        asrData.lines.forEach((line: any, index: number) => {
+          if (line.text && line.text.trim().length > 0 && typeof line.speaker === 'number' && typeof line.beg === 'string' && typeof line.end === 'string') {
+            const speakerLabel = getSpeakerLabelFromAsr(sessionId, line.speaker, line.text);
+            const utteranceId = `${sessionId}-${line.speaker}-${line.beg}`;
+            const currentText = line.text.trim();
+            const svelteKeyId = `${utteranceId}-${messageTimestamp}-${index}`;
 
-              const utteranceId = `${sessionId}-${line.speaker}-${line.beg}`; // Identifies an utterance
-              const currentText = line.text.trim();
-              const svelteKeyId = `${utteranceId}-${messageTimestamp}-${index}`; // Unique key for Svelte's #each
-              
-              // Create a unique key for this speaker
-              const speakerKey = `${sessionId}-${speakerLabel}`;
-              
-              const lastInfo = lastTextBySpeaker[speakerKey];
-              
-              // Check if we have seen this speaker before
-              if (lastInfo) {
-                if (lastInfo.text === currentText && lastInfo.utteranceId === utteranceId) {
-                } else {
-                  const isLast = s.segments[s.segments.length-1]?.utteranceId === utteranceId;
-                  // If this is the same speaker as the last segment, update that segment
-                  if (isLast) {
-                    s.segments[s.segments.length-1].text += currentText.substring(lastInfo.text.length)
-                    s.segments[s.segments.length-1].end = line.end;
-                    s.segments[s.segments.length-1].timestamp = messageTimestamp + index;
-                    s.segments[s.segments.length-1].id = svelteKeyId;
-                    segmentsChanged = true;
-                  } else {
-                    const newSegment = {
-                      id: svelteKeyId,
-                      utteranceId,
-                      sessionId,
-                      speakerLabel,
-                      text: currentText.substring(lastInfo.text.length),
-                      beg: line.beg,
-                      end: line.end,
-                      timestamp: messageTimestamp + index,
-                      n: currentText.length,
-                    };
-                    s.segments.push(newSegment);
-                    segmentsChanged = true;
-                  }
-                  
-                  // Update our tracking of the last text for this speaker
-                  lastTextBySpeaker[speakerKey] = { 
-                    text: currentText, 
-                    utteranceId: lastInfo.utteranceId 
-                  };
-                }
-              } else {
-                // The segment was removed or not found, create a new one
-                const newSegment = {
-                  id: svelteKeyId,
-                  utteranceId,
-                  sessionId,
-                  speakerLabel,
-                  text: currentText,
-                  beg: line.beg,
-                  end: line.end,
-                  timestamp: messageTimestamp + index,
-                  n: currentText.length,
-                };
-                s.segments.push(newSegment);
-                segmentsChanged = true;
-                
-                // Update our tracking for this speaker
-                lastTextBySpeaker[speakerKey] = { 
-                  text: currentText, 
-                  utteranceId 
-                };
-              }
-            }
-          });
+            finalSegmentsForBroadcast.push({
+              id: svelteKeyId,
+              utteranceId,
+              sessionId, // This is the original local sessionId
+              speakerLabel,
+              text: currentText,
+              beg: line.beg,
+              end: line.end,
+              timestamp: messageTimestamp + index,
+              // 'n' field removed as it's not standard and can be derived if needed
+            });
+          }
+        });
+      }
+
+      // Process buffer_transcription for local update and broadcast
+      const bufferText = asrData.buffer_transcription;
+      if (bufferText && bufferText.trim().length > 0) {
+        const lastFinalizedSpeaker = asrData.lines && asrData.lines.length > 0 ? asrData.lines[asrData.lines.length - 1].speaker : -1;
+        const bufferSpeakerLabel = getSpeakerLabelFromAsr(sessionId, lastFinalizedSpeaker, bufferText);
+        activeBufferForBroadcast = { sessionId, speakerLabel: bufferSpeakerLabel, text: bufferText.trim() };
+      }
+      
+      // Construct the payload for local processing and broadcasting
+      const broadcastPayload: FinalTranscriptionBroadcastPayload = {
+        type: 'transcription_data',
+        finalSegments: finalSegmentsForBroadcast,
+        activeBuffer: activeBufferForBroadcast,
+        originalSessionId: sessionId,
+      };
+
+      // Process this payload locally
+      processReceivedTranscriptionPayload(broadcastPayload);
+
+      // Broadcast this payload to all connected peers
+      const clients = getAllDirectClients();
+      for (const cid in clients) {
+        const client = clients[cid];
+        if (client.dc_transcription && client.dc_transcription.readyState === 'open') {
+          try {
+            client.dc_transcription.send(JSON.stringify(broadcastPayload));
+          } catch (err) {
+            console.error(`Failed to send transcription data to ${cid}:`, err);
+          }
         }
-
-        // Process buffer_transcription
-        const bufferText = data.buffer_transcription;
-        // Determine speaker for buffer based on last line or default if no lines
-        const lastFinalizedSpeaker = data.lines && data.lines.length > 0 ? data.lines[data.lines.length - 1].speaker : -1;
-        const bufferSpeakerLabel = getSpeakerLabelFromAsr(sessionId, lastFinalizedSpeaker, bufferText || "");
-        
-        const newActiveBuffers = { ...s.activeBuffers };
-        if (bufferText && bufferText.trim().length > 0) {
-          newActiveBuffers[sessionId] = { sessionId, speakerLabel: bufferSpeakerLabel, text: bufferText.trim() };
-        } else {
-          delete newActiveBuffers[sessionId];
-        }
-        
-        return {
-          segments: [...s.segments],
-          activeBuffers: newActiveBuffers,
-          lastTextBySpeaker,
-        };
-      });
+      }
 
     } catch (e) {
-      console.error(`Error processing transcription message for ${sessionId}:`, e, event.data as string);
+      console.error(`Error processing transcription message from ASR for ${sessionId}:`, e, event.data as string);
     }
   };
 
@@ -344,11 +307,11 @@ export function stopOverallTranscription(): void {
   // Also, explicitly set it here to ensure it's false if no sessions were active to begin with.
   transcriberStore.update(s => ({ ...s, isTranscribingOverall: false, activeSessions: {} }));
   // Clear displayable segments and buffers when stopping overall transcription
+  // Retain lastTextBySpeaker as it's managed by processReceivedTranscriptionPayload now.
   transcriptionDisplayStore.update(s => ({
     ...s,
     segments: [],
     activeBuffers: {},
-    // lastTextBySpeaker could be cleared too, or left if resuming might benefit
   }));
 }
 
