@@ -381,25 +381,26 @@ export function processReceivedTranscriptionPayload(payload: FinalTranscriptionB
         // lastTrackedInfo.text is the full text we last recorded for this utterance.
         const textDiff = currentAsrSegment.text.substring(lastTrackedInfo.text.length);
 
-        if (isUpdatingAbsoluteLastSegment) {
-          // Case 1: Update the absolute last segment by appending the difference.
-          const segmentToUpdate = newSegments[newSegments.length - 1];
-          segmentToUpdate.text += textDiff; // Append difference
-          segmentToUpdate.end = currentAsrSegment.end;
-          segmentToUpdate.timestamp = currentAsrSegment.timestamp; // Keep latest timestamp
-          segmentToUpdate.id = currentAsrSegment.id; // Update svelte key id
-        } else {
-          // Case 2: Not the absolute last segment, add a new segment with the diff only.
-          // This happens if another speaker interjected, or if this is a continuation
-          // of an utterance that wasn't the immediately preceding one.
-          newSegments.push({
-            ...currentAsrSegment, // base properties (id, utteranceId, sessionId, speakerLabel, beg, end, timestamp)
-            text: textDiff,        // only the difference in text
-          });
+        if (textDiff.trim()) {
+          if (isUpdatingAbsoluteLastSegment) {
+            // Case 1: Update the absolute last segment by appending the difference.
+            const segmentToUpdate = newSegments[newSegments.length - 1];
+            segmentToUpdate.text += textDiff; // Append difference
+            segmentToUpdate.end = currentAsrSegment.end;
+            segmentToUpdate.timestamp = currentAsrSegment.timestamp; // Keep latest timestamp
+            segmentToUpdate.id = currentAsrSegment.id; // Update svelte key id
+          } else {
+            // Case 2: Not the absolute last segment, add a new segment with the diff only.
+            // This happens if another speaker interjected, or if this is a continuation
+            // of an utterance that wasn't the immediately preceding one.
+            newSegments.push({
+              ...currentAsrSegment, // base properties (id, utteranceId, sessionId, speakerLabel, beg, end, timestamp)
+              text: textDiff,        // only the difference in text
+            });
+          }
+          // Update tracking for this speaker with the full current text of the utterance
+          lastTextBySpeaker[speakerKey] = { text: currentAsrSegment.text, utteranceId: currentAsrSegment.utteranceId };
         }
-        // Update tracking for this speaker with the full current text of the utterance
-        lastTextBySpeaker[speakerKey] = { text: currentAsrSegment.text, utteranceId: currentAsrSegment.utteranceId };
-
       } else {
         // Case 3: Utterance not seen before for this speaker (or speaker entirely new).
         // Add a new segment with the full text from currentAsrSegment.
