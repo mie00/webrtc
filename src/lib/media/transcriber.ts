@@ -382,12 +382,13 @@ function getSpeakerLabelFromAsr(sessionId: string, asrSpeakerId: number, text: s
   
   // Append ASR's speaker number if it's specific (e.g., -1, 1, 2 for diarized speakers)
   // ASR often uses -1 as a generic "speaker" if no specific diarization ID is assigned.
-  if (asrSpeakerId !== 0) { // Don't append for "Processing..."
-     // If ASR provides a positive speaker ID, or -1 (generic), use it.
-     // This helps distinguish multiple speakers from the same source if ASR supports it.
-    return `${baseLabel} (Spk ${asrSpeakerId})`;
-  }
-  return baseLabel; // For speakerId 0 or if no specific handling
+  // if (asrSpeakerId !== 0) { // Don't append for "Processing..."
+  //    // If ASR provides a positive speaker ID, or -1 (generic), use it.
+  //    // This helps distinguish multiple speakers from the same source if ASR supports it.
+  //   return `${baseLabel} (Spk ${asrSpeakerId})`;
+  // }
+  // Always return baseLabel after Silence check and baseLabel determination, per user request.
+  return baseLabel; 
 }
 
 // Subscribe to streamStore to dynamically manage transcription sessions

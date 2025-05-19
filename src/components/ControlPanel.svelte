@@ -451,16 +451,22 @@
             <div class="flex" class:justify-end={isLocalUser} class:justify-start={!isLocalUser} data-filename={item.type === 'file' ? item.transfer?.name : null}>
               <div
                 class="p-3 rounded-lg shadow max-w-[90%] break-words"
-                class:bg-blue-100={isLocalUser}
-                class:bg-gray-100={!isLocalUser}
-                > <!-- Removed title from outer div -->
+                class:bg-blue-100={isLocalUser && item.type !== 'transcription'}
+                class:bg-gray-100={!isLocalUser && item.type !== 'transcription'}
+                class:bg-teal-50={item.type === 'transcription'} 
+                class:dark:bg-teal-800={item.type === 'transcription'} 
+                >
                 <!-- Always display sender name, use title for CID -->
                 <p
                   data-testid="sender-name"
                   class="text-xs font-semibold mb-1"
-                  class:text-blue-800={isLocalUser}
-                  class:text-gray-600={!isLocalUser}
-                  title={item.cid ? `CID: ${item.cid}` : 'Local Sender'}
+                  class:text-blue-800={isLocalUser && item.type !== 'transcription'}
+                  class:dark:text-blue-300={isLocalUser && item.type !== 'transcription'}
+                  class:text-gray-600={!isLocalUser && item.type !== 'transcription'}
+                  class:dark:text-gray-400={!isLocalUser && item.type !== 'transcription'}
+                  class:text-teal-700={item.type === 'transcription'}
+                  class:dark:text-teal-300={item.type === 'transcription'}
+                  title={item.type === 'transcription' && item.segment ? `Transcribed from: ${item.segment.sessionId}` : (item.cid ? `CID: ${item.cid}` : 'Local Sender')}
                 >
                   {item.sender} <!-- Always display sender name (localUserName, Peer, CID, etc.) -->
                 </p>
@@ -616,7 +622,7 @@
           {#each Object.values($transcriptionDisplayStore.activeBuffers) as buffer (buffer.sessionId)}
             {#if buffer.text && buffer.text.length > 0}
               <div class="py-0.5" data-testid="pending-transcription-buffer">
-                <span class="font-semibold">{buffer.speakerLabel} (thinking...):</span>
+                <span class="font-semibold">{buffer.speakerLabel} (speaking...):</span>
                 <span class="ml-1 italic">{buffer.text}</span>
               </div>
             {/if}
