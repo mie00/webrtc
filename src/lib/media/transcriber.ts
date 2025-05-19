@@ -363,42 +363,57 @@ function getSpeakerLabelFromAsr(sessionId: string, asrSpeakerId: number, text: s
  */
 export function processReceivedTranscriptionPayload(payload: FinalTranscriptionBroadcastPayload): void {
   transcriptionDisplayStore.update(s => {
-    const newSegments = [...s.segments];
-    const lastTextBySpeaker = { ...s.lastTextBySpeaker }; // Crucial for merging logic
+    const newSegments = [...s.segments]; // Operate on a mutable copy for this update
+    const lastTextBySpeaker = { ...s.lastTextBySpeaker };
 
-    payload.finalSegments.forEach(segment => {
-      // Use originalSessionId from payload for speakerKey to correctly track remote speakers
-      const speakerKey = `${segment.sessionId}-${segment.speakerLabel}`; 
-      const lastInfo = lastTextBySpeaker[speakerKey];
+    payload.finalSegments.forEach(currentAsrSegment => {
+      const speakerKey = `${currentAsrSegment.sessionId}-${currentAsrSegment.speakerLabel}`;
+      const lastTrackedInfo = lastTextBySpeaker[speakerKey];
 
-      let existingSegmentIndex = -1;
-      if (lastInfo && lastInfo.utteranceId === segment.utteranceId) {
-         existingSegmentIndex = newSegments.findIndex(
-           (sg) => sg.utteranceId === segment.utteranceId && sg.speakerLabel === segment.speakerLabel
-         );
-      }
+      // Determine if the current ASR segment corresponds to the absolute last segment in our display list
+      const isUpdatingAbsoluteLastSegment =
+        newSegments.length > 0 &&
+        newSegments[newSegments.length - 1].utteranceId === currentAsrSegment.utteranceId &&
+        newSegments[newSegments.length - 1].speakerLabel === currentAsrSegment.speakerLabel;
 
-      if (existingSegmentIndex !== -1) {
-        // Update existing segment: append text, update end time, timestamp, and id for Svelte
-        const existing = newSegments[existingSegmentIndex];
-        // Only append if new text is longer, assuming ASR sends cumulative text for an utterance
-        if (segment.text.length > existing.text.length) {
-            existing.text = segment.text;
+      if (lastTrackedInfo && lastTrackedInfo.utteranceId === currentAsrSegment.utteranceId) {
+        // Cases 1 & 2: Utterance seen before for this speaker.
+        // currentAsrSegment.text is the full text for the utterance from ASR at this point.
+        // lastTrackedInfo.text is the full text we last recorded for this utterance.
+        const textDiff = currentAsrSegment.text.substring(lastTrackedInfo.text.length);
+
+        if (isUpdatingAbsoluteLastSegment) {
+          // Case 1: Update the absolute last segment by appending the difference.
+          const segmentToUpdate = newSegments[newSegments.length - 1];
+          segmentToUpdate.text += textDiff; // Append difference
+          segmentToUpdate.end = currentAsrSegment.end;
+          segmentToUpdate.timestamp = currentAsrSegment.timestamp; // Keep latest timestamp
+          segmentToUpdate.id = currentAsrSegment.id; // Update svelte key id
+        } else {
+          // Case 2: Not the absolute last segment, add a new segment with the diff only.
+          // This happens if another speaker interjected, or if this is a continuation
+          // of an utterance that wasn't the immediately preceding one.
+          newSegments.push({
+            ...currentAsrSegment, // base properties (id, utteranceId, sessionId, speakerLabel, beg, end, timestamp)
+            text: textDiff,        // only the difference in text
+          });
         }
-        existing.end = segment.end;
-        existing.timestamp = segment.timestamp; // Keep latest timestamp
-        existing.id = segment.id; // Update svelte key id
+        // Update tracking for this speaker with the full current text of the utterance
+        lastTextBySpeaker[speakerKey] = { text: currentAsrSegment.text, utteranceId: currentAsrSegment.utteranceId };
+
       } else {
-        // Add as new segment
-        newSegments.push({ ...segment });
+        // Case 3: Utterance not seen before for this speaker (or speaker entirely new).
+        // Add a new segment with the full text from currentAsrSegment.
+        newSegments.push({ ...currentAsrSegment }); // currentAsrSegment.text is already the full text
+
+        // Update tracking for this speaker
+        lastTextBySpeaker[speakerKey] = { text: currentAsrSegment.text, utteranceId: currentAsrSegment.utteranceId };
       }
-      // Update tracking for this speaker and utterance
-      lastTextBySpeaker[speakerKey] = { text: segment.text, utteranceId: segment.utteranceId };
     });
 
-    // Sort all segments by timestamp to ensure chronological order
+    // Sort all segments by timestamp to ensure chronological order.
     newSegments.sort((a, b) => a.timestamp - b.timestamp);
-    
+
     const newActiveBuffers = { ...s.activeBuffers };
     if (payload.activeBuffer) {
       newActiveBuffers[payload.activeBuffer.sessionId] = payload.activeBuffer;
