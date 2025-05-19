@@ -2,7 +2,7 @@ import { writable, get } from 'svelte/store';
 import { streamStore, getStreamState, type LocalStreamData, type RemoteStreamData, type StreamState } from '../../stores/streamStore.js';
 
 const WEBSOCKET_URL = 'ws://localhost:8888/asr'; // Ensure this matches your ASR backend
-const TRANSCRIPTION_CHUNK_DURATION_MS = 1000;
+const TRANSCRIPTION_CHUNK_DURATION_MS = 5000;
 const MEDIA_RECORDER_MIME_TYPE = 'audio/webm';
 
 interface ActiveTranscriptionSession {
@@ -87,6 +87,7 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0 && websocket.readyState === WebSocket.OPEN) {
+          console.log('sending', event.data)
           websocket.send(event.data);
         }
       };
@@ -119,6 +120,7 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
   websocket.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data as string);
+      console.log(data);
       const messageTimestamp = Date.now();
 
       transcriptionDisplayStore.update(s => {
