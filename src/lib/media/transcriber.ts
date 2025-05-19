@@ -355,6 +355,137 @@ function getSpeakerLabelFromAsr(sessionId: string, asrSpeakerId: number, text: s
   return baseLabel; 
 }
 
+
+/**
+ * Processes a FinalTranscriptionBroadcastPayload to update the transcriptionDisplayStore.
+ * This function is called when new transcription data is available, either from the
+ * local ASR service or received from a peer.
+ */
+export function processReceivedTranscriptionPayload(payload: FinalTranscriptionBroadcastPayload): void {
+  transcriptionDisplayStore.update(s => {
+    const newSegments = [...s.segments];
+    const lastTextBySpeaker = { ...s.lastTextBySpeaker }; // Crucial for merging logic
+
+    payload.finalSegments.forEach(segment => {
+      // Use originalSessionId from payload for speakerKey to correctly track remote speakers
+      const speakerKey = `${segment.sessionId}-${segment.speakerLabel}`; 
+      const lastInfo = lastTextBySpeaker[speakerKey];
+
+      let existingSegmentIndex = -1;
+      if (lastInfo && lastInfo.utteranceId === segment.utteranceId) {
+         existingSegmentIndex = newSegments.findIndex(
+           (sg) => sg.utteranceId === segment.utteranceId && sg.speakerLabel === segment.speakerLabel
+         );
+      }
+
+      if (existingSegmentIndex !== -1) {
+        // Update existing segment: append text, update end time, timestamp, and id for Svelte
+        const existing = newSegments[existingSegmentIndex];
+        // Only append if new text is longer, assuming ASR sends cumulative text for an utterance
+        if (segment.text.length > existing.text.length) {
+            existing.text = segment.text;
+        }
+        existing.end = segment.end;
+        existing.timestamp = segment.timestamp; // Keep latest timestamp
+        existing.id = segment.id; // Update svelte key id
+      } else {
+        // Add as new segment
+        newSegments.push({ ...segment });
+      }
+      // Update tracking for this speaker and utterance
+      lastTextBySpeaker[speakerKey] = { text: segment.text, utteranceId: segment.utteranceId };
+    });
+
+    // Sort all segments by timestamp to ensure chronological order
+    newSegments.sort((a, b) => a.timestamp - b.timestamp);
+    
+    const newActiveBuffers = { ...s.activeBuffers };
+    if (payload.activeBuffer) {
+      newActiveBuffers[payload.activeBuffer.sessionId] = payload.activeBuffer;
+    } else {
+      // If payload explicitly has no activeBuffer for its originalSessionId,
+      // clear it. This handles cases where a peer's buffer clears.
+      delete newActiveBuffers[payload.originalSessionId];
+    }
+
+    return {
+      segments: newSegments,
+      activeBuffers: newActiveBuffers,
+      lastTextBySpeaker,
+    };
+  });
+}
+
+
+/**
+ * Sets up the transcription data channel for a given client.
+ * This should be called when a direct client connection is established and data channels are being negotiated.
+ */
+export function setupTranscriptionChannel(cid: string): void {
+  const client = getDirectClient(cid);
+  if (!client || !client.pc) {
+    console.error(`Client or PeerConnection not found for CID ${cid} in setupTranscriptionChannel`);
+    return;
+  }
+
+  console.log(`Setting up transcription data channel for client ${cid}`);
+  const dc_transcription = client.pc.createDataChannel("transcription", {
+    negotiated: true,
+    id: 4 // Unique ID for the transcription channel
+  });
+
+  if (dc_transcription) {
+    client.dc_transcription = dc_transcription; // Assign to client object
+
+    dc_transcription.onopen = (): void => {
+      console.log(`Transcription data channel opened for client ${cid}`);
+    };
+
+    dc_transcription.onmessage = (e: MessageEvent): void => {
+      try {
+        const receivedDataString = e.data as string;
+        const payload = JSON.parse(receivedDataString) as FinalTranscriptionBroadcastPayload;
+
+        if (payload.type === 'transcription_data') {
+          console.log(`Received transcription data from peer ${cid}:`, payload);
+          processReceivedTranscriptionPayload(payload);
+
+          // Relay this data to all *other* connected peers
+          const allClients = getAllDirectClients();
+          for (const otherCid in allClients) {
+            if (otherCid !== cid) { // Don't send back to the original sender
+              const otherClient = allClients[otherCid];
+              if (otherClient.dc_transcription && otherClient.dc_transcription.readyState === 'open') {
+                try {
+                  otherClient.dc_transcription.send(receivedDataString); // Send the original string
+                } catch (err) {
+                  console.error(`Failed to relay transcription data to ${otherCid}:`, err);
+                }
+              }
+            }
+          }
+        } else {
+          console.warn(`Received unknown payload type on transcription channel from ${cid}:`, payload);
+        }
+      } catch (err) {
+        console.error(`Error processing transcription message from peer ${cid}:`, err, e.data);
+      }
+    };
+
+    dc_transcription.onclose = (): void => {
+      console.log(`Transcription data channel closed for client ${cid}`);
+      // Optionally, clean up client.dc_transcription if needed, though client removal should handle it.
+    };
+
+    dc_transcription.onerror = (err: Event): void => {
+      console.error(`Transcription data channel error for client ${cid}:`, err);
+    };
+  } else {
+    console.error(`Failed to create transcription data channel for client ${cid}`);
+  }
+}
+
+
 // Subscribe to streamStore to dynamically manage transcription sessions
 streamStore.subscribe(currentStreamState => {
   const transcriberState = get(transcriberStore);
