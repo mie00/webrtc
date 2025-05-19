@@ -131,28 +131,7 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
     handleIncomingTranscriptionMessage(
       event.data as string,
       'websocket',
-      sessionId, // sourceIdentifier is the ASR sessionId
-      {
-        closeWebSocket: () => {
-          if (websocket.readyState === WebSocket.OPEN || websocket.readyState === WebSocket.CONNECTING) {
-            websocket.close();
-          }
-        },
-        relayToPeers: (payload) => { // excludeCid is not needed here as origin is WebSocket
-          const clients = getAllDirectClients();
-          const messageToRelay = JSON.stringify(payload);
-          for (const peerCid_relay in clients) {
-            const client_relay = clients[peerCid_relay];
-            if (client_relay.dc_transcription && client_relay.dc_transcription.readyState === 'open') {
-              try {
-                client_relay.dc_transcription.send(messageToRelay);
-              } catch (err) {
-                console.error(`Failed to relay transcription data to ${peerCid_relay} (origin: WebSocket session ${sessionId}):`, err);
-              }
-            }
-          }
-        }
-      }
+      sessionId // sourceIdentifier is the ASR sessionId
     );
   };
 
@@ -482,26 +461,7 @@ export function setupTranscriptionChannel(cid: string): void {
       handleIncomingTranscriptionMessage(
         receivedDataString,
         'datachannel',
-        cid, // sourceIdentifier is the peerCid
-        {
-          // No closeWebSocket action for datachannel source
-          relayToPeers: (payload, excludeCid_param) => { // excludeCid_param will be the source peer's cid
-            const allClients_relay = getAllDirectClients();
-            const messageToRelay = JSON.stringify(payload);
-            for (const otherPeerCid_relay in allClients_relay) {
-              if (otherPeerCid_relay !== excludeCid_param) { 
-                const otherClient_relay = allClients_relay[otherPeerCid_relay];
-                if (otherClient_relay.dc_transcription && otherClient_relay.dc_transcription.readyState === 'open') {
-                  try {
-                    otherClient_relay.dc_transcription.send(messageToRelay);
-                  } catch (err) {
-                    console.error(`Failed to relay transcription data to ${otherPeerCid_relay} (origin: DC ${excludeCid_param}):`, err);
-                  }
-                }
-              }
-            }
-          }
-        }
+        cid // sourceIdentifier is the peerCid
       );
     };
 
@@ -587,16 +547,11 @@ streamStore.subscribe(currentStreamState => {
  * @param rawMessage The raw string message received.
  * @param sourceType Indicates if the message is from 'websocket' or 'datachannel'.
  * @param sourceIdentifier For 'websocket', this is the ASR sessionId. For 'datachannel', this is the peer's CID.
- * @param actions Object containing optional callbacks for closing WebSocket or relaying messages.
  */
 function handleIncomingTranscriptionMessage(
   rawMessage: string,
   sourceType: 'websocket' | 'datachannel',
-  sourceIdentifier: string,
-  actions: {
-    closeWebSocket?: () => void;
-    relayToPeers?: (payload: FinalTranscriptionBroadcastPayload, excludeCid?: string) => void;
-  }
+  sourceIdentifier: string
 ) {
   try {
     const parsedData = JSON.parse(rawMessage);
@@ -604,8 +559,14 @@ function handleIncomingTranscriptionMessage(
     // Handle "ready_to_stop" signal (typically only from WebSocket ASR server)
     if (parsedData.status === "ready_to_stop") {
       console.log(`Received ready_to_stop signal for ${sourceType} ${sourceIdentifier}.`);
-      if (sourceType === 'websocket' && actions.closeWebSocket) {
-        actions.closeWebSocket();
+      if (sourceType === 'websocket') {
+        const currentTranscriberState = get(transcriberStore);
+        const sessionToClose = currentTranscriberState.activeSessions[sourceIdentifier]; // sourceIdentifier is ASR sessionId
+        if (sessionToClose && sessionToClose.websocket &&
+            (sessionToClose.websocket.readyState === WebSocket.OPEN || sessionToClose.websocket.readyState === WebSocket.CONNECTING)) {
+          console.log(`Closing WebSocket for session ${sourceIdentifier} due to ready_to_stop signal.`);
+          sessionToClose.websocket.close();
+        }
       }
       // If relayed from a peer, this signal doesn't typically close the datachannel itself.
       return;
@@ -662,11 +623,23 @@ function handleIncomingTranscriptionMessage(
     // Process the unified payload to update local display
     processReceivedTranscriptionPayload(finalPayloadToProcess);
 
-    // Relay the payload to other peers if action is provided
-    if (actions.relayToPeers) {
-      // If source was datachannel, excludeCid will be the source peer's CID.
-      // If source was websocket, excludeCid will be undefined, so it relays to all.
-      actions.relayToPeers(finalPayloadToProcess, sourceType === 'datachannel' ? sourceIdentifier : undefined);
+    // Relay the payload to other peers
+    const clientsToRelayTo = getAllDirectClients();
+    const messageToRelayStr = JSON.stringify(finalPayloadToProcess);
+    for (const peerCid_relay in clientsToRelayTo) {
+      // If source was datachannel, exclude the original sender (sourceIdentifier is the peer's CID).
+      // If source was websocket, sourceIdentifier is ASR sessionId, so no exclusion based on it.
+      if (sourceType === 'datachannel' && peerCid_relay === sourceIdentifier) {
+        continue;
+      }
+      const client_relay = clientsToRelayTo[peerCid_relay];
+      if (client_relay.dc_transcription && client_relay.dc_transcription.readyState === 'open') {
+        try {
+          client_relay.dc_transcription.send(messageToRelayStr);
+        } catch (err) {
+          console.error(`Failed to relay transcription data to ${peerCid_relay} (origin: ${sourceType} ${sourceIdentifier}):`, err);
+        }
+      }
     }
 
   } catch (e) {
