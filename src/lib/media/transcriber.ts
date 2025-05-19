@@ -130,7 +130,18 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
   websocket.onmessage = (event) => {
     try {
       const asrData = JSON.parse(event.data as string);
-      console.log("ASR Data Received:", asrData);
+
+      // Check for server's ready_to_stop signal
+      // Assuming the server sends a JSON like: { "status": "ready_to_stop" }
+      if (asrData.status === "ready_to_stop") {
+        console.log(`Server signaled ready_to_stop for session ${sessionId}. Closing WebSocket.`);
+        if (websocket.readyState === WebSocket.OPEN || websocket.readyState === WebSocket.CONNECTING) {
+          websocket.close();
+        }
+        return; // Don't process this message as transcription data
+      }
+
+      console.log("ASR Data Received (processing):", asrData); // Log only if not ready_to_stop
       const messageTimestamp = Date.now();
 
       const finalSegmentsForBroadcast: TranscriptionSegment[] = [];
