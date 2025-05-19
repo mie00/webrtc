@@ -209,37 +209,23 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
 }
 
 function stopTranscriptionForSession(sessionId: string, closeWebSocket = true) {
-  transcriberStore.update(state => {
-    const session = state.activeSessions[sessionId];
-    if (session) {
-      if (session.mediaRecorder && session.mediaRecorder.state === "recording") {
-        session.mediaRecorder.stop();
-        // Send empty blob if WebSocket is still open and we intend to close it gracefully
-        if (closeWebSocket && session.websocket && session.websocket.readyState === WebSocket.OPEN) {
-            try {
-                const emptyBlob = new Blob([], { type: MEDIA_RECORDER_MIME_TYPE });
-                session.websocket.send(emptyBlob);
-                console.log(`Sent empty blob to signal end of audio for ${sessionId}.`);
-            } catch (e) {
-                console.warn(`Could not send empty blob for ${sessionId}:`, e);
-            }
-        }
-      }
-      // MediaRecorder tracks are part of the original stream, don't stop them here
-      // as the stream itself is managed by streamStore.
+  const currentGlobalState = get(transcriberStore);
+  const session = currentGlobalState.activeSessions[sessionId];
 
-      if (closeWebSocket && session.websocket && 
-          (session.websocket.readyState === WebSocket.OPEN || session.websocket.readyState === WebSocket.CONNECTING)) {
-        session.websocket.close();
-        // console.log(`WebSocket connection closed for ${sessionId}.`); // Already logged by onclose
-      }
+  if (!session) {
+    // console.warn(`Session ${sessionId} not found for stopping.`);
+    return;
+  }
 
-      // Clear buffer and lastTextBySpeaker entries for this session from the display store
+  const cleanupStoreEntries = () => {
+    transcriberStore.update(state => {
+      const sessionInStore = state.activeSessions[sessionId];
+      if (!sessionInStore) return state; // Already removed or changed
+
       transcriptionDisplayStore.update(s => {
         const newBuffers = { ...s.activeBuffers };
         delete newBuffers[sessionId];
         
-        // Remove all lastTextBySpeaker entries for this session
         const newLastTextBySpeaker = { ...s.lastTextBySpeaker };
         Object.keys(newLastTextBySpeaker).forEach(key => {
           if (key.startsWith(`${sessionId}-`)) {
@@ -262,9 +248,69 @@ function stopTranscriptionForSession(sessionId: string, closeWebSocket = true) {
         activeSessions: remainingSessions,
         isTranscribingOverall: stillTranscribing,
       };
+    });
+  };
+
+  if (session.mediaRecorder && session.mediaRecorder.state === "recording") {
+    console.log(`Stopping MediaRecorder for ${sessionId}. Will close WebSocket and cleanup on 'stop' event.`);
+    
+    const originalOnError = session.mediaRecorder.onerror;
+
+    const commonStopCleanup = () => {
+      if (session.mediaRecorder) {
+        session.mediaRecorder.onstop = null;
+        session.mediaRecorder.onerror = originalOnError;
+      }
+      cleanupStoreEntries();
+    };
+
+    session.mediaRecorder.onstop = () => {
+      console.log(`MediaRecorder.onstop event for ${sessionId}.`);
+      if (closeWebSocket && session.websocket) {
+        if (session.websocket.readyState === WebSocket.OPEN) {
+          try {
+            const emptyBlob = new Blob([], { type: MEDIA_RECORDER_MIME_TYPE });
+            session.websocket.send(emptyBlob);
+            console.log(`Sent empty blob (EOS) for ${sessionId}.`);
+          } catch (e) { 
+            console.warn(`Could not send empty blob for ${sessionId}:`, e); 
+          }
+          session.websocket.close();
+          console.log(`WebSocket connection closed from onstop for ${sessionId}.`);
+        } else if (session.websocket.readyState === WebSocket.CONNECTING) {
+          session.websocket.close();
+          console.log(`WebSocket connection (was connecting) closed from onstop for ${sessionId}.`);
+        }
+      }
+      commonStopCleanup();
+    };
+
+    session.mediaRecorder.onerror = (event) => {
+      console.error(`MediaRecorder error during stop process for ${sessionId}:`, event);
+      if (closeWebSocket && session.websocket && 
+          (session.websocket.readyState === WebSocket.OPEN || session.websocket.readyState === WebSocket.CONNECTING)) {
+        session.websocket.close();
+        console.log(`WebSocket connection closed due to MediaRecorder error during stop for ${sessionId}.`);
+      }
+      if (originalOnError && session.mediaRecorder) {
+        originalOnError.call(session.mediaRecorder, event);
+      }
+      commonStopCleanup();
+    };
+
+    session.mediaRecorder.stop();
+    // Further cleanup is handled by onstop or onerror.
+  } else {
+    // MediaRecorder not recording or doesn't exist. Immediate cleanup.
+    console.log(`MediaRecorder for ${sessionId} not recording or doesn't exist. Closing WebSocket and cleaning up immediately.`);
+    if (closeWebSocket && session.websocket) {
+      if (session.websocket.readyState === WebSocket.OPEN || session.websocket.readyState === WebSocket.CONNECTING) {
+        session.websocket.close();
+        console.log(`WebSocket connection closed (immediate) for ${sessionId}.`);
+      }
     }
-    return state;
-  });
+    cleanupStoreEntries();
+  }
 }
 
 export function startOverallTranscription(): void {
