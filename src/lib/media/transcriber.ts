@@ -252,61 +252,75 @@ function stopTranscriptionForSession(sessionId: string, closeWebSocket = true) {
   };
 
   if (session.mediaRecorder && session.mediaRecorder.state === "recording") {
-    console.log(`Stopping MediaRecorder for ${sessionId}. Will close WebSocket and cleanup on 'stop' event.`);
+    console.log(`Stopping MediaRecorder for ${sessionId}. Will wait for server "ready_to_stop" or WebSocket closure.`);
     
-    const originalOnError = session.mediaRecorder.onerror;
+    const originalOnError = session.mediaRecorder.onerror; // General error handler from startTranscriptionForStream
 
-    const commonStopCleanup = () => {
-      if (session.mediaRecorder) {
-        session.mediaRecorder.onstop = null;
+    // New onstop handler for this specific stop operation
+    session.mediaRecorder.onstop = () => {
+      console.log(`MediaRecorder.onstop event for ${sessionId}. All local audio chunks sent. Waiting for server to signal ready_to_stop.`);
+      // DO NOT close WebSocket here.
+      // DO NOT call cleanupStoreEntries() here.
+      // The session remains active, waiting for the server's "ready_to_stop" or other WebSocket events.
+      // If the original onstop needs to be restored, it should be done carefully,
+      // but typically this replaces it for the duration of this stop operation.
+      if (session.mediaRecorder) { // Restore original error handler after onstop completes
         session.mediaRecorder.onerror = originalOnError;
       }
-      cleanupStoreEntries();
     };
 
-    session.mediaRecorder.onstop = () => {
-      console.log(`MediaRecorder.onstop event for ${sessionId}.`);
-      if (closeWebSocket && session.websocket) {
-        if (session.websocket.readyState === WebSocket.OPEN) {
-          try {
-            const emptyBlob = new Blob([], { type: MEDIA_RECORDER_MIME_TYPE });
-            session.websocket.send(emptyBlob);
-            console.log(`Sent empty blob (EOS) for ${sessionId}.`);
-          } catch (e) { 
-            console.warn(`Could not send empty blob for ${sessionId}:`, e); 
-          }
-          session.websocket.close();
-          console.log(`WebSocket connection closed from onstop for ${sessionId}.`);
-        } else if (session.websocket.readyState === WebSocket.CONNECTING) {
-          session.websocket.close();
-          console.log(`WebSocket connection (was connecting) closed from onstop for ${sessionId}.`);
-        }
-      }
-      commonStopCleanup();
-    };
-
+    // New onerror handler for this specific stop operation
     session.mediaRecorder.onerror = (event) => {
-      console.error(`MediaRecorder error during stop process for ${sessionId}:`, event);
-      if (closeWebSocket && session.websocket && 
+      console.error(`MediaRecorder error during explicit stop process for ${sessionId}:`, event);
+      if (session.websocket && 
           (session.websocket.readyState === WebSocket.OPEN || session.websocket.readyState === WebSocket.CONNECTING)) {
-        session.websocket.close();
-        console.log(`WebSocket connection closed due to MediaRecorder error during stop for ${sessionId}.`);
+        console.log(`Closing WebSocket due to MediaRecorder error during explicit stop for ${sessionId}.`);
+        session.websocket.close(); 
+        // websocket.onclose will then trigger stopTranscriptionForSession(sessionId, false) which calls cleanupStoreEntries()
+      } else {
+        // WebSocket already closed or not in a state to be closed by us.
+        // Directly cleanup store entries as onclose might not trigger appropriately from here.
+        console.log(`WebSocket not open/connecting during MediaRecorder error (explicit stop) for ${sessionId}. Cleaning store entries directly.`);
+        cleanupStoreEntries();
       }
+      // It's important to restore the original error handler if it was specific,
+      // or ensure the general one is still appropriate.
       if (originalOnError && session.mediaRecorder) {
-        originalOnError.call(session.mediaRecorder, event);
+        originalOnError.call(session.mediaRecorder, event); // Call the original general error handler
       }
-      commonStopCleanup();
+      // Ensure this specific onerror is removed after firing to avoid conflicts if MR is reused.
+      if (session.mediaRecorder) {
+         session.mediaRecorder.onerror = originalOnError;
+      }
     };
 
     session.mediaRecorder.stop();
-    // Further cleanup is handled by onstop or onerror.
+    // Further cleanup is handled by websocket.onmessage ("ready_to_stop") -> websocket.close() -> websocket.onclose
+    // OR by websocket.onerror -> websocket.close() -> websocket.onclose
+    // OR by the MediaRecorder.onerror handler set above during this stop operation.
+    // The session's store entries are cleaned up when the WebSocket connection is confirmed closed (via its onclose event).
   } else {
-    // MediaRecorder not recording or doesn't exist. Immediate cleanup.
-    console.log(`MediaRecorder for ${sessionId} not recording or doesn't exist. Closing WebSocket and cleaning up immediately.`);
+    // MediaRecorder not recording or doesn't exist.
+    console.log(`MediaRecorder for ${sessionId} not recording or doesn't exist. Ensuring cleanup and WebSocket closure if requested.`);
     if (closeWebSocket && session.websocket) {
       if (session.websocket.readyState === WebSocket.OPEN || session.websocket.readyState === WebSocket.CONNECTING) {
+        console.log(`Closing WebSocket (immediate cleanup path as MR not recording) for ${sessionId}.`);
         session.websocket.close();
-        console.log(`WebSocket connection closed (immediate) for ${sessionId}.`);
+        // websocket.onclose will call stopTranscriptionForSession(sessionId, false), which then calls cleanupStoreEntries.
+      } else if (session.websocket.readyState !== WebSocket.CLOSING && session.websocket.readyState !== WebSocket.CLOSED) {
+        // If WebSocket is in an unexpected state but not already closing/closed,
+        // and we were asked to close it, but it wasn't OPEN/CONNECTING.
+        // Perform direct cleanup as onclose might not be reliably triggered by a close() call here.
+        console.log(`WebSocket for ${sessionId} in state ${session.websocket.readyState}, not OPEN/CONNECTING. Performing direct cleanup.`);
+        cleanupStoreEntries();
+      } else {
+        // WebSocket is CLOSING or CLOSED. onclose should handle or have handled cleanup.
+        // If already closed, cleanupStoreEntries might be called again via onclose, which is fine.
+        console.log(`WebSocket for ${sessionId} is ${session.websocket.readyState}. Relying on onclose for cleanup or already cleaned.`);
+        // To be safe, if it's already CLOSED and we are in this path, onclose might not run again.
+        if (session.websocket.readyState === WebSocket.CLOSED) {
+            cleanupStoreEntries();
+        }
       }
     }
     cleanupStoreEntries();
