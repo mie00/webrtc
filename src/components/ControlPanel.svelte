@@ -453,8 +453,8 @@
                 class="p-3 rounded-lg shadow max-w-[90%] break-words"
                 class:bg-blue-100={isLocalUser && item.type !== 'transcription'}
                 class:bg-gray-100={!isLocalUser && item.type !== 'transcription'}
-                class:bg-teal-50={item.type === 'transcription'} 
-                class:dark:bg-teal-800={item.type === 'transcription'} 
+                class:bg-gray-50={item.type === 'transcription'} 
+                class:dark:bg-gray-700={item.type === 'transcription'} 
                 >
                 <!-- Always display sender name, use title for CID -->
                 <p
