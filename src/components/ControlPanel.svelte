@@ -168,7 +168,7 @@
 
     // Transcription Items
     const transcriptionItems: FeedItem[] = (
-      $transcriberStore.isTranscribingOverall && $transcriptionDisplayStore.segments 
+      $transcriptionDisplayStore.segments 
         ? $transcriptionDisplayStore.segments 
         : []
     ).map((seg, i) => ({
@@ -572,7 +572,7 @@
                 {:else if item.type === 'transcription' && item.segment}
                   {@const segment = item.segment}
                   <div class="transcription-segment text-sm" data-testid="transcription-segment">
-                    <p class="text-gray-700">{segment.text}</p>
+                    <p class="text-gray-700 dark:text-gray-100">{segment.text}</p>
                     <!-- Optionally, display beg/end times or other segment details if needed -->
                     <!-- <p class="text-xs text-gray-400">{segment.beg} - {segment.end}</p> -->
                   </div>
@@ -650,7 +650,7 @@
             class:bg-gray-500={isSending}
             title={!isSending ? "Attach file" : "Sending..."}
           >📎</button>
-          {#if $transcriberStore.isTranscribingOverall}
+          {#if $transcriptionDisplayStore.segments.length}
             <button
               type="button"
               onclick={() => showCompletedTranscriptions = !showCompletedTranscriptions}

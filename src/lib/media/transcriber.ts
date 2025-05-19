@@ -99,7 +99,6 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0 && websocket.readyState === WebSocket.OPEN) {
-          console.log('sending', event.data)
           websocket.send(event.data);
         }
       };
@@ -177,8 +176,7 @@ function stopTranscriptionForSession(sessionId: string, closeWebSocketIntent = t
       });
 
       const { [sessionId]: _, ...remainingSessions } = state.activeSessions;
-      const stillTranscribing = Object.keys(remainingSessions).length > 0;
-      return { ...state, activeSessions: remainingSessions, isTranscribingOverall: stillTranscribing };
+      return { ...state, activeSessions: remainingSessions };
     });
   };
 
@@ -312,7 +310,6 @@ export function stopOverallTranscription(): void {
   // Retain lastTextBySpeaker as it's managed by processReceivedTranscriptionPayload now.
   transcriptionDisplayStore.update(s => ({
     ...s,
-    segments: [],
     activeBuffers: {},
   }));
 }
@@ -558,14 +555,39 @@ function handleIncomingTranscriptionMessage(
   try {
     const parsedData = JSON.parse(rawMessage);
 
-    // Handle "ready_to_stop" signal
-    if (parsedData.status === "ready_to_stop") {
-      console.log(`Received ready_to_stop signal for ${sourceType} ${sourceIdentifier}.`);
-      
-      const effectiveOriginalSessionId = sourceType === 'websocket' 
-        ? sourceIdentifier // For direct WS, sourceIdentifier is the asrSessionId
-        : parsedData.originalSessionId as string | undefined; // For DC, expect originalSessionId in payload
+    const effectiveOriginalSessionId = sourceType === 'websocket' 
+      ? sourceIdentifier // For direct WS, sourceIdentifier is the asrSessionId
+      : parsedData.originalSessionId as string; // For DC, expect originalSessionId in payload
 
+    const clientsToRelayFinalBuffer = getAllDirectClients();
+    const finalBufferMessageToRelayStr = JSON.stringify({
+      ...parsedData,
+      originalSessionId: parsedData.originalSessionId || sourceIdentifier,
+    });
+    console.log("MIEMIE", clientsToRelayFinalBuffer, sourceIdentifier)
+    for (const peerCid_relay in clientsToRelayFinalBuffer) {
+      // If the ready_to_stop came from a datachannel (sourceIdentifier is peerCid), don't send final buffer back to that peer.
+      if (sourceType === 'datachannel' && peerCid_relay === sourceIdentifier) {
+        console.log("MIEMIE", "skipping")
+        continue;
+      }
+      const client_relay = clientsToRelayFinalBuffer[peerCid_relay];
+      if (client_relay.dc_transcription && client_relay.dc_transcription.readyState === 'open') {
+        try {
+        console.log("MIEMIE", "sending")
+          client_relay.dc_transcription.send(finalBufferMessageToRelayStr);
+        } catch (err) {
+          console.error(`Failed to relay buffer segment to ${peerCid_relay} (origin: ${sourceType} ${sourceIdentifier}, effectiveSession: ${effectiveOriginalSessionId}):`, err);
+        }
+      } else {
+        console.log("MIEMIE", client_relay.dc_transcription)
+      }
+    }
+
+    // Handle "ready_to_stop" signal
+    if (parsedData.type === "ready_to_stop") {
+      console.log(`Received ready_to_stop signal for ${sourceType} ${effectiveOriginalSessionId}.`);
+      
       if (effectiveOriginalSessionId) {
         const finalBufferData = lastKnownActiveBuffers.get(effectiveOriginalSessionId);
 
@@ -595,33 +617,15 @@ function handleIncomingTranscriptionMessage(
             originalSessionId: effectiveOriginalSessionId,
           };
           processReceivedTranscriptionPayload(finalBufferPayload);
-          
-          // Relay this final segment payload to other peers
-          const clientsToRelayFinalBuffer = getAllDirectClients();
-          const finalBufferMessageToRelayStr = JSON.stringify(finalBufferPayload);
-          for (const peerCid_relay in clientsToRelayFinalBuffer) {
-            // If the ready_to_stop came from a datachannel (sourceIdentifier is peerCid), don't send final buffer back to that peer.
-            if (sourceType === 'datachannel' && peerCid_relay === sourceIdentifier) {
-              continue;
-            }
-            const client_relay = clientsToRelayFinalBuffer[peerCid_relay];
-            if (client_relay.dc_transcription && client_relay.dc_transcription.readyState === 'open') {
-              try {
-                client_relay.dc_transcription.send(finalBufferMessageToRelayStr);
-              } catch (err) {
-                console.error(`Failed to relay final buffer segment to ${peerCid_relay} (origin: ${sourceType} ${sourceIdentifier}, effectiveSession: ${effectiveOriginalSessionId}):`, err);
-              }
-            }
-          }
         }
         lastKnownActiveBuffers.delete(effectiveOriginalSessionId); // Clear the buffer after processing
       } else if (sourceType === 'datachannel' && !effectiveOriginalSessionId) {
         // This case means a peer relayed a "ready_to_stop" signal without specifying which original ASR session it was for.
-        console.warn(`Received ready_to_stop from datachannel peer ${sourceIdentifier} without an originalSessionId. Cannot process final buffer.`);
+        console.warn(`Received ready_to_stop from datachannel peer ${effectiveOriginalSessionId} without an originalSessionId. Cannot process final buffer.`);
       }
 
       if (sourceType === 'websocket') {
-        const asrSessionIdToClose = sourceIdentifier; // This is the direct ASR session ID
+        const asrSessionIdToClose = effectiveOriginalSessionId; // This is the direct ASR session ID
         const currentTranscriberState = get(transcriberStore);
         const sessionToClose = currentTranscriberState.activeSessions[asrSessionIdToClose];
         if (sessionToClose && sessionToClose.websocket &&
@@ -629,72 +633,46 @@ function handleIncomingTranscriptionMessage(
           console.log(`Closing WebSocket for session ${asrSessionIdToClose} after processing ready_to_stop.`);
           sessionToClose.websocket.close();
         }
-
-        // Relay the "ready_to_stop" signal itself to other peers, so they can also finalize their buffers for this asrSessionIdToClose
-        const readyToStopRelayPayload = { status: "ready_to_stop", originalSessionId: asrSessionIdToClose };
-        const readyToStopRelayStr = JSON.stringify(readyToStopRelayPayload);
-        const clientsToRelaySignal = getAllDirectClients();
-        for (const peerCid_relay in clientsToRelaySignal) {
-          const client_relay = clientsToRelaySignal[peerCid_relay];
-          if (client_relay.dc_transcription && client_relay.dc_transcription.readyState === 'open') {
-            try {
-              client_relay.dc_transcription.send(readyToStopRelayStr);
-            } catch (err) {
-              console.error(`Failed to relay ready_to_stop signal to ${peerCid_relay} for session ${asrSessionIdToClose}:`, err);
-            }
-          }
-        }
       }
       return; // End of "ready_to_stop" processing
     }
 
     let finalPayloadToProcess: FinalTranscriptionBroadcastPayload;
 
-    if (sourceType === 'websocket') {
-      // Message is directly from ASR server for session `sourceIdentifier`
-      console.log(`ASR Data Received (processing) from WebSocket session ${sourceIdentifier}:`, parsedData);
-      const messageTimestamp = Date.now();
-      const finalSegments: TranscriptionSegment[] = [];
-      let activeBuffer: { sessionId: string, speakerLabel: string, text: string } | undefined = undefined;
-      const currentAsrSessionId = sourceIdentifier; // This is the sessionId of the ASR connection
+    // Message is directly from ASR server for session `effectiveOriginalSessionId`
+    console.log(`ASR Data Received (processing) from session ${effectiveOriginalSessionId}:`, parsedData);
+    const messageTimestamp = Date.now();
+    const finalSegments: TranscriptionSegment[] = [];
+    let activeBuffer: { sessionId: string, speakerLabel: string, text: string } | undefined = undefined;
+    const currentAsrSessionId = effectiveOriginalSessionId; // This is the sessionId of the ASR connection
 
-      if (parsedData.lines && Array.isArray(parsedData.lines)) {
-        parsedData.lines.forEach((line: any, index: number) => {
-          if (line.text && line.text.trim().length > 0 && typeof line.speaker === 'number' && typeof line.beg === 'string' && typeof line.end === 'string') {
-            const speakerLabel = getSpeakerLabelFromAsr(currentAsrSessionId, line.speaker, line.text);
-            const utteranceId = `${currentAsrSessionId}-${line.speaker}-${line.beg}`;
-            const currentText = line.text.trim();
-            const svelteKeyId = `${utteranceId}-${messageTimestamp}-${index}`;
-            finalSegments.push({
-              id: svelteKeyId, utteranceId, sessionId: currentAsrSessionId, speakerLabel,
-              text: currentText, beg: line.beg, end: line.end, timestamp: messageTimestamp + index,
-            });
-          }
-        });
-      }
-      const bufferText = parsedData.buffer_transcription;
-      if (bufferText && bufferText.trim().length > 0) {
-        const lastFinalizedSpeaker = parsedData.lines && parsedData.lines.length > 0 ? parsedData.lines[parsedData.lines.length - 1].speaker : -1;
-        const bufferSpeakerLabel = getSpeakerLabelFromAsr(currentAsrSessionId, lastFinalizedSpeaker, bufferText);
-        activeBuffer = { sessionId: currentAsrSessionId, speakerLabel: bufferSpeakerLabel, text: bufferText.trim() };
-      }
-      
-      finalPayloadToProcess = {
-        type: 'transcription_data',
-        finalSegments: finalSegments,
-        activeBuffer: activeBuffer,
-        originalSessionId: currentAsrSessionId,
-      };
-    } else { // sourceType === 'datachannel'
-      // Message from a peer should already be a FinalTranscriptionBroadcastPayload
-      if (parsedData.type === 'transcription_data' && parsedData.originalSessionId) {
-        console.log(`Transcription Payload Received from peer ${sourceIdentifier}:`, parsedData);
-        finalPayloadToProcess = parsedData as FinalTranscriptionBroadcastPayload;
-      } else {
-        console.warn(`Received unknown/malformed payload on transcription data channel from ${sourceIdentifier}:`, parsedData);
-        return;
-      }
+    if (parsedData.lines && Array.isArray(parsedData.lines)) {
+      parsedData.lines.forEach((line: any, index: number) => {
+        if (line.text && line.text.trim().length > 0 && typeof line.speaker === 'number' && typeof line.beg === 'string' && typeof line.end === 'string') {
+          const speakerLabel = getSpeakerLabelFromAsr(currentAsrSessionId, line.speaker, line.text);
+          const utteranceId = `${currentAsrSessionId}-${line.speaker}-${line.beg}`;
+          const currentText = line.text.trim();
+          const svelteKeyId = `${utteranceId}-${messageTimestamp}-${index}`;
+          finalSegments.push({
+            id: svelteKeyId, utteranceId, sessionId: currentAsrSessionId, speakerLabel,
+            text: currentText, beg: line.beg, end: line.end, timestamp: messageTimestamp + index,
+          });
+        }
+      });
     }
+    const bufferText = parsedData.buffer_transcription;
+    if (bufferText && bufferText.trim().length > 0) {
+      const lastFinalizedSpeaker = parsedData.lines && parsedData.lines.length > 0 ? parsedData.lines[parsedData.lines.length - 1].speaker : -1;
+      const bufferSpeakerLabel = getSpeakerLabelFromAsr(currentAsrSessionId, lastFinalizedSpeaker, bufferText);
+      activeBuffer = { sessionId: currentAsrSessionId, speakerLabel: bufferSpeakerLabel, text: bufferText.trim() };
+    }
+    
+    finalPayloadToProcess = {
+      type: 'transcription_data',
+      finalSegments: finalSegments,
+      activeBuffer: activeBuffer,
+      originalSessionId: currentAsrSessionId,
+    };
 
     // Process the unified payload to update local display
     processReceivedTranscriptionPayload(finalPayloadToProcess);
@@ -705,25 +683,6 @@ function handleIncomingTranscriptionMessage(
     } else {
       // If the payload explicitly clears the buffer for its originalSessionId (activeBuffer is undefined)
       lastKnownActiveBuffers.delete(finalPayloadToProcess.originalSessionId);
-    }
-
-    // Relay the transcription data payload to other peers
-    const clientsToRelayTo = getAllDirectClients();
-    const messageToRelayStr = JSON.stringify(finalPayloadToProcess);
-    for (const peerCid_relay in clientsToRelayTo) {
-      // If source was datachannel, exclude the original sender (sourceIdentifier is the peer's CID).
-      // If source was websocket, sourceIdentifier is ASR sessionId, so no exclusion based on it for this data relay.
-      if (sourceType === 'datachannel' && peerCid_relay === sourceIdentifier) {
-        continue;
-      }
-      const client_relay = clientsToRelayTo[peerCid_relay];
-      if (client_relay.dc_transcription && client_relay.dc_transcription.readyState === 'open') {
-        try {
-          client_relay.dc_transcription.send(messageToRelayStr);
-        } catch (err) {
-          console.error(`Failed to relay transcription data to ${peerCid_relay} (origin: ${sourceType} ${sourceIdentifier}):`, err);
-        }
-      }
     }
 
   } catch (e) {

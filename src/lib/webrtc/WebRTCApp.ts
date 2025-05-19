@@ -26,6 +26,7 @@ import { setupTrackHandler } from '../streamBridge.js';
 import { setupForwardChannel } from '../forwardBridge.js';
 import { setupChatChannel } from '../chatBridge.js';
 import { setupFileChannel } from '../fileBridge.js';
+import { setupTranscriptionChannel } from '../media/transcriber.js';
 
 
 // Type definitions for local use
@@ -330,6 +331,7 @@ export class WebRTCApp {
     setupChatChannel(cid);
     setupFileChannel(cid); // Pass app for config/context if needed, but setup uses store for client
     setupForwardChannel(cid); // Pass app for config/context if needed, but setup uses store for client
+    setupTranscriptionChannel(cid);
 
     client._transceiver_interval = window.setInterval(() => {
       // client.pc?.addTransceiver('audio', {direction: "recvonly"});
