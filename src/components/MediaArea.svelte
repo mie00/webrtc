@@ -257,6 +257,16 @@
       });
     }
 
+    if (type === 'audio') {
+      menuItems.push({
+        id: 'toggle-transcription',
+        label: isTranscribing ? 'Disable Transcription' : 'Enable Transcription',
+        type: 'toggle' as const,
+        checked: isTranscribing,
+        action: () => handleToggleTranscription()
+      });
+    }
+
     menuItems.push({
       id: 'select-device',
       label: 'Select Device',
@@ -495,15 +505,6 @@
   </button>
   <button id="test-toggle-audio-button" bind:this={audioButton} onclick={handleToggleAudio} oncontextmenu={e => handleContextMenu('audio', e)} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isAudioEnabled} style={isAudioEnabled?`background: linear-gradient(0deg, rgb(59 130 246) ${instant}%, white ${instant}%)`:""}>
     {isAudioEnabled ? '🎤' : '🔇'} <!-- Microphone -->
-  </button>
-  <button id="test-toggle-transcription-button"
-          onclick={handleToggleTranscription}
-          class="text-white p-3 rounded-full pointer-events-auto"
-          class:bg-green-600={isTranscribing}
-          class:hover:bg-green-700={isTranscribing}
-          class:bg-gray-700={!isTranscribing}
-          class:hover:bg-blue-700={!isTranscribing}>
-    {isTranscribing ? '🛑' : '✍️'}
   </button>
   <button id="test-toggle-video-button" bind:this={videoButton} onclick={handleToggleVideo} oncontextmenu={e => handleContextMenu('camera', e)} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isCameraEnabled}>
     {isCameraEnabled ? '🎥' : '📷'} <!-- Video Camera -->

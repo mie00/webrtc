@@ -326,11 +326,12 @@ export function startOverallTranscription(): void {
     });
   });
   
-  if (transcriptionStarted) {
-    transcriberStore.update(s => ({ ...s, isTranscribingOverall: true }));
-  } else {
-    console.log("No streams with audio found to transcribe.");
-    transcriberStore.update(s => ({ ...s, isTranscribingOverall: false }));
+  // Always set isTranscribingOverall to true when this function is called.
+  // The streamStore subscription will handle starting individual transcriptions when streams appear.
+  transcriberStore.update(s => ({ ...s, isTranscribingOverall: true }));
+
+  if (!transcriptionStarted) {
+    console.log("No streams with audio found to transcribe yet. Transcription is enabled and will start when audio streams become available.");
   }
 }
 
