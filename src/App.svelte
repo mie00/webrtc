@@ -368,15 +368,15 @@
 </main>
 
 <CopyOverlay 
-  show={showCopyOverlay} 
-  copyText={copyText}
-  qrCodeUrl={qrCodeUrl}
-  cid={currentOfferCid}
-  {showAcceptButton}
-  {showJoinButton}
-  {showCopyButton}
-  {showPasteText}
-  close={() => showCopyOverlay = false}
+  show={appLogicModuleState.showCopyOverlay} 
+  copyText={appLogicModuleState.copyText}
+  qrCodeUrl={appLogicModuleState.qrCodeUrl}
+  cid={appLogicModuleState.currentOfferCid}
+  showAcceptButton={appLogicModuleState.showAcceptButton}
+  showJoinButton={appLogicModuleState.showJoinButton}
+  showCopyButton={appLogicModuleState.showCopyButton}
+  showPasteText={appLogicModuleState.showPasteText}
+  close={() => setState({ showCopyOverlay: false })}
   openConfig={toggleConfigOverlay}
   reset={handleReset}
   accept={(e) => acceptHandler(e.cid, e.pasteValue)} 
