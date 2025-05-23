@@ -1,4 +1,4 @@
-import type { AppLogic, AppLogicContext } from './appLogic';
+import type { AppLogic, AppLogicContext } from './appLogic.js';
 
 export class ServerLogic implements AppLogic {
   private context: AppLogicContext;

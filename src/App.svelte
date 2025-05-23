@@ -1,4 +1,5 @@
 <script lang="ts">
+/// <reference path="../../../types/global.d.ts" />
   import { onMount, onDestroy } from 'svelte';
   import MediaArea from './components/MediaArea.svelte';
   import ControlPanel from './components/ControlPanel.svelte';
@@ -11,10 +12,9 @@
   import { compress, decompress } from './lib/utils/sdpCompress.js';
   import type { WebRTCApp } from './lib/webrtc/WebRTCApp.js';
   
-  import type { AppLogic, AppLogicContext, AppLogicState } from './lib/appLogic';
-  import { ClientLogic } from './lib/clientLogic';
-  import { ServerLogic } from './lib/serverLogic';
-  import type { RTCIceCandidateInit } from './types/global'; // For socket handler candidate types
+  import type { AppLogic, AppLogicContext, AppLogicState } from './lib/appLogic.js';
+  import { ClientLogic } from './lib/clientLogic.js';
+  import { ServerLogic } from './lib/serverLogic.js';
 
 
   // Props
@@ -363,7 +363,7 @@
 </script>
 
 <main class="flex-1 flex">
-  <MediaArea {hangup} openQr={handleOpenQrRequest} />
+  <MediaArea hangup={handleHangup} openQr={handleOpenQrRequest} />
   <ControlPanel />
 </main>
 
