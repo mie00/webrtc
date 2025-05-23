@@ -12,6 +12,7 @@ export interface Config {
   'blur-video': 'yes' | 'no';
   'audio-device'?: string;
   'video-device'?: string;
+  'coordinator-url': string; // Added coordinator URL
   [key: string]: string | undefined;
 }
 
@@ -26,7 +27,8 @@ const defaultConfig: Config = {
   'turn-password': '',
   'blur-video': 'no',
   'audio-device': 'default|default',
-  'video-device': 'default|default'
+  'video-device': 'default|default',
+  'coordinator-url': 'ws://127.0.0.1:5001' // Added default coordinator URL
 };
 
 // Load initial config from localStorage

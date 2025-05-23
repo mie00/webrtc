@@ -121,6 +121,18 @@
         oninput={(e) => handleInputChange(e, 'turn-password')}
       >
     </div>
+
+    <div class="flex flex-col space-y-2">
+      Coordinator URL
+      <input 
+        id="coordinator-url" 
+        type="text" 
+        placeholder="Coordinator URL"
+        class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
+        value={$configStore['coordinator-url']}
+        oninput={(e) => handleInputChange(e, 'coordinator-url')}
+      >
+    </div>
     
     <div class="flex flex-col space-y-2 hidden">
       Audio device 
