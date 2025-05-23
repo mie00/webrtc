@@ -9,7 +9,9 @@ import {
   resetConnectionStore,
   getDirectClient,
   getAllDirectClients,
-  getAllClientCids
+  getAllClientCids,
+  type DirectClientState,
+  getDirectClientState
 } from '../../stores/connectionStore.js'; // Adjust path if needed
 import { getAllConfig } from '../../stores/configStore.js';
 import { 
@@ -96,6 +98,53 @@ export class WebRTCApp {
       // cid here is the relaying client's cid (though not strictly needed for removal)
       removeParticipant(data.cid);
         // No need to call handleChange here, the store update is reactive
+    });
+
+    registerNegoHandler("trusted", (data: any, cid: string) => {
+      const client = getDirectClient(cid);
+      if (!client) return;
+      client.trusting = true;
+      this.annouceParticipants(cid, client);
+    });
+
+    registerNegoHandler("solution", async (data: any, cid: string) => {
+      console.log("solution", data);
+      // TODO: verify solution
+      const verified = await true;
+      if (verified) {
+        const client = getDirectClient(cid);
+        if (!client) return;
+        client.trusted = true;
+        this.sendNego(client, { type: "trusted" });
+        this.annouceParticipants(cid, client);
+      }
+    });
+
+    registerNegoHandler("challenge", async (data: any, cid: string) => {
+      console.log("challenge", data);
+      // TODO: solve challenge
+      const solution = await true;
+      if (solution) {
+        const client = getDirectClient(cid);
+        if (!client) return;
+        this.sendNego(client, { type: "solution", solution });
+      };
+    });
+  }
+
+  public annouceParticipants(cid: string, client: WebRTCClient): void {
+    if (!client.trusted || !client.trusting) return;
+    // Announce self to existing clients (retrieved from store)
+    getAllClientCids().forEach(existingCid => {
+        if (existingCid !== cid) {
+            const existingClient = getDirectClient(existingCid);
+            if (existingClient) {
+                // Tell existing client about the new client (cid)
+                this.sendNego(existingClient, { type: "participant", cid: cid });
+            }
+            // Tell the new client (cid) about the existing client
+            this.sendNego(client, { type: "participant", cid: existingCid });
+        }
     });
   }
 
@@ -250,7 +299,7 @@ export class WebRTCApp {
     // Create the PeerConnection using config derived from the store
     const pc = new RTCPeerConnection(rtcConfig);
     // Create the client object
-    const client: WebRTCClient = { pc, polite };
+    const client: WebRTCClient = { pc, polite, trusted: false, trusting: false };
     // Add client to the store immediately
     addDirectClient(cid, client);
 
@@ -296,6 +345,12 @@ export class WebRTCApp {
 
     nego_dc.onmessage = async e => {
       const data = JSON.parse(e.data);
+      if (!client.trusted || !client.trusting) {
+        if (!["challenge", "solution", "trust"].includes(data.type)) {
+          console.log("ignoring message from untrusted peer", data);
+          return;
+        }
+      }
       if (data.id in this.nego_messages) {
         return;
       }
@@ -310,18 +365,8 @@ export class WebRTCApp {
     };
 
     nego_dc.onopen = () => {
-      // Announce self to existing clients (retrieved from store)
-      getAllClientCids().forEach(existingCid => {
-          if (existingCid !== cid) {
-              const existingClient = getDirectClient(existingCid);
-              if (existingClient) {
-                  // Tell existing client about the new client (cid)
-                  this.sendNego(existingClient, { type: "participant", cid: cid });
-              }
-              // Tell the new client (cid) about the existing client
-              this.sendNego(client, { type: "participant", cid: existingCid });
-          }
-      });
+      // send a random string challenge
+      this.sendNego(client, { type: "challenge", data: Math.random().toString() });
       // Announce relayed participants known by this peer (via store) to the new client
       // This relies on the participant messages received from other peers.
       // The store state isn't directly used for signaling here.

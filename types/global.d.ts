@@ -51,6 +51,8 @@ interface WebRTCClient {
   _transceiver_interval?: number;
   polite?: boolean;
   makingOffer?: boolean;
+  trusted: boolean,
+  trusting: boolean,
   // When adding new properties to this interface, make sure to:
   // 1. Update the destroyClient function in js/main.ts to clean up the new property
   // 2. Update the unit tests in __tests__/unit/main.test.js to verify cleanup

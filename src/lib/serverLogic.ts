@@ -143,7 +143,7 @@ export class ServerLogic implements AppLogic {
       setState(currentVal => ({
         ...currentVal,
         initialOverlayShown: true, // This is an initial load with an existing room
-        showCopyButton: true, // Show copy for existing room URL (original was false, but true makes more sense to share)
+        showCopyButton: false, // Do not show copy for existing room URL
         showAcceptButton: false,
         showJoinButton: true, // Room ID exists, so show Join button
       }));
@@ -173,8 +173,8 @@ export class ServerLogic implements AppLogic {
       appOnId(); // Sets showCopyOverlay, copyText, qrCodeUrl.
       setState(currentVal => ({
         ...currentVal,
-        showJoinButton: true, // Room exists, can join (original was false, but true seems more logical for QR context)
-        showCopyButton: true, // Can copy room link
+        showJoinButton: true, // Room exists, can join
+        showCopyButton: false, // Can copy room link
         showAcceptButton: false,
         showPasteText: false,
       }));

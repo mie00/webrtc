@@ -55,8 +55,7 @@
   };
 
   const appOnId = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const newUrl = ($configStore['config-host'] || window.location.origin) + window.location.pathname + '?' + urlParams.toString();
+    const newUrl = ($configStore['config-host'] || window.location.origin) + window.location.pathname + window.location.search;
     setState({
       showCopyOverlay: true,
       copyText: newUrl,

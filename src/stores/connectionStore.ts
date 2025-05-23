@@ -44,7 +44,7 @@ export function addDirectClient(cid: string, client: WebRTCClient): void {
       polite: client.polite ?? false, // Get polite from client object
       connectionState: client.pc?.connectionState ?? 'new',
       iceConnectionState: client.pc?.iceConnectionState ?? 'new',
-      fingerprint: null // Initialize fingerprint
+      fingerprint: null, // Initialize fingerprint
     };
     return { ...state, directClients };
   });
@@ -117,6 +117,11 @@ export function getConnectionState(): ConnectionState {
 }
 
 // --- Getters ---
+
+export function getDirectClientState(cid: string): DirectClientState | undefined {
+  const state = get(connectionStore);
+  return state.directClients[cid];
+}
 
 export function getDirectClient(cid: string): WebRTCClient | undefined {
   const state = get(connectionStore);
