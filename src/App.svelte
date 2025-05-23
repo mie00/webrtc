@@ -125,12 +125,18 @@
     const urlParams = new URLSearchParams(window.location.search);
     let mode: 'client' | 'server';
 
-    if (urlParams.get('mode') === 'server') mode = 'server';
-    else if (urlParams.get('mode') === 'client') mode = 'client';
-    else if (urlParams.has('r')) mode = 'server';
-    else if (urlParams.has('offer')) mode = 'client';
-    else if ($configStore['config-loader'] === 'client') mode = 'client';
-    else mode = 'server';
+    // If coordinator-url is not defined, default to client mode
+    if (!$configStore['coordinator-url']) {
+      mode = 'client';
+    } else {
+      // Original mode selection logic
+      if (urlParams.get('mode') === 'server') mode = 'server';
+      else if (urlParams.get('mode') === 'client') mode = 'client';
+      else if (urlParams.has('r')) mode = 'server';
+      else if (urlParams.has('offer')) mode = 'client';
+      else if ($configStore['config-loader'] === 'client') mode = 'client';
+      else mode = 'server';
+    }
 
     const context: AppLogicContext = {
       webRTCApp,
