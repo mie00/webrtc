@@ -196,4 +196,27 @@ export class ClientLogic implements AppLogic {
       }
     }
   }
+
+  async acceptHandler(cidFromEvent: string | null, pasteValue: string): Promise<void> {
+    const { decompress, getDirectClient, setState, getState } = this.context;
+    const targetCid = cidFromEvent || getState().currentOfferCid; // Use event CID or fallback to current app offer CID
+    if (!pasteValue || !targetCid) {
+      console.warn("Accept handler: Paste value or CID is missing.", { pasteValue, targetCid });
+      return;
+    }
+
+    try {
+      const answer = await decompress(pasteValue.trim());
+      const client = getDirectClient(targetCid);
+      if (client?.pc) {
+        await client.pc.setRemoteDescription({ type: "answer", sdp: answer.trim() + '\n' });
+        console.log("Successfully set remote description from pasted answer for CID:", targetCid);
+        setState({ showCopyOverlay: false, initialOverlayShown: false }); // Hide overlay on success
+      } else {
+        console.warn("Client or PeerConnection not found for CID:", targetCid, "when accepting pasted answer.");
+      }
+    } catch (e) {
+      console.error("Error processing pasted answer for CID:", targetCid, e);
+    }
+  }
 }

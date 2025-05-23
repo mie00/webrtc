@@ -200,28 +200,6 @@
     }
   }
   
-  const acceptHandler = async (cidFromEvent: string | null, pasteValue: string) => { 
-    const targetCid = cidFromEvent || appLogicModuleState.currentOfferCid; // Use event CID or fallback to current app offer CID
-    if (!pasteValue || !targetCid) {
-      console.warn("Accept handler: Paste value or CID is missing.", {pasteValue, targetCid});
-      return;
-    }
-    
-    try {
-      const answer = await decompress(pasteValue.trim());
-      const client = getDirectClient(targetCid);
-      if (client?.pc) {
-        await client.pc.setRemoteDescription({ type: "answer", sdp: answer.trim() + '\n' });
-        console.log("Successfully set remote description from pasted answer for CID:", targetCid);
-        setState({ showCopyOverlay: false, initialOverlayShown: false }); // Hide overlay on success
-      } else {
-        console.warn("Client or PeerConnection not found for CID:", targetCid, "when accepting pasted answer.");
-      }
-    } catch (e) {
-      console.error("Error processing pasted answer for CID:", targetCid, e);
-    }
-  };
-  
   function toggleConfigOverlay() {
     showConfigOverlay = !showConfigOverlay;
   }
@@ -315,7 +293,13 @@
   close={() => setState({ showCopyOverlay: false })}
   openConfig={toggleConfigOverlay}
   reset={handleReset}
-  accept={(e) => acceptHandler(e.cid, e.pasteValue)} 
+  accept={(e) => {
+    if (appLogicInstance && 'acceptHandler' in appLogicInstance && typeof appLogicInstance.acceptHandler === 'function') {
+      appLogicInstance.acceptHandler(e.cid, e.pasteValue);
+    } else {
+      console.warn("acceptHandler called, but not available on current appLogicInstance or instance is null");
+    }
+  }}
   join={handleJoin}
 />
 
