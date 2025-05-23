@@ -19,7 +19,6 @@ export interface AppLogicState {
 
 export interface AppLogicContext {
   webRTCApp: WebRTCApp;
-  socket: Socket;
   config: Readonly<Config>;
   getDirectClient: typeof getDirectClientType;
   compress: typeof compressType;
@@ -31,11 +30,13 @@ export interface AppLogicContext {
   // Helpers that App.svelte provides
   appOnId: () => void; 
   broadcastManuallyEnteredAnswer: (offer: string, answer: string) => Promise<void>;
+  reportCriticalError?: (type: string, error?: any) => void; // For logic modules to signal fatal errors
 }
 
 export interface AppLogic {
   initialize(initialUrlParams: URLSearchParams): Promise<void>;
   handleOpenQrRequest(currentUrlParams: URLSearchParams): Promise<void>;
   // Optional methods if they are specific to one logic type
-  handleJoin?(id: string): void; 
+  handleJoin?(id: string): void;
+  destroy?(): void; // Optional cleanup method
 }

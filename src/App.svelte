@@ -5,7 +5,7 @@
   import ControlPanel from './components/ControlPanel.svelte';
   import CopyOverlay from './components/CopyOverlay.svelte';
   import ConfigOverlay from './components/ConfigOverlay.svelte';
-  import { io, Socket } from 'socket.io-client';
+  // import { io, Socket } from 'socket.io-client'; // Socket handled by ServerLogic
   import ForwardOverlay from './components/ForwardOverlay.svelte';
   import { configStore, getAllConfig, type Config } from './stores/configStore.js';
   import { connectionStore, getDirectClient } from './stores/connectionStore.js';
@@ -37,8 +37,8 @@
   // Other App.svelte specific state
   let showConfigOverlay = false;
   
-  // Socket.io connection
-  let socket: Socket;
+  // Socket.io connection is now managed by ServerLogic
+  // let socket: Socket; 
   let appLogicInstance: AppLogic | null = null;
   let configUnsubscribe: (() => void) | null = null;
   
@@ -72,9 +72,55 @@
     bc.close();
   };
 
+  const reportCriticalError = async (type: string, error?: any) => {
+    console.error(`Critical error reported to App.svelte: ${type}`, error);
+    if (type === 'socket') {
+      // This logic was previously in the socket.on('error') handler in App.svelte
+      history.replaceState(null, '', window.location.origin + window.location.pathname);
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      let reinitMode: 'client' | 'server';
+      // Determine mode for re-initialization
+      if ($configStore['config-loader'] === 'client') reinitMode = 'client';
+      else reinitMode = 'server';
+
+      // Destroy current logic instance if it exists and has a destroy method
+      if (appLogicInstance && appLogicInstance.destroy) {
+        appLogicInstance.destroy();
+      }
+
+      const newContext: AppLogicContext = { 
+        webRTCApp, 
+        config: $configStore, 
+        getDirectClient, 
+        compress, 
+        decompress, 
+        setState, 
+        getState, 
+        appOnId, 
+        broadcastManuallyEnteredAnswer,
+        reportCriticalError // Pass self for future critical errors from the new instance
+      };
+
+      if (reinitMode === 'client') {
+        appLogicInstance = new ClientLogic(newContext);
+      } else {
+        appLogicInstance = new ServerLogic(newContext);
+      }
+      try {
+        await appLogicInstance.initialize(urlParams);
+        console.log("App.svelte: Re-initialized logic module after critical error.");
+      } catch (e) {
+        console.error("App.svelte: Failed to re-initialize logic module after critical error:", e);
+        // Consider a more drastic recovery like window.location.reload(); if re-init fails
+      }
+    }
+  };
+
   onMount(async () => {
-    socket = io('ws://127.0.0.1:5001', { autoConnect: false }); // autoConnect false, connect manually
-    setupSocketHandlers();
+    // Socket initialization and handler setup moved to ServerLogic
+    // socket = io('ws://127.0.0.1:5001', { autoConnect: false }); 
+    // setupSocketHandlers();
     
     const urlParams = new URLSearchParams(window.location.search);
     let mode: 'client' | 'server';
@@ -88,7 +134,7 @@
 
     const context: AppLogicContext = {
       webRTCApp,
-      socket,
+      // socket, // Removed from context
       config: $configStore, // Pass reactive store value, will be a snapshot
       getDirectClient,
       compress,
@@ -97,11 +143,13 @@
       getState,
       appOnId,
       broadcastManuallyEnteredAnswer,
+      reportCriticalError, // Add the error reporter function to the context
     };
     
-    if (!socket.connected) {
-        socket.connect(); // Connect socket before initializing logic that might use it
-    }
+    // Socket connection is now handled by ServerLogic internally
+    // if (!socket.connected) {
+    //     socket.connect(); 
+    // }
 
     if (mode === 'client') {
       appLogicInstance = new ClientLogic(context);
@@ -120,137 +168,19 @@
   });
   
   onDestroy(() => {
-    if (socket && socket.connected) {
-      socket.disconnect();
+    // Socket disconnection is now handled by ServerLogic's destroy method (if appLogicInstance is ServerLogic)
+    // if (socket && socket.connected) {
+    //   socket.disconnect();
+    // }
+    if (appLogicInstance && appLogicInstance.destroy) {
+      appLogicInstance.destroy(); // This will call ServerLogic.destroy() or ClientLogic.destroy() if they exist
     }
     if (configUnsubscribe) {
       configUnsubscribe();
     }
   });
   
-  function setupSocketHandlers() {
-    socket.on('init', async (id: string) => {
-      console.log("init", id);
-      const urlParams = new URLSearchParams(window.location.search);
-      urlParams.set('r', id);
-      history.replaceState(null, '', '?' + urlParams.toString());
-      appOnId(); 
-
-      if ($configStore['config-loader'] === 'server') {
-        setState(current => ({
-          ...current,
-          showCopyButton: true,
-          showAcceptButton: false, 
-          showJoinButton: false, // Room ID now available
-        }));
-      }
-
-      if (appLogicModuleState.isDuringInitialServerLoad) {
-        setState({
-          initialOverlayShown: true,
-          isDuringInitialServerLoad: false,
-        });
-      }
-    });
-    
-    socket.on('subscribed', async (sid: string) => {
-      console.log('got subscribed', sid);
-      const cid = await webRTCApp.getOffer(async (candidate: RTCIceCandidateInit | null) => {
-        if (!candidate) return;
-        console.log("got a candidate for subscribed", sid, candidate);
-        socket.emit('candidate', sid, JSON.stringify(candidate));
-      }, {sid});
-      const client = getDirectClient(cid);
-      const sdp = client?.pc?.localDescription?.sdp;
-      if (sdp) {
-        console.log("sending an offer for subscribed", sid, sdp);
-        socket.emit('offer', sid, sdp);
-      }
-    });
-
-    socket.on('answer', async (sid: string, sdp: string) => {
-      console.log('got an answer from socket', sid, sdp);
-      const cid = webRTCApp.getCid(sid);
-      if (cid) {
-        const client = getDirectClient(cid);
-        if (client?.pc) {
-          try {
-            await client.pc.setRemoteDescription({ type: "answer", sdp: sdp.trim() + '\n' });
-          } catch (e) {
-            console.error("Error setting remote description from socket answer:", e, "SDP:", sdp);
-          }
-        } else {
-          console.warn("Client or PC not found for socket answer. CID:", cid);
-        }
-      } else {
-         console.warn("No CID found for SID:", sid, "on socket answer.");
-      }
-    });
-    
-    socket.on('offer', async (sid: string, sdp: string) => {
-      console.log('got an offer from socket', sid, sdp);
-      const cid = await webRTCApp.getAnswer(sdp, async (candidate: RTCIceCandidateInit | null) => {
-        if (!candidate) return;
-        console.log("got a candidate for offer", sid, candidate);
-        socket.emit('candidate', sid, JSON.stringify(candidate));
-      }, {sid});
-      const client = getDirectClient(cid);
-      const asdp = client?.pc?.localDescription?.sdp;
-      if (asdp) {
-        console.log("sending an answer for offer", sid, asdp);
-        socket.emit('answer', sid, asdp);
-      }
-    });
-    
-    socket.on('error', async () => {
-      console.error("Socket connection error. Attempting to re-initialize.");
-      history.replaceState(null, '', window.location.origin + window.location.pathname);
-      
-      // Attempt to re-initialize the logic module
-      const urlParams = new URLSearchParams(window.location.search);
-      let mode: 'client' | 'server';
-      if ($configStore['config-loader'] === 'client') mode = 'client'; // Check current config
-      else mode = 'server'; // Fallback or re-evaluate based on params if needed
-
-      const newContext: AppLogicContext = { 
-        webRTCApp, socket, config: $configStore, getDirectClient, 
-        compress, decompress, setState, getState, appOnId, broadcastManuallyEnteredAnswer 
-      };
-
-      if (!socket.connected) socket.connect(); // Ensure socket is trying to connect
-
-      if (mode === 'client') {
-        appLogicInstance = new ClientLogic(newContext);
-      } else {
-        appLogicInstance = new ServerLogic(newContext);
-      }
-      try {
-        await appLogicInstance.initialize(urlParams);
-      } catch (e) {
-        console.error("Failed to re-initialize after socket error:", e);
-        // Consider a more drastic recovery like window.location.reload();
-      }
-    });
-    
-    socket.on('candidate', async (sid: string, candidateStr: string) => {
-      console.log('got a candidate from peer via socket', sid, candidateStr);
-      const cid = webRTCApp.getCid(sid);
-       if (cid) {
-        const client = getDirectClient(cid);
-        if (client?.pc) {
-          try {
-              await client.pc.addIceCandidate(JSON.parse(candidateStr));
-          } catch (e) {
-              console.error("Error adding ICE candidate from socket:", e);
-          }
-        } else {
-          console.warn("Client or PC not found for socket candidate. CID:", cid);
-        }
-      } else {
-        console.warn("No CID found for SID:", sid, "on socket candidate.");
-      }
-    });
-  }
+  // function setupSocketHandlers() { ... } // This entire function has been removed as its logic is now in ServerLogic.ts
   
   function handleJoin() {
     if (appLogicInstance && 'handleJoin' in appLogicInstance && typeof appLogicInstance.handleJoin === 'function') {
