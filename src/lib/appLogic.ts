@@ -1,8 +1,7 @@
-import type { Socket } from 'socket.io-client';
-import type { WebRTCApp } from './webrtc/WebRTCApp';
-import type { Config } from '../stores/configStore';
-import type { getDirectClient as getDirectClientType } from '../stores/connectionStore';
-import type { compress as compressType, decompress as decompressType } from './utils/sdpCompress';
+import type { WebRTCApp } from './webrtc/WebRTCApp.js';
+import type { Config } from '../stores/configStore.js';
+import type { getDirectClient as getDirectClientType } from '../stores/connectionStore.js';
+import type { compress as compressType, decompress as decompressType } from './utils/sdpCompress.js';
 
 export interface AppLogicState {
   showCopyOverlay: boolean;

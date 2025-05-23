@@ -1,5 +1,5 @@
-import type { AppLogic, AppLogicContext, AppLogicState } from './appLogic';
-import type { RTCIceCandidateInit } from '../types/global'; // Or assume global from TS DOM lib
+import type { AppLogic, AppLogicContext, AppLogicState } from './appLogic.js';
+/// <reference path="../../../types/global.d.ts" />
 // import { connectionStore } from '../stores/connectionStore'; // For direct $connectionStore access if needed
 
 export class ClientLogic implements AppLogic {
@@ -97,7 +97,7 @@ export class ClientLogic implements AppLogic {
             setState(currentVal => ({
                 ...currentVal,
                 qrCodeUrl: newUrl,
-                copyText: newUrl, // Share the full URL containing offer and answer
+                copyText: compressedAnswer,
             }));
             history.replaceState('', '', newUrl);
           }
@@ -113,7 +113,7 @@ export class ClientLogic implements AppLogic {
     const { currentOfferCid: existingOfferCid } = getState(); // Renamed to avoid conflict
     
     const currentOfferClient = existingOfferCid ? getDirectClient(existingOfferCid) : null;
-    if (existingOfferCid && currentOfferClient?.connectionState === 'new') { // 'new' implies offer made, no answer yet
+    if (existingOfferCid && currentOfferClient?.pc?.connectionState === 'new') { // 'new' implies offer made, no answer yet
         setState(currentVal => ({
             ...currentVal,
             showCopyOverlay: true,
