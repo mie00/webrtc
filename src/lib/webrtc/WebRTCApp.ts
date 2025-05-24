@@ -19,8 +19,6 @@ import { profileStore } from '../../stores/profileStore.js';
 import { 
   updatePeerProfile, 
   removePeerProfile, 
-  resetPeerProfilesStore,
-  getPeerProfile
 } from '../../stores/peerProfileStore.js';
 import { get } from 'svelte/store';
 import { 
@@ -114,9 +112,6 @@ export class WebRTCApp {
       // data.cid is the CID of the participant leaving
       // data.publicKey is the publicKey of the participant leaving
       removeParticipant(data.cid); 
-      if (data.publicKey) {
-        removePeerProfile(data.publicKey); // Remove profile of the participant leaving
-      }
         // No need to call handleChange here, the store update is reactive
     });
 
@@ -124,19 +119,6 @@ export class WebRTCApp {
       const client = getDirectClient(cid);
       if (!client) return;
       client.trusting = true; // We know this peer is trusting us
-      // Profile is no longer part of the "trusted" message.
-      // Send our profile info to this peer.
-      const authState = window.authStore?.getAuthState(); // Assuming authStore is globally available or passed
-      const localPublicKey = authState?.publicKeyJwk ? JSON.stringify(authState.publicKeyJwk) : null;
-      const localProfile = get(profileStore);
-
-      if (localPublicKey && localProfile.isProfileComplete && localProfile.userName) {
-        this.sendNego(client, {
-          type: "profile_info",
-          publicKey: localPublicKey,
-          profile: { userName: localProfile.userName }
-        });
-      }
       this.acceptClient(cid, client);
     });
 
@@ -162,18 +144,6 @@ export class WebRTCApp {
         // Send "trusted" message (no profile data here)
         this.sendNego(client, { type: "trusted" });
 
-        // Send our profile info to this peer.
-        const authState = window.authStore?.getAuthState();
-        const localPublicKey = authState?.publicKeyJwk ? JSON.stringify(authState.publicKeyJwk) : null;
-        const localProfile = get(profileStore);
-
-        if (localPublicKey && localProfile.isProfileComplete && localProfile.userName) {
-          this.sendNego(client, {
-            type: "profile_info",
-            publicKey: localPublicKey,
-            profile: { userName: localProfile.userName }
-          });
-        }
         this.acceptClient(cid, client);
       }
     });
@@ -243,6 +213,11 @@ export class WebRTCApp {
 
     registerNegoHandler("profile_info", (data: any, cid: string) => {
       // cid is the sender of the profile_info message
+      const client = getDirectClient(cid);
+      if (!client?.trusted) {
+        console.log("recieved profile_info from untrusted peer, ignoring");
+        return;
+      }
       if (data.publicKey && data.profile && typeof data.profile.userName === 'string') {
         updatePeerProfile(data.publicKey, { userName: data.profile.userName });
         console.log(`Received profile for ${data.profile.userName} (publicKey: ${data.publicKey}) from client ${cid}`);
@@ -287,6 +262,19 @@ export class WebRTCApp {
             }
         }
     });
+
+    // Send our profile info to this peer.
+    const authState = window.authStore?.getAuthState(); // Assuming authStore is globally available or passed
+    const localPublicKey = authState?.publicKeyJwk ? JSON.stringify(authState.publicKeyJwk) : null;
+    const localProfile = get(profileStore);
+
+    if (localPublicKey && localProfile.isProfileComplete && localProfile.userName) {
+      this.sendNego(client, {
+        type: "profile_info",
+        publicKey: localPublicKey,
+        profile: { userName: localProfile.userName }
+      });
+    }
 
     setupTrackHandler(cid);
     setupChatChannel(cid);
@@ -371,9 +359,6 @@ export class WebRTCApp {
     }
     // Remove from the store last
     removeDirectClient(cid);
-    if (publicKeyToAnnounce) {
-      removePeerProfile(publicKeyToAnnounce); // Remove profile for the disconnected client
-    }
     // Also remove self from the participant list if present (might happen if announced before full cleanup)
     removeParticipant(cid); // This might be redundant if participant.end already handled it for this cid
   }
@@ -408,8 +393,6 @@ export class WebRTCApp {
     resetConnectionStore();
     // Reset the app state store (handlers, cleanups)
     resetAppStateStore();
-    // Reset the peer profiles store
-    resetPeerProfilesStore();
   }
 
   public destroy(): void {
