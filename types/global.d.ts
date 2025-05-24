@@ -95,6 +95,7 @@ interface Window {
   uuidv4: () => string;
   VideoStreamMerger: any;
   isFirefox?: boolean;
+  authStore: typeof import('../src/stores/authStore.js').authStore; // Added for global authStore
 }
 
 
