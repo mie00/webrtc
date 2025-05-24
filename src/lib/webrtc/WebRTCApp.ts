@@ -104,11 +104,8 @@ export class WebRTCApp {
       // relayingClientCid is the CID of the client that relayed this message
       // data.cid is the new participant's CID
       // data.publicKey is the new participant's publicKey
-      // data.profile is the new participant's profile
+      // Profile data is no longer sent via participant message
       addParticipant(data.cid, relayingClientCid, data.publicKey || null);
-      if (data.publicKey && data.profile && typeof data.profile.userName !== 'undefined') {
-        updatePeerProfile(data.publicKey, { userName: data.profile.userName });
-      }
       // No need to call handleChange here, the store update is reactive
     });
 
@@ -127,15 +124,18 @@ export class WebRTCApp {
       const client = getDirectClient(cid);
       if (!client) return;
       client.trusting = true; // We know this peer is trusting us
+      // Profile is no longer part of the "trusted" message.
+      // Send our profile info to this peer.
+      const authState = window.authStore?.getAuthState(); // Assuming authStore is globally available or passed
+      const localPublicKey = authState?.publicKeyJwk ? JSON.stringify(authState.publicKeyJwk) : null;
+      const localProfile = get(profileStore);
 
-      if (data.profile && typeof data.profile.userName !== 'undefined') {
-        const senderClientState = getDirectClientState(cid);
-        const senderPublicKey = senderClientState?.publicKey;
-        if (senderPublicKey) {
-          updatePeerProfile(senderPublicKey, { userName: data.profile.userName });
-        } else {
-          console.warn(`Received trusted message from ${cid} but publicKey not found.`);
-        }
+      if (localPublicKey && localProfile.isProfileComplete && localProfile.userName) {
+        this.sendNego(client, {
+          type: "profile_info",
+          publicKey: localPublicKey,
+          profile: { userName: localProfile.userName }
+        });
       }
       this.acceptClient(cid, client);
     });
@@ -158,16 +158,21 @@ export class WebRTCApp {
         }
         
         client.trusted = true; // We now trust this peer
+        
+        // Send "trusted" message (no profile data here)
+        this.sendNego(client, { type: "trusted" });
 
-        const currentUserProfile = get(profileStore);
-        const localProfileData = { userName: currentUserProfile.userName };
-        
-        // Send "trusted" message including our profile
-        this.sendNego(client, { type: "trusted", profile: localProfileData });
-        
-        // Store our profile against the peer's publicKey, as we are now in a trusted relationship
-        if (peerPublicKey && localProfileData.userName !== null) {
-            updatePeerProfile(peerPublicKey, localProfileData);
+        // Send our profile info to this peer.
+        const authState = window.authStore?.getAuthState();
+        const localPublicKey = authState?.publicKeyJwk ? JSON.stringify(authState.publicKeyJwk) : null;
+        const localProfile = get(profileStore);
+
+        if (localPublicKey && localProfile.isProfileComplete && localProfile.userName) {
+          this.sendNego(client, {
+            type: "profile_info",
+            publicKey: localPublicKey,
+            profile: { userName: localProfile.userName }
+          });
         }
         this.acceptClient(cid, client);
       }
@@ -235,6 +240,16 @@ export class WebRTCApp {
         // this.sendNego(client, { type: "solution_error", error: "Failed to process challenge solution" });
       }
     });
+
+    registerNegoHandler("profile_info", (data: any, cid: string) => {
+      // cid is the sender of the profile_info message
+      if (data.publicKey && data.profile && typeof data.profile.userName === 'string') {
+        updatePeerProfile(data.publicKey, { userName: data.profile.userName });
+        console.log(`Received profile for ${data.profile.userName} (publicKey: ${data.publicKey}) from client ${cid}`);
+      } else {
+        console.warn(`Received malformed profile_info from ${cid}:`, data);
+      }
+    });
   }
 
   // Removed handleCallbackAndSendSolution method
@@ -250,26 +265,24 @@ export class WebRTCApp {
             const newClientPublicKey = newClientState?.publicKey;
 
             if (existingClientPeerObject && newClientPublicKey) {
-                const newClientProfile = getPeerProfile(newClientPublicKey);
                 // Tell existing client (existingCid) about the new client (cid)
+                // Profile is no longer sent in participant message
                 this.sendNego(existingClientPeerObject, { 
                     type: "participant", 
                     cid: cid, 
-                    publicKey: newClientPublicKey, 
-                    profile: newClientProfile 
+                    publicKey: newClientPublicKey 
                 });
             }
 
             const existingClientState = getDirectClientState(existingCid); // State of the existing client
             const existingClientPublicKey = existingClientState?.publicKey;
             if (existingClientPublicKey) {
-                const existingClientProfile = getPeerProfile(existingClientPublicKey);
                 // Tell the new client (cid) about the existing client (existingCid)
+                // Profile is no longer sent in participant message
                 this.sendNego(client, { 
                     type: "participant", 
                     cid: existingCid, 
-                    publicKey: existingClientPublicKey, 
-                    profile: existingClientProfile 
+                    publicKey: existingClientPublicKey 
                 });
             }
         }
