@@ -107,7 +107,7 @@ export class WebRTCApp {
       const client = getDirectClient(cid);
       if (!client) return;
       client.trusting = true;
-      this.annouceParticipants(cid, client);
+      this.acceptClient(cid, client);
     });
 
     registerNegoHandler("solution", async (data: any, cid: string) => {
@@ -119,12 +119,12 @@ export class WebRTCApp {
         if (!client) return;
         client.trusted = true;
         this.sendNego(client, { type: "trusted" });
-        this.annouceParticipants(cid, client);
+        this.acceptClient(cid, client);
       }
     });
 
     registerNegoHandler("challenge", async (data: any, cid: string) => {
-      console.log("challenge received from", cid, "data:", data.data);
+      console.log("challenge received from", cid, "data:", data);
       // Auth state (keys, jwt) should be retrieved from authStore via AppLogicContext or similar
       // For this example, we'll assume a way to get it.
       // This handler now relies on the UI/authStore to manage login.
@@ -152,7 +152,7 @@ export class WebRTCApp {
         const privateKey = await crypto.subtle.importKey(
             "jwk",
             authState.privateKeyJwk,
-            { name: "ECDSA", namedCurve: "P-256" },
+            { name: "ECDSA", namedCurve: "P-384" },
             true,
             ["sign"]
         );
@@ -189,7 +189,7 @@ export class WebRTCApp {
 
   // Removed handleCallbackAndSendSolution method
 
-  public annouceParticipants(cid: string, client: WebRTCClient): void {
+  public acceptClient(cid: string, client: WebRTCClient): void {
     if (!client.trusted || !client.trusting) return;
     // Announce self to existing clients (retrieved from store)
     getAllClientCids().forEach(existingCid => {
@@ -203,6 +203,12 @@ export class WebRTCApp {
             this.sendNego(client, { type: "participant", cid: existingCid });
         }
     });
+
+    setupTrackHandler(cid);
+    setupChatChannel(cid);
+    setupFileChannel(cid); // Pass app for config/context if needed, but setup uses store for client
+    setupForwardChannel(cid); // Pass app for config/context if needed, but setup uses store for client
+    setupTranscriptionChannel(cid);
   }
 
   public sendNego(client: WebRTCClient, data: NegoMessage): void {
@@ -403,7 +409,7 @@ export class WebRTCApp {
     nego_dc.onmessage = async e => {
       const data = JSON.parse(e.data);
       if (!client.trusted || !client.trusting) {
-        if (!["challenge", "solution", "trust"].includes(data.type)) {
+        if (!["challenge", "solution", "trusted"].includes(data.type)) {
           console.log("ignoring message from untrusted peer", data);
           return;
         }
@@ -428,12 +434,6 @@ export class WebRTCApp {
       // This relies on the participant messages received from other peers.
       // The store state isn't directly used for signaling here.
     };
-
-    setupTrackHandler(cid);
-    setupChatChannel(cid);
-    setupFileChannel(cid); // Pass app for config/context if needed, but setup uses store for client
-    setupForwardChannel(cid); // Pass app for config/context if needed, but setup uses store for client
-    setupTranscriptionChannel(cid);
 
     client._transceiver_interval = window.setInterval(() => {
       // client.pc?.addTransceiver('audio', {direction: "recvonly"});

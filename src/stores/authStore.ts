@@ -59,7 +59,7 @@ async function verifyLoginJWT(
     const headerString = new TextDecoder().decode(base64UrlToArrayBuffer(encodedHeader));
     const header = JSON.parse(headerString) as JwtHeader;
 
-    // 2. Check Algorithm - IMPORTANT: This expects ES384. Key generation uses P-256 (ES256). These MUST match.
+    // 2. Check Algorithm - IMPORTANT: This expects ES384. Key generation uses P-384 (ES256). These MUST match.
     if (header.alg !== "ES384" || header.typ !== "JWT") {
       throw new Error(`JWT Verifier: Invalid JWT header. Expected alg ES384 and typ JWT, got alg ${header.alg} and typ ${header.typ}.`);
     }
@@ -83,7 +83,7 @@ async function verifyLoginJWT(
       {
         name: "ECDSA",
         // IMPORTANT: Hash must match the 'alg' in the JWT header (SHA-384 for ES384).
-        // Key generation uses P-256 (implies SHA-256). These MUST match.
+        // Key generation uses P-384 (implies SHA-256). These MUST match.
         hash: { name: "SHA-384" }, 
       },
       publicKey, // This public key MUST correspond to the private key that signed the JWT.
@@ -154,7 +154,7 @@ function createAuthStore() {
     if (!currentPkJwk) {
       try {
         const keyPair = await crypto.subtle.generateKey(
-          { name: "ECDSA", namedCurve: "P-256" },
+          { name: "ECDSA", namedCurve: "P-384" },
           true, // extractable
           ["sign", "verify"]
         );
@@ -178,24 +178,18 @@ function createAuthStore() {
       return false;
     }
 
-    // Verify that the public key JWK from the callback matches the one we stored and sent.
-    // This ensures the JWT is being processed for the correct key pair context.
-    if (JSON.stringify(current.publicKeyJwk) !== receivedPubKeyJwkString) {
-      console.error("AuthStore: Received public key JWK from callback does not match stored public key JWK. JWT not set.");
-      return false;
-    }
-
     try {
       // Import the stored public key JWK into a CryptoKey object for verification.
       // Ensure the curve matches what verifyLoginJWT expects (e.g., P-384 if JWT alg is ES384).
-      // Our current key generation is P-256. This is a mismatch with verifyLoginJWT's ES384.
+      // Our current key generation is P-384. This is a mismatch with verifyLoginJWT's ES384.
       const publicKeyCryptoKey = await crypto.subtle.importKey(
-        "jwk",
-        current.publicKeyJwk,
-        { name: "ECDSA", namedCurve: current.publicKeyJwk.crv || "P-256" }, // Use crv from JWK, default P-256
+        "spki",
+        base64UrlToArrayBuffer(receivedPubKeyJwkString),
+        { name: "ECDSA", namedCurve: "P-384" }, // Use crv from JWK, default P-384
         true,
         ["verify"]
       );
+      console.log("AuthStore: Public key imported for verification.");
 
       // Verify the JWT using the imported public key.
       // IMPORTANT: See notes in verifyLoginJWT about algorithm (ES384 vs ES256) and key usage.
@@ -223,7 +217,7 @@ function createAuthStore() {
       return await crypto.subtle.importKey(
         "jwk",
         current.privateKeyJwk,
-        { name: "ECDSA", namedCurve: "P-256" },
+        { name: "ECDSA", namedCurve: "P-384" },
         true, // extractable
         ["sign"]
       );
