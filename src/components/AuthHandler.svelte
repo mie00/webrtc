@@ -29,11 +29,11 @@
     if (currentPath === '/cb') {
       const urlParams = new URLSearchParams(window.location.search);
       const jwt = urlParams.get('jwt');
-      const pubkeyJwkString = urlParams.get('pubKey');
-      console.log(JSON.stringify(Array.from(urlParams.entries())))
+      const pubkeyJwkString = urlParams.get('pubkey'); // Corrected: 'pubkey' (lowercase k)
+      console.log("AuthHandler /cb params:", JSON.stringify(Array.from(urlParams.entries())))
 
       if (jwt && pubkeyJwkString) {
-        const success = authStore.setJwtAndVerifyKey(jwt, pubkeyJwkString);
+        const success = await authStore.setJwtAndVerifyKey(jwt, pubkeyJwkString);
         if (success) {
           console.log("AuthHandler: JWT and public key stored successfully.");
         } else {
