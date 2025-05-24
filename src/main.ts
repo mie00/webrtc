@@ -1,9 +1,15 @@
 import { mount } from 'svelte';
 import App from './App.svelte';
 import { WebRTCApp } from './lib/webrtc/WebRTCApp.js';
+import { authStore } from './stores/authStore.js'; // Import authStore
 
 // Make WebRTCApp available globally
 window.WebRTCApp = WebRTCApp;
+
+// Make authStore available globally for WebRTCApp's challenge handler (temporary workaround)
+// Ideally, WebRTCApp would get auth state via AppLogicContext
+(window as any).authStore = authStore;
+
 
 // Create a single instance of the app
 const webRTCApp = new WebRTCApp();

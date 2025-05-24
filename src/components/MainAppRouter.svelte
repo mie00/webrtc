@@ -1,6 +1,7 @@
 <script lang="ts">
   /// <reference path="../../../../types/global.d.ts" />
   import { onMount, onDestroy } from 'svelte';
+  import { authStore, type AuthState } from '../stores/authStore.js'; // Import authStore
   import MediaArea from './MediaArea.svelte';
   import ControlPanel from './ControlPanel.svelte';
   import CopyOverlay from './CopyOverlay.svelte';
@@ -35,6 +36,11 @@
   // Other component specific state
   let showConfigOverlay = false;
   let currentPath = window.location.pathname;
+  let currentAuthState: AuthState; // To hold reactive auth state
+
+  authStore.subscribe(value => {
+    currentAuthState = value;
+  });
   
   let appLogicInstance: AppLogic | null = null;
   let configUnsubscribe: (() => void) | null = null;
@@ -112,40 +118,46 @@
     window.location.href = url;
   };
 
+  async function handleLoginClick() {
+    const pkJwk = await authStore.ensureKeyPair();
+    if (pkJwk) {
+      const callbackTarget = `${window.location.origin}/cb`; // cid is not strictly needed for auth callback anymore
+      const loginUrl = `http://127.0.0.1:5173/login?callback=${encodeURIComponent(callbackTarget)}&payload=${encodeURIComponent(JSON.stringify(pkJwk))}`;
+      performLoginRedirect(loginUrl);
+    } else {
+      console.error("Failed to get public key for login redirect.");
+      // Show error to user
+    }
+  }
+
   onMount(async () => {
-    webRTCApp.setRequestLoginRedirectCallback(performLoginRedirect);
+    // webRTCApp.setRequestLoginRedirectCallback(performLoginRedirect); // No longer used from WebRTCApp
     const urlParams = new URLSearchParams(window.location.search);
 
     if (currentPath === '/cb') {
-      const cid = urlParams.get('cid');
+      // const cid = urlParams.get('cid'); // cid might not be relevant here anymore for auth
       const jwt = urlParams.get('jwt');
-      const pubkey = urlParams.get('pubkey'); // This is the JWK string
+      const pubkeyJwkString = urlParams.get('pubkey'); // This is the JWK string
 
-      if (cid && jwt && pubkey) {
-        try {
-          await webRTCApp.handleCallbackAndSendSolution(cid, jwt, pubkey);
-          // Redirect to the main page after processing
-          const basePath = window.location.pathname.split('/cb')[0] || '/';
-          window.location.href = window.location.origin + basePath;
-          return; // Stop further processing for /cb path
-        } catch (err) {
-          console.error("Error handling callback and sending solution:", err);
-          // Potentially show an error message to the user
-          // For now, redirect to main page anyway or an error page
-          const basePath = window.location.pathname.split('/cb')[0] || '/';
-          window.location.href = window.location.origin + basePath;
-          return;
+      if (jwt && pubkeyJwkString) {
+        const success = authStore.setJwtAndVerifyKey(jwt, pubkeyJwkString);
+        if (success) {
+          console.log("JWT and public key stored successfully.");
+        } else {
+          console.error("Failed to store JWT or verify public key.");
+          // Potentially show an error to the user
         }
       } else {
-        console.error("Missing cid, jwt, or pubkey in callback URL for /cb");
-        // Redirect to main page if params are missing
-        const basePath = window.location.pathname.split('/cb')[0] || '/';
-        window.location.href = window.location.origin + basePath;
-        return;
+        console.error("Missing jwt or pubkey in callback URL for /cb");
       }
+      // Always redirect to the main page after processing /cb
+      const basePath = window.location.pathname.split('/cb')[0] || '/'; // Handles sub-paths if any
+      window.location.href = window.location.origin + basePath; // Clears query params
+      return; // Stop further processing for /cb path
     }
 
     // Regular initialization for non-/cb paths
+    // The AppLogicContext will need access to authStore values if Client/ServerLogic need them
     let mode: 'client' | 'server';
     if (!$configStore['coordinator-url']) {
       mode = 'client';
@@ -262,6 +274,38 @@
 </script>
 
 {#if currentPath !== '/cb'}
+  {#if !currentAuthState || !currentAuthState.jwt}
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center z-50">
+      <div class="p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="text-center">
+          <h3 class="text-lg leading-6 font-medium text-gray-900">Authentication Required</h3>
+          <div class="mt-2 px-7 py-3">
+            <p class="text-sm text-gray-500">
+              Please log in to use the full features of the application.
+            </p>
+          </div>
+          <div class="items-center px-4 py-3">
+            <button
+              id="login-button"
+              class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              on:click={handleLoginClick}
+            >
+              Login
+            </button>
+          </div>
+           <div class="items-center px-4 py-3">
+            <button
+              class="px-4 py-2 bg-gray-200 text-gray-700 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
+              on:click={() => authStore.logout()}
+            >
+              (Dev) Logout / Clear Auth
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
+
   <main class="flex-1 flex">
     <MediaArea hangup={handleHangup} openQr={handleOpenQrRequest} />
     <ControlPanel />
