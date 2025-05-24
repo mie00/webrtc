@@ -14,6 +14,14 @@ import {
   getDirectClientState
 } from '../../stores/connectionStore.js'; // Adjust path if needed
 import { getAllConfig } from '../../stores/configStore.js';
+import { profileStore } from '../../stores/profileStore.js';
+import { 
+  updatePeerProfile, 
+  removePeerProfile, 
+  resetPeerProfilesStore,
+  getPeerProfile
+} from '../../stores/peerProfileStore.js';
+import { get } from 'svelte/store';
 import { 
   registerNegoHandler, 
   getNegoHandler, 
@@ -93,13 +101,17 @@ export class WebRTCApp {
 
     registerNegoHandler("participant", (data: any, cid: string) => {
       // cid here is the relaying client's cid
-      addParticipant(data.cid, cid);
+      addParticipant(data.cid, cid); // data.cid is the new participant's CID
+      if (data.profile && typeof data.profile.userName !== 'undefined') {
+        updatePeerProfile(data.cid, { userName: data.profile.userName });
+      }
       // No need to call handleChange here, the store update is reactive
     });
 
     registerNegoHandler("participant.end", (data: any, cid: string) => {
       // cid here is the relaying client's cid (though not strictly needed for removal)
-      removeParticipant(data.cid);
+      removeParticipant(data.cid); // data.cid is the participant leaving
+      removePeerProfile(data.cid); // Remove profile of the participant leaving
         // No need to call handleChange here, the store update is reactive
     });
 
@@ -107,6 +119,10 @@ export class WebRTCApp {
       const client = getDirectClient(cid);
       if (!client) return;
       client.trusting = true;
+
+      if (data.profile && typeof data.profile.userName !== 'undefined') {
+        updatePeerProfile(cid, { userName: data.profile.userName });
+      }
       this.acceptClient(cid, client);
     });
 
@@ -118,7 +134,15 @@ export class WebRTCApp {
         const client = getDirectClient(cid);
         if (!client) return;
         client.trusted = true;
-        this.sendNego(client, { type: "trusted" });
+
+        const currentUserProfile = get(profileStore);
+        const profileData = { userName: currentUserProfile.userName };
+        
+        this.sendNego(client, { type: "trusted", profile: profileData });
+        // Store own profile for this peer as well, as they now trust us
+        if (profileData.userName !== null) {
+            updatePeerProfile(cid, profileData);
+        }
         this.acceptClient(cid, client);
       }
     });
@@ -191,16 +215,19 @@ export class WebRTCApp {
 
   public acceptClient(cid: string, client: WebRTCClient): void {
     if (!client.trusted || !client.trusting) return;
+
     // Announce self to existing clients (retrieved from store)
     getAllClientCids().forEach(existingCid => {
-        if (existingCid !== cid) {
-            const existingClient = getDirectClient(existingCid);
-            if (existingClient) {
-                // Tell existing client about the new client (cid)
-                this.sendNego(existingClient, { type: "participant", cid: cid });
+        if (existingCid !== cid) { // cid is the new client, existingCid is an already connected client
+            const existingClientPeer = getDirectClient(existingCid);
+            if (existingClientPeer) {
+                // Tell existing client (existingCid) about the new client (cid)
+                const newClientProfile = getPeerProfile(cid); // Profile of the newly accepted client
+                this.sendNego(existingClientPeer, { type: "participant", cid: cid, profile: newClientProfile });
             }
-            // Tell the new client (cid) about the existing client
-            this.sendNego(client, { type: "participant", cid: existingCid });
+            // Tell the new client (cid) about the existing client (existingCid)
+            const existingClientKnownProfile = getPeerProfile(existingCid); // Profile of an already connected client
+            this.sendNego(client, { type: "participant", cid: existingCid, profile: existingClientKnownProfile });
         }
     });
 
@@ -284,8 +311,9 @@ export class WebRTCApp {
     }
     // Remove from the store last
     removeDirectClient(cid);
+    removePeerProfile(cid); // Remove profile for the disconnected client
     // Also remove self from the participant list if present (might happen if announced before full cleanup)
-    removeParticipant(cid);
+    removeParticipant(cid); // This might be redundant if participant.end already handled it for this cid
   }
 
   public cleanup(): void {
@@ -318,6 +346,8 @@ export class WebRTCApp {
     resetConnectionStore();
     // Reset the app state store (handlers, cleanups)
     resetAppStateStore();
+    // Reset the peer profiles store
+    resetPeerProfilesStore();
   }
 
   public destroy(): void {
