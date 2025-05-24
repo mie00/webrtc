@@ -16,7 +16,8 @@
   async function handleLoginClick() {
     const pkJwk = await authStore.ensureKeyPair();
     if (pkJwk) {
-      const callbackTarget = `${window.location.origin}/cb`;
+      // Append current query parameters to the callbackTarget
+      const callbackTarget = `${window.location.origin}/cb${window.location.search}`;
       const loginUrl = `http://localhost:5173/login?callback=${encodeURIComponent(callbackTarget)}&payload=${encodeURIComponent(JSON.stringify(pkJwk))}`;
       performLoginRedirect(loginUrl);
     } else {
@@ -43,8 +44,14 @@
         console.error("AuthHandler: Missing jwt or pubkey in callback URL for /cb");
       }
       
+      // Preserve other query parameters after removing auth-specific ones
       const basePath = window.location.pathname.split('/cb')[0] || '/';
-      window.location.href = window.location.origin + basePath; // Redirect to clean base path
+      urlParams.delete('jwt');
+      urlParams.delete('pubKey'); 
+      // The 'payload' param was sent to the login server, not expected back in the /cb URL directly.
+      // If it were, it would be urlParams.delete('payload');
+      const remainingParams = urlParams.toString();
+      window.location.href = window.location.origin + basePath + (remainingParams ? `?${remainingParams}` : '');
       // No return needed here as the page will redirect.
     }
   });
