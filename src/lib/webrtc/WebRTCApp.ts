@@ -42,6 +42,8 @@ export class WebRTCApp {
   private sids: Record<string, string> = {};
   private debug = false;
   private nego_messages: Record<string, any> = {};
+  private challengeDataStore: Record<string, { privateKey: CryptoKey, originalChallenge: any, publicKeyJWK: JsonWebKey }> = {};
+  private requestLoginRedirectCallback: ((url: string) => void) | null = null;
 
   constructor() { // Removed config parameter
     // Config is now managed solely by configStore
@@ -58,6 +60,10 @@ export class WebRTCApp {
   // get cid of sid from sids
   public getCid(sid: string): string | undefined {
     return this.sids[sid];
+  }
+
+  public setRequestLoginRedirectCallback(callback: (url: string) => void): void {
+    this.requestLoginRedirectCallback = callback;
   }
 
   private setupNegoHandlers(): void {
@@ -121,15 +127,100 @@ export class WebRTCApp {
     });
 
     registerNegoHandler("challenge", async (data: any, cid: string) => {
-      console.log("challenge", data);
-      // TODO: solve challenge
-      const solution = await true;
-      if (solution) {
+      console.log("challenge received", data);
+      try {
+        const keyPair = await crypto.subtle.generateKey(
+          { name: "ECDSA", namedCurve: "P-256" },
+          true, // extractable
+          ["sign", "verify"]
+        );
+        const publicKeyJWK = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+
+        this.challengeDataStore[cid] = {
+          privateKey: keyPair.privateKey,
+          originalChallenge: data.data, // Assuming the challenge is in data.data from sendNego
+          publicKeyJWK: publicKeyJWK
+        };
+
+        // Construct callback URL that includes the cid
+        const callbackTarget = `${window.location.origin}/cb?cid=${cid}`;
+        const loginUrl = `http://127.0.0.1:5173/login?callback=${encodeURIComponent(callbackTarget)}&payload=${encodeURIComponent(JSON.stringify(publicKeyJWK))}`;
+
+        if (this.requestLoginRedirectCallback) {
+          this.requestLoginRedirectCallback(loginUrl);
+        } else {
+          console.warn("requestLoginRedirectCallback not set on WebRTCApp. Cannot redirect for challenge.");
+          console.log("Login URL (manual):", loginUrl); // Fallback for manual navigation
+        }
+
+      } catch (error) {
+        console.error("Error handling challenge:", error);
+        // Optionally send an error back to the challenger or handle locally
         const client = getDirectClient(cid);
-        if (!client) return;
-        this.sendNego(client, { type: "solution", solution });
-      };
+        if (client) {
+            // Example: this.sendNego(client, { type: "challenge_error", error: "Failed to process challenge" });
+        }
+      }
     });
+  }
+
+  public async handleCallbackAndSendSolution(cid: string, jwt: string, pubKeyJWKStringFromCallback: string): Promise<void> {
+    const client = getDirectClient(cid);
+    const storedData = this.challengeDataStore[cid];
+
+    if (!client || !client.pc) {
+      console.error("Client not found or PC not available for cid:", cid);
+      return;
+    }
+    if (!storedData) {
+      console.error("No stored challenge data found for cid:", cid);
+      // This might happen if the page was reloaded or cid is incorrect.
+      // Or if the callback was somehow invoked without a preceding challenge.
+      return;
+    }
+
+    const { privateKey, originalChallenge, publicKeyJWK } = storedData;
+
+    // Verify that the pubKeyJWKStringFromCallback matches the stored publicKeyJWK (optional but good practice)
+    if (JSON.stringify(publicKeyJWK) !== pubKeyJWKStringFromCallback) {
+        console.warn("Public key from callback does not match stored public key. Aborting solution.");
+        // Potentially clear storedData if this is considered a fatal mismatch
+        // delete this.challengeDataStore[cid];
+        return;
+    }
+
+    try {
+      // Ensure originalChallenge is consistently formatted (e.g., stringified if it's an object)
+      const challengeString = typeof originalChallenge === 'string' ? originalChallenge : JSON.stringify(originalChallenge);
+      const challengeBuffer = new TextEncoder().encode(challengeString);
+
+      const signatureBuffer = await crypto.subtle.sign(
+        { name: "ECDSA", hash: "SHA-256" },
+        privateKey,
+        challengeBuffer
+      );
+
+      // Convert ArrayBuffer to Base64 string for transport
+      const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
+
+      this.sendNego(client, {
+        type: "solution",
+        solution: { // Keep the nested structure for the solution payload
+          signedChallenge: signatureBase64,
+          jwt: jwt,
+          pubKey: pubKeyJWKStringFromCallback, // This is the JWK string of the public key
+          originalChallenge: originalChallenge // Send back the original challenge data
+        }
+      });
+
+      console.log("Solution sent for cid:", cid);
+      // Clean up stored data after successfully sending the solution
+      delete this.challengeDataStore[cid];
+
+    } catch (error) {
+      console.error("Error signing or sending solution:", error);
+      // Consider if partial cleanup is needed or if an error should be signaled.
+    }
   }
 
   public annouceParticipants(cid: string, client: WebRTCClient): void {
