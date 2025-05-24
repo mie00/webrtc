@@ -2,15 +2,30 @@
   /// <reference path="../../../types/global.d.ts" />
   import { WebRTCApp } from './lib/webrtc/WebRTCApp.js';
   import MainAppRouter from './components/MainAppRouter.svelte';
+  import AuthHandler from './components/AuthHandler.svelte';
+  import { authStore, type AuthState } from './stores/authStore.js';
+  import { onDestroy } from 'svelte';
 
-  // Instantiate WebRTCApp here, so it's a single instance for the application.
-  // It's passed as a prop to MainAppRouter.
   const webRTCApp = new WebRTCApp();
   
+  let currentAuthState: AuthState;
+  const unsubscribeAuth = authStore.subscribe(value => {
+    currentAuthState = value;
+  });
+
+  // This simple path check works for initial load.
+  // For more complex client-side routing, a proper routing library would be needed.
+  let currentPath = window.location.pathname;
+
+  onDestroy(() => {
+    if (unsubscribeAuth) {
+      unsubscribeAuth();
+    }
+  });
 </script>
 
-<!-- 
-  The MainAppRouter component now handles all the UI rendering,
-  state management, and logic initialization that was previously in App.svelte.
--->
-<MainAppRouter {webRTCApp} />
+<AuthHandler />
+
+{#if currentAuthState && currentAuthState.jwt && currentPath !== '/cb'}
+  <MainAppRouter {webRTCApp} />
+{/if}
