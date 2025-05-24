@@ -122,7 +122,7 @@
     const pkJwk = await authStore.ensureKeyPair();
     if (pkJwk) {
       const callbackTarget = `${window.location.origin}/cb`; // cid is not strictly needed for auth callback anymore
-      const loginUrl = `http://127.0.0.1:5173/login?callback=${encodeURIComponent(callbackTarget)}&payload=${encodeURIComponent(JSON.stringify(pkJwk))}`;
+      const loginUrl = `http://localhost:5173/login?callback=${encodeURIComponent(callbackTarget)}&payload=${encodeURIComponent(JSON.stringify(pkJwk))}`;
       performLoginRedirect(loginUrl);
     } else {
       console.error("Failed to get public key for login redirect.");
