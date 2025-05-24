@@ -15,10 +15,7 @@ if (!targetElement) {
   throw new Error("Target element 'app' not found in the DOM");
 }
 mount(App, {
-  target: targetElement,
-  props: {
-    webRTCApp
-  }
+  target: targetElement
 });
 
 // For backward compatibility
