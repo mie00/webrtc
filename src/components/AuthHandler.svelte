@@ -29,7 +29,7 @@
     if (currentPath === '/cb') {
       const urlParams = new URLSearchParams(window.location.search);
       const jwt = urlParams.get('jwt');
-      const pubkeyJwkString = urlParams.get('pubkey'); // Corrected: 'pubkey' (lowercase k)
+      const pubkeyJwkString = urlParams.get('pubKey'); // Corrected: 'pubkey' (lowercase k)
       console.log("AuthHandler /cb params:", JSON.stringify(Array.from(urlParams.entries())))
 
       if (jwt && pubkeyJwkString) {
