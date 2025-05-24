@@ -13,13 +13,13 @@ export interface DirectClientState {
   connectionState: RTCPeerConnectionState | null; // Use client's state
   iceConnectionState: RTCIceConnectionState | null; // Use client's state
   fingerprint: string | null; // Added for fingerprint display
-  publicId: string | null; // Added for peer's public identifier
+  publicKey: string | null; // Added for peer's public key
 }
 
 export interface ParticipantState {
   cid: string;
   relayCid: string;
-  publicId: string | null; // Added for participant's public identifier
+  publicKey: string | null; // Added for participant's public key
 }
 
 export interface ConnectionState {
@@ -47,18 +47,18 @@ export function addDirectClient(cid: string, client: WebRTCClient): void {
       connectionState: client.pc?.connectionState ?? 'new',
       iceConnectionState: client.pc?.iceConnectionState ?? 'new',
       fingerprint: null, // Initialize fingerprint
-      publicId: null, // Initialize publicId
+      publicKey: null, // Initialize publicKey
     };
     return { ...state, directClients };
   });
 }
 
-export function updateDirectClientPublicId(cid: string, publicId: string): void {
+export function updateDirectClientPublicKey(cid: string, publicKey: string): void {
   connectionStore.update(state => {
     if (state.directClients[cid]) {
-      state.directClients[cid].publicId = publicId;
+      state.directClients[cid].publicKey = publicKey;
     } else {
-      console.warn(`Attempted to update publicId for non-existent direct client: ${cid}`);
+      console.warn(`Attempted to update publicKey for non-existent direct client: ${cid}`);
     }
     return state;
   });
@@ -100,11 +100,11 @@ export function removeDirectClient(cid: string): void {
   });
 }
 
-export function addParticipant(cid: string, relayCid: string, publicId: string | null): void {
+export function addParticipant(cid: string, relayCid: string, publicKey: string | null): void {
   connectionStore.update(state => {
     // Avoid adding self or existing direct clients as relayed participants
     if (cid !== relayCid && !state.directClients[cid]) {
-       state.participants[cid] = { cid, relayCid, publicId };
+       state.participants[cid] = { cid, relayCid, publicKey };
     }
     return state;
   });

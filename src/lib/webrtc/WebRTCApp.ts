@@ -3,7 +3,7 @@ import {
   addDirectClient,
   updateDirectClientState,
   updateDirectClientFingerprint,
-  updateDirectClientPublicId, // Added
+  updateDirectClientPublicKey, // Renamed
   removeDirectClient,
   addParticipant,
   removeParticipant,
@@ -103,11 +103,11 @@ export class WebRTCApp {
     registerNegoHandler("participant", (data: any, relayingClientCid: string) => {
       // relayingClientCid is the CID of the client that relayed this message
       // data.cid is the new participant's CID
-      // data.publicId is the new participant's publicId
+      // data.publicKey is the new participant's publicKey
       // data.profile is the new participant's profile
-      addParticipant(data.cid, relayingClientCid, data.publicId || null);
-      if (data.publicId && data.profile && typeof data.profile.userName !== 'undefined') {
-        updatePeerProfile(data.publicId, { userName: data.profile.userName });
+      addParticipant(data.cid, relayingClientCid, data.publicKey || null);
+      if (data.publicKey && data.profile && typeof data.profile.userName !== 'undefined') {
+        updatePeerProfile(data.publicKey, { userName: data.profile.userName });
       }
       // No need to call handleChange here, the store update is reactive
     });
@@ -115,10 +115,10 @@ export class WebRTCApp {
     registerNegoHandler("participant.end", (data: any, cid: string) => {
       // cid here is the relaying client's cid (though not strictly needed for removal)
       // data.cid is the CID of the participant leaving
-      // data.publicId is the publicId of the participant leaving
+      // data.publicKey is the publicKey of the participant leaving
       removeParticipant(data.cid); 
-      if (data.publicId) {
-        removePeerProfile(data.publicId); // Remove profile of the participant leaving
+      if (data.publicKey) {
+        removePeerProfile(data.publicKey); // Remove profile of the participant leaving
       }
         // No need to call handleChange here, the store update is reactive
     });
@@ -130,11 +130,11 @@ export class WebRTCApp {
 
       if (data.profile && typeof data.profile.userName !== 'undefined') {
         const senderClientState = getDirectClientState(cid);
-        const senderPublicId = senderClientState?.publicId;
-        if (senderPublicId) {
-          updatePeerProfile(senderPublicId, { userName: data.profile.userName });
+        const senderPublicKey = senderClientState?.publicKey;
+        if (senderPublicKey) {
+          updatePeerProfile(senderPublicKey, { userName: data.profile.userName });
         } else {
-          console.warn(`Received trusted message from ${cid} but publicId not found.`);
+          console.warn(`Received trusted message from ${cid} but publicKey not found.`);
         }
       }
       this.acceptClient(cid, client);
@@ -148,13 +148,13 @@ export class WebRTCApp {
         const client = getDirectClient(cid);
         if (!client) return;
 
-        // Extract pubKey from solution and store it as publicId
-        const peerPublicId = data.solution?.pubKey; // This is a string (JSON.stringified JWK)
-        if (peerPublicId && typeof peerPublicId === 'string') {
-          updateDirectClientPublicId(cid, peerPublicId);
+        // Extract pubKey from solution and store it as publicKey
+        const peerPublicKey = data.solution?.pubKey; // This is a string (JSON.stringified JWK)
+        if (peerPublicKey && typeof peerPublicKey === 'string') {
+          updateDirectClientPublicKey(cid, peerPublicKey);
         } else {
           console.warn(`Solution from ${cid} did not contain a valid pubKey.`);
-          // Potentially handle error: don't proceed with trusting if publicId is crucial
+          // Potentially handle error: don't proceed with trusting if publicKey is crucial
         }
         
         client.trusted = true; // We now trust this peer
@@ -165,9 +165,9 @@ export class WebRTCApp {
         // Send "trusted" message including our profile
         this.sendNego(client, { type: "trusted", profile: localProfileData });
         
-        // Store our profile against the peer's publicId, as we are now in a trusted relationship
-        if (peerPublicId && localProfileData.userName !== null) {
-            updatePeerProfile(peerPublicId, localProfileData);
+        // Store our profile against the peer's publicKey, as we are now in a trusted relationship
+        if (peerPublicKey && localProfileData.userName !== null) {
+            updatePeerProfile(peerPublicKey, localProfileData);
         }
         this.acceptClient(cid, client);
       }
@@ -247,28 +247,28 @@ export class WebRTCApp {
         if (existingCid !== cid) { // cid is the new client, existingCid is an already connected client
             const existingClientPeerObject = getDirectClient(existingCid); // The WebRTCClient object for the existing peer
             const newClientState = getDirectClientState(cid); // State of the newly accepted client
-            const newClientPublicId = newClientState?.publicId;
+            const newClientPublicKey = newClientState?.publicKey;
 
-            if (existingClientPeerObject && newClientPublicId) {
-                const newClientProfile = getPeerProfile(newClientPublicId);
+            if (existingClientPeerObject && newClientPublicKey) {
+                const newClientProfile = getPeerProfile(newClientPublicKey);
                 // Tell existing client (existingCid) about the new client (cid)
                 this.sendNego(existingClientPeerObject, { 
                     type: "participant", 
                     cid: cid, 
-                    publicId: newClientPublicId, 
+                    publicKey: newClientPublicKey, 
                     profile: newClientProfile 
                 });
             }
 
             const existingClientState = getDirectClientState(existingCid); // State of the existing client
-            const existingClientPublicId = existingClientState?.publicId;
-            if (existingClientPublicId) {
-                const existingClientProfile = getPeerProfile(existingClientPublicId);
+            const existingClientPublicKey = existingClientState?.publicKey;
+            if (existingClientPublicKey) {
+                const existingClientProfile = getPeerProfile(existingClientPublicKey);
                 // Tell the new client (cid) about the existing client (existingCid)
                 this.sendNego(client, { 
                     type: "participant", 
                     cid: existingCid, 
-                    publicId: existingClientPublicId, 
+                    publicKey: existingClientPublicKey, 
                     profile: existingClientProfile 
                 });
             }
@@ -300,13 +300,13 @@ export class WebRTCApp {
 
   public destroyClient(cid: string): void {
     const clientState = getDirectClientState(cid);
-    const publicIdToAnnounce = clientState?.publicId;
+    const publicKeyToAnnounce = clientState?.publicKey;
 
     // Notify other clients about the departure
     getAllClientCids().filter((key) => key !== cid).forEach((key) => {
       const otherClient = getDirectClient(key);
       if (otherClient) {
-          this.sendNego(otherClient, {type: 'participant.end', cid: cid, publicId: publicIdToAnnounce });
+          this.sendNego(otherClient, {type: 'participant.end', cid: cid, publicKey: publicKeyToAnnounce });
       }
     });
 
@@ -358,8 +358,8 @@ export class WebRTCApp {
     }
     // Remove from the store last
     removeDirectClient(cid);
-    if (publicIdToAnnounce) {
-      removePeerProfile(publicIdToAnnounce); // Remove profile for the disconnected client
+    if (publicKeyToAnnounce) {
+      removePeerProfile(publicKeyToAnnounce); // Remove profile for the disconnected client
     }
     // Also remove self from the participant list if present (might happen if announced before full cleanup)
     removeParticipant(cid); // This might be redundant if participant.end already handled it for this cid
