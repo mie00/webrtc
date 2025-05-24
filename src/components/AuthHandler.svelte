@@ -29,7 +29,8 @@
     if (currentPath === '/cb') {
       const urlParams = new URLSearchParams(window.location.search);
       const jwt = urlParams.get('jwt');
-      const pubkeyJwkString = urlParams.get('pubkey');
+      const pubkeyJwkString = urlParams.get('pubKey');
+      console.log(JSON.stringify(Array.from(urlParams.entries())))
 
       if (jwt && pubkeyJwkString) {
         const success = authStore.setJwtAndVerifyKey(jwt, pubkeyJwkString);
