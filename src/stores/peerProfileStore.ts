@@ -6,10 +6,10 @@ export interface PeerProfile {
 }
 
 export interface PeerProfilesState {
-  profiles: Record<string, PeerProfile>; // Keyed by CID
+  profiles: Record<string, PeerProfile>; // Keyed by publicId
 }
 
-const LOCAL_STORAGE_KEY = 'peerProfilesState';
+const LOCAL_STORAGE_KEY = 'peerProfilesState_v2'; // Changed key due to structure change
 
 // Function to get initial state from localStorage or use defaults
 function getInitialState(): PeerProfilesState {
@@ -21,9 +21,9 @@ function getInitialState(): PeerProfilesState {
         // Basic validation to ensure the structure is somewhat correct
         if (parsedState && typeof parsedState.profiles === 'object') {
           // Ensure all profiles have at least userName property
-          for (const cid in parsedState.profiles) {
-            if (typeof parsedState.profiles[cid].userName === 'undefined') {
-               parsedState.profiles[cid].userName = null; // Or handle as error
+          for (const publicId in parsedState.profiles) { // Iterate by publicId
+            if (typeof parsedState.profiles[publicId].userName === 'undefined') {
+               parsedState.profiles[publicId].userName = null; // Or handle as error
             }
           }
           return parsedState;
@@ -56,19 +56,19 @@ if (typeof window !== 'undefined' && window.localStorage) {
 
 // --- Store Actions ---
 
-// Add or update a peer's profile
-export function updatePeerProfile(cid: string, profile: PeerProfile): void {
+// Add or update a peer's profile, keyed by publicId
+export function updatePeerProfile(publicId: string, profile: PeerProfile): void {
   peerProfilesStore.update(state => {
-    const newProfiles = { ...state.profiles, [cid]: profile };
+    const newProfiles = { ...state.profiles, [publicId]: profile };
     return { ...state, profiles: newProfiles };
   });
 }
 
-// Remove a peer's profile
-export function removePeerProfile(cid: string): void {
+// Remove a peer's profile, keyed by publicId
+export function removePeerProfile(publicId: string): void {
   peerProfilesStore.update(state => {
     const newProfiles = { ...state.profiles };
-    delete newProfiles[cid];
+    delete newProfiles[publicId];
     return { ...state, profiles: newProfiles };
   });
 }
@@ -82,12 +82,12 @@ export function resetPeerProfilesStore(): void {
 
 // --- Getters ---
 
-// Get a specific peer's profile
-export function getPeerProfile(cid: string): PeerProfile | undefined {
-  return get(peerProfilesStore).profiles[cid];
+// Get a specific peer's profile, by publicId
+export function getPeerProfile(publicId: string): PeerProfile | undefined {
+  return get(peerProfilesStore).profiles[publicId];
 }
 
-// Get all peer profiles
+// Get all peer profiles, keyed by publicId
 export function getAllPeerProfiles(): Record<string, PeerProfile> {
   return get(peerProfilesStore).profiles;
 }

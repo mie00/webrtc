@@ -3,6 +3,7 @@ import {
   addDirectClient,
   updateDirectClientState,
   updateDirectClientFingerprint,
+  updateDirectClientPublicId, // Added
   removeDirectClient,
   addParticipant,
   removeParticipant,
@@ -99,49 +100,74 @@ export class WebRTCApp {
       }
     });
 
-    registerNegoHandler("participant", (data: any, cid: string) => {
-      // cid here is the relaying client's cid
-      addParticipant(data.cid, cid); // data.cid is the new participant's CID
-      if (data.profile && typeof data.profile.userName !== 'undefined') {
-        updatePeerProfile(data.cid, { userName: data.profile.userName });
+    registerNegoHandler("participant", (data: any, relayingClientCid: string) => {
+      // relayingClientCid is the CID of the client that relayed this message
+      // data.cid is the new participant's CID
+      // data.publicId is the new participant's publicId
+      // data.profile is the new participant's profile
+      addParticipant(data.cid, relayingClientCid, data.publicId || null);
+      if (data.publicId && data.profile && typeof data.profile.userName !== 'undefined') {
+        updatePeerProfile(data.publicId, { userName: data.profile.userName });
       }
       // No need to call handleChange here, the store update is reactive
     });
 
     registerNegoHandler("participant.end", (data: any, cid: string) => {
       // cid here is the relaying client's cid (though not strictly needed for removal)
-      removeParticipant(data.cid); // data.cid is the participant leaving
-      removePeerProfile(data.cid); // Remove profile of the participant leaving
+      // data.cid is the CID of the participant leaving
+      // data.publicId is the publicId of the participant leaving
+      removeParticipant(data.cid); 
+      if (data.publicId) {
+        removePeerProfile(data.publicId); // Remove profile of the participant leaving
+      }
         // No need to call handleChange here, the store update is reactive
     });
 
-    registerNegoHandler("trusted", (data: any, cid: string) => {
+    registerNegoHandler("trusted", (data: any, cid: string) => { // cid is the sender of "trusted"
       const client = getDirectClient(cid);
       if (!client) return;
-      client.trusting = true;
+      client.trusting = true; // We know this peer is trusting us
 
       if (data.profile && typeof data.profile.userName !== 'undefined') {
-        updatePeerProfile(cid, { userName: data.profile.userName });
+        const senderClientState = getDirectClientState(cid);
+        const senderPublicId = senderClientState?.publicId;
+        if (senderPublicId) {
+          updatePeerProfile(senderPublicId, { userName: data.profile.userName });
+        } else {
+          console.warn(`Received trusted message from ${cid} but publicId not found.`);
+        }
       }
       this.acceptClient(cid, client);
     });
 
-    registerNegoHandler("solution", async (data: any, cid: string) => {
+    registerNegoHandler("solution", async (data: any, cid: string) => { // cid is the sender of "solution"
       console.log("solution", data);
       // TODO: verify solution
-      const verified = await true;
+      const verified = await true; // Assume verified for now
       if (verified) {
         const client = getDirectClient(cid);
         if (!client) return;
-        client.trusted = true;
+
+        // Extract pubKey from solution and store it as publicId
+        const peerPublicId = data.solution?.pubKey; // This is a string (JSON.stringified JWK)
+        if (peerPublicId && typeof peerPublicId === 'string') {
+          updateDirectClientPublicId(cid, peerPublicId);
+        } else {
+          console.warn(`Solution from ${cid} did not contain a valid pubKey.`);
+          // Potentially handle error: don't proceed with trusting if publicId is crucial
+        }
+        
+        client.trusted = true; // We now trust this peer
 
         const currentUserProfile = get(profileStore);
-        const profileData = { userName: currentUserProfile.userName };
+        const localProfileData = { userName: currentUserProfile.userName };
         
-        this.sendNego(client, { type: "trusted", profile: profileData });
-        // Store own profile for this peer as well, as they now trust us
-        if (profileData.userName !== null) {
-            updatePeerProfile(cid, profileData);
+        // Send "trusted" message including our profile
+        this.sendNego(client, { type: "trusted", profile: localProfileData });
+        
+        // Store our profile against the peer's publicId, as we are now in a trusted relationship
+        if (peerPublicId && localProfileData.userName !== null) {
+            updatePeerProfile(peerPublicId, localProfileData);
         }
         this.acceptClient(cid, client);
       }
@@ -219,15 +245,33 @@ export class WebRTCApp {
     // Announce self to existing clients (retrieved from store)
     getAllClientCids().forEach(existingCid => {
         if (existingCid !== cid) { // cid is the new client, existingCid is an already connected client
-            const existingClientPeer = getDirectClient(existingCid);
-            if (existingClientPeer) {
+            const existingClientPeerObject = getDirectClient(existingCid); // The WebRTCClient object for the existing peer
+            const newClientState = getDirectClientState(cid); // State of the newly accepted client
+            const newClientPublicId = newClientState?.publicId;
+
+            if (existingClientPeerObject && newClientPublicId) {
+                const newClientProfile = getPeerProfile(newClientPublicId);
                 // Tell existing client (existingCid) about the new client (cid)
-                const newClientProfile = getPeerProfile(cid); // Profile of the newly accepted client
-                this.sendNego(existingClientPeer, { type: "participant", cid: cid, profile: newClientProfile });
+                this.sendNego(existingClientPeerObject, { 
+                    type: "participant", 
+                    cid: cid, 
+                    publicId: newClientPublicId, 
+                    profile: newClientProfile 
+                });
             }
-            // Tell the new client (cid) about the existing client (existingCid)
-            const existingClientKnownProfile = getPeerProfile(existingCid); // Profile of an already connected client
-            this.sendNego(client, { type: "participant", cid: existingCid, profile: existingClientKnownProfile });
+
+            const existingClientState = getDirectClientState(existingCid); // State of the existing client
+            const existingClientPublicId = existingClientState?.publicId;
+            if (existingClientPublicId) {
+                const existingClientProfile = getPeerProfile(existingClientPublicId);
+                // Tell the new client (cid) about the existing client (existingCid)
+                this.sendNego(client, { 
+                    type: "participant", 
+                    cid: existingCid, 
+                    publicId: existingClientPublicId, 
+                    profile: existingClientProfile 
+                });
+            }
         }
     });
 
@@ -255,11 +299,14 @@ export class WebRTCApp {
   }
 
   public destroyClient(cid: string): void {
+    const clientState = getDirectClientState(cid);
+    const publicIdToAnnounce = clientState?.publicId;
+
     // Notify other clients about the departure
     getAllClientCids().filter((key) => key !== cid).forEach((key) => {
       const otherClient = getDirectClient(key);
       if (otherClient) {
-          this.sendNego(otherClient, {type: 'participant.end', cid: cid});
+          this.sendNego(otherClient, {type: 'participant.end', cid: cid, publicId: publicIdToAnnounce });
       }
     });
 
@@ -311,7 +358,9 @@ export class WebRTCApp {
     }
     // Remove from the store last
     removeDirectClient(cid);
-    removePeerProfile(cid); // Remove profile for the disconnected client
+    if (publicIdToAnnounce) {
+      removePeerProfile(publicIdToAnnounce); // Remove profile for the disconnected client
+    }
     // Also remove self from the participant list if present (might happen if announced before full cleanup)
     removeParticipant(cid); // This might be redundant if participant.end already handled it for this cid
   }
