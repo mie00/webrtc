@@ -4,29 +4,23 @@ import {
   removeCidKeys,
   resetCidKeyStore,
   getKeysByCid
-} from '../../stores/cidKeyStore.js'; // Import new store
+} from '../../stores/cidKeyStore.js';
 import type {
-  NegoData, // Keep one NegoData
+  NegoData,
   NegoMessageMap,
   NegoMessageType,
-  OfferNegoMessage, // Keep one OfferNegoMessage
-  AnswerNegoMessage, // Keep one AnswerNegoMessage
-  // ChallengeNegoMessage, // Moved to authHandler
-  // SolutionNegoMessage, // Moved to authHandler
-  TrustedNegoMessage, // For authHandler context & NegotiationManager
-  ParticipantNegoMessage, // For acceptClient & NegotiationManager
-  ParticipantEndNegoMessage, // For destroyClient & NegotiationManager
-  HangupNegoMessage, // For cleanup & NegotiationManager
-  BaseNegoMessage // For onmessage parsing before passing to negotiationManager
-  // OfferNegoMessage, AnswerNegoMessage are still needed for onnegotiationneeded - already listed
-  // and NegoData for some typings. - already listed
-} from '../../types/negoMessages.js'; // Adjusted import path
+  OfferNegoMessage,
+  AnswerNegoMessage,
+  TrustedNegoMessage,
+  ParticipantNegoMessage,
+  ParticipantEndNegoMessage,
+  HangupNegoMessage,
+  BaseNegoMessage
+} from '../../types/negoMessages.js';
 import {
   addDirectClient,
   updateDirectClientState,
   updateDirectClientFingerprint,
-  // updateDirectClientPublicKey, // Removed
-  // updateDirectClientUserPublicKey, // Removed
   removeDirectClient,
   addParticipant,
   removeParticipant,
@@ -36,20 +30,18 @@ import {
   getAllClientCids,
   type DirectClientState,
   getDirectClientState
-} from '../../stores/connectionStore.js'; // Adjust path if needed
+} from '../../stores/connectionStore.js';
 import { getAllConfig } from '../../stores/configStore.js';
-// import { profileStore } from '../../stores/profileStore.js'; // Moved to authHandler
 import { 
   updatePeerProfile, 
   removePeerProfile, 
 } from '../../stores/peerProfileStore.js';
-// import { get } from 'svelte/store'; // Moved to authHandler
 import { 
   registerNegoHandler, 
   getNegoHandler, 
   getAllCleanups,
   resetAppStateStore
-} from '../../stores/appStateStore.js'; // Import store functions
+} from '../../stores/appStateStore.js';
 import { diffChars } from 'diff';
 import { streamInit } from '../streamBridge.js';
 import { forwardInit } from '../forwardBridge.js';
@@ -59,26 +51,19 @@ import { setupForwardChannel } from '../forwardBridge.js';
 import { setupChatChannel } from '../chatBridge.js';
 import { setupFileChannel } from '../fileBridge.js';
 import { setupTranscriptionChannel } from '../media/transcriber.js';
-// import { verifyLoginJWT, verifyLoginJWTFromBase64 } from '../../stores/authStore.js'; // Moved to authHandler
 import { 
   createSolutionHandler, 
   createChallengeHandler 
-} from './authHandler.js'; // Import new auth handlers
+} from './authHandler.js';
 import { NegotiationManager, type NegotiationManagerContext } from './negotiationManager.js';
 
 export class WebRTCApp {
   private sids: Record<string, string> = {};
   private debug = false;
-  // private nego_messages: Record<string, any> = {}; // Moved to NegotiationManager
-  // Removed challengeDataStore and requestLoginRedirectCallback
-  // Note: sentChallengeData is added dynamically to client objects.
-  // Ideally, WebRTCClient interface in types/global.d.ts would be updated.
   private negotiationManager: NegotiationManager;
   private negotiationContext: NegotiationManagerContext;
 
-  constructor() { // Removed config parameter
-    // Config is now managed solely by configStore
-
+  constructor() {
     this.negotiationContext = {
       uuidv4: this.uuidv4.bind(this),
       actualSend: (dc, data) => {
@@ -111,17 +96,13 @@ export class WebRTCApp {
     forwardInit();
   }
 
-  // get cid of sid from sids
   public getCid(sid: string): string | undefined {
     return this.sids[sid];
   }
 
-  // Removed setRequestLoginRedirectCallback
-
   private setupNegoHandlers(): void {
     this.negotiationManager.initializeStandardNegoHandlers();
 
-    // Auth handlers are still registered here, but use negotiationManager's sendNegoMessage
     const solutionHandlerContext = {
       sendNego: this.negotiationManager.sendNegoMessage.bind(this.negotiationManager),
       acceptClient: this.acceptClient.bind(this)
@@ -130,11 +111,6 @@ export class WebRTCApp {
 
     const challengeHandlerContext = {
       sendNego: this.negotiationManager.sendNegoMessage.bind(this.negotiationManager),
-      // uuidv4 is not directly needed by createChallengeHandler if sendNegoMessage handles ID generation,
-      // but authHandler might still use it if it constructs messages with IDs itself.
-      // The current authHandler.createChallengeHandler doesn't seem to require uuidv4 in its context
-      // as sendNego (now negotiationManager.sendNegoMessage) handles ID.
-      // The authHandler.ts ChallengeHandlerContext requires uuidv4.
       uuidv4: this.uuidv4.bind(this) 
     };
     registerNegoHandler("challenge", createChallengeHandler(challengeHandlerContext));
@@ -146,7 +122,6 @@ export class WebRTCApp {
     getAllClientCids().forEach(existingCid => {
         if (existingCid !== cid) {
             const existingClientPeerObject = getDirectClient(existingCid);
-            // Get the new client's USER public key from cidKeyStore
             const newClientKeys = getKeysByCid(cid);
             const newUserPublicKey = newClientKeys?.userPublicKey;
 
@@ -154,19 +129,18 @@ export class WebRTCApp {
                 const participantMessage: ParticipantNegoMessage = {
                     type: "participant",
                     cid: cid,
-                    publicKey: newUserPublicKey // This is the user public key
+                    publicKey: newUserPublicKey
                 };
                 this.negotiationManager.sendNegoMessage(existingClientPeerObject, participantMessage);
             }
 
-            // Get the existing client's USER public key from cidKeyStore
             const existingClientKeys = getKeysByCid(existingCid);
             const existingUserPublicKey = existingClientKeys?.userPublicKey;
             if (existingUserPublicKey) {
                 const participantMessageToNew: ParticipantNegoMessage = {
                     type: "participant",
                     cid: existingCid,
-                    publicKey: existingUserPublicKey // This is the user public key
+                    publicKey: existingUserPublicKey
                 };
                 this.negotiationManager.sendNegoMessage(client, participantMessageToNew);
             }
@@ -185,8 +159,6 @@ export class WebRTCApp {
   }
 
   public destroyClient(cid: string): void {
-    // No need to get clientState for publicKeyToAnnounce, participant.end doesn't use it.
-
     getAllClientCids().filter((key) => key !== cid).forEach((key) => {
       const otherClient = getDirectClient(key);
       if (otherClient) {
@@ -200,13 +172,11 @@ export class WebRTCApp {
 
     const client = getDirectClient(cid);
     if (client) {
-      // Clear interval first
       if (client._transceiver_interval) {
         clearInterval(client._transceiver_interval);
         client._transceiver_interval = undefined;
       }
 
-      // Clean up data channels
       if (client.nego_dc) {
         client.nego_dc.onclose = null;
         client.nego_dc.onmessage = null;
@@ -224,17 +194,14 @@ export class WebRTCApp {
         client.forward.onmessage = null;
       }
 
-      // Clean up PeerConnection
       if (client.pc) {
-        // Run specific cleanups associated with this client
         const cleanups = getAllCleanups();
         for (const cleanup of Object.values(cleanups)) {
-          cleanup(cid); // Pass cid to cleanup functions
+          cleanup(cid);
         }
         client.pc.close();
-        client.pc = null; // Nullify PC reference
+        client.pc = null;
 
-        // Clear other client properties (optional, helps GC)
         client.dc = undefined;
         client.dc_file = undefined;
         client.forward = undefined;
@@ -244,45 +211,35 @@ export class WebRTCApp {
         client.makingOffer = undefined;
       }
     }
-    // Remove from the store last
     removeDirectClient(cid);
-    removeCidKeys(cid); // Remove keys from the new store
-    // Also remove self from the participant list if present (might happen if announced before full cleanup)
-    removeParticipant(cid); // This might be redundant if participant.end already handled it for this cid
+    removeCidKeys(cid);
+    removeParticipant(cid);
   }
 
   public cleanup(): void {
-    // Get all CIDs before resetting the store
     const cids = getAllClientCids();
 
-    // Run all general cleanup functions first
     const cleanups = getAllCleanups();
     for (const cleanup of Object.values(cleanups)) {
-      cleanup(); // Call without cid for global cleanup
+      cleanup();
     }
-    // appStateStore will be reset later, which clears cleanups
 
-    // Iterate through clients to send hangup and destroy
     for (const cid of cids) {
       const client = getDirectClient(cid);
       if (client) {
         const hangupMessage: HangupNegoMessage = { type: "hangup" };
         this.negotiationManager.sendNegoMessage(client, hangupMessage);
       }
-      // Destroy client (which also removes from store)
       this.destroyClient(cid);
     }
 
-    // Reset the connection store after all clients are processed
     resetConnectionStore();
-    // Reset the app state store (handlers, cleanups)
     resetAppStateStore();
-    // Reset the cid key store
     resetCidKeyStore();
   }
 
   public destroy(): void {
-    this.cleanup(); // This now also calls resetAppStateStore via cleanup's end
+    this.cleanup();
     this.reset();
   }
 
@@ -297,7 +254,6 @@ export class WebRTCApp {
   }
 
   public async initClient(polite: boolean, options: ClientInitOptions): Promise<string> {
-    // Get current config from the store
     const currentConfig = getAllConfig();
     const rtcConfig = {
       iceServers: [
@@ -313,50 +269,41 @@ export class WebRTCApp {
     const { sid, offer } = options;
     const cid = this.uuidv4();
     this.sids = this.sids || {};
-    // Check if a client for this sid already exists in the store
     if (sid && sid in this.sids && getDirectClient(this.sids[sid])) {
       getDirectClient(this.sids[sid])?.pc?.restartIce();
       return this.sids[sid];
     }
     this.sids[sid] = cid;
 
-    // Create the PeerConnection using config derived from the store
     const pc = new RTCPeerConnection(rtcConfig);
-    // Create the client object
     const client: WebRTCClient = { pc, polite, trusted: false, trusting: false };
-    // Add client to the store immediately
     addDirectClient(cid, client);
 
-    // Use the local 'client' variable for event handlers
     pc.onconnectionstatechange = () => {
-      if (pc) { // Check if pc still exists
+      if (pc) {
         updateDirectClientState(cid, pc.connectionState, pc.iceConnectionState);
-        // Trigger fingerprint update if connected
         if (pc.connectionState === 'connected' && pc.iceConnectionState === 'connected') {
-          this.updateFingerprint(cid); // Call helper function
+          this.updateFingerprint(cid);
         }
       }
     };
     pc.oniceconnectionstatechange = () => {
-      if (pc) { // Check if pc still exists
+      if (pc) {
         updateDirectClientState(cid, pc.connectionState, pc.iceConnectionState);
         if (pc.iceConnectionState === "failed") {
           pc.restartIce();
         }
-        // Trigger fingerprint update if connected
         if (pc.connectionState === 'connected' && pc.iceConnectionState === 'connected') {
-          this.updateFingerprint(cid); // Call helper function
+          this.updateFingerprint(cid);
         }
       }
     };
-
-    // addDirectClient(cid, polite); // This is now handled above with the full client object
 
     const nego_dc = pc.createDataChannel("nego", {
       negotiated: true,
       id: 0
     });
-    client.nego_dc = nego_dc; // Assign to local client object
+    client.nego_dc = nego_dc;
     nego_dc.onclose = async e => {
       console.log(e);
       this.destroyClient(cid);
@@ -368,13 +315,11 @@ export class WebRTCApp {
     };
 
     nego_dc.onmessage = async e => {
-      // Pass to negotiationManager to handle
       this.negotiationManager.handleIncomingNegoMessage(e.data, cid, client);
     };
 
     nego_dc.onopen = () => {
       const challengeData = Math.random().toString();
-      // Store the challenge data on the client object.
       client.sentChallengeData = challengeData; 
       
       const challengeMessage = {
@@ -386,8 +331,6 @@ export class WebRTCApp {
     };
 
     client._transceiver_interval = window.setInterval(() => {
-      // client.pc?.addTransceiver('audio', {direction: "recvonly"});
-      // client.pc?.addTransceiver('video', {direction: "recvonly"});
     }, 10000);
 
     if (offer) {
@@ -404,7 +347,7 @@ export class WebRTCApp {
     pc.onnegotiationneeded = async () => {
       client.makingOffer = true;
       try {
-        await pc?.setLocalDescription(); // This creates an offer if needed
+        await pc?.setLocalDescription();
         if (pc?.currentLocalDescription && pc?.localDescription) {
           this.logDiff(pc.currentLocalDescription.sdp, pc.localDescription.sdp);
         }
@@ -412,7 +355,6 @@ export class WebRTCApp {
           const offerMessage: OfferNegoMessage = { type: "offer", sdp: pc.localDescription.sdp };
           this.negotiationManager.sendNegoMessage(client, offerMessage);
         } else if (pc?.localDescription && pc.localDescription.type === "answer" && pc.localDescription.sdp) {
-          // This case might be less common here if onnegotiationneeded primarily generates offers
           const answerMessage: AnswerNegoMessage = { type: "answer", sdp: pc.localDescription.sdp };
           this.negotiationManager.sendNegoMessage(client, answerMessage);
         }
@@ -425,7 +367,6 @@ export class WebRTCApp {
 
     if (!offer) {
       setTimeout(() => {
-        // Re-fetch client from store in case it was destroyed
         const currentClient = getDirectClient(cid);
         if (currentClient?.pc?.signalingState === 'have-local-offer') {
           this.destroyClient(cid);
@@ -437,7 +378,7 @@ export class WebRTCApp {
 
   public async getOffer(cb: (candidate: RTCIceCandidate | null) => Promise<void>, options: {sid: string}): Promise<string> {
       const cid = await this.initClient(false, options);
-      const client = getDirectClient(cid); // Retrieve client from store
+      const client = getDirectClient(cid);
       if (client?.pc) {
           client.pc.onicecandidate = async ({ candidate }) => {
           console.log('Candidate found (offer)', candidate);
@@ -449,7 +390,7 @@ export class WebRTCApp {
 
   public async getAnswer(offer: string, cb: (candidate: RTCIceCandidate | null) => Promise<void>, options: {sid: string}): Promise<string> {
       const cid = await this.initClient(true, {sid: options.sid, offer});
-      const client = getDirectClient(cid); // Retrieve client from store
+      const client = getDirectClient(cid);
       if (client?.pc) {
         client.pc.onicecandidate = async ({ candidate }) => {
           console.log('Candidate found (answer)', candidate);
@@ -460,16 +401,9 @@ export class WebRTCApp {
   }
 
   public async sha256(message: string): Promise<string> {
-    // encode as UTF-8
     const msgBuffer = new TextEncoder().encode(message);
-
-    // hash the message
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-
-    // convert ArrayBuffer to Array
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-
-    // convert bytes to hex string                  
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     return hashHex;
   }
@@ -506,8 +440,6 @@ export class WebRTCApp {
       const fragment = document.createDocumentFragment();
 
       diff.forEach((part: any) => {
-        // green for additions, red for deletions
-        // grey for common parts
         const color = part.added ? 'green' :
           part.removed ? 'red' : 'grey';
         span = document.createElement('span');
@@ -519,16 +451,14 @@ export class WebRTCApp {
     }
   }
 
-  // Removed handleChange method
-
   private async updateFingerprint(cid: string): Promise<void> {
-      const client = getDirectClient(cid); // Get client from store
+      const client = getDirectClient(cid);
       if (!client || !client.pc) return;
 
       try {
           const stats = await client.pc.getStats();
           let transport: RTCTransportStats | null = null;
-          let certificates: Record<string, any> = {}; // Use specific type
+          let certificates: Record<string, any> = {};
           stats.forEach(stat => {
               if (stat.type === 'transport') {
                   transport = stat as RTCTransportStats;
@@ -542,7 +472,6 @@ export class WebRTCApp {
               const localCertId = (transport as any).localCertificateId;
 
               if (localCertId && remoteCertId && certificates[localCertId] && certificates[remoteCertId]) {
-                  // Ensure consistent ordering for fingerprint generation
                   const firstCert = client.polite ? certificates[remoteCertId] : certificates[localCertId];
                   const secondCert = !client.polite ? certificates[remoteCertId] : certificates[localCertId];
 
@@ -552,7 +481,6 @@ export class WebRTCApp {
                       updateDirectClientFingerprint(cid, ejs);
                       console.log(`Fingerprint for ${cid}: ${ejs}`);
 
-                      // Optional: Update history (UI logic for overlay is now in App.svelte)
                       if (!new URLSearchParams(window.location.search).has('r')) {
                           history.replaceState('', '', window.location.origin + window.location.pathname);
                       }
