@@ -1,4 +1,19 @@
 import { EMOJIS } from '../utils/emojis.js';
+import type {
+  NegoData,
+  NegoMessageMap,
+  NegoMessageType,
+  OfferNegoMessage,
+  AnswerNegoMessage,
+  ChallengeNegoMessage,
+  SolutionNegoMessage,
+  TrustedNegoMessage,
+  ParticipantNegoMessage,
+  ProfileInfoNegoMessage,
+  ParticipantEndNegoMessage,
+  HangupNegoMessage,
+  BaseNegoMessage
+} from '../../types/negoMessages'; // Adjusted import path
 import {
   addDirectClient,
   updateDirectClientState,
@@ -39,13 +54,6 @@ import { setupTranscriptionChannel } from '../media/transcriber.js';
 import { verifyLoginJWT } from 'src/stores/authStore.js';
 
 
-// Type definitions for local use
-interface NegoMessage {
-  id?: string;
-  type: string;
-  [key: string]: any;
-}
-
 export class WebRTCApp {
   private sids: Record<string, string> = {};
   private debug = false;
@@ -72,25 +80,28 @@ export class WebRTCApp {
   // Removed setRequestLoginRedirectCallback
 
   private setupNegoHandlers(): void {
-    registerNegoHandler("answer", (data: any, cid: string) => {
-      getDirectClient(cid)?.pc?.setRemoteDescription(data);
+    registerNegoHandler("answer", (data: AnswerNegoMessage, cid: string) => {
+      // data is RTCSessionDescriptionInit-like, which is what setRemoteDescription expects
+      getDirectClient(cid)?.pc?.setRemoteDescription(data as RTCSessionDescriptionInit);
     });
 
-    registerNegoHandler("offer", async (data: any, cid: string) => {
+    registerNegoHandler("offer", async (data: OfferNegoMessage, cid: string) => {
       const client = getDirectClient(cid);
       if (!client || !client.pc) return; // Check if client exists
       if (!client.polite) {
         if (client.makingOffer) return;
         if (client.pc.signalingState != "stable") return;
       }
-      await client.pc.setRemoteDescription(data);
-      await client.pc.setLocalDescription();
+      // data is RTCSessionDescriptionInit-like
+      await client.pc.setRemoteDescription(data as RTCSessionDescriptionInit);
+      await client.pc.setLocalDescription(); // This creates an answer
       if (client.pc.localDescription) {
-        this.sendNego(client, client.pc.localDescription);
+        // Send the answer back
+        this.sendNego(client, { type: "answer", sdp: client.pc.localDescription.sdp });
       }
     });
 
-    registerNegoHandler("hangup", (data: any, cid: string) => {
+    registerNegoHandler("hangup", (data: HangupNegoMessage, cid: string) => {
       const client = getDirectClient(cid);
       if (client && !client.polite) {
         this.destroyClient(cid);
@@ -99,72 +110,49 @@ export class WebRTCApp {
       }
     });
 
-    registerNegoHandler("participant", (data: any, relayingClientCid: string) => {
-      // relayingClientCid is the CID of the client that relayed this message
-      // data.cid is the new participant's CID
-      // data.publicKey is the new participant's publicKey
-      // Profile data is no longer sent via participant message
-      addParticipant(data.cid, relayingClientCid, data.publicKey || null);
-      // No need to call handleChange here, the store update is reactive
+    registerNegoHandler("participant", (data: ParticipantNegoMessage, relayingClientCid: string) => {
+      addParticipant(data.cid, relayingClientCid, data.publicKey);
     });
 
-    registerNegoHandler("participant.end", (data: any, cid: string) => {
-      // cid here is the relaying client's cid (though not strictly needed for removal)
-      // data.cid is the CID of the participant leaving
-      // data.publicKey is the publicKey of the participant leaving
-      removeParticipant(data.cid); 
-        // No need to call handleChange here, the store update is reactive
+    registerNegoHandler("participant.end", (data: ParticipantEndNegoMessage, cid: string) => {
+      removeParticipant(data.cid);
     });
 
-    registerNegoHandler("trusted", (data: any, cid: string) => { // cid is the sender of "trusted"
+    registerNegoHandler("trusted", (data: TrustedNegoMessage, cid: string) => {
       const client = getDirectClient(cid);
       if (!client) return;
       client.trusting = true; // We know this peer is trusting us
       this.acceptClient(cid, client);
     });
 
-    registerNegoHandler("solution", async (data: any, cid: string) => { // cid is the sender of "solution"
+    registerNegoHandler("solution", async (data: SolutionNegoMessage, cid: string) => {
       console.log("solution", data);
-      // TODO: verify solution
-      const verified = await verifyLoginJWT(data.jwt, data.publicKey);
+      // Assuming data.solution.jwt and data.solution.pubKey are correct based on SolutionNegoMessage type
+      const verified = await verifyLoginJWT(data.solution.jwt, data.solution.pubKey);
       if (verified) {
         const client = getDirectClient(cid);
         if (!client) return;
 
-        // Extract pubKey from solution and store it as publicKey
-        const peerPublicKey = data.solution?.pubKey; // This is a string (JSON.stringified JWK)
+        const peerPublicKey = data.solution.pubKey;
         if (peerPublicKey && typeof peerPublicKey === 'string') {
           updateDirectClientPublicKey(cid, peerPublicKey);
         } else {
           console.warn(`Solution from ${cid} did not contain a valid pubKey.`);
-          // Potentially handle error: don't proceed with trusting if publicKey is crucial
         }
         
         client.trusted = true; // We now trust this peer
         
-        // Send "trusted" message (no profile data here)
         this.sendNego(client, { type: "trusted" });
-
         this.acceptClient(cid, client);
       }
     });
 
-    registerNegoHandler("challenge", async (data: any, cid: string) => {
-      console.log("challenge received from", cid, "data:", data);
-      // Auth state (keys, jwt) should be retrieved from authStore via AppLogicContext or similar
-      // For this example, we'll assume a way to get it.
-      // This handler now relies on the UI/authStore to manage login.
-      // It will only attempt to send a solution if already authenticated.
-
-      // Placeholder for getting auth state - in a real scenario, this would come from AppLogicContext
-      // which has access to authStore.
-      const authState = window.authStore?.getAuthState(); // Example: direct access for simplicity here
+    registerNegoHandler("challenge", async (data: ChallengeNegoMessage, cid: string) => {
+      console.log("challenge received from", cid, "data:", data.data);
+      const authState = window.authStore?.getAuthState();
 
       if (!authState || !authState.privateKeyJwk || !authState.jwt || !authState.publicKeyJwk) {
         console.warn(`Cannot respond to challenge from ${cid}: User not authenticated or keys/JWT missing.`);
-        // UI should be responsible for prompting login if necessary.
-        // Optionally, send a "login_required" nego message if the protocol supports it.
-        // this.sendNego(getDirectClient(cid), { type: "login_required_for_challenge" });
         return;
       }
 
@@ -183,7 +171,7 @@ export class WebRTCApp {
             ["sign"]
         );
 
-        const originalChallengeContent = data.data; // The actual challenge content
+        const originalChallengeContent = data.data; // From ChallengeNegoMessage
         const challengeString = typeof originalChallengeContent === 'string' ? originalChallengeContent : JSON.stringify(originalChallengeContent);
         const challengeBuffer = new TextEncoder().encode(challengeString);
 
@@ -194,37 +182,32 @@ export class WebRTCApp {
         );
         const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
 
-        this.sendNego(client, {
+        const solutionMessage: SolutionNegoMessage = {
           type: "solution",
           solution: {
             signedChallenge: signatureBase64,
             jwt: authState.jwt,
-            pubKey: JSON.stringify(authState.publicKeyJwk), // Send the JWK string
+            pubKey: JSON.stringify(authState.publicKeyJwk),
             originalChallenge: originalChallengeContent
           }
-        });
+        };
+        this.sendNego(client, solutionMessage);
         console.log("Solution sent to", cid);
 
       } catch (error) {
         console.error("Error processing challenge and sending solution to", cid, ":", error);
-        // Optionally send an error back to the challenger
-        // this.sendNego(client, { type: "solution_error", error: "Failed to process challenge solution" });
       }
     });
 
-    registerNegoHandler("profile_info", (data: any, cid: string) => {
-      // cid is the sender of the profile_info message
+    registerNegoHandler("profile_info", (data: ProfileInfoNegoMessage, cid: string) => {
       const client = getDirectClient(cid);
       if (!client?.trusted) {
         console.log("recieved profile_info from untrusted peer, ignoring");
         return;
       }
-      if (data.publicKey && data.profile && typeof data.profile.userName === 'string') {
-        updatePeerProfile(data.publicKey, { userName: data.profile.userName });
-        console.log(`Received profile for ${data.profile.userName} (publicKey: ${data.publicKey}) from client ${cid}`);
-      } else {
-        console.warn(`Received malformed profile_info from ${cid}:`, data);
-      }
+      // Properties are now strongly typed via ProfileInfoNegoMessage
+      updatePeerProfile(data.publicKey, { userName: data.profile.userName });
+      console.log(`Received profile for ${data.profile.userName} (publicKey: ${data.publicKey}) from client ${cid}`);
     });
   }
 
@@ -233,70 +216,73 @@ export class WebRTCApp {
   public acceptClient(cid: string, client: WebRTCClient): void {
     if (!client.trusted || !client.trusting) return;
 
-    // Announce self to existing clients (retrieved from store)
     getAllClientCids().forEach(existingCid => {
-        if (existingCid !== cid) { // cid is the new client, existingCid is an already connected client
-            const existingClientPeerObject = getDirectClient(existingCid); // The WebRTCClient object for the existing peer
-            const newClientState = getDirectClientState(cid); // State of the newly accepted client
+        if (existingCid !== cid) {
+            const existingClientPeerObject = getDirectClient(existingCid);
+            const newClientState = getDirectClientState(cid);
             const newClientPublicKey = newClientState?.publicKey;
 
             if (existingClientPeerObject && newClientPublicKey) {
-                // Tell existing client (existingCid) about the new client (cid)
-                // Profile is no longer sent in participant message
-                this.sendNego(existingClientPeerObject, { 
+                const participantMessage: ParticipantNegoMessage = { 
                     type: "participant", 
                     cid: cid, 
                     publicKey: newClientPublicKey 
-                });
+                };
+                this.sendNego(existingClientPeerObject, participantMessage);
             }
 
-            const existingClientState = getDirectClientState(existingCid); // State of the existing client
+            const existingClientState = getDirectClientState(existingCid);
             const existingClientPublicKey = existingClientState?.publicKey;
             if (existingClientPublicKey) {
-                // Tell the new client (cid) about the existing client (existingCid)
-                // Profile is no longer sent in participant message
-                this.sendNego(client, { 
+                const participantMessageToNew: ParticipantNegoMessage = { 
                     type: "participant", 
                     cid: existingCid, 
                     publicKey: existingClientPublicKey 
-                });
+                };
+                this.sendNego(client, participantMessageToNew);
             }
         }
     });
 
-    // Send our profile info to this peer.
-    const authState = window.authStore?.getAuthState(); // Assuming authStore is globally available or passed
+    const authState = window.authStore?.getAuthState();
     const localPublicKey = authState?.publicKeyJwk ? JSON.stringify(authState.publicKeyJwk) : null;
     const localProfile = get(profileStore);
 
     if (localPublicKey && localProfile.isProfileComplete && localProfile.userName) {
-      this.sendNego(client, {
+      const profileInfoMessage: ProfileInfoNegoMessage = {
         type: "profile_info",
         publicKey: localPublicKey,
         profile: { userName: localProfile.userName }
-      });
+      };
+      this.sendNego(client, profileInfoMessage);
     }
 
     setupTrackHandler(cid);
     setupChatChannel(cid);
-    setupFileChannel(cid); // Pass app for config/context if needed, but setup uses store for client
-    setupForwardChannel(cid); // Pass app for config/context if needed, but setup uses store for client
+    setupFileChannel(cid);
+    setupForwardChannel(cid);
     setupTranscriptionChannel(cid);
   }
 
-  public sendNego(client: WebRTCClient, data: NegoMessage): void {
-    if (!data.id) {
-      data = JSON.parse(JSON.stringify(data));
-      data.id = this.uuidv4();
-      if (!this.nego_messages) {
-        this.nego_messages = {};
-      }
-      this.nego_messages[data.id] = {};
+  public sendNego(client: WebRTCClient, messageData: NegoData): void {
+    let finalMessage: NegoData & { id: string }; // Ensure id is present
+
+    if (!messageData.id) {
+      // Make a copy to add id without mutating original if it's from a source like localDescription
+      finalMessage = { ...messageData, id: this.uuidv4() } as NegoData & { id: string };
+    } else {
+      finalMessage = messageData as NegoData & { id: string };
     }
+  
+    if (!this.nego_messages) {
+      this.nego_messages = {};
+    }
+    this.nego_messages[finalMessage.id] = {}; // Store by ID to prevent re-processing
+
     try {
-      client.nego_dc?.send(JSON.stringify(data));
+      client.nego_dc?.send(JSON.stringify(finalMessage));
     } catch (e) {
-      console.log("error sending data", data, "to", client, "error", e);
+      console.log("error sending data", finalMessage, "to", client, "error", e);
     }
   }
 
@@ -304,11 +290,15 @@ export class WebRTCApp {
     const clientState = getDirectClientState(cid);
     const publicKeyToAnnounce = clientState?.publicKey;
 
-    // Notify other clients about the departure
     getAllClientCids().filter((key) => key !== cid).forEach((key) => {
       const otherClient = getDirectClient(key);
       if (otherClient) {
-          this.sendNego(otherClient, {type: 'participant.end', cid: cid, publicKey: publicKeyToAnnounce });
+          const participantEndMessage: ParticipantEndNegoMessage = {
+            type: 'participant.end', 
+            cid: cid, 
+            publicKey: publicKeyToAnnounce
+          };
+          this.sendNego(otherClient, participantEndMessage);
       }
     });
 
@@ -379,12 +369,8 @@ export class WebRTCApp {
     for (const cid of cids) {
       const client = getDirectClient(cid);
       if (client) {
-        // Run specific cleanups for this client *before* sending hangup/destroying
-        // (This might be redundant if destroyClient handles it, but ensures order)
-        // for (const cleanup of Object.values(this.cleanups)) {
-        //   cleanup(cid);
-        // }
-        this.sendNego(client, { type: "hangup" });
+        const hangupMessage: HangupNegoMessage = { type: "hangup" };
+        this.sendNego(client, hangupMessage);
       }
       // Destroy client (which also removes from store)
       this.destroyClient(cid);
@@ -483,32 +469,45 @@ export class WebRTCApp {
     };
 
     nego_dc.onmessage = async e => {
-      const data = JSON.parse(e.data);
+      const parsedData = JSON.parse(e.data) as BaseNegoMessage; // Parse as BaseNegoMessage first to get id and type
+
       if (!client.trusted || !client.trusting) {
-        if (!["challenge", "solution", "trusted"].includes(data.type)) {
-          console.log("ignoring message from untrusted peer", data);
+        if (!["challenge", "solution", "trusted"].includes(parsedData.type)) {
+          console.log("ignoring message from untrusted peer", parsedData);
           return;
         }
       }
-      if (data.id in this.nego_messages) {
+
+      // Ensure parsedData.id is a string before using it as an index
+      const messageId = String(parsedData.id);
+      if (messageId in this.nego_messages) {
         return;
       }
-      this.nego_messages[data.id] = {};
-      console.log("got negotiation message", data);
-      const handler = getNegoHandler(data.type);
+      this.nego_messages[messageId] = {};
+      
+      console.log("got negotiation message", parsedData);
+
+      const messageType = parsedData.type as NegoMessageType;
+      const handler = getNegoHandler(messageType);
+
       if (!handler) {
-        console.log("cannot find handler for", data.type);
+        console.log("cannot find handler for", messageType);
         return;
       }
-      handler(data, cid);
+      // Cast to the specific message type expected by the handler
+      // NegoMessageMap[typeof messageType] would be NegoMessageMap[NegoMessageType] which is too broad.
+      // We cast parsedData to NegoData (the union of all specific messages)
+      // and rely on the handler's parameter type for correctness.
+      // The handler's `data` parameter is NegoMessageMap[K], so this should align.
+      handler(parsedData as NegoMessageMap[typeof messageType], cid);
     };
 
     nego_dc.onopen = () => {
-      // send a random string challenge
-      this.sendNego(client, { type: "challenge", data: Math.random().toString() });
-      // Announce relayed participants known by this peer (via store) to the new client
-      // This relies on the participant messages received from other peers.
-      // The store state isn't directly used for signaling here.
+      const challengeMessage: ChallengeNegoMessage = {
+        type: "challenge",
+        data: Math.random().toString()
+      };
+      this.sendNego(client, challengeMessage);
     };
 
     client._transceiver_interval = window.setInterval(() => {
@@ -530,12 +529,17 @@ export class WebRTCApp {
     pc.onnegotiationneeded = async () => {
       client.makingOffer = true;
       try {
-        await pc?.setLocalDescription();
+        await pc?.setLocalDescription(); // This creates an offer if needed
         if (pc?.currentLocalDescription && pc?.localDescription) {
           this.logDiff(pc.currentLocalDescription.sdp, pc.localDescription.sdp);
         }
-        if (pc?.localDescription) {
-          this.sendNego(client, pc.localDescription);
+        if (pc?.localDescription && pc.localDescription.type === "offer" && pc.localDescription.sdp) {
+          const offerMessage: OfferNegoMessage = { type: "offer", sdp: pc.localDescription.sdp };
+          this.sendNego(client, offerMessage);
+        } else if (pc?.localDescription && pc.localDescription.type === "answer" && pc.localDescription.sdp) {
+          // This case might be less common here if onnegotiationneeded primarily generates offers
+          const answerMessage: AnswerNegoMessage = { type: "answer", sdp: pc.localDescription.sdp };
+          this.sendNego(client, answerMessage);
         }
       } catch (e) {
         console.log("renegotiation error", e);

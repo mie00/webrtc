@@ -1,12 +1,15 @@
 import { writable, get } from 'svelte/store';
+import type { NegoMessageMap, NegoMessageType } from '../types/negoMessages'; // Adjusted import path
 
 // Define types for handlers and cleanup functions
-export type NegoHandler = (data: any, cid: string) => void | Promise<void>;
+export type SpecificNegoHandler<K extends NegoMessageType> = (data: NegoMessageMap[K], cid: string) => void | Promise<void>;
 export type CleanupFunc = (cid?: string) => void;
 
 // Define the state interface for the store
 interface AppState {
-  negoHandlers: Record<string, NegoHandler>;
+  negoHandlers: {
+    [K in NegoMessageType]?: SpecificNegoHandler<K>;
+  };
   cleanups: Record<string, CleanupFunc>;
 }
 
@@ -26,12 +29,15 @@ const appStateStore = writable<AppState>(initialState);
  * @param type - The message type (e.g., "offer", "answer").
  * @param handler - The function to handle the message.
  */
-export function registerNegoHandler(type: string, handler: NegoHandler): void {
+export function registerNegoHandler<K extends NegoMessageType>(
+  type: K,
+  handler: SpecificNegoHandler<K>
+): void {
   appStateStore.update(state => ({
     ...state,
     negoHandlers: {
       ...state.negoHandlers,
-      [type]: handler,
+      [type]: handler, // Handler is now specifically typed
     },
   }));
 }
@@ -41,8 +47,11 @@ export function registerNegoHandler(type: string, handler: NegoHandler): void {
  * @param type - The message type.
  * @returns The handler function, or undefined if not found.
  */
-export function getNegoHandler(type: string): NegoHandler | undefined {
-  return get(appStateStore).negoHandlers[type];
+export function getNegoHandler<K extends NegoMessageType>(
+  type: K
+): SpecificNegoHandler<K> | undefined {
+  // The type assertion is safe due to the way handlers are registered.
+  return get(appStateStore).negoHandlers[type] as SpecificNegoHandler<K> | undefined;
 }
 
 // --- Cleanup Functions ---

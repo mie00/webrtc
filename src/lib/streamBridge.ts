@@ -18,8 +18,9 @@ import {
   registerNegoHandler, 
   registerCleanup 
 } from '../stores/appStateStore.js'; // Import store functions
+import type { StreamEndNegoMessage } from '../types/negoMessages'; // Adjusted import path
 import {
-  type AudioNodes, // Import new type
+  type AudioNodes,
   normalizeStreamId,
   setupStream,
   processAudio,
@@ -38,19 +39,17 @@ let audioProcessingContexts: Record<string, AudioNodes | null> = {};
  */
 export function streamInit(): void {
   // Set up handlers for stream events
-  registerNegoHandler('stream.end', (data: { stream: string }, cid: string) => {
+  registerNegoHandler('stream.end', (data: StreamEndNegoMessage, cid: string) => {
     const streamId = normalizeStreamId(data.stream);
 
-    // Remove from enhanced store structure
     removeRemoteStream(cid, streamId);
 
-    // Forward to other clients (from store)
-    const clients = getAllDirectClients(); // Get clients from store
-    for (let cid2 of Object.keys(clients)) { // Iterate over CIDs
+    const clients = getAllDirectClients();
+    for (let cid2 of Object.keys(clients)) {
       if (cid == cid2) continue;
-      const client = clients[cid2]; // Get client object
-      // Use window.webRTCApp.sendNego
-      window.webRTCApp.sendNego(client, { type: 'stream.end', stream: streamId });
+      const client = clients[cid2];
+      const streamEndMessage: StreamEndNegoMessage = { type: 'stream.end', stream: streamId };
+      window.webRTCApp.sendNego(client, streamEndMessage);
     }
   });
   // Set up cleanup handler
@@ -67,8 +66,8 @@ export function streamInit(): void {
           try {
             // Iterate over client objects from the store
             Object.values(clients).forEach((client) => {
-              // Use window.webRTCApp.sendNego
-              window.webRTCApp.sendNego(client, { type: 'stream.end', stream: normalizedStreamId })
+              const streamEndMessage: StreamEndNegoMessage = { type: 'stream.end', stream: normalizedStreamId };
+              window.webRTCApp.sendNego(client, streamEndMessage);
             });
           } catch (e) {
               console.error("Error sending stream.end during global cleanup:", e);
@@ -126,8 +125,8 @@ export function setupTrackHandler(cid: string): void { // app might be needed fo
       // Notify other clients (from store)
       const allClients = getAllDirectClients(); // Get clients from store
       Object.values(allClients).forEach((c) => { // Iterate over client objects
-        // Use window.webRTCApp.sendNego
-        window.webRTCApp.sendNego(c, { type: 'stream.end', stream: associatedStreamId })
+        const streamEndMessage: StreamEndNegoMessage = { type: 'stream.end', stream: associatedStreamId };
+        window.webRTCApp.sendNego(c, streamEndMessage);
       });
 
       // Remove from enhanced store structure using the correct stream ID
