@@ -36,6 +36,7 @@ import { setupForwardChannel } from '../forwardBridge.js';
 import { setupChatChannel } from '../chatBridge.js';
 import { setupFileChannel } from '../fileBridge.js';
 import { setupTranscriptionChannel } from '../media/transcriber.js';
+import { verifyLoginJWT } from 'src/stores/authStore.js';
 
 
 // Type definitions for local use
@@ -125,7 +126,7 @@ export class WebRTCApp {
     registerNegoHandler("solution", async (data: any, cid: string) => { // cid is the sender of "solution"
       console.log("solution", data);
       // TODO: verify solution
-      const verified = await true; // Assume verified for now
+      const verified = await verifyLoginJWT(data.jwt, data.publicKey);
       if (verified) {
         const client = getDirectClient(cid);
         if (!client) return;
