@@ -253,14 +253,14 @@ export class WebRTCApp {
   }
 
   public async initClient(polite: boolean, options: ClientInitOptions): Promise<string> {
-    const currentConfig = getAllConfig();
+    const currentConfig = getAllConfig(); // Returns new Config type
     const rtcConfig = {
       iceServers: [
-        ...(currentConfig["stun-servers"]?.split(',').filter(link => link).map(link => ({ urls: "stun:" + link })) || []),
-        ...(currentConfig["turn-server-v2"] && currentConfig["turn-username"] && currentConfig["turn-password"] ? [{
-          urls: "turn:" + currentConfig["turn-server-v2"],
-          username: currentConfig["turn-username"],
-          credential: currentConfig["turn-password"],
+        ...(currentConfig.rtc.stunServers?.split(',').filter(link => link).map(link => ({ urls: "stun:" + link })) || []),
+        ...(currentConfig.rtc.turnServerV2 && currentConfig.rtc.turnUsername && currentConfig.rtc.turnPassword ? [{
+          urls: "turn:" + currentConfig.rtc.turnServerV2,
+          username: currentConfig.rtc.turnUsername,
+          credential: currentConfig.rtc.turnPassword,
         }] : [])
       ],
     };

@@ -31,7 +31,7 @@
   const isCameraEnabled = $derived($streamStore.streamConfig.camera !== null);
   const isScreenSharing = $derived($streamStore.streamConfig.screen);
   const isVideoShared = $derived($streamStore.streamConfig.file !== null);
-  const isBlurEnabled = $derived($configStore['blur-video'] === 'yes');
+  const isBlurEnabled = $derived($configStore.media.blurVideo === 'yes');
   const isTranscribing = $derived($transcriberStore.isTranscribingOverall);
 
   // Forwarding state
@@ -171,7 +171,7 @@
   async function handleToggleAudio() {
     setAudioCallback((arg) => instant = arg);
     if ($streamStore.streamConfig.audio === null) {
-      const deviceString = $configStore['audio-device'] || '';
+      const deviceString = $configStore.media.audioDevice || '';
       updateStreamConfig({ audio: deviceString });
     } else {
       updateStreamConfig({ audio: null });
@@ -236,13 +236,14 @@
           type: 'toggle' as const,
           checked: isCurrentDevice,
           action: () => {
-            updateConfig(`${type}-device`, deviceString);
-            if ($streamStore.streamConfig[type] !== null) {
-              updateStreamConfig({ [type]: null });
-              setTimeout(() => updateStreamConfig({ [type]: deviceString }), 100);
-            } else {
-              updateStreamConfig({ [type]: deviceString });
-            }
+            const configKey = type === 'audio' ? 'audioDevice' : 'videoDevice';
+            updateConfig('media', configKey, deviceString);
+            // streamStore.streamConfig will be updated by the listener in streamBridge.ts
+            // For immediate effect if the stream is already active, we might still want this,
+            // but the config change should trigger the streamBridge to update it.
+            // Let's rely on streamBridge to handle the stream update based on config change.
+            // If the stream is currently off, turning it on will use the new config.
+            // If it's on, streamBridge will restart it with the new device.
           }
         };
       })
@@ -254,7 +255,7 @@
 
   async function handleToggleVideo() {
     if ($streamStore.streamConfig.camera === null) {
-      const deviceString = $configStore['video-device'] || '';
+      const deviceString = $configStore.media.videoDevice || '';
       updateStreamConfig({ camera: deviceString });
     } else {
       updateStreamConfig({ camera: null });
@@ -263,12 +264,8 @@
 
   async function handleToggleBlur() {
     const newValue = isBlurEnabled ? 'no' : 'yes';
-    updateConfig('blur-video', newValue);
-    if (isCameraEnabled) {
-      const currentDevice = $streamStore.streamConfig.camera;
-      updateStreamConfig({ camera: null });
-      setTimeout(() => updateStreamConfig({ camera: currentDevice }), 100);
-    }
+    updateConfig('media', 'blurVideo', newValue);
+    // streamBridge.ts will listen to this config change and restart the camera stream if active.
   }
 
   async function handleToggleScreen() {

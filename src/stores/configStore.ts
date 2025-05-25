@@ -1,41 +1,73 @@
 import { writable, derived, get } from 'svelte/store';
 
-// Define a type for the configuration
+// Define types for configuration groups
+export interface GeneralConfig {
+  configLoader: 'server' | 'client';
+  userName: string;
+  configHost: string;
+  coordinatorUrl: string;
+}
+
+export interface RtcConfig {
+  stunServers: string;
+  turnServerV2: string;
+  turnUsername: string;
+  turnPassword: string;
+}
+
+export interface MediaConfig {
+  blurVideo: 'yes' | 'no';
+  audioDevice?: string;
+  videoDevice?: string;
+}
+
+// Define the main Config interface
 export interface Config {
-  'config-loader': 'server' | 'client';
-  'user-name': string;
-  'config-host': string;
-  'stun-servers': string;
-  'turn-server-v2': string;
-  'turn-username': string;
-  'turn-password': string;
-  'blur-video': 'yes' | 'no';
-  'audio-device'?: string;
-  'video-device'?: string;
-  'coordinator-url': string; // Added coordinator URL
-  [key: string]: string | undefined;
+  general: GeneralConfig;
+  rtc: RtcConfig;
+  media: MediaConfig;
 }
 
 // Default configuration
 const defaultConfig: Config = {
-  'config-loader': 'server',
-  'user-name': '',
-  'config-host': '',
-  'stun-servers': 'dealer.mie00.com:3478',
-  'turn-server-v2': 'dealer.mie00.com:5349',
-  'turn-username': 'mie',
-  'turn-password': '',
-  'blur-video': 'no',
-  'audio-device': 'default|default',
-  'video-device': 'default|default',
-  'coordinator-url': 'ws://127.0.0.1:5001' // Added default coordinator URL
+  general: {
+    configLoader: 'server',
+    userName: '',
+    configHost: '',
+    coordinatorUrl: 'ws://127.0.0.1:5001',
+  },
+  rtc: {
+    stunServers: 'dealer.mie00.com:3478',
+    turnServerV2: 'dealer.mie00.com:5349',
+    turnUsername: 'mie',
+    turnPassword: '',
+  },
+  media: {
+    blurVideo: 'no',
+    audioDevice: 'default|default',
+    videoDevice: 'default|default',
+  }
 };
 
 // Load initial config from localStorage
 function loadInitialConfig(): Config {
   try {
-    const savedConfig = localStorage.getItem('dealer-config');
-    return savedConfig ? { ...defaultConfig, ...JSON.parse(savedConfig) } : defaultConfig;
+    const savedConfigString = localStorage.getItem('dealer-config');
+    if (savedConfigString) {
+      const savedConfig = JSON.parse(savedConfigString);
+      // Basic structural check for the new grouped format
+      if (savedConfig && typeof savedConfig === 'object' &&
+          'general' in savedConfig && 'rtc' in savedConfig && 'media' in savedConfig &&
+          typeof savedConfig.general === 'object' && typeof savedConfig.rtc === 'object' && typeof savedConfig.media === 'object') {
+        // Deep merge with defaultConfig to ensure all keys are present and defaults are applied for missing ones
+        return {
+          general: { ...defaultConfig.general, ...savedConfig.general },
+          rtc: { ...defaultConfig.rtc, ...savedConfig.rtc },
+          media: { ...defaultConfig.media, ...savedConfig.media },
+        };
+      }
+    }
+    return defaultConfig;
   } catch (e) {
     console.error('Failed to load config from localStorage:', e);
     return defaultConfig;
@@ -55,8 +87,15 @@ configStore.subscribe(config => {
 });
 
 // Helper functions to work with the store
-export function updateConfig(key: keyof Config, value: string): void {
-  configStore.update(config => ({ ...config, [key]: value }));
+export function updateConfig<G extends keyof Config, K extends keyof Config[G]>(
+  group: G,
+  key: K,
+  value: Config[G][K]
+): void {
+  configStore.update(currentConfig => {
+    const newGroup = { ...currentConfig[group], [key]: value };
+    return { ...currentConfig, [group]: newGroup };
+  });
 }
 
 export function resetConfig(): void {
@@ -66,26 +105,26 @@ export function resetConfig(): void {
 // Create derived stores for specific config needs
 export const isServerMode = derived(
   configStore,
-  $config => $config['config-loader'] === 'server'
+  $config => $config.general.configLoader === 'server'
 );
 
 export const rtcServers = derived(configStore, $config => {
   const iceServers: RTCIceServer[] = [];
   
   // Add STUN servers
-  const stunServers = $config['stun-servers'].split(',').filter(server => server.trim());
-  for (const server of stunServers) {
+  const stunServersList = $config.rtc.stunServers.split(',').filter(server => server.trim());
+  for (const server of stunServersList) {
     iceServers.push({
       urls: `stun:${server}`
     });
   }
   
   // Add TURN server if configured
-  if ($config['turn-server-v2'] && $config['turn-username'] && $config['turn-password']) {
+  if ($config.rtc.turnServerV2 && $config.rtc.turnUsername && $config.rtc.turnPassword) {
     iceServers.push({
-      urls: `turn:${$config['turn-server-v2']}`,
-      username: $config['turn-username'],
-      credential: $config['turn-password']
+      urls: `turn:${$config.rtc.turnServerV2}`,
+      username: $config.rtc.turnUsername,
+      credential: $config.rtc.turnPassword
     });
   }
   
@@ -93,11 +132,14 @@ export const rtcServers = derived(configStore, $config => {
 });
 
 // Function to get current config value (for non-reactive contexts)
-export function getConfigValue(key: keyof Config): string {
-  return get(configStore)[key] || '';
+export function getConfigValue<G extends keyof Config, K extends keyof Config[G]>(
+  group: G,
+  key: K
+): Config[G][K] {
+  return get(configStore)[group][key];
 }
 
-// Function to get all config values as a plain object (for compatibility)
-export function getAllConfig(): Record<string, string | undefined> {
+// Function to get all config values as a plain object
+export function getAllConfig(): Config {
   return get(configStore);
 }

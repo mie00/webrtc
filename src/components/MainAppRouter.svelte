@@ -59,7 +59,7 @@
   };
 
   const appOnId = () => {
-    const newUrl = ($configStore['config-host'] || window.location.origin) + window.location.pathname + window.location.search;
+    const newUrl = ($configStore.general.configHost || window.location.origin) + window.location.pathname + window.location.search;
     setState({
       showCopyOverlay: true,
       copyText: newUrl,
@@ -81,7 +81,7 @@
       
       const urlParams = new URLSearchParams(window.location.search);
       let reinitMode: 'client' | 'server';
-      if ($configStore['config-loader'] === 'client') reinitMode = 'client';
+      if ($configStore.general.configLoader === 'client') reinitMode = 'client';
       else reinitMode = 'server';
 
       if (appLogicInstance && appLogicInstance.destroy) {
@@ -127,14 +127,14 @@
     // Regular initialization for non-/cb paths.
     // This component now assumes it's only mounted when authenticated and not on /cb.
     let mode: 'client' | 'server';
-    if (!$configStore['coordinator-url']) {
+    if (!$configStore.general.coordinatorUrl) {
       mode = 'client';
     } else {
       if (urlParams.get('mode') === 'server') mode = 'server';
       else if (urlParams.get('mode') === 'client') mode = 'client';
       else if (urlParams.has('r')) mode = 'server';
       else if (urlParams.has('offer')) mode = 'client';
-      else if ($configStore['config-loader'] === 'client') mode = 'client';
+      else if ($configStore.general.configLoader === 'client') mode = 'client';
       else mode = 'server';
     }
 

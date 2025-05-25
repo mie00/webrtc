@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { configStore, updateConfig, type Config } from '../stores/configStore.js'; // Import Config type
+  import { configStore, updateConfig, type Config, type GeneralConfig, type RtcConfig, type MediaConfig } from '../stores/configStore.js';
   
   // Props
   let { 
@@ -11,173 +11,228 @@
     onclose?: () => void; 
     onconfigUpdated?: () => void; 
   }>();
+
+  let currentTab: keyof Config = $state('general');
   
   // Event handlers
-  function handleClose(event: Event) { // Add type for event
+  function handleClose(event: Event) {
     if (event.target === event.currentTarget) {
       if (onclose) onclose();
     }
   }
   
   function handleSave() {
-    // No need to manually collect values - they're already in the store
-    // Just close the overlay and notify that config has been updated
     if (onconfigUpdated) onconfigUpdated();
     if (onclose) onclose();
   }
   
-  // Handle input changes directly
-  // Add types for event and key. Use type assertion for event.target.value
-  function handleInputChange(event: Event, key: keyof Config) { 
+  function handleInputChange<G extends keyof Config, K extends keyof Config[G]>(
+    event: Event,
+    group: G,
+    key: K
+  ) {
     const target = event.target as HTMLInputElement | HTMLSelectElement;
-    updateConfig(key, target.value);
+    updateConfig(group, key, target.value as Config[G][K]);
   }
 </script>
 
 {#if show}
-<div id="config-overlay" class="fixed inset-0 bg-black/75 flex justify-center items-center z-40" role="button" tabindex="0" onclick={handleClose} onkeypress={(e) => e.stopPropagation()}>
-  <div class="bg-white p-4 rounded-md shadow-md text-center" role="button" tabindex="0" onclick={(e) => e.stopPropagation()} onkeypress={(e) => e.stopPropagation()}>
-    <div class="flex flex-col space-y-2">
-      Loader
-      <select 
-        id="config-loader" 
-        class="flex-1 border border-gray-300 px-3 py-2 rounded-md"
-        value={$configStore['config-loader']}
-        onchange={(e) => handleInputChange(e, 'config-loader')}
+<div 
+  id="config-overlay" 
+  class="fixed inset-0 bg-black/75 flex justify-center items-center z-40" 
+  role="dialog" 
+  aria-modal="true"
+  onclick={handleClose} 
+  onkeypress={(e) => e.key === 'Escape' && onclose && onclose()}
+>
+  <div 
+    class="bg-white rounded-md shadow-md flex w-full max-w-2xl h-auto max-h-[80vh]" 
+    role="document" 
+    onclick={(e) => e.stopPropagation()} 
+    onkeypress={(e) => e.stopPropagation()}
+  >
+    <!-- Tabs on the left -->
+    <div class="w-1/4 border-r border-gray-300 p-2 flex flex-col space-y-1">
+      <button 
+        on:click={() => currentTab = 'general'} 
+        class:bg-gray-200={currentTab === 'general'} 
+        class="block w-full text-left p-2 hover:bg-gray-100 rounded-md"
       >
-        <option value="server">Server</option>
-        <option value="client">Client</option>
-      </select>
-    </div>
-    
-    <div class="flex flex-col space-y-2">
-      Username 
-      <input 
-        id="user-name" 
-        type="text" 
-        placeholder="Username"
-        class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
-        value={$configStore['user-name']}
-        oninput={(e) => handleInputChange(e, 'user-name')}
+        General
+      </button>
+      <button 
+        on:click={() => currentTab = 'rtc'} 
+        class:bg-gray-200={currentTab === 'rtc'} 
+        class="block w-full text-left p-2 hover:bg-gray-100 rounded-md"
       >
-    </div>
-    
-    <div class="flex flex-col space-y-2">
-      Host 
-      <input 
-        id="config-host" 
-        type="text" 
-        placeholder="Host"
-        class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
-        value={$configStore['config-host']}
-        oninput={(e) => handleInputChange(e, 'config-host')}
+        RTC
+      </button>
+      <button 
+        on:click={() => currentTab = 'media'} 
+        class:bg-gray-200={currentTab === 'media'} 
+        class="block w-full text-left p-2 hover:bg-gray-100 rounded-md"
       >
-    </div>
-    
-    <div class="flex flex-col space-y-2">
-      Stun servers 
-      <input 
-        id="stun-servers" 
-        type="text" 
-        placeholder="Stun servers"
-        class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
-        value={$configStore['stun-servers']}
-        oninput={(e) => handleInputChange(e, 'stun-servers')}
-      >
-    </div>
-    
-    <div class="flex flex-col space-y-2">
-      Turn server 
-      <input 
-        id="turn-server-v2" 
-        type="text" 
-        placeholder="Turn server"
-        class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
-        value={$configStore['turn-server-v2']}
-        oninput={(e) => handleInputChange(e, 'turn-server-v2')}
-      >
-    </div>
-    
-    <div class="flex flex-col space-y-2">
-      Turn username 
-      <input 
-        id="turn-username" 
-        type="text" 
-        placeholder="Turn username"
-        class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
-        value={$configStore['turn-username']}
-        oninput={(e) => handleInputChange(e, 'turn-username')}
-      >
-    </div>
-    
-    <div class="flex flex-col space-y-2">
-      Turn password 
-      <input 
-        id="turn-password" 
-        type="text" 
-        placeholder="Turn password"
-        class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
-        value={$configStore['turn-password']}
-        oninput={(e) => handleInputChange(e, 'turn-password')}
-      >
+        Media
+      </button>
     </div>
 
-    <div class="flex flex-col space-y-2">
-      Coordinator URL
-      <input 
-        id="coordinator-url" 
-        type="text" 
-        placeholder="Coordinator URL"
-        class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
-        value={$configStore['coordinator-url']}
-        oninput={(e) => handleInputChange(e, 'coordinator-url')}
-      >
+    <!-- Content on the right -->
+    <div class="flex-1 p-4 overflow-y-auto flex flex-col">
+      <div class="flex-grow space-y-3">
+        {#if currentTab === 'general'}
+          <h2 class="text-xl font-semibold mb-3">General Settings</h2>
+          <div class="flex flex-col space-y-1">
+            <label for="config-loader" class="text-sm font-medium">Loader Mode</label>
+            <select 
+              id="config-loader" 
+              class="w-full border border-gray-300 px-3 py-2 rounded-md"
+              value={$configStore.general.configLoader}
+              onchange={(e) => handleInputChange(e, 'general', 'configLoader')}
+            >
+              <option value="server">Server</option>
+              <option value="client">Client</option>
+            </select>
+          </div>
+          
+          <div class="flex flex-col space-y-1">
+            <label for="user-name" class="text-sm font-medium">Username</label>
+            <input 
+              id="user-name" 
+              type="text" 
+              placeholder="Username"
+              class="w-full border border-gray-300 px-3 py-2 rounded-md" 
+              value={$configStore.general.userName}
+              oninput={(e) => handleInputChange(e, 'general', 'userName')}
+            />
+          </div>
+          
+          <div class="flex flex-col space-y-1">
+            <label for="config-host" class="text-sm font-medium">Host</label>
+            <input 
+              id="config-host" 
+              type="text" 
+              placeholder="Host (e.g., https://example.com)"
+              class="w-full border border-gray-300 px-3 py-2 rounded-md" 
+              value={$configStore.general.configHost}
+              oninput={(e) => handleInputChange(e, 'general', 'configHost')}
+            />
+          </div>
+
+          <div class="flex flex-col space-y-1">
+            <label for="coordinator-url" class="text-sm font-medium">Coordinator URL</label>
+            <input 
+              id="coordinator-url" 
+              type="text" 
+              placeholder="Coordinator URL (e.g., ws://localhost:5001)"
+              class="w-full border border-gray-300 px-3 py-2 rounded-md" 
+              value={$configStore.general.coordinatorUrl}
+              oninput={(e) => handleInputChange(e, 'general', 'coordinatorUrl')}
+            />
+          </div>
+        {/if}
+        
+        {#if currentTab === 'rtc'}
+          <h2 class="text-xl font-semibold mb-3">RTC Settings</h2>
+          <div class="flex flex-col space-y-1">
+            <label for="stun-servers" class="text-sm font-medium">STUN Servers</label>
+            <input 
+              id="stun-servers" 
+              type="text" 
+              placeholder="e.g., stun.l.google.com:19302"
+              class="w-full border border-gray-300 px-3 py-2 rounded-md" 
+              value={$configStore.rtc.stunServers}
+              oninput={(e) => handleInputChange(e, 'rtc', 'stunServers')}
+            />
+          </div>
+          
+          <div class="flex flex-col space-y-1">
+            <label for="turn-server-v2" class="text-sm font-medium">TURN Server</label>
+            <input 
+              id="turn-server-v2" 
+              type="text" 
+              placeholder="e.g., turn.example.com:3478"
+              class="w-full border border-gray-300 px-3 py-2 rounded-md" 
+              value={$configStore.rtc.turnServerV2}
+              oninput={(e) => handleInputChange(e, 'rtc', 'turnServerV2')}
+            />
+          </div>
+          
+          <div class="flex flex-col space-y-1">
+            <label for="turn-username" class="text-sm font-medium">TURN Username</label>
+            <input 
+              id="turn-username" 
+              type="text" 
+              placeholder="TURN Username"
+              class="w-full border border-gray-300 px-3 py-2 rounded-md" 
+              value={$configStore.rtc.turnUsername}
+              oninput={(e) => handleInputChange(e, 'rtc', 'turnUsername')}
+            />
+          </div>
+          
+          <div class="flex flex-col space-y-1">
+            <label for="turn-password" class="text-sm font-medium">TURN Password</label>
+            <input 
+              id="turn-password" 
+              type="password" 
+              placeholder="TURN Password"
+              class="w-full border border-gray-300 px-3 py-2 rounded-md" 
+              value={$configStore.rtc.turnPassword}
+              oninput={(e) => handleInputChange(e, 'rtc', 'turnPassword')}
+            />
+          </div>
+        {/if}
+        
+        {#if currentTab === 'media'}
+          <h2 class="text-xl font-semibold mb-3">Media Settings</h2>
+           <div class="flex flex-col space-y-1">
+            <label for="audio-device" class="text-sm font-medium">Audio Device (ID)</label>
+            <input 
+              id="audio-device" 
+              type="text" 
+              placeholder="Audio device ID (e.g., default|default)"
+              class="w-full border border-gray-300 px-3 py-2 rounded-md" 
+              value={$configStore.media.audioDevice}
+              oninput={(e) => handleInputChange(e, 'media', 'audioDevice')}
+            />
+          </div>
+          
+          <div class="flex flex-col space-y-1">
+            <label for="video-device" class="text-sm font-medium">Video Device (ID)</label>
+            <input 
+              id="video-device" 
+              type="text" 
+              placeholder="Video device ID (e.g., default|default)"
+              class="w-full border border-gray-300 px-3 py-2 rounded-md" 
+              value={$configStore.media.videoDevice}
+              oninput={(e) => handleInputChange(e, 'media', 'videoDevice')}
+            />
+          </div>
+
+          <div class="flex flex-col space-y-1">
+            <label for="blur-video" class="text-sm font-medium">Blur Video Background</label>
+            <select 
+              id="blur-video" 
+              class="w-full border border-gray-300 px-3 py-2 rounded-md"
+              value={$configStore.media.blurVideo}
+              onchange={(e) => handleInputChange(e, 'media', 'blurVideo')}
+            >
+              <option value="no">No</option>
+              <option value="yes">Yes</option>
+            </select>
+          </div>
+        {/if}
+      </div>
+      
+      <div class="mt-4 pt-4 border-t border-gray-200 text-right">
+        <button 
+          id="save-button" 
+          onclick={handleSave}
+          class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md"
+        >
+          Save & Close
+        </button>
+      </div>
     </div>
-    
-    <div class="flex flex-col space-y-2 hidden">
-      Audio device 
-      <input 
-        id="audio-device" 
-        type="text" 
-        placeholder="Audio device"
-        class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
-        value={$configStore['audio-device']}
-        oninput={(e) => handleInputChange(e, 'audio-device')}
-      >
-    </div>
-    
-    <div class="flex flex-col space-y-2 hidden">
-      Video device 
-      <input 
-        id="video-device" 
-        type="text" 
-        placeholder="Video device"
-        class="flex-1 border border-gray-300 px-3 py-2 rounded-md" 
-        value={$configStore['video-device']}
-        oninput={(e) => handleInputChange(e, 'video-device')}
-      >
-    </div>
-    
-    <div class="flex flex-col space-y-2">
-      Blur Video
-      <select 
-        id="blur-video" 
-        class="flex-1 border border-gray-300 px-3 py-2 rounded-md"
-        value={$configStore['blur-video']}
-        onchange={(e) => handleInputChange(e, 'blur-video')}
-      >
-        <option value="no">No</option>
-        <option value="yes">Yes</option>
-      </select>
-    </div>
-    
-    <button 
-      id="save-button" 
-      onclick={handleSave}
-      class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md mt-2"
-    >
-      Save
-    </button>
   </div>
 </div>
 {/if}

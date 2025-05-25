@@ -11,7 +11,8 @@ import {
 import {
   getAllConfig,
   configStore,
-  type Config
+  type Config,
+  type MediaConfig
 } from '../stores/configStore.js';
 import { getDirectClient, getAllDirectClients, getAllClientCids } from '../stores/connectionStore.js'; // Adjust path if needed
 import { 
@@ -165,39 +166,36 @@ export function setupTrackHandler(cid: string): void { // app might be needed fo
 let audioCbFunction: ((instant: number) => void) | undefined;
 
 // Track previous config state for device changes
-let prevConfigState: Partial<Config> = {};
+let prevConfig: Config = getAllConfig(); // Initialize with current full config
 
 // Subscribe to config changes to detect device changes
-configStore.subscribe(config => {
-  // Check for device changes that might require stream restart
-  const deviceKeys = ['audio-device', 'video-device', 'blur-video'];
+configStore.subscribe(newConfig => {
   const streamState = getStreamState();
-  
-  // For each device config that changed
-  deviceKeys.forEach(key => {
-    if (prevConfigState[key] !== config[key]) {
-      // Update the device in streamConfig
-      if (key === 'audio-device') {
-        // If audio is enabled, update with new device
+
+  // Check for media device changes
+  (Object.keys(newConfig.media) as Array<keyof MediaConfig>).forEach(key => {
+    if (prevConfig.media[key] !== newConfig.media[key]) {
+      if (key === 'audioDevice') {
         if (streamState.streamConfig.audio !== null) {
-          updateStreamConfig({ audio: config[key] });
+          // Update streamConfig with the new audio device from global config
+          updateStreamConfig({ audio: newConfig.media.audioDevice });
         }
-      } else if (key === 'video-device') {
-        // If camera is enabled, update with new device
+      } else if (key === 'videoDevice') {
         if (streamState.streamConfig.camera !== null) {
-          updateStreamConfig({ camera: config[key] });
+          // Update streamConfig with the new video device from global config
+          updateStreamConfig({ camera: newConfig.media.videoDevice });
         }
-      } else if (key === 'blur-video' && streamState.streamConfig.camera !== null) {
-        // Just restart the camera if blur setting changes
-        const currentDevice = streamState.streamConfig.camera;
-        updateStreamConfig({ camera: null });
-        setTimeout(() => updateStreamConfig({ camera: currentDevice }), 100);
+      } else if (key === 'blurVideo' && streamState.streamConfig.camera !== null) {
+        // If blur setting changes and camera is active, restart the camera.
+        // The camera should use the currently configured videoDevice.
+        const currentVideoDevice = newConfig.media.videoDevice;
+        updateStreamConfig({ camera: null }); // Turn off first
+        setTimeout(() => updateStreamConfig({ camera: currentVideoDevice }), 100); // Then turn back on with new blur setting
       }
     }
   });
   
-  // Update previous state
-  prevConfigState = { ...config };
+  prevConfig = newConfig; // Update previous state with the new full config
 });
 
 // Create derived stores for the specific values we need to watch
@@ -294,8 +292,8 @@ audioDevice.subscribe(async (audio) => {
 });
 
 // Subscribe to camera device changes
-cameraDevice.subscribe(async (camera) => {
-  const globalConfig = getAllConfig();
+cameraDevice.subscribe(async (camera) => { // camera here is the device string from streamStore.streamConfig.camera
+  const globalConfig = getAllConfig(); // This is the new Config object
   
   if (camera !== null) {
     // First, clean up any existing camera streams
@@ -319,7 +317,7 @@ cameraDevice.subscribe(async (camera) => {
     });
 
     // Apply background blur if enabled
-    if (globalConfig['blur-video'] === 'yes') {
+    if (globalConfig.media.blurVideo === 'yes') {
       try {
         const videoElem = document.createElement('video');
         videoElem.autoplay = true;
