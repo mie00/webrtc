@@ -40,7 +40,8 @@
 <div 
   id="config-overlay" 
   class="fixed inset-0 bg-black/75 flex justify-center items-center z-40" 
-  role="dialog" 
+  role="dialog"
+  tabindex="0"
   aria-modal="true"
   onclick={handleClose} 
   onkeypress={(e) => e.key === 'Escape' && onclose && onclose()}
@@ -48,27 +49,25 @@
   <div 
     class="bg-white rounded-md shadow-md flex w-full max-w-2xl h-auto max-h-[80vh]" 
     role="document" 
-    onclick={(e) => e.stopPropagation()} 
-    onkeypress={(e) => e.stopPropagation()}
   >
     <!-- Tabs on the left -->
     <div class="w-1/4 border-r border-gray-300 p-2 flex flex-col space-y-1">
       <button 
-        on:click={() => currentTab = 'general'} 
+        onclick={() => currentTab = 'general'} 
         class:bg-gray-200={currentTab === 'general'} 
         class="block w-full text-left p-2 hover:bg-gray-100 rounded-md"
       >
         General
       </button>
       <button 
-        on:click={() => currentTab = 'rtc'} 
+        onclick={() => currentTab = 'rtc'} 
         class:bg-gray-200={currentTab === 'rtc'} 
         class="block w-full text-left p-2 hover:bg-gray-100 rounded-md"
       >
         RTC
       </button>
       <button 
-        on:click={() => currentTab = 'media'} 
+        onclick={() => currentTab = 'media'} 
         class:bg-gray-200={currentTab === 'media'} 
         class="block w-full text-left p-2 hover:bg-gray-100 rounded-md"
       >
