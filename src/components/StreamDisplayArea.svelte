@@ -1,6 +1,6 @@
 <script lang="ts">
   import StreamView from './StreamView.svelte';
-  import type { ViewableStream } from './MediaArea.svelte'; // Assuming ViewableStream will be exported or moved
+  import type { ViewableStream } from '../types/viewableStream.js';
 
   let { activeStreams, streamPositions, onFocusStream, onFilePlay }: {
     activeStreams: ViewableStream[];

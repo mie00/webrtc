@@ -69,20 +69,7 @@
     }))
   ));
 
-  // ViewableStream interface remains here as activeStreams is derived here.
-  // It could be moved to a shared types file if used elsewhere.
-  export interface ViewableStream { // Export if StreamDisplayArea needs to import it for its prop type
-    id: string,
-    streamKey: string,
-    stream: MediaStream | null,
-    type: 'camera' | 'screen' | 'audio' | 'file',
-    isLocal: boolean,
-    src: string | null,
-  
-    peerId?: string | null,
-    audioStream?: MediaStream | null,
-    hasAudio?: boolean | null,
-  }
+  import type { ViewableStream } from '../types/viewableStream.js';
 
   // Group streams by peer ID
   const groupedStreams = $derived.by(() => {
@@ -490,7 +477,7 @@
 
 <MediaControls
   hangup={handleHangup}
-  openQr={openQr} /* Direct pass through from props */
+  openQr={openQr}
   {isAudioEnabled}
   {isCameraEnabled}
   {isScreenSharing}
