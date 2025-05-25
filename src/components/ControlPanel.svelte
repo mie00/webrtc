@@ -94,7 +94,6 @@
   }
   
   // --- Reactive update for unreadCount ---
-  let unreadCount = $state(0);
   $effect(() => {
     if (!isPanelOpen && combinedFeed && typeof localUserName === 'string') {
       const currentRemoteCount = countRemoteItems(combinedFeed);

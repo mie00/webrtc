@@ -13,10 +13,12 @@
     thumbnailUrl: string | null; // URL for image previews (Data URL)
   }
 
-  export let isPanelOpen: boolean;
-  export let onSentSomething: () => void;
-  export let showCompletedTranscriptions: boolean;
-  export let onToggleShowCompletedTranscriptions: () => void;
+  let { isPanelOpen, onSentSomething, showCompletedTranscriptions, onToggleShowCompletedTranscriptions } = $props<{
+    isPanelOpen: boolean;
+    onSentSomething: () => void;
+    showCompletedTranscriptions: boolean;
+    onToggleShowCompletedTranscriptions: () => void;
+  }>();
 
   let message = $state('');
   let stagedFiles = $state<StagedFile[]>([]);

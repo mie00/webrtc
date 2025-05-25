@@ -5,7 +5,7 @@
 
   // --- Types for Combined Feed Item (Prop) ---
   // This definition is moved from ControlPanel.svelte
-  export interface FeedItem {
+  export type FeedItem = {
     id: string;
     type: 'chat' | 'file' | 'transcription';
     sender: string;
@@ -14,12 +14,14 @@
     transfer?: FileTransfer & { url?: string }; // Ensure url is part of transfer for direct use
     segment?: TranscriptionSegment;
     cid?: string;
-  }
+  };
 
-  export let combinedFeed: FeedItem[] = $state([]);
-  export let localUserName: string;
-  export let showCompletedTranscriptions: boolean;
-  export let onOpenMediaCarousel: (item: CarouselMediaItem) => void;
+  let { combinedFeed, localUserName, showCompletedTranscriptions, onOpenMediaCarousel } = $props<{
+    combinedFeed: FeedItem[];
+    localUserName: string;
+    showCompletedTranscriptions: boolean;
+    onOpenMediaCarousel: (item: CarouselMediaItem) => void;
+  }>();
 
   let chatOutputContainer: HTMLDivElement | null = $state(null);
 
