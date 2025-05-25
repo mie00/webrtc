@@ -17,7 +17,7 @@ const cidKeyStore: Writable<CidKeyState> = writable(initialState);
 
 // --- Store Actions ---
 
-export function setCidKeys(cid: string, devicePublicKey: string, userPublicKey: string): void {
+export function setCidKeys(cid: string, devicePublicKey: string | null, userPublicKey: string): void {
   cidKeyStore.update(state => {
     state.keysByCid[cid] = {
       publicKey: devicePublicKey,
