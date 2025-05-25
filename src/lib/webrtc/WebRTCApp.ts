@@ -1,4 +1,10 @@
 import { EMOJIS } from '../utils/emojis.js';
+import {
+  setCidKeys,
+  removeCidKeys,
+  resetCidKeyStore,
+  getKeysByCid
+} from '../../stores/cidKeyStore.js'; // Import new store
 import type {
   NegoData,
   NegoMessageMap,
@@ -17,8 +23,8 @@ import {
   addDirectClient,
   updateDirectClientState,
   updateDirectClientFingerprint,
-  updateDirectClientPublicKey,
-  updateDirectClientUserPublicKey, // Added for user's public key
+  // updateDirectClientPublicKey, // Removed
+  // updateDirectClientUserPublicKey, // Removed
   removeDirectClient,
   addParticipant,
   removeParticipant,
@@ -139,7 +145,19 @@ export class WebRTCApp {
     });
 
     registerNegoHandler("participant", (data: ParticipantNegoMessage, relayingClientCid: string) => {
-      addParticipant(data.cid, relayingClientCid, data.publicKey);
+      // Storing the participant's user public key is now handled when the participant becomes a direct client
+      // or when their "solution" message is processed.
+      // For now, just add the participant relation. The publicKey from the message is the userPublicKey.
+      // We can store this immediately in cidKeyStore if it's not already there from a direct connection.
+      // However, the primary source of truth for a CID's keys is when they connect directly and send a solution.
+      // This message primarily informs about the existence of a participant and their userPublicKey.
+      // Let's assume data.publicKey is the userPublicKey.
+      // If we don't have device key yet, we can store userPublicKey and null for device key.
+      const existingKeys = getKeysByCid(data.cid);
+      if (data.publicKey && (!existingKeys || !existingKeys.userPublicKey)) {
+        setCidKeys(data.cid, existingKeys?.publicKey || null, data.publicKey);
+      }
+      addParticipant(data.cid, relayingClientCid);
     });
 
     registerNegoHandler("participant.end", (data: ParticipantEndNegoMessage, cid: string) => {
@@ -228,9 +246,8 @@ export class WebRTCApp {
         // All checks passed
         client.trusted = true; // We now trust this peer
         
-        // Store peer's device public key and user public key
-        updateDirectClientPublicKey(cid, data.solution.pubKey);
-        updateDirectClientUserPublicKey(cid, data.solution.userPubKey);
+        // Store peer's device public key and user public key in the new cidKeyStore
+        setCidKeys(cid, data.solution.pubKey, data.solution.userPubKey);
         
         updatePeerProfile(data.solution.userPubKey, { userName: data.profile.userName });
         
@@ -325,26 +342,26 @@ export class WebRTCApp {
     getAllClientCids().forEach(existingCid => {
         if (existingCid !== cid) {
             const existingClientPeerObject = getDirectClient(existingCid);
-            const newClientState = getDirectClientState(cid);
-            // Send the USER public key for participant announcements
-            const newUserPublicKey = newClientState?.userPublicKey;
+            // Get the new client's USER public key from cidKeyStore
+            const newClientKeys = getKeysByCid(cid);
+            const newUserPublicKey = newClientKeys?.userPublicKey;
 
             if (existingClientPeerObject && newUserPublicKey) {
-                const participantMessage: ParticipantNegoMessage = { 
-                    type: "participant", 
-                    cid: cid, 
+                const participantMessage: ParticipantNegoMessage = {
+                    type: "participant",
+                    cid: cid,
                     publicKey: newUserPublicKey // This is the user public key
                 };
                 this.sendNego(existingClientPeerObject, participantMessage);
             }
 
-            const existingClientState = getDirectClientState(existingCid);
-            // Send the USER public key for participant announcements
-            const existingUserPublicKey = existingClientState?.userPublicKey;
+            // Get the existing client's USER public key from cidKeyStore
+            const existingClientKeys = getKeysByCid(existingCid);
+            const existingUserPublicKey = existingClientKeys?.userPublicKey;
             if (existingUserPublicKey) {
-                const participantMessageToNew: ParticipantNegoMessage = { 
-                    type: "participant", 
-                    cid: existingCid, 
+                const participantMessageToNew: ParticipantNegoMessage = {
+                    type: "participant",
+                    cid: existingCid,
                     publicKey: existingUserPublicKey // This is the user public key
                 };
                 this.sendNego(client, participantMessageToNew);
@@ -382,8 +399,7 @@ export class WebRTCApp {
   }
 
   public destroyClient(cid: string): void {
-    const clientState = getDirectClientState(cid);
-    const publicKeyToAnnounce = clientState?.publicKey;
+    // No need to get clientState for publicKeyToAnnounce, participant.end doesn't use it.
 
     getAllClientCids().filter((key) => key !== cid).forEach((key) => {
       const otherClient = getDirectClient(key);
@@ -444,6 +460,7 @@ export class WebRTCApp {
     }
     // Remove from the store last
     removeDirectClient(cid);
+    removeCidKeys(cid); // Remove keys from the new store
     // Also remove self from the participant list if present (might happen if announced before full cleanup)
     removeParticipant(cid); // This might be redundant if participant.end already handled it for this cid
   }
@@ -474,6 +491,8 @@ export class WebRTCApp {
     resetConnectionStore();
     // Reset the app state store (handlers, cleanups)
     resetAppStateStore();
+    // Reset the cid key store
+    resetCidKeyStore();
   }
 
   public destroy(): void {

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { connectionStore, type ConnectionState, getDirectClientState, getParticipantState } from '../stores/connectionStore.js';
+  import { getKeysByCid } from '../stores/cidKeyStore.js'; // Import new store getter
   import { getPeerProfile } from '../stores/peerProfileStore.js';
   import { configStore } from '../stores/configStore.js';
   import { chatStore, sendChatMessage, type ChatState } from '../lib/chatBridge.js';
@@ -137,9 +138,9 @@
       let senderDisplayName = msg.sender; // Default (e.g., 'You' or name set by sendChatMessage)
 
       if (msg.cid && msg.sender !== localUserName) { // If it's a remote message with a CID
-        const clientState = getDirectClientState(msg.cid) || getParticipantState(msg.cid);
-        if (clientState?.userPublicKey) {
-          const profile = getPeerProfile(clientState.userPublicKey);
+        const keys = getKeysByCid(msg.cid);
+        if (keys?.userPublicKey) {
+          const profile = getPeerProfile(keys.userPublicKey);
           if (profile?.userName) {
             senderDisplayName = profile.userName;
           } else {
@@ -166,9 +167,9 @@
       if (!transfer.senderCid) { // Local file
         senderDisplayName = localUserName;
       } else { // Remote file
-        const clientState = getDirectClientState(transfer.senderCid) || getParticipantState(transfer.senderCid);
-        if (clientState?.userPublicKey) {
-          const profile = getPeerProfile(clientState.userPublicKey);
+        const keys = getKeysByCid(transfer.senderCid);
+        if (keys?.userPublicKey) {
+          const profile = getPeerProfile(keys.userPublicKey);
           if (profile?.userName) {
             senderDisplayName = profile.userName;
           } else {
@@ -176,7 +177,7 @@
             senderDisplayName = transfer.senderName || transfer.senderCid;
           }
         } else {
-          // Fallback to senderName from transfer object if clientState/userPublicKey not found, then CID
+          // Fallback to senderName from transfer object if keys/userPublicKey not found, then CID
           senderDisplayName = transfer.senderName || transfer.senderCid;
         }
         if (!senderDisplayName) senderDisplayName = 'Peer'; // Final fallback if all else fails
@@ -405,8 +406,8 @@
         {@const isConnected = state === 'connected' && iceState === 'connected'}
         {@const isFailed = state === 'failed' || iceState === 'failed' || state === 'closed' || iceState === 'closed' || state === 'disconnected' || iceState === 'disconnected'}
         {@const isConnecting = !isConnected && !isFailed && (state !== null || iceState !== null)} <!-- Show yellow if not connected/failed but trying -->
-        {@const directClientState = getDirectClientState(client.cid)}
-        {@const userProfile = directClientState?.userPublicKey ? getPeerProfile(directClientState.userPublicKey) : undefined}
+        {@const clientKeys = getKeysByCid(client.cid)}
+        {@const userProfile = clientKeys?.userPublicKey ? getPeerProfile(clientKeys.userPublicKey) : undefined}
         {@const displayName = userProfile?.userName || client.cid}
          <div class="flex items-center space-x-2 mb-1">
            <div
@@ -438,8 +439,8 @@
            {@const isRelayConnected = relayState === 'connected' && relayIceState === 'connected'}
            {@const isRelayFailed = !relayClient || relayState === 'failed' || relayIceState === 'failed' || relayState === 'closed' || relayIceState === 'closed' || relayState === 'disconnected' || relayIceState === 'disconnected'}
            {@const isRelayConnecting = relayClient && !isRelayConnected && !isRelayFailed && (relayState !== null || relayIceState !== null)}
-           {@const participantFullState = getParticipantState(participant.cid)}
-           {@const relayedUserProfile = participantFullState?.userPublicKey ? getPeerProfile(participantFullState.userPublicKey) : undefined}
+           {@const participantKeys = getKeysByCid(participant.cid)}
+           {@const relayedUserProfile = participantKeys?.userPublicKey ? getPeerProfile(participantKeys.userPublicKey) : undefined}
            {@const relayedDisplayName = relayedUserProfile?.userName || participant.cid}
             <div class="flex items-center space-x-2 mb-1 opacity-75">
              <div
