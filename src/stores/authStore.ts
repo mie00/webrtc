@@ -235,23 +235,6 @@ function createAuthStore() {
       console.error("AuthStore: JWT verification failed or error during processing.", error);
       return false;
     }
-
-    try {
-      // Verify the JWT using the imported public key.
-      // IMPORTANT: See notes in verifyLoginJWT about algorithm (ES384 vs ES256) and key usage.
-      const payload = await verifyLoginJWTFromBase64(newJwt, receivedPubKeyJwkString);
-
-      // If verification is successful, store the JWT.
-      // Optionally, store parts of the payload (e.g., user name, roles) in the authState.
-      update(state => ({ ...state, jwt: newJwt /*, userName: payload.name */ }));
-      console.log("AuthStore: JWT successfully verified and stored.");
-      return true;
-    } catch (error) {
-      console.error("AuthStore: JWT verification failed or error during processing.", error);
-      // Optionally clear the JWT if verification fails and one was previously set.
-      // update(state => ({ ...state, jwt: null }));
-      return false;
-    }
   }
   
   async function getPrivateKey(): Promise<CryptoKey | null> {
