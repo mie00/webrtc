@@ -31,6 +31,7 @@ export async function standardSetup(browser: Browser): Promise<StandardSetupResu
     console.log('Page A navigating to: /');
     await pageA.goto('/?mode=client', { waitUntil: 'networkidle', timeout: PW_TIMEOUT });
     console.log('Page A navigation complete.');
+    await handleLoginIfNeeded(pageA, 'Page A');
 
     console.log('Waiting for invite URL copy button on Page A...');
     await pageA.locator(INVITE_URL_SELECTOR).waitFor({ state: 'visible', timeout: PW_TIMEOUT });
