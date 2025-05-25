@@ -128,14 +128,14 @@ export async function verifyLoginJWT(
 export interface AuthState {
   publicKeyJwk: JsonWebKey | null; // Device's public key
   privateKeyJwk: JsonWebKey | null; // Device's private key
-  userPubKeyJwk: JsonWebKey | null; // User's public key from auth server
+  userPubKey: string | null; // User's public key from auth server (base64 URL encoded SPKI)
   jwt: string | null;
 }
 
 const initialAuthState: AuthState = {
   publicKeyJwk: null,
   privateKeyJwk: null,
-  userPubKeyJwk: null,
+  userPubKey: null,
   jwt: null,
 };
 
@@ -153,7 +153,7 @@ function createAuthStore() {
         if (parsedState &&
             (parsedState.publicKeyJwk === null || typeof parsedState.publicKeyJwk === 'object') &&
             (parsedState.privateKeyJwk === null || typeof parsedState.privateKeyJwk === 'object') &&
-            (parsedState.userPubKeyJwk === null || typeof parsedState.userPubKeyJwk === 'object') && // Added userPubKeyJwk
+            (parsedState.userPubKey === null || typeof parsedState.userPubKey === 'string') && // Changed userPubKeyJwk to userPubKey, expecting string
             (parsedState.jwt === null || typeof parsedState.jwt === 'string')) {
           set(parsedState);
         } else {
@@ -204,33 +204,17 @@ function createAuthStore() {
       // but it's unusual. ensureKeyPair should typically be called before login attempt.
     }
 
-    let userCryptoKey: CryptoKey;
-    let userPubKeyJwkToStore: JsonWebKey;
-
-    try {
-      // Import the SPKI key (base64 URL encoded)
-      userCryptoKey = await crypto.subtle.importKey(
-        "spki",
-        base64UrlToArrayBuffer(userPubKeyJwkStringFromCallback),
-        { name: "ECDSA", namedCurve: "P-384" }, // Assuming P-384 based on key generation
-        true,
-        ["verify"]
-      );
-      // Export it as JWK to store in authState, maintaining the AuthState interface
-      userPubKeyJwkToStore = await crypto.subtle.exportKey("jwk", userCryptoKey);
-    } catch (e) {
-      console.error("AuthStore: Failed to import or convert user public key from SPKI string:", e);
-      return false;
-    }
+    // userPubKeyJwkStringFromCallback is the base64 URL encoded SPKI string.
+    // We will store it directly.
 
     try {
       // Verify the JWT using the original base64 URL encoded SPKI string.
       // verifyLoginJWTFromBase64 handles the import of this key for verification.
       const payload = await verifyLoginJWTFromBase64(newJwt, userPubKeyJwkStringFromCallback);
 
-      // If verification is successful, store the JWT and the user's public key (as JWK).
-      update(state => ({ ...state, jwt: newJwt, userPubKeyJwk: userPubKeyJwkToStore }));
-      console.log("AuthStore: JWT successfully verified. JWT and user public key (JWK) stored.");
+      // If verification is successful, store the JWT and the user's public key (as SPKI string).
+      update(state => ({ ...state, jwt: newJwt, userPubKey: userPubKeyJwkStringFromCallback }));
+      console.log("AuthStore: JWT successfully verified. JWT and user public key (SPKI string) stored.");
       return true;
     } catch (error) {
       console.error("AuthStore: JWT verification failed or error during processing.", error);

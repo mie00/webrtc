@@ -183,10 +183,10 @@ export class WebRTCApp {
         );
         const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
         const localProfile = get(profileStore);
-        const userPubKeyJwkString = authState.userPubKeyJwk ? JSON.stringify(authState.userPubKeyJwk) : null;
+        const userPubKeyString = authState.userPubKey; // This is now the base64 URL encoded SPKI string
 
-        if (!userPubKeyJwkString) {
-          console.error("Cannot send solution: userPubKeyJwk is missing from authState.");
+        if (!userPubKeyString) {
+          console.error("Cannot send solution: userPubKey is missing from authState.");
           return;
         }
       
@@ -195,8 +195,8 @@ export class WebRTCApp {
           solution: {
             signedChallenge: signatureBase64,
             jwt: authState.jwt,
-            pubKey: JSON.stringify(authState.publicKeyJwk), // This is the device's public key
-            userPubKey: userPubKeyJwkString, // This is the user's public key from the auth server
+            pubKey: JSON.stringify(authState.publicKeyJwk), // This is the device's public key (JWK string)
+            userPubKey: userPubKeyString, // This is the user's public key from the auth server (SPKI string)
             originalChallenge: originalChallengeContent
           },
           profile: {
