@@ -438,6 +438,9 @@
            {@const isRelayConnected = relayState === 'connected' && relayIceState === 'connected'}
            {@const isRelayFailed = !relayClient || relayState === 'failed' || relayIceState === 'failed' || relayState === 'closed' || relayIceState === 'closed' || relayState === 'disconnected' || relayIceState === 'disconnected'}
            {@const isRelayConnecting = relayClient && !isRelayConnected && !isRelayFailed && (relayState !== null || relayIceState !== null)}
+           {@const participantFullState = getParticipantState(participant.cid)}
+           {@const relayedUserProfile = participantFullState?.userPublicKey ? getPeerProfile(participantFullState.userPublicKey) : undefined}
+           {@const relayedDisplayName = relayedUserProfile?.userName || participant.cid}
             <div class="flex items-center space-x-2 mb-1 opacity-75">
              <div
                id="test-indicator-relayed-{participant.cid}"
@@ -448,9 +451,6 @@
                class:bg-gray-200={!relayClient || (!isRelayConnected && !isRelayFailed && !isRelayConnecting)}
                title={`Relayed: ${participant.cid}\nVia: ${participant.relayCid}\nRelay State: ${relayState ?? 'N/A'}\nRelay ICE: ${relayIceState ?? 'N/A'}`}
              ></div>
-             {@const participantFullState = getParticipantState(participant.cid)}
-             {@const relayedUserProfile = participantFullState?.userPublicKey ? getPeerProfile(participantFullState.userPublicKey) : undefined}
-             {@const relayedDisplayName = relayedUserProfile?.userName || participant.cid}
              <p class="text-sm font-medium text-gray-500 truncate" title={`CID: ${participant.cid} (via ${participant.relayCid})`}>
                {relayedDisplayName}... (Relayed)
              </p>
