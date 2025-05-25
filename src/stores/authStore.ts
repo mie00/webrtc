@@ -6,8 +6,8 @@ const AUTH_STORAGE_KEY = 'webrtc-auth-state';
 export interface LoginTokenPayload {
   exp: number; // Expiration time (seconds since epoch)
   sub: string; // Subject (user identifier)
-  name?: string; // Optional user display name
-  // ... any other claims relevant to your application
+  iat: number;
+  cstm_dat: string;
 }
 
 // Helper to convert Base64url string to ArrayBuffer

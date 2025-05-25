@@ -48,14 +48,9 @@ export interface SolutionNegoMessage extends BaseNegoMessage {
     signedChallenge: string;
     jwt: string;
     pubKey: string; // JWK string
+    userPubKey: string;
     originalChallenge: any; // Can be string or other JSON type from original challenge
   };
-}
-
-// Profile Information Message
-export interface ProfileInfoNegoMessage extends BaseNegoMessage {
-  type: "profile_info";
-  publicKey: string;
   profile: {
     userName: string;
   };
@@ -78,7 +73,6 @@ export type NegoData =
   | TrustedNegoMessage
   | ChallengeNegoMessage
   | SolutionNegoMessage
-  | ProfileInfoNegoMessage
   | StreamEndNegoMessage;
 
 // For registerNegoHandler and getNegoHandler's type safety
@@ -91,7 +85,6 @@ export interface NegoMessageMap {
   "trusted": TrustedNegoMessage;
   "challenge": ChallengeNegoMessage;
   "solution": SolutionNegoMessage;
-  "profile_info": ProfileInfoNegoMessage;
   "stream.end": StreamEndNegoMessage;
 }
 
