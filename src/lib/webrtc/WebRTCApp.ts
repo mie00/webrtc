@@ -154,7 +154,7 @@ export class WebRTCApp {
 
     registerNegoHandler("solution", async (data: SolutionNegoMessage, cid: string) => {
       console.log("Received solution from", cid, data);
-      const client = getDirectClient(cid) as (WebRTCClient & { sentChallengeData?: any }); // Cast for dynamic prop
+      const client = getDirectClient(cid);
 
       if (!client) {
         console.error(`Solution from ${cid}: Client not found.`);
@@ -591,8 +591,7 @@ export class WebRTCApp {
     nego_dc.onopen = () => {
       const challengeData = Math.random().toString();
       // Store the challenge data on the client object.
-      // WebRTCClient type isn't modified here, this is a dynamic property.
-      (client as any).sentChallengeData = challengeData; 
+      client.sentChallengeData = challengeData; 
       
       const challengeMessage: ChallengeNegoMessage = {
         type: "challenge",
