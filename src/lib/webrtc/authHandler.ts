@@ -46,7 +46,6 @@ export interface SolutionHandlerContext {
 
 export function createSolutionHandler(context: SolutionHandlerContext) {
   return async (data: SolutionNegoMessage, cid: string) => {
-    console.log("Received solution from", cid, data);
     const client = getDirectClient(cid);
 
     if (!client) {
@@ -70,7 +69,6 @@ export function createSolutionHandler(context: SolutionHandlerContext) {
       console.error(`Solution from ${cid}: Original challenge mismatch. Expected: "${sentChallenge}", Received: "${receivedOriginalChallengeString}"`);
       return;
     }
-    console.log(`Solution from ${cid}: Original challenge content verified.`);
 
     // 2. Verify signature of the challenge
     try {
@@ -96,10 +94,8 @@ export function createSolutionHandler(context: SolutionHandlerContext) {
 
       if (!isSignatureValid) {
         console.error(`Solution from ${cid}: Device signature verification failed for the challenge.`);
-        // Potentially mark client as untrusted or destroy
         return;
       }
-      console.log(`Solution from ${cid}: Device signature on challenge verified successfully.`);
 
     } catch (error) {
       console.error(`Solution from ${cid}: Error during device signature verification:`, error);
@@ -115,7 +111,6 @@ export function createSolutionHandler(context: SolutionHandlerContext) {
         console.error(`Solution from ${cid}: Device public key in solution (${data.solution.pubKey}) does not match device public key in JWT payload (${payload.cstm_dat}).`);
         return;
       }
-      console.log(`Solution from ${cid}: JWT verified and device public key matches JWT payload.`);
 
       // All checks passed
       client.trusted = true; // We now trust this peer
@@ -130,7 +125,6 @@ export function createSolutionHandler(context: SolutionHandlerContext) {
       
       // Clear the stored challenge to prevent replay
       delete client.sentChallengeData;
-      console.log(`Solution from ${cid}: Successfully processed. Stored challenge cleared.`);
 
     } catch (error) {
       console.error(`Solution from ${cid}: Error during JWT verification or subsequent processing:`, error);
@@ -141,12 +135,10 @@ export function createSolutionHandler(context: SolutionHandlerContext) {
 
 export interface ChallengeHandlerContext {
   sendNego: (client: WebRTCClient, messageData: NegoData) => void;
-  uuidv4: () => string; // Add uuidv4 to the context if sendNego in WebRTCApp relies on it for ID generation
 }
 
 export function createChallengeHandler(context: ChallengeHandlerContext) {
   return async (data: ChallengeNegoMessage, cid: string) => {
-    console.log("challenge received from", cid, "data:", data.data);
     const authState = authStore.getAuthState();
 
     if (!authState || !authState.privateKeyJwk || !authState.jwt || !authState.publicKeyJwk) {
@@ -195,7 +187,6 @@ export function createChallengeHandler(context: ChallengeHandlerContext) {
     
       const solutionMessage: SolutionNegoMessage = {
         type: "solution",
-        // id: context.uuidv4(), // If sendNego doesn't add it, it should be added here or by context.sendNego
         solution: {
           signedChallenge: signatureBase64,
           jwt: authState.jwt,
@@ -208,7 +199,6 @@ export function createChallengeHandler(context: ChallengeHandlerContext) {
         },
       };
       context.sendNego(client, solutionMessage);
-      console.log("Solution sent to", cid);
 
     } catch (error) {
       console.error("Error processing challenge and sending solution to", cid, ":", error);

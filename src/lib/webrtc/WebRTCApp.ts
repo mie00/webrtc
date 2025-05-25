@@ -110,8 +110,7 @@ export class WebRTCApp {
     registerNegoHandler("solution", createSolutionHandler(solutionHandlerContext));
 
     const challengeHandlerContext = {
-      sendNego: this.negotiationManager.sendNegoMessage.bind(this.negotiationManager),
-      uuidv4: this.uuidv4.bind(this) 
+      sendNego: this.negotiationManager.sendNegoMessage.bind(this.negotiationManager)
     };
     registerNegoHandler("challenge", createChallengeHandler(challengeHandlerContext));
   }
