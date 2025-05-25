@@ -17,22 +17,16 @@
 
   let { hangup, openQr }: { hangup?: () => void; openQr?: () => void } = $props();
 
-  // Context menu state (remains in MediaArea as ContextMenu component is here)
   let showMenu = $state(false);
   let menuPosition = $state({ x: 0, y: 0 });
   let menuItems: MenuItem[] = $state([]);
   let selectedButton: 'audio'|'camera'|null = $state(null);
-  // audioButton and videoButton refs will be managed by MediaControls, not needed here directly for bind:this
-  // let audioButton: HTMLElement;
-  // let videoButton: HTMLElement;
   let instant = $state(0);
   let supportsVideoCaptureStream = $state(false);
 
-  // References to DOM elements
-  // let uploadVideoInputInMediaControls: HTMLInputElement; // This ref is no longer needed here
   let refreshInterval: number;
 
-  // Reactive button states (passed to MediaControls)
+  // Reactive button states
   const isAudioEnabled = $derived($streamStore.streamConfig.audio !== null);
   const isCameraEnabled = $derived($streamStore.streamConfig.camera !== null);
   const isScreenSharing = $derived($streamStore.streamConfig.screen);
@@ -40,15 +34,14 @@
   const isBlurEnabled = $derived($configStore['blur-video'] === 'yes');
   const isTranscribing = $derived($transcriberStore.isTranscribingOverall);
 
-  // Forwarding state - button still needs allowedHosts to change its text/color
+  // Forwarding state
   const allowedHosts = $derived($forwardStore.allowedHosts);
   const forwardHost = $derived($forwardStore.forwardHost);
 
-  // Stream layout state (passed to LayoutControls and used for streamPositions)
+  // Stream layout state
   const currentLayout = $derived($streamStore.activeView.layout);
   const focusedStream = $derived($streamStore.activeView.focusedStream);
 
-  // Derived stream collections
   const localStreams = $derived(Object.entries($streamStore.localStreams));
   const remoteStreams = $derived(Object.entries($streamStore.remoteStreams).flatMap(([peerId, data]) =>
     Object.entries(data.streams).map(([streamId, stream]) => ({
@@ -60,7 +53,6 @@
 
   import type { ViewableStream } from '../types/viewableStream.js';
 
-  // Group streams by peer ID
   const groupedStreams = $derived.by(() => {
     const groups: Record<string, {
       peerId: string | null,
@@ -103,7 +95,6 @@
     return groups;
   });
   
-  // All active streams for display
   const activeStreams = $derived.by(() => {
     const result: ViewableStream[] = [];
     
@@ -137,11 +128,8 @@
       }
     });
 
-    // Forwarding elements are now handled by ForwardOverlay.svelte
-    console.log("MIEMIEMIE", result);
     return result;
   });
-  // Stream positions
   let mediaContainerElement: HTMLElement;
   let streamPositions: Array<{ id: string; x: number; y: number; width: number; height: number }> = $state([]);
   
@@ -176,7 +164,6 @@
 
   $effect(() => updateStreamPositions());
 
-  // Event handlers remain in MediaArea and are passed as props
   function handleHangup() {
     if (hangup) hangup();
   }
@@ -298,25 +285,16 @@
     await toggleRecording();
   }
   
-  // handleOpenQr is passed directly from props to MediaControls
   
-  // The old handleShareVideo function is removed as its logic is now split:
-  // - Clicking the input is handled by MediaControls directly.
-  // - Cleaning up (stopping sharing) is handled by handleVideoCleanup, passed as a prop.
-
   async function handleVideoUpload(event: Event) {
-    // This function is passed to MediaControls for its input's onchange event.
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
       const file = input.files[0];
       const fileURL = URL.createObjectURL(file);
       updateStreamConfig({
         file: fileURL,
-        videoStream: undefined, // Ensure this is reset
+        videoStream: undefined,
       });
-      // Resetting input value is handled by MediaControls if it keeps a ref to its input for that purpose,
-      // or by the browser default behavior. MediaArea doesn't need to manage this directly.
-      // if (uploadVideoInputInMediaControls) uploadVideoInputInMediaControls.value = ''; 
     }
   }
 
@@ -324,8 +302,6 @@
     const src = $streamStore.streamConfig.file!;
     removeLocalFileStream(src);
     updateStreamConfig({file: null, videoStream: null});
-    // Resetting input value is handled by MediaControls if it needs to.
-    // if (uploadVideoInputInMediaControls) uploadVideoInputInMediaControls.value = '';
   }
 
   async function handleFilePlay(event: Event) {
@@ -361,16 +337,6 @@
   function handleToggleTranscription() {
     toggleOverallTranscription();
   }
-
-  // This function is to allow MediaControls to trigger the file input click
-  // This is one way to handle it if MediaArea wants to control the click.
-  // However, the simpler model is MediaControls handles its own input click.
-  // Let's remove this and assume MediaControls handles its own click.
-  // function triggerUploadVideoClick() {
-  //   if (uploadVideoInputInMediaControls) {
-  //     uploadVideoInputInMediaControls.click();
-  //   }
-  // }
 
 </script>
 
@@ -415,11 +381,7 @@
 />
 {/if}
 
-<!-- TranscriptionOverlay was already removed -->
-
 <svelte:window on:resize={updateStreamPositions} />
 
 <style>
-  /* Styles for .stream-container are now in StreamDisplayArea.svelte */
-  /* Add any MediaArea specific styles here if needed */
 </style>
