@@ -34,6 +34,9 @@ jobs:
       - name: Run Svelte check
         run: npm run check
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps # --with-deps installs system dependencies for browsers
+
       - name: Run Playwright E2E tests
         run: npm run test:e2e
 
