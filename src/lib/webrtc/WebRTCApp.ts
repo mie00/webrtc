@@ -13,11 +13,21 @@ import type {
   AnswerNegoMessage,
   // ChallengeNegoMessage, // Moved to authHandler
   // SolutionNegoMessage, // Moved to authHandler
-  TrustedNegoMessage,
-  ParticipantNegoMessage,
-  ParticipantEndNegoMessage,
-  HangupNegoMessage,
-  BaseNegoMessage
+  // TrustedNegoMessage, // Handled by NegotiationManager
+  // ParticipantNegoMessage, // Handled by NegotiationManager
+  // ParticipantEndNegoMessage, // Handled by NegotiationManager
+  // HangupNegoMessage, // Handled by NegotiationManager
+  // BaseNegoMessage // Handled by NegotiationManager
+  // OfferNegoMessage, AnswerNegoMessage are still needed for onnegotiationneeded
+  // and NegoData for some typings.
+  OfferNegoMessage,
+  AnswerNegoMessage,
+  TrustedNegoMessage, // For authHandler context
+  ParticipantNegoMessage, // For acceptClient
+  ParticipantEndNegoMessage, // For destroyClient
+  HangupNegoMessage, // For cleanup
+  BaseNegoMessage, // For onmessage parsing before passing to negotiationManager
+  NegoData
 } from '../../types/negoMessages.js'; // Adjusted import path
 import {
   addDirectClient,
@@ -62,17 +72,43 @@ import {
   createSolutionHandler, 
   createChallengeHandler 
 } from './authHandler.js'; // Import new auth handlers
+import { NegotiationManager, type NegotiationManagerContext } from './negotiationManager.js';
 
 export class WebRTCApp {
   private sids: Record<string, string> = {};
   private debug = false;
-  private nego_messages: Record<string, any> = {};
+  // private nego_messages: Record<string, any> = {}; // Moved to NegotiationManager
   // Removed challengeDataStore and requestLoginRedirectCallback
   // Note: sentChallengeData is added dynamically to client objects.
   // Ideally, WebRTCClient interface in types/global.d.ts would be updated.
+  private negotiationManager: NegotiationManager;
+  private negotiationContext: NegotiationManagerContext;
 
   constructor() { // Removed config parameter
     // Config is now managed solely by configStore
+
+    this.negotiationContext = {
+      uuidv4: this.uuidv4.bind(this),
+      actualSend: (dc, data) => {
+        try {
+          dc?.send(data);
+        } catch (e) {
+          console.log("error in actualSend", data, "to dc", dc, "error", e);
+        }
+      },
+      getNegoHandler: getNegoHandler,
+      registerNegoHandler: registerNegoHandler,
+      getDirectClient: getDirectClient,
+      destroyClient: this.destroyClient.bind(this),
+      destroyApp: this.destroy.bind(this),
+      acceptClient: this.acceptClient.bind(this),
+      setCidKeys: setCidKeys,
+      getKeysByCid: getKeysByCid,
+      addParticipant: addParticipant,
+      removeParticipant: removeParticipant,
+    };
+    this.negotiationManager = new NegotiationManager(this.negotiationContext);
+
     this.setupNegoHandlers();
     this.init();
   }
@@ -91,73 +127,25 @@ export class WebRTCApp {
   // Removed setRequestLoginRedirectCallback
 
   private setupNegoHandlers(): void {
-    registerNegoHandler("answer", (data: AnswerNegoMessage, cid: string) => {
-      // data is RTCSessionDescriptionInit-like, which is what setRemoteDescription expects
-      getDirectClient(cid)?.pc?.setRemoteDescription(data as RTCSessionDescriptionInit);
-    });
+    this.negotiationManager.initializeStandardNegoHandlers();
 
-    registerNegoHandler("offer", async (data: OfferNegoMessage, cid: string) => {
-      const client = getDirectClient(cid);
-      if (!client || !client.pc) return; // Check if client exists
-      if (!client.polite) {
-        if (client.makingOffer) return;
-        if (client.pc.signalingState != "stable") return;
-      }
-      // data is RTCSessionDescriptionInit-like
-      await client.pc.setRemoteDescription(data as RTCSessionDescriptionInit);
-      await client.pc.setLocalDescription(); // This creates an answer
-      if (client.pc.localDescription) {
-        // Send the answer back
-        this.sendNego(client, { type: "answer", sdp: client.pc.localDescription.sdp });
-      }
-    });
-
-    registerNegoHandler("hangup", (data: HangupNegoMessage, cid: string) => {
-      const client = getDirectClient(cid);
-      if (client && !client.polite) {
-        this.destroyClient(cid);
-      } else {
-        this.destroy(); // Destroy self if polite or client not found (shouldn't happen)
-      }
-    });
-
-    registerNegoHandler("participant", (data: ParticipantNegoMessage, relayingClientCid: string) => {
-      // Storing the participant's user public key is now handled when the participant becomes a direct client
-      // or when their "solution" message is processed.
-      // For now, just add the participant relation. The publicKey from the message is the userPublicKey.
-      // We can store this immediately in cidKeyStore if it's not already there from a direct connection.
-      // However, the primary source of truth for a CID's keys is when they connect directly and send a solution.
-      // This message primarily informs about the existence of a participant and their userPublicKey.
-      // Let's assume data.publicKey is the userPublicKey.
-      // If we don't have device key yet, we can store userPublicKey and null for device key.
-      const existingKeys = getKeysByCid(data.cid);
-      if (data.publicKey && (!existingKeys || !existingKeys.userPublicKey)) {
-        setCidKeys(data.cid, existingKeys?.publicKey || null, data.publicKey);
-      }
-      addParticipant(data.cid, relayingClientCid);
-    });
-
-    registerNegoHandler("participant.end", (data: ParticipantEndNegoMessage, cid: string) => {
-      removeParticipant(data.cid);
-    });
-
-    registerNegoHandler("trusted", (data: TrustedNegoMessage, cid: string) => {
-      const client = getDirectClient(cid);
-      if (!client) return;
-      client.trusting = true; // We know this peer is trusting us
-      this.acceptClient(cid, client);
-    });
-
+    // Auth handlers are still registered here, but use negotiationManager's sendNegoMessage
     const solutionHandlerContext = {
-      sendNego: this.sendNego.bind(this),
+      sendNego: this.negotiationManager.sendNegoMessage.bind(this.negotiationManager),
       acceptClient: this.acceptClient.bind(this)
     };
     registerNegoHandler("solution", createSolutionHandler(solutionHandlerContext));
 
     const challengeHandlerContext = {
-      sendNego: this.sendNego.bind(this),
-      uuidv4: this.uuidv4.bind(this) // sendNego in WebRTCApp adds id, so uuidv4 might not be strictly needed here
-                                     // but kept for consistency if authHandler were to construct full messages.
+      sendNego: this.negotiationManager.sendNegoMessage.bind(this.negotiationManager),
+      // uuidv4 is not directly needed by createChallengeHandler if sendNegoMessage handles ID generation,
+      // but authHandler might still use it if it constructs messages with IDs itself.
+      // The current authHandler.createChallengeHandler doesn't seem to require uuidv4 in its context
+      // as sendNego (now negotiationManager.sendNegoMessage) handles ID.
+      // For safety, we can keep it if authHandler's interface expects it.
+      // Looking at authHandler.ts, context.uuidv4() is commented out. So it's not strictly needed.
+      // Let's remove it from here for now. If type errors arise in authHandler, we'll add it back.
+      // uuidv4: this.uuidv4.bind(this) 
     };
     registerNegoHandler("challenge", createChallengeHandler(challengeHandlerContext));
   }
@@ -178,7 +166,7 @@ export class WebRTCApp {
                     cid: cid,
                     publicKey: newUserPublicKey // This is the user public key
                 };
-                this.sendNego(existingClientPeerObject, participantMessage);
+                this.negotiationManager.sendNegoMessage(existingClientPeerObject, participantMessage);
             }
 
             // Get the existing client's USER public key from cidKeyStore
@@ -190,7 +178,7 @@ export class WebRTCApp {
                     cid: existingCid,
                     publicKey: existingUserPublicKey // This is the user public key
                 };
-                this.sendNego(client, participantMessageToNew);
+                this.negotiationManager.sendNegoMessage(client, participantMessageToNew);
             }
         }
     });
@@ -202,27 +190,8 @@ export class WebRTCApp {
     setupTranscriptionChannel(cid);
   }
 
-  public sendNego(client: WebRTCClient, messageData: NegoData): void {
-    let finalMessage: NegoData & { id: string }; // Ensure id is present
-
-    if (!messageData.id) {
-      // Make a copy to add id without mutating original if it's from a source like localDescription
-      finalMessage = { ...messageData, id: this.uuidv4() } as NegoData & { id: string };
-    } else {
-      finalMessage = messageData as NegoData & { id: string };
-    }
-  
-    if (!this.nego_messages) {
-      this.nego_messages = {};
-    }
-    this.nego_messages[finalMessage.id] = {}; // Store by ID to prevent re-processing
-
-    try {
-      client.nego_dc?.send(JSON.stringify(finalMessage));
-    } catch (e) {
-      console.log("error sending data", finalMessage, "to", client, "error", e);
-    }
-  }
+  // public sendNego(client: WebRTCClient, messageData: NegoData): void { // Moved to NegotiationManager
+  // }
 
   public destroyClient(cid: string): void {
     // No need to get clientState for publicKeyToAnnounce, participant.end doesn't use it.
@@ -234,7 +203,7 @@ export class WebRTCApp {
             type: 'participant.end', 
             cid: cid, 
           };
-          this.sendNego(otherClient, participantEndMessage);
+          this.negotiationManager.sendNegoMessage(otherClient, participantEndMessage);
       }
     });
 
@@ -307,7 +276,7 @@ export class WebRTCApp {
       const client = getDirectClient(cid);
       if (client) {
         const hangupMessage: HangupNegoMessage = { type: "hangup" };
-        this.sendNego(client, hangupMessage);
+        this.negotiationManager.sendNegoMessage(client, hangupMessage);
       }
       // Destroy client (which also removes from store)
       this.destroyClient(cid);
@@ -408,37 +377,8 @@ export class WebRTCApp {
     };
 
     nego_dc.onmessage = async e => {
-      const parsedData = JSON.parse(e.data) as BaseNegoMessage; // Parse as BaseNegoMessage first to get id and type
-
-      if (!client.trusted || !client.trusting) {
-        if (!["challenge", "solution", "trusted"].includes(parsedData.type)) {
-          console.log("ignoring message from untrusted peer", parsedData);
-          return;
-        }
-      }
-
-      // Ensure parsedData.id is a string before using it as an index
-      const messageId = String(parsedData.id);
-      if (messageId in this.nego_messages) {
-        return;
-      }
-      this.nego_messages[messageId] = {};
-      
-      console.log("got negotiation message", parsedData);
-
-      const messageType = parsedData.type as NegoMessageType;
-      const handler = getNegoHandler(messageType);
-
-      if (!handler) {
-        console.log("cannot find handler for", messageType);
-        return;
-      }
-      // Cast to the specific message type expected by the handler
-      // NegoMessageMap[typeof messageType] would be NegoMessageMap[NegoMessageType] which is too broad.
-      // We cast parsedData to NegoData (the union of all specific messages)
-      // and rely on the handler's parameter type for correctness.
-      // The handler's `data` parameter is NegoMessageMap[K], so this should align.
-      handler(parsedData as NegoMessageMap[typeof messageType], cid);
+      // Pass to negotiationManager to handle
+      this.negotiationManager.handleIncomingNegoMessage(e.data, cid, client);
     };
 
     nego_dc.onopen = () => {
@@ -446,12 +386,11 @@ export class WebRTCApp {
       // Store the challenge data on the client object.
       client.sentChallengeData = challengeData; 
       
-      // Type assertion for ChallengeNegoMessage, though `sendNego` will add `id`
       const challengeMessage = {
         type: "challenge",
         data: challengeData
-      } as NegoData; // Use NegoData as sendNego expects this broader type before adding id
-      this.sendNego(client, challengeMessage);
+      } as NegoData; 
+      this.negotiationManager.sendNegoMessage(client, challengeMessage);
       console.log(`Challenge sent to ${cid}: ${challengeData}`);
     };
 
@@ -480,11 +419,11 @@ export class WebRTCApp {
         }
         if (pc?.localDescription && pc.localDescription.type === "offer" && pc.localDescription.sdp) {
           const offerMessage: OfferNegoMessage = { type: "offer", sdp: pc.localDescription.sdp };
-          this.sendNego(client, offerMessage);
+          this.negotiationManager.sendNegoMessage(client, offerMessage);
         } else if (pc?.localDescription && pc.localDescription.type === "answer" && pc.localDescription.sdp) {
           // This case might be less common here if onnegotiationneeded primarily generates offers
           const answerMessage: AnswerNegoMessage = { type: "answer", sdp: pc.localDescription.sdp };
-          this.sendNego(client, answerMessage);
+          this.negotiationManager.sendNegoMessage(client, answerMessage);
         }
       } catch (e) {
         console.log("renegotiation error", e);
