@@ -1,13 +1,3 @@
-<script module lang="ts">
-  // add mies type to window
-  declare global {
-    interface Window {
-      mies: HTMLElement[];
-      // MediaRecorder might need full typing if not available globally in your setup
-      MediaRecorder: typeof MediaRecorder; 
-    }
-  }
-</script>
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { streamStore, updateStreamConfig, setViewLayout, updateLocalStreamProperties, getLocalStreamsByType, type LayoutType } from '../stores/streamStore.js';
@@ -19,14 +9,12 @@
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, configStore } from '../stores/configStore.js';
   import type { MenuItem } from '../types/menu.js';
-  // StreamView is now in StreamDisplayArea.svelte
   import { addLocalFileStream, removeLocalFileStream } from '../stores/localFileStreamStore.js';
 
   import LayoutControls from './LayoutControls.svelte';
   import StreamDisplayArea from './StreamDisplayArea.svelte';
   import MediaControls from './MediaControls.svelte';
 
-  // get hangup and openQr from $props
   let { hangup, openQr }: { hangup?: () => void; openQr?: () => void } = $props();
 
   // Context menu state (remains in MediaArea as ContextMenu component is here)
@@ -275,24 +263,6 @@
     
     menuPosition = { x: event.pageX, y: event.pageY };
     showMenu = true;
-  }
-
-  async function handleContextSelect(item: MenuItem | string) {
-    showMenu = false;
-    if (typeof item === 'string' && selectedButton) {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const device = devices.find(d => d.label === item && d.kind === `${selectedButton}input`);
-      if (device) {
-        const deviceString = `${device.groupId}|${device.deviceId}`;
-        updateConfig(`${selectedButton}-device`, deviceString);
-        if ($streamStore.streamConfig[selectedButton] !== null) {
-          updateStreamConfig({ [selectedButton]: null });
-          setTimeout(() => updateStreamConfig({ [selectedButton!]: deviceString }), 100);
-        } else {
-          updateStreamConfig({ [selectedButton]: deviceString });
-        }
-      }
-    }
   }
 
   async function handleToggleVideo() {
