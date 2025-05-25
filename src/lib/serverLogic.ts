@@ -9,7 +9,7 @@ export class ServerLogic implements AppLogic {
   constructor(context: AppLogicContext) {
     this.context = context;
     // Use coordinator URL from config
-    const coordinatorUrl = this.context.config['coordinator-url'] || 'ws://127.0.0.1:5001'; // Fallback for safety
+    const coordinatorUrl = this.context.config.general.coordinatorUrl || 'ws://127.0.0.1:5001'; // Fallback for safety
     this.socket = io(coordinatorUrl, { autoConnect: false });
   }
 
@@ -23,7 +23,7 @@ export class ServerLogic implements AppLogic {
       history.replaceState(null, '', '?' + urlParams.toString());
       appOnId(); 
 
-      if (this.context.config['config-loader'] === 'server') {
+      if (this.context.config.general.configLoader === 'server') {
         setState(current => ({
           ...current,
           showCopyButton: true,

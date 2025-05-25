@@ -1,9 +1,9 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { configStore } from '../stores/configStore.js';
   import { sendChatMessage } from '../lib/chatBridge.js';
   import { sendFile, type FileTransfer } from '../lib/fileBridge.js'; // type FileTransfer might not be needed if not used directly
   import { transcriberStore, transcriptionDisplayStore } from '../lib/media/transcriber.js';
+  import { profileStore } from '../stores/profileStore.js';
 
   // --- Types for Staged Files ---
   // Moved from ControlPanel.svelte
@@ -88,7 +88,7 @@
 
     try {
       if (message.trim()) {
-        const senderName = $configStore['user-name'] || 'You';
+        const senderName = $profileStore.userName || 'You';
         await sendChatMessage(message.trim(), senderName);
         message = '';
         successfullySentSomething = true;

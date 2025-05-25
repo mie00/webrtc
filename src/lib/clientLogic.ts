@@ -92,7 +92,7 @@ export class ClientLogic implements AppLogic {
             const compressedAnswer = await this.context.compress(sdp);
             const answerUrlParams = new URLSearchParams(window.location.search); // Preserves original offer
             answerUrlParams.set('answer', compressedAnswer);
-            const newUrl = (config['config-host'] || window.location.origin) + window.location.pathname + '?' + answerUrlParams.toString();
+            const newUrl = (config.general.configHost || window.location.origin) + window.location.pathname + '?' + answerUrlParams.toString();
             
             setState(currentVal => ({
                 ...currentVal,
@@ -157,7 +157,7 @@ export class ClientLogic implements AppLogic {
         displayUrlParams.set('offer', compressed);
         // Potentially add offerCid to URL for BroadcastChannel matching, though it makes URL longer
         // displayUrlParams.set('offerCid', newCidForOffer); 
-        const newUrlForOverlay = (config['config-host'] || window.location.origin) + window.location.pathname + '?' + displayUrlParams.toString();
+        const newUrlForOverlay = (config.general.configHost || window.location.origin) + window.location.pathname + '?' + displayUrlParams.toString();
         
         setState(currentVal => ({
             ...currentVal,

@@ -1,6 +1,5 @@
 import { writable, get } from 'svelte/store';
 import { getDirectClient, getAllDirectClients } from '../stores/connectionStore.js'; // Adjust path if needed
-import { getAllConfig } from '../stores/configStore.js'; // Import config store
 
 // Chat state interface
 export interface ChatState {
@@ -63,15 +62,7 @@ export function setupChatChannel(cid: string): void { // app might be needed for
     dc.onmessage = (e: MessageEvent): void => {
       // Try to parse as JSON first (for structured messages)
       const data = JSON.parse(e.data);
-      // Determine sender name.
-      const config = getAllConfig(); // Get current global config
-      const localUserName = config['user-name'] || 'You'; // Get receiver's name from global config
       let senderNameToStore = data.sender || 'Peer'; // Default to received name or 'Peer'
-
-      if (senderNameToStore === localUserName) {
-        // Received name matches receiver's name, use CID as identifier
-        senderNameToStore = cid;
-      }
 
       // Add to store with sender's CID and the determined display name
       addMessage(data.message, senderNameToStore, cid);
