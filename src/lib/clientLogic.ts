@@ -108,6 +108,10 @@ export class ClientLogic implements AppLogic {
     }
   }
 
+  setConfig(config: Readonly<AppLogicContext['config']>): void {
+    this.context.config = config;
+  }
+
   async prepareOfferForClientModeDisplay(): Promise<{ offerCid: string | null, newCompressedOffer: string | null }> {
     const { webRTCApp, getState, setState, getDirectClient, compress, config } = this.context;
     const { currentOfferCid: existingOfferCid } = getState(); // Renamed to avoid conflict

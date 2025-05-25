@@ -190,6 +190,10 @@ export class ServerLogic implements AppLogic {
     }
   }
 
+  setConfig(config: Readonly<AppLogicContext['config']>): void {
+    this.context.config = config;
+  }
+
   destroy(): void {
     if (this.socket) {
       if (this.socket.connected) {

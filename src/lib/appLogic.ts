@@ -39,4 +39,5 @@ export interface AppLogic {
   handleJoin?(id: string): void;
   acceptHandler?(cidFromEvent: string | null, pasteValue: string): Promise<void>; // For client to accept pasted answer
   destroy?(): void; // Optional cleanup method
+  setConfig(config: Readonly<Config>): void; // Method to update config
 }

@@ -160,8 +160,8 @@
     await appLogicInstance.initialize(urlParams);
 
     configUnsubscribe = configStore.subscribe(newConfig => {
-      if (appLogicInstance && (appLogicInstance as any).context) {
-        (appLogicInstance as any).context.config = newConfig;
+      if (appLogicInstance && appLogicInstance.setConfig) {
+        appLogicInstance.setConfig(newConfig);
       }
     });
   });
@@ -205,7 +205,9 @@
     console.log("Handling reset, re-initializing logic module.");
     const urlParams = new URLSearchParams(window.location.search);
     if (appLogicInstance) {
-        (appLogicInstance as any).context.config = $configStore;
+        if (appLogicInstance.setConfig) {
+          appLogicInstance.setConfig($configStore);
+        }
         try {
             await appLogicInstance.initialize(urlParams);
         } catch (err) {
