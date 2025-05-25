@@ -520,7 +520,7 @@
       }
   }}
   onVideoUpload={handleVideoUpload}
-  bind:uploadVideoElement={uploadVideoInputInMediaControls} /* Bind to the input in MediaControls */
+  bind:uploadVideoElement={uploadVideoInputInMediaControls}
 />
 
 {#if showMenu}
