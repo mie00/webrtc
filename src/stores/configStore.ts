@@ -33,7 +33,7 @@ const defaultConfig: Config = {
   general: {
     configLoader: 'server',
     userName: '',
-    configHost: '',
+    configHost: 'http://localhost:5173',
     coordinatorUrl: 'ws://127.0.0.1:5001',
   },
   rtc: {
