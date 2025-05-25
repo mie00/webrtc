@@ -50,7 +50,7 @@ import { setupForwardChannel } from '../forwardBridge.js';
 import { setupChatChannel } from '../chatBridge.js';
 import { setupFileChannel } from '../fileBridge.js';
 import { setupTranscriptionChannel } from '../media/transcriber.js';
-import { verifyLoginJWT, verifyLoginJWTFromBase64 } from 'src/stores/authStore.js';
+import { verifyLoginJWT, verifyLoginJWTFromBase64 } from '../../stores/authStore.js';
 
 
 export class WebRTCApp {
