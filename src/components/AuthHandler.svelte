@@ -14,14 +14,15 @@
   };
 
   async function handleLoginClick() {
-    const pkJwk = await authStore.ensureKeyPair();
-    if (pkJwk) {
+    const devicePublicKeySpki = await authStore.getDevicePublicKeyAsSpki();
+    if (devicePublicKeySpki) {
       // Append current query parameters to the callbackTarget
       const callbackTarget = `${window.location.origin}/cb${window.location.search}`;
-      const loginUrl = `http://localhost:5173/login?callback=${encodeURIComponent(callbackTarget)}&payload=${encodeURIComponent(JSON.stringify(pkJwk))}`;
+      // The payload is now the base64 URL encoded SPKI string
+      const loginUrl = `http://localhost:5173/login?callback=${encodeURIComponent(callbackTarget)}&payload=${encodeURIComponent(devicePublicKeySpki)}`;
       performLoginRedirect(loginUrl);
     } else {
-      console.error("Failed to get public key for login redirect.");
+      console.error("Failed to get device public key as SPKI for login redirect.");
       // Potentially show an error to the user
     }
   }
