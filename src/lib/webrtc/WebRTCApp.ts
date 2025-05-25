@@ -126,9 +126,9 @@ export class WebRTCApp {
 
     registerNegoHandler("solution", async (data: SolutionNegoMessage, cid: string) => {
       console.log("solution", data);
-      // Assuming data.solution.jwt and data.solution.pubKey are correct based on SolutionNegoMessage type
-      const verified = await verifyLoginJWTFromBase64(data.solution.jwt, data.solution.pubKey);
-      if (verified) {
+      // Use verifyLoginJWTFromBase64 as data.solution.pubKey is a JWK string
+      const payload = await verifyLoginJWTFromBase64(data.solution.jwt, data.solution.pubKey);
+      if (payload) { // verifyLoginJWTFromBase64 returns payload on success, throws on error
         const client = getDirectClient(cid);
         if (!client) return;
 
