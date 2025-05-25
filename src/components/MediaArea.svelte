@@ -433,7 +433,6 @@
   onRecord={handleRecord}
   onStopSharingVideo={handleVideoCleanup}
   onVideoUpload={handleVideoUpload}
-  // bind:uploadVideoElement is removed as MediaControls manages its own input element
 />
 
 {#if showMenu}
