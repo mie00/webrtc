@@ -9,7 +9,6 @@ import type {
   SolutionNegoMessage,
   TrustedNegoMessage,
   ParticipantNegoMessage,
-  ProfileInfoNegoMessage,
   ParticipantEndNegoMessage,
   HangupNegoMessage,
   BaseNegoMessage
@@ -141,6 +140,8 @@ export class WebRTCApp {
         }
         
         client.trusted = true; // We now trust this peer
+
+        updatePeerProfile(data.solution.userPubKey, { userName: data.profile.userName });
         
         this.sendNego(client, { type: "trusted" });
         this.acceptClient(cid, client);
@@ -181,15 +182,20 @@ export class WebRTCApp {
           challengeBuffer
         );
         const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
-
+        const localProfile = get(profileStore);
+      
         const solutionMessage: SolutionNegoMessage = {
           type: "solution",
           solution: {
             signedChallenge: signatureBase64,
             jwt: authState.jwt,
             pubKey: JSON.stringify(authState.publicKeyJwk),
+            userPubKey: null, // TODO: get it out of the callback used in login
             originalChallenge: originalChallengeContent
-          }
+          },
+          profile: {
+            userName: localProfile.userName || "unknown",
+          },
         };
         this.sendNego(client, solutionMessage);
         console.log("Solution sent to", cid);
@@ -197,17 +203,6 @@ export class WebRTCApp {
       } catch (error) {
         console.error("Error processing challenge and sending solution to", cid, ":", error);
       }
-    });
-
-    registerNegoHandler("profile_info", (data: ProfileInfoNegoMessage, cid: string) => {
-      const client = getDirectClient(cid);
-      if (!client?.trusted) {
-        console.log("recieved profile_info from untrusted peer, ignoring");
-        return;
-      }
-      // Properties are now strongly typed via ProfileInfoNegoMessage
-      updatePeerProfile(data.publicKey, { userName: data.profile.userName });
-      console.log(`Received profile for ${data.profile.userName} (publicKey: ${data.publicKey}) from client ${cid}`);
     });
   }
 
@@ -243,19 +238,6 @@ export class WebRTCApp {
             }
         }
     });
-
-    const authState = window.authStore?.getAuthState();
-    const localPublicKey = authState?.publicKeyJwk ? JSON.stringify(authState.publicKeyJwk) : null;
-    const localProfile = get(profileStore);
-
-    if (localPublicKey && localProfile.isProfileComplete && localProfile.userName) {
-      const profileInfoMessage: ProfileInfoNegoMessage = {
-        type: "profile_info",
-        publicKey: localPublicKey,
-        profile: { userName: localProfile.userName }
-      };
-      this.sendNego(client, profileInfoMessage);
-    }
 
     setupTrackHandler(cid);
     setupChatChannel(cid);
