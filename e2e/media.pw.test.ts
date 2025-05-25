@@ -61,4 +61,15 @@ test.describe('WebRTC Media E2E Tests (2 Peers) @media', () => {
         await performCombinedMediaTestPw(senderInfo, receiverInfo, 'videoFirst');
         console.log('--- TEST SUCCESS (Playwright): Combined (Video First) test completed for 2 peers. ---');
     });
+
+    test.afterEach(async () => {
+        console.log('--- Verifying StreamDisplayArea is empty after test ---');
+        // Check Page A
+        await expect(pageA.locator('div.stream-container')).toHaveCount(0, { timeout: PW_TIMEOUT });
+        console.log('Page A: StreamDisplayArea is empty.');
+        // Check Page B
+        await expect(pageB.locator('div.stream-container')).toHaveCount(0, { timeout: PW_TIMEOUT });
+        console.log('Page B: StreamDisplayArea is empty.');
+        console.log('--- StreamDisplayArea emptiness verification complete ---');
+    });
 });
