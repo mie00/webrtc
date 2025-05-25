@@ -1,265 +1,104 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { connectionStore, type ConnectionState, getDirectClientState, getParticipantState } from '../stores/connectionStore.js';
-  import { getKeysByCid } from '../stores/cidKeyStore.js'; // Import new store getter
+  import { connectionStore } from '../stores/connectionStore.js';
+  import { getKeysByCid } from '../stores/cidKeyStore.js';
   import { getPeerProfile } from '../stores/peerProfileStore.js';
   import { configStore } from '../stores/configStore.js';
-  import { chatStore, sendChatMessage, type ChatState } from '../lib/chatBridge.js';
-  import { fileStore, sendFile, type FileState, type FileTransfer } from '../lib/fileBridge.js';
-  import { transcriberStore, transcriptionDisplayStore, type TranscriptionSegment } from '../lib/media/transcriber.js'; // Added
-  import MediaCarousel, { type CarouselMediaItem } from './MediaCarousel.svelte'; // Import Carousel
+  import { chatStore } from '../lib/chatBridge.js';
+  import { fileStore, type FileTransfer } from '../lib/fileBridge.js';
+  import { transcriptionDisplayStore, type TranscriptionSegment } from '../lib/media/transcriber.js';
+  import MediaCarousel, { type CarouselMediaItem } from './MediaCarousel.svelte';
 
-  // --- Types for Staged Files ---
-  interface StagedFile {
-    id: string;
-    file: File;
-    thumbnailUrl: string | null; // URL for image previews (Data URL)
-  }
+  import ParticipantsPanel from './ParticipantsPanel.svelte';
+  import ActivityFeed, { type FeedItem } from './ActivityFeed.svelte'; // Import FeedItem type from ActivityFeed
+  import InputArea from './InputArea.svelte';
 
-  // --- Types for Combined Feed ---
-  interface FeedItem { // This is for the general feed
-    id: string; // Unique ID for the #each block key
-    type: 'chat' | 'file' | 'transcription'; // Added 'transcription'
-    sender: string; // Display name (userName, 'You', or CID fallback)
-    timestamp: number; // For sorting
-    text?: string; // For chat
-    transfer?: FileTransfer; // For files
-    segment?: TranscriptionSegment; // For transcriptions // Added
-    cid?: string; // Original sender CID (if available for chat/file)
-  }
-
-  // State for panel toggle, chat, file upload
+  // State for panel toggle
   let isPanelOpen = $state(false);
-  let message = $state('');
-  let chatInput: HTMLInputElement | null = null;
   let controlsPanel: HTMLDivElement | null = null;
-  let uploadField: HTMLInputElement | null = null;
-  let chatOutputContainer: HTMLDivElement | null = null;
-  // let canUpload = true; // Replaced by isSending and stagedFiles logic
-
-  // --- New State for Staged Files & Sending ---
-  let stagedFiles = $state<StagedFile[]>([]);
-  let isSending = $state(false); // To disable input/buttons during send operation
 
   // --- State for Transcription Display ---
-  let showCompletedTranscriptions = $state(true); // Renamed: Toggle for completed transcriptions in feed
+  let showCompletedTranscriptions = $state(true);
 
   // --- State for Unread Notifications ---
   let unreadCount = $state(0);
-  let lastRemoteItemCountSeen = $state(0); // Count of remote items when panel was last opened or user sent something
+  let lastRemoteItemCountSeen = $state(0);
 
   // Carousel State
   let showMediaCarousel = $state(false);
-  let carouselMediaItems = $state<CarouselMediaItem[]>([]);
+  let carouselMediaItems = $state<CarouselMediaItem[]>([]); // This will be populated by viewableMediaForCarousel from combinedFeed
   let carouselStartIndex = $state(0);
-
-  // Store values will be accessed directly using $storeName syntax
-  // No need for local copies like connectionState, chatState, fileState
-  // and their manual subscriptions.
-
-  // Helper function to determine if media is playable and its type
-  function getPlayableMediaType(fileType: string): 'audio' | 'video' | 'image' | null {
-    if (fileType?.startsWith('audio/')) {
-      return 'audio';
-    }
-    if (fileType?.startsWith('video/')) {
-      return 'video';
-    }
-    if (fileType?.startsWith('image/')) {
-      return 'image';
-    }
-    return null;
-  }
-
-  // onDestroy cleanup for store subscriptions is no longer needed as we access stores directly.
-  // Data URLs from FileReader (used for thumbnails) don't need explicit revocation.
-  // If URL.createObjectURL were used, cleanup would be needed here.
-
-  // --- Helper Functions for Staged Files ---
-  function generateThumbnailUrl(file: File): Promise<string | null> {
-    return new Promise((resolve) => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target?.result as string);
-        reader.onerror = () => resolve(null); // Fallback if reading fails
-        reader.readAsDataURL(file);
-      } else {
-        resolve(null); // No thumbnail for non-images, UI can use a generic icon
-      }
-    });
-  }
-
-  function uuidv4(): string {
-    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
-      (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
-    );
-  }
-
-  async function addFilesToStaging(files: FileList | null) {
-    if (!files || files.length === 0 || isSending) return;
-
-    const newStagedFileEntries: StagedFile[] = [];
-    for (const file of Array.from(files)) {
-      const thumbnailUrl = await generateThumbnailUrl(file);
-      newStagedFileEntries.push({ id: uuidv4(), file, thumbnailUrl });
-    }
-    stagedFiles = [...stagedFiles, ...newStagedFileEntries];
-
-    if (chatInput) {
-      chatInput.focus();
-    }
-  }
-
-  function removeStagedFile(fileIdToRemove: string) {
-    stagedFiles = stagedFiles.filter(sf => sf.id !== fileIdToRemove);
-    // If thumbnails were blob URLs (from URL.createObjectURL), revoke here:
-    // const fileToRemove = stagedFiles.find(f => f.id === fileIdToRemove);
-    // if (fileToRemove?.thumbnailUrl?.startsWith('blob:')) { URL.revokeObjectURL(fileToRemove.thumbnailUrl); }
-  }
-
 
   // Get local user name directly from the config store
   const localUserName = $derived($configStore['user-name'] || 'You');
 
-  // --- Helper function to count remote items in the feed ---
-  function countRemoteItems(feed: FeedItem[]): number {
-    if (!feed || typeof localUserName !== 'string') return 0; // Ensure localUserName is resolved
-    return feed.filter(item => {
-      const isLocal = item.type === 'chat'
-        ? item.sender === localUserName
-        : !item.cid; // File is local if no senderCid
-      return !isLocal;
-    }).length;
-  }
-
   // --- Create Combined Feed ---
+  // This logic remains in ControlPanel as it's used by unreadCount logic here
   const combinedFeed = $derived((() => {
     const chatItems: FeedItem[] = ($chatStore.messages || []).map((msg, i) => {
-      let senderDisplayName = msg.sender; // Default (e.g., 'You' or name set by sendChatMessage)
-
-      if (msg.cid && msg.sender !== localUserName) { // If it's a remote message with a CID
+      let senderDisplayName = msg.sender;
+      if (msg.cid && msg.sender !== localUserName) {
         const keys = getKeysByCid(msg.cid);
         if (keys?.userPublicKey) {
           const profile = getPeerProfile(keys.userPublicKey);
-          if (profile?.userName) {
-            senderDisplayName = profile.userName;
-          } else {
-            senderDisplayName = msg.cid; // Fallback to CID if no username for this public key
-          }
+          senderDisplayName = profile?.userName || msg.cid;
         } else {
-            senderDisplayName = msg.cid; // Fallback to CID if no userPublicKey found for this CID
+          senderDisplayName = msg.cid;
         }
       }
-
       return {
-        id: `chat-${msg.timestamp}-${i}`,
-        type: 'chat',
-        sender: senderDisplayName,
-        timestamp: msg.timestamp,
-        text: msg.text,
-        cid: msg.cid,
+        id: `chat-${msg.timestamp}-${i}`, type: 'chat', sender: senderDisplayName,
+        timestamp: msg.timestamp, text: msg.text, cid: msg.cid,
       };
     });
 
     const fileItems: FeedItem[] = Object.values($fileStore.transfers || {}).map(transfer => {
       let senderDisplayName: string;
-
-      if (!transfer.senderCid) { // Local file
+      if (!transfer.senderCid) {
         senderDisplayName = localUserName;
-      } else { // Remote file
+      } else {
         const keys = getKeysByCid(transfer.senderCid);
         if (keys?.userPublicKey) {
           const profile = getPeerProfile(keys.userPublicKey);
-          if (profile?.userName) {
-            senderDisplayName = profile.userName;
-          } else {
-            // Fallback to senderName from transfer object if profile/userName not found, then CID
-            senderDisplayName = transfer.senderName || transfer.senderCid;
-          }
+          senderDisplayName = profile?.userName || transfer.senderName || transfer.senderCid;
         } else {
-          // Fallback to senderName from transfer object if keys/userPublicKey not found, then CID
           senderDisplayName = transfer.senderName || transfer.senderCid;
         }
-        if (!senderDisplayName) senderDisplayName = 'Peer'; // Final fallback if all else fails
+        if (!senderDisplayName) senderDisplayName = 'Peer';
       }
-
       return {
-        id: `file-${transfer.id}`,
-        type: 'file',
-        sender: senderDisplayName,
-        timestamp: transfer.timestamp,
-        transfer: transfer,
-        cid: transfer.senderCid,
+        id: `file-${transfer.id}`, type: 'file', sender: senderDisplayName,
+        timestamp: transfer.timestamp, transfer: transfer, cid: transfer.senderCid,
       };
     });
 
-    // Transcription Items
-    const transcriptionItems: FeedItem[] = (
-      $transcriptionDisplayStore.segments 
-        ? $transcriptionDisplayStore.segments 
-        : []
-    ).map((seg, i) => ({
-      id: `transcription-${seg.id || `${seg.utteranceId}-${i}`}`, // Ensure unique ID
-      type: 'transcription',
-      sender: seg.speakerLabel, // Speaker label from ASR (e.g., "You", "Peer X (Spk Y)")
-      timestamp: seg.timestamp, // Timestamp of segment finalization
-      segment: seg, // The full segment data
-      // cid is not directly applicable here like for chat/file, but speakerLabel might contain peer info
+    const transcriptionItems: FeedItem[] = ($transcriptionDisplayStore.segments || []).map((seg, i) => ({
+      id: `transcription-${seg.id || `${seg.utteranceId}-${i}`}`, type: 'transcription',
+      sender: seg.speakerLabel, timestamp: seg.timestamp, segment: seg,
     }));
     
-    // Combine and sort by timestamp
     const allItems = [...chatItems, ...fileItems, ...transcriptionItems];
     allItems.sort((a, b) => a.timestamp - b.timestamp);
     return allItems;
   })());
 
-  // Filter combinedFeed for items suitable for the carousel
-  const viewableMediaForCarousel = $derived.by(() => {
-    const result: CarouselMediaItem[] = [];
-    for (const item of combinedFeed) {
-      if (
-        item.type === 'file' &&
-        item.transfer?.status === 'complete' &&
-        item.transfer.url && // Ensure URL exists
-        (getPlayableMediaType(item.transfer.type) === 'image' ||
-         getPlayableMediaType(item.transfer.type) === 'video')
-      ) {
-        // Type assertion: we've checked all necessary conditions for CarouselMediaItem
-        result.push({
-          id: item.id,
-          type: 'file', // Known
-          sender: item.sender,
-          timestamp: item.timestamp,
-          transfer: item.transfer as FileTransfer & { url: string }, // Cast here
-          cid: item.cid,
-        });
-      }
-    }
-    return result;
-  });
-
-  function openMediaCarousel(clickedItem: CarouselMediaItem) {
-    carouselMediaItems = viewableMediaForCarousel; // Use the pre-filtered and typed list
-    const clickedItemIndex = carouselMediaItems.findIndex(item => item.id === clickedItem.id);
-
-    if (clickedItemIndex !== -1) {
-      carouselStartIndex = clickedItemIndex;
-      showMediaCarousel = true;
-    } else if (carouselMediaItems.length > 0) {
-      // Fallback if somehow the clicked item isn't in the list (should be rare)
-      carouselStartIndex = 0;
-      showMediaCarousel = true;
-    } else {
-      console.warn("No viewable media items for carousel, or clicked item not found in the filtered list.");
-    }
+  // Helper function to count remote items in the feed
+  function countRemoteItems(feed: FeedItem[]): number {
+    if (!feed || typeof localUserName !== 'string') return 0;
+    return feed.filter(item => {
+      const isLocal = item.type === 'chat'
+        ? item.sender === localUserName
+        : (item.type === 'file' ? !item.cid : false); // Files are local if no senderCid, transcriptions are more complex
+      return !isLocal;
+    }).length;
   }
-
-
-  // Auto-scroll combined feed
+  
+  // --- Reactive update for unreadCount ---
+  let unreadCount = $state(0);
   $effect(() => {
-    if (chatOutputContainer && !showMediaCarousel) { // Don't auto-scroll if carousel is open
-      // Scroll to the bottom instantly
-      chatOutputContainer.scrollTop = chatOutputContainer.scrollHeight;
+    if (!isPanelOpen && combinedFeed && typeof localUserName === 'string') {
+      const currentRemoteCount = countRemoteItems(combinedFeed);
+      unreadCount = Math.max(0, currentRemoteCount - lastRemoteItemCountSeen);
     }
   });
 
@@ -267,101 +106,83 @@
   function togglePanel() {
     isPanelOpen = !isPanelOpen;
     if (isPanelOpen) {
-      chatInput?.focus();
-      unreadCount = 0; // Reset unread count when panel is opened
+      // Focus is handled by InputArea now if needed via prop
+      unreadCount = 0;
       if (combinedFeed && typeof localUserName === 'string') {
         lastRemoteItemCountSeen = countRemoteItems(combinedFeed);
       }
     } else {
-      // Panel is being closed, update lastRemoteItemCountSeen to current remote count
-      // This ensures that items seen while panel was open are not counted as unread
       if (combinedFeed && typeof localUserName === 'string') {
         lastRemoteItemCountSeen = countRemoteItems(combinedFeed);
       }
-      // unreadCount should remain 0 or be recalculated by the reactive block if new items arrive after closing
-    }
-  }
-  
-  function handleKeyPress(event: KeyboardEvent) {
-    // Send on Enter (if not Shift+Enter for newline), and if not currently sending
-    if (event.key === 'Enter' && !event.shiftKey && !isSending) {
-      event.preventDefault(); // Prevent default Enter behavior (e.g., adding a newline)
-      triggerSend();
-    }
-  }
-  
-  async function triggerSend() {
-    if (isSending) return; // Prevent concurrent sends
-    if (!message.trim() && stagedFiles.length === 0) return; // Nothing to send
-
-    isSending = true;
-    let successfullySentSomething = false;
-
-    try {
-      // 1. Send text message if present
-      if (message.trim()) {
-        const senderName = $configStore['user-name'] || 'You';
-        await sendChatMessage(message.trim(), senderName); // Assuming sendChatMessage is async
-        message = ''; // Clear message input after successful send
-        successfullySentSomething = true;
-      }
-
-      // 2. Send all staged files
-      if (stagedFiles.length > 0) {
-        const filesToSend = [...stagedFiles];
-        stagedFiles = []; // Clear staging area from UI immediately
-
-        for (const stagedFileObj of filesToSend) {
-          await sendFile(stagedFileObj.file);
-        }
-        successfullySentSomething = true;
-      }
-    } catch (error) {
-      console.error("Error sending message or files:", error);
-      // Potentially re-add files to staging or notify user
-    } finally {
-      isSending = false;
-      if (successfullySentSomething && !isPanelOpen && combinedFeed && typeof localUserName === 'string') {
-        // If something was sent and panel is closed, user has "seen" the feed
-        lastRemoteItemCountSeen = countRemoteItems(combinedFeed);
-        unreadCount = 0; // Reset unread count
-      }
-      await tick(); // Wait for Svelte to process DOM updates
-      if (isPanelOpen && chatInput) {
-        chatInput.focus();
-      }
-    }
-  }
-  
-  // Renamed from handleFileUpload to reflect it now stages files, not sends directly.
-  async function stageFilesFromInput(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files) {
-      await addFilesToStaging(input.files);
-      input.value = ''; // Clear the file input after files are staged
     }
   }
 
-  async function handlePaste(event: ClipboardEvent) {
-    if (isSending) return;
-
-    const pastedFiles = event.clipboardData?.files;
-    if (pastedFiles && pastedFiles.length > 0) {
-      // If files are pasted into the chat input, prevent default text paste and stage them.
-      event.preventDefault();
-      await addFilesToStaging(pastedFiles);
-    }
-    // If no files, default paste behavior (text) for chatInput is allowed.
-  }
-
-  // --- Reactive update for unreadCount ---
-  $effect(() => {
+  function handleSentSomething() {
     if (!isPanelOpen && combinedFeed && typeof localUserName === 'string') {
-      const currentRemoteCount = countRemoteItems(combinedFeed);
-      unreadCount = Math.max(0, currentRemoteCount - lastRemoteItemCountSeen);
+      lastRemoteItemCountSeen = countRemoteItems(combinedFeed);
+      unreadCount = 0;
     }
-    // If panel is open, unreadCount is managed by togglePanel and user actions.
-  });
+    // Potentially trigger a tick if focus needs to be managed after send
+    tick().then(() => {
+      // Focus logic is now primarily within InputArea based on isPanelOpen prop
+    });
+  }
+
+  function handleToggleShowCompletedTranscriptions() {
+    showCompletedTranscriptions = !showCompletedTranscriptions;
+  }
+
+  // This function is called by ActivityFeed via prop
+  function openMediaCarousel(clickedItem: CarouselMediaItem) {
+    // We need viewableMediaForCarousel. ActivityFeed calculates this.
+    // For now, let's assume ActivityFeed passes the full list or ControlPanel recalculates it.
+    // To keep it simple, ControlPanel can derive its own viewableMediaForCarousel if needed,
+    // or ActivityFeed can pass the full list.
+    // For this refactor, we'll rely on the fact that openMediaCarousel in the original
+    // used a `viewableMediaForCarousel` derived from `combinedFeed`.
+    // We'll need to replicate that or adjust.
+    // The simplest is to have ActivityFeed pass the list of items for the carousel.
+    // However, the original `openMediaCarousel` took a single `clickedItem` and then
+    // set `carouselMediaItems = viewableMediaForCarousel`.
+    // Let's make `ActivityFeed` pass the `viewableMediaForCarousel` list and the `clickedItem`.
+    // For now, let's keep the original `openMediaCarousel` signature and have it compute
+    // `viewableMediaForCarousel` from `combinedFeed` here.
+
+    const getPlayableMediaType = (type: string) => { // Local helper for this function
+        if (type?.startsWith('image/')) return 'image';
+        if (type?.startsWith('video/')) return 'video';
+        return null;
+    };
+
+    const currentViewableMedia: CarouselMediaItem[] = [];
+    for (const item of combinedFeed) {
+      if (
+        item.type === 'file' &&
+        item.transfer?.status === 'complete' &&
+        item.transfer.url &&
+        (getPlayableMediaType(item.transfer.type) === 'image' ||
+         getPlayableMediaType(item.transfer.type) === 'video')
+      ) {
+        currentViewableMedia.push({
+          id: item.id, type: 'file', sender: item.sender, timestamp: item.timestamp,
+          transfer: item.transfer as FileTransfer & { url: string }, cid: item.cid,
+        });
+      }
+    }
+    carouselMediaItems = currentViewableMedia;
+    const clickedItemIndex = carouselMediaItems.findIndex(item => item.id === clickedItem.id);
+
+    if (clickedItemIndex !== -1) {
+      carouselStartIndex = clickedItemIndex;
+      showMediaCarousel = true;
+    } else if (carouselMediaItems.length > 0) {
+      carouselStartIndex = 0;
+      showMediaCarousel = true;
+    } else {
+      console.warn("No viewable media items for carousel, or clicked item not found.");
+    }
+  }
 </script>
 
 <div
@@ -369,7 +190,8 @@
      id="test-control-panel"
      class="w-11/12 lg:w-1/2 xl:w-1/4 2x:w-1/4 flex flex-col fixed bottom-0 top-0"
      class:left-full={!isPanelOpen}
-     class:right-0={isPanelOpen}>
+     class:right-0={isPanelOpen}
+>
   <div class="absolute top-1/4">
     <button
       id="test-toggle-panel-button"
@@ -390,325 +212,22 @@
       {/if}
     </button>
   </div>
-  <div class="bg-gray-200 p-4 flex flex-col space-y-4 w-full h-full overflow-y-auto"> <!-- Added overflow-y-auto -->
+  <div class="bg-gray-200 p-4 flex flex-col space-y-4 w-full h-full overflow-y-auto">
+    <ParticipantsPanel />
 
-     <!-- Participants Panel -->
-     <div class="border-b border-gray-300 pb-4 mb-4">
-       <h3 class="text-lg font-semibold mb-2">Connections</h3>
-       {#if Object.keys($connectionStore.directClients || {}).length === 0 && Object.keys($connectionStore.participants || {}).length === 0}
-         <p class="text-sm text-gray-500">No active connections.</p>
-       {/if}
+    <ActivityFeed
+      {combinedFeed}
+      {localUserName}
+      {showCompletedTranscriptions}
+      onOpenMediaCarousel={openMediaCarousel}
+    />
 
-       <!-- Direct Connections -->
-       {#each Object.values($connectionStore.directClients || {}) as client (client.cid)}
-        {@const state = client.connectionState}
-        {@const iceState = client.iceConnectionState}
-        {@const isConnected = state === 'connected' && iceState === 'connected'}
-        {@const isFailed = state === 'failed' || iceState === 'failed' || state === 'closed' || iceState === 'closed' || state === 'disconnected' || iceState === 'disconnected'}
-        {@const isConnecting = !isConnected && !isFailed && (state !== null || iceState !== null)} <!-- Show yellow if not connected/failed but trying -->
-        {@const clientKeys = getKeysByCid(client.cid)}
-        {@const userProfile = clientKeys?.userPublicKey ? getPeerProfile(clientKeys.userPublicKey) : undefined}
-        {@const displayName = userProfile?.userName || client.cid}
-         <div class="flex items-center space-x-2 mb-1">
-           <div
-             id="test-indicator-{client.cid}"
-             class="rounded-full h-3 w-3 flex-shrink-0 test-indicator"
-             class:test-indicator-connected={isConnected}
-             class:bg-green-500={isConnected}
-             class:bg-red-500={isFailed}
-             class:bg-yellow-400={isConnecting}
-             class:bg-gray-400={!isConnected && !isFailed && !isConnecting}
-             title={`Direct: ${client.cid}\nState: ${state ?? 'N/A'}\nICE: ${iceState ?? 'N/A'}`}
-           ></div>
-           <p class="text-sm font-medium text-gray-700" title={`CID: ${client.cid}`}>
-             {displayName}
-             {#if client.fingerprint}
-               <span class="ml-1" title="Connection Fingerprint">{client.fingerprint}</span>
-             {/if}
-           </p>
-         </div>
-       {/each}
-
-       <!-- Relayed Participants (Peers known via other direct connections) -->
-       {#each Object.values($connectionStore.participants || {}) as participant (participant.cid)}
-         <!-- Only show participants that are NOT direct clients -->
-         {#if !($connectionStore.directClients || {})[participant.cid]}
-           {@const relayClient = ($connectionStore.directClients || {})[participant.relayCid]}
-           {@const relayState = relayClient?.connectionState}
-           {@const relayIceState = relayClient?.iceConnectionState}
-           {@const isRelayConnected = relayState === 'connected' && relayIceState === 'connected'}
-           {@const isRelayFailed = !relayClient || relayState === 'failed' || relayIceState === 'failed' || relayState === 'closed' || relayIceState === 'closed' || relayState === 'disconnected' || relayIceState === 'disconnected'}
-           {@const isRelayConnecting = relayClient && !isRelayConnected && !isRelayFailed && (relayState !== null || relayIceState !== null)}
-           {@const participantKeys = getKeysByCid(participant.cid)}
-           {@const relayedUserProfile = participantKeys?.userPublicKey ? getPeerProfile(participantKeys.userPublicKey) : undefined}
-           {@const relayedDisplayName = relayedUserProfile?.userName || participant.cid}
-            <div class="flex items-center space-x-2 mb-1 opacity-75">
-             <div
-               id="test-indicator-relayed-{participant.cid}"
-               class="rounded-full h-3 w-3 flex-shrink-0 border border-gray-400"
-               class:bg-green-300={isRelayConnected}
-               class:bg-red-300={isRelayFailed}
-               class:bg-yellow-200={isRelayConnecting}
-               class:bg-gray-200={!relayClient || (!isRelayConnected && !isRelayFailed && !isRelayConnecting)}
-               title={`Relayed: ${participant.cid}\nVia: ${participant.relayCid}\nRelay State: ${relayState ?? 'N/A'}\nRelay ICE: ${relayIceState ?? 'N/A'}`}
-             ></div>
-             <p class="text-sm font-medium text-gray-500 truncate" title={`CID: ${participant.cid} (via ${participant.relayCid})`}>
-               {relayedDisplayName}... (Relayed)
-             </p>
-           </div>
-         {/if}
-       {/each}
-     </div>
-
-    <!-- Combined Chat and File Transfer Feed -->
-    <div class="flex-1 flex flex-col min-h-0 border-t border-gray-300 pt-4 mt-4">
-      <h3 class="text-lg font-semibold mb-2 px-4">Activity Feed</h3>
-      <!-- Feed Area -->
-      <div bind:this={chatOutputContainer} id="test-chat-container" class="flex-1 overflow-y-auto px-4 py-2 space-y-4">
-        {#if combinedFeed.length === 0}
-          <p class="text-sm text-gray-500 italic">Messages and file transfers will appear here...</p>
-        {:else}
-          {#each combinedFeed as item (item.id)}
-            <!-- Determine if the item is from the local user -->
-            {@const isLocalUser = item.type === 'chat'
-              ? item.sender === localUserName // Local chat message if sender matches
-              : item.type === 'file'
-                ? !item.cid // Local file transfer if senderCid is missing
-                : item.type === 'transcription' && item.segment
-                  ? item.segment.sessionId.startsWith('local|') // Local transcription segment
-                  : false
-            }
-            
-            {#if item.type === 'transcription' ? showCompletedTranscriptions : true}
-            <!-- Add data-filename for file transfers to help test selectors -->
-            <div class="flex" class:justify-end={isLocalUser} class:justify-start={!isLocalUser} data-filename={item.type === 'file' ? item.transfer?.name : null}>
-              <div
-                class="p-3 rounded-lg shadow max-w-[90%] break-words"
-                class:bg-blue-100={isLocalUser && item.type !== 'transcription'}
-                class:bg-gray-100={!isLocalUser && item.type !== 'transcription'}
-                class:bg-gray-50={item.type === 'transcription'} 
-                class:dark:bg-gray-700={item.type === 'transcription'} 
-                >
-                <!-- Always display sender name, use title for CID -->
-                <p
-                  data-testid="sender-name"
-                  class="text-xs font-semibold mb-1"
-                  class:text-blue-800={isLocalUser && item.type !== 'transcription'}
-                  class:dark:text-blue-300={isLocalUser && item.type !== 'transcription'}
-                  class:text-gray-600={!isLocalUser && item.type !== 'transcription'}
-                  class:dark:text-gray-400={!isLocalUser && item.type !== 'transcription'}
-                  class:text-teal-700={item.type === 'transcription'}
-                  class:dark:text-teal-300={item.type === 'transcription'}
-                  title={item.type === 'transcription' && item.segment ? `Transcribed from: ${item.segment.sessionId}` : (item.cid ? `CID: ${item.cid}` : 'Local Sender')}
-                >
-                  {item.sender} <!-- Always display sender name (localUserName, Peer, CID, etc.) -->
-                </p>
-
-                {#if item.type === 'chat'}
-                  <p data-testid="chat-message" class="text-sm">{item.text}</p>
-                {:else if item.type === 'file' && item.transfer}
-                  {@const transfer = item.transfer}
-                  {@const playableMediaType = getPlayableMediaType(transfer.type)}
-
-                  <!-- Standard File Info View -->
-                  <div class="space-y-1">
-                    <p data-testid="filename" class="text-sm font-medium truncate" title={transfer.name}>{transfer.name}</p>
-
-                    {#if transfer.status === 'complete' && playableMediaType && transfer.url}
-                      <!-- Inline Player View - Always shown for completed playable media -->
-                      <div class="my-2">
-                        {#if playableMediaType === 'video'}
-                          <div
-                            class="cursor-pointer"
-                            role="button"
-                            tabindex="0"
-                            onclick={() => {
-                              const cItem = viewableMediaForCarousel.find(mi => mi.id === item.id);
-                              if (cItem) openMediaCarousel(cItem);
-                            }}
-                            onkeydown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                const cItem = viewableMediaForCarousel.find(mi => mi.id === item.id);
-                                if (cItem) openMediaCarousel(cItem);
-                                e.preventDefault();
-                              }
-                            }}
-                            aria-label={`View video: ${transfer.name}`}
-                          >
-                            <!-- svelte-ignore a11y_media_has_caption -->
-                            <video src={transfer.url} controls class="w-full rounded aspect-video min-w-md pointer-events-none"></video>
-                          </div>
-                        {:else if playableMediaType === 'image'}
-                          <div
-                            class="cursor-pointer"
-                            role="button"
-                            tabindex="0"
-                            onclick={() => {
-                              const cItem = viewableMediaForCarousel.find(mi => mi.id === item.id);
-                              if (cItem) openMediaCarousel(cItem);
-                            }}
-                            onkeydown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                const cItem = viewableMediaForCarousel.find(mi => mi.id === item.id);
-                                if (cItem) openMediaCarousel(cItem);
-                                e.preventDefault();
-                              }
-                            }}
-                            aria-label={`View image: ${transfer.name}`}
-                          >
-                            <img
-                              src={transfer.url}
-                              alt={transfer.name}
-                              class="w-full rounded max-h-60 object-contain my-2 pointer-events-none"
-                              onerror={(e) => {
-                                console.error('Image failed to load. URL:', transfer.url, 'Transfer object:', JSON.stringify(transfer));
-                              }}
-                            />
-                          </div>
-                        {:else if playableMediaType === 'audio'}
-                          <audio src={transfer.url} controls class="w-full min-w-md"></audio>
-                        {/if}
-                      </div>
-                    {/if}
-
-                    {#if transfer.status !== 'complete' && transfer.status !== 'error'}
-                      <div class="flex items-center space-x-2">
-                        <progress data-testid="progress-bar" class="w-full h-2 rounded" value={transfer.progress} max="100"></progress>
-                        <span class="text-xs font-mono flex-shrink-0">{transfer.progress}%</span>
-                      </div>
-                    {/if}
-
-                    {#if transfer.status === 'sending'}
-                      <p data-testid="status" class="text-xs text-blue-600">Sending...</p>
-                    {:else if transfer.status === 'receiving'}
-                      <p data-testid="status" class="text-xs text-blue-600">Receiving...</p>
-                    {:else if transfer.status === 'complete'}
-                      <p data-testid="status" class="text-xs text-green-600">Completed</p>
-                      {#if transfer.url}
-                        <div class="flex flex-wrap gap-2 mt-1">
-                          <a data-testid="download-link" href={transfer.url} download={transfer.name}
-                             class="flex-1 text-center py-1 px-2 bg-green-500 text-white text-xs rounded shadow hover:bg-green-600 min-w-[calc(50%-0.25rem)]">
-                            Download
-                          </a>
-                          <a data-testid="view-link" href={transfer.url} target="_blank" rel="noopener noreferrer"
-                             class="flex-1 text-center py-1 px-2 bg-blue-500 text-white text-xs rounded shadow hover:bg-blue-600 min-w-[calc(50%-0.25rem)]">
-                            View
-                          </a>
-                        </div>
-                      {:else}
-                        <p data-testid="status" class="text-xs text-gray-500 mt-1">(URL not available)</p>
-                      {/if}
-                    {:else if transfer.status === 'error'}
-                      <p data-testid="status" class="text-xs text-red-600" title={transfer.error}>Error: {transfer.error || 'Transfer failed'}</p>
-                    {/if}
-                  </div>
-                {:else if item.type === 'transcription' && item.segment}
-                  {@const segment = item.segment}
-                  <div class="transcription-segment text-sm" data-testid="transcription-segment">
-                    <p class="text-gray-700 dark:text-gray-100">{segment.text}</p>
-                    <!-- Optionally, display beg/end times or other segment details if needed -->
-                    <!-- <p class="text-xs text-gray-400">{segment.beg} - {segment.end}</p> -->
-                  </div>
-                {/if}
-              </div>
-            </div>
-            {/if} <!-- End of #if for showCompletedTranscriptions -->
-          {/each}
-        {/if}
-      </div>
-
-      <!-- Staging Area for Files -->
-      {#if stagedFiles.length > 0}
-        <div class="px-4 pt-2 space-y-2 max-h-48 overflow-y-auto border-t border-b border-gray-300">
-          <h4 class="text-xs font-semibold text-gray-600 uppercase">Files to send:</h4>
-          {#each stagedFiles as stagedFile (stagedFile.id)}
-            <div class="flex items-center justify-between p-1.5 bg-gray-50 rounded shadow-sm text-sm">
-              <div class="flex items-center space-x-2 overflow-hidden min-w-0">
-                {#if stagedFile.thumbnailUrl}
-                  <img src={stagedFile.thumbnailUrl} alt="Preview" class="w-10 h-10 object-cover rounded border border-gray-200">
-                {:else}
-                  <!-- Generic file icon placeholder -->
-                  <div class="w-10 h-10 flex items-center justify-center bg-gray-200 rounded border border-gray-300">
-                    <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a2 2 0 00-2 2v8l-3 3v2h12v-2l-3-3V4a2 2 0 00-2-2H9zm7 11h-2v2h2v-2zm-4 0H8v2h4v-2zM7 2H5v2h2V2z"></path></svg>
-                  </div>
-                {/if}
-                <span class="truncate text-gray-700" title={stagedFile.file.name}>{stagedFile.file.name}</span>
-              </div>
-              <button
-                type="button"
-                disabled={isSending}
-                aria-label="remove file"
-                onclick={() => removeStagedFile(stagedFile.id)}
-                class="text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed p-1 ml-2 flex-shrink-0"
-                title="Remove file"
-              >
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
-              </button>
-            </div>
-          {/each}
-        </div>
-      {/if}
-
-      <!-- Pending Transcriptions Area - Always shown if active and has content -->
-      {#if $transcriberStore.isTranscribingOverall && Object.values($transcriptionDisplayStore.activeBuffers).some(b => b.text && b.text.length > 0)}
-        <div class="pending-transcriptions px-4 py-2 text-xs text-gray-500 border-t border-gray-300 bg-gray-50">
-          {#each Object.values($transcriptionDisplayStore.activeBuffers) as buffer (buffer.sessionId)}
-            {#if buffer.text && buffer.text.length > 0}
-              <div class="py-0.5" data-testid="pending-transcription-buffer">
-                <span class="font-semibold">{buffer.speakerLabel} (speaking...):</span>
-                <span class="ml-1 italic">{buffer.text}</span>
-              </div>
-            {/if}
-          {/each}
-        </div>
-      {/if}
-
-      <!-- Message Input and Upload Button (Remains at the bottom) -->
-      <div class="flex items-center space-x-2 p-4 border-t border-gray-300 mt-auto bg-gray-100">
-        <input id="test-chat-input" type="text" placeholder="Type message..."
-          bind:value={message}
-          bind:this={chatInput}
-          disabled={isSending}
-          class="flex-1 border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
-          onkeypress={handleKeyPress}
-          onpaste={handlePaste}>
-        <div class="relative"> <!-- Use relative positioning for the button container -->
-          <button
-            id="test-attach-file-button"
-            type="button"
-            disabled={isSending}
-            onclick={() => uploadField?.click()}
-            class="cursor-pointer text-white px-3 py-2 rounded-md text-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            class:bg-blue-500={!isSending}
-            class:bg-gray-500={isSending}
-            title={!isSending ? "Attach file" : "Sending..."}
-          >📎</button>
-          {#if $transcriptionDisplayStore.segments.length}
-            <button
-              type="button"
-              onclick={() => showCompletedTranscriptions = !showCompletedTranscriptions}
-              class="text-white px-3 py-2 rounded-md text-lg hover:opacity-80"
-              class:bg-blue-500={showCompletedTranscriptions}
-              class:bg-gray-400={!showCompletedTranscriptions}
-              title={showCompletedTranscriptions ? "Hide Transcriptions from Feed" : "Show Transcriptions in Feed"}
-              aria-label={showCompletedTranscriptions ? "Hide Transcriptions from Feed" : "Show Transcriptions in Feed"}
-            >
-              {showCompletedTranscriptions ? '📜' : '📝'} <!-- Icons for showing/hiding feed transcripts -->
-            </button>
-          {/if}
-          <input
-            id="test-file-upload"
-            type="file"
-            multiple
-            disabled={isSending}
-            class="hidden"
-            onchange={stageFilesFromInput}
-            bind:this={uploadField}
-          >
-        </div>
-      </div>
-    </div> <!-- End Combined Feed -->
-
+    <InputArea
+      {isPanelOpen}
+      onSentSomething={handleSentSomething}
+      {showCompletedTranscriptions}
+      onToggleShowCompletedTranscriptions={handleToggleShowCompletedTranscriptions}
+    />
   </div>
 </div>
 
