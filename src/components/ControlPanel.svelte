@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { connectionStore, type ConnectionState } from '../stores/connectionStore.js';
+  import { connectionStore, type ConnectionState, getDirectClientState, getParticipantState } from '../stores/connectionStore.js';
+  import { getPeerProfile } from '../stores/peerProfileStore.js';
   import { configStore } from '../stores/configStore.js';
   import { chatStore, sendChatMessage, type ChatState } from '../lib/chatBridge.js';
   import { fileStore, sendFile, type FileState, type FileTransfer } from '../lib/fileBridge.js';
@@ -18,12 +19,12 @@
   interface FeedItem { // This is for the general feed
     id: string; // Unique ID for the #each block key
     type: 'chat' | 'file' | 'transcription'; // Added 'transcription'
-    sender: string; // For chat/transcription, or file sender
+    sender: string; // Display name (userName, 'You', or CID fallback)
     timestamp: number; // For sorting
     text?: string; // For chat
     transfer?: FileTransfer; // For files
     segment?: TranscriptionSegment; // For transcriptions // Added
-    cid?: string; // Added: Original sender CID (if available for chat/file)
+    cid?: string; // Original sender CID (if available for chat/file)
   }
 
   // State for panel toggle, chat, file upload
@@ -132,37 +133,62 @@
 
   // --- Create Combined Feed ---
   const combinedFeed = $derived((() => {
-    const chatItems: FeedItem[] = ($chatStore.messages || []).map((msg, i) => ({
-      id: `chat-${msg.timestamp}-${i}`,
-      type: 'chat',
-      sender: msg.sender, // Display name
-      timestamp: msg.timestamp,
-      text: msg.text,
-      cid: msg.cid, // Pass CID for chat messages
-    }));
+    const chatItems: FeedItem[] = ($chatStore.messages || []).map((msg, i) => {
+      let senderDisplayName = msg.sender; // Default (e.g., 'You' or name set by sendChatMessage)
+
+      if (msg.cid && msg.sender !== localUserName) { // If it's a remote message with a CID
+        const clientState = getDirectClientState(msg.cid) || getParticipantState(msg.cid);
+        if (clientState?.userPublicKey) {
+          const profile = getPeerProfile(clientState.userPublicKey);
+          if (profile?.userName) {
+            senderDisplayName = profile.userName;
+          } else {
+            senderDisplayName = msg.cid; // Fallback to CID if no username for this public key
+          }
+        } else {
+            senderDisplayName = msg.cid; // Fallback to CID if no userPublicKey found for this CID
+        }
+      }
+
+      return {
+        id: `chat-${msg.timestamp}-${i}`,
+        type: 'chat',
+        sender: senderDisplayName,
+        timestamp: msg.timestamp,
+        text: msg.text,
+        cid: msg.cid,
+      };
+    });
 
     const fileItems: FeedItem[] = Object.values($fileStore.transfers || {}).map(transfer => {
-      // Determine sender display name:
       let senderDisplayName: string;
-      if (!transfer.senderCid) {
-        // Local file (sending or completed)
+
+      if (!transfer.senderCid) { // Local file
         senderDisplayName = localUserName;
-      } else {
-        // Remote file: Prioritize senderName, fallback explicitly to senderCid.
-        senderDisplayName = transfer.senderName || transfer.senderCid; // Use name or CID
-        // If both senderName and senderCid were somehow missing, fallback to 'Peer'
-        if (!senderDisplayName) {
-            senderDisplayName = 'Peer';
+      } else { // Remote file
+        const clientState = getDirectClientState(transfer.senderCid) || getParticipantState(transfer.senderCid);
+        if (clientState?.userPublicKey) {
+          const profile = getPeerProfile(clientState.userPublicKey);
+          if (profile?.userName) {
+            senderDisplayName = profile.userName;
+          } else {
+            // Fallback to senderName from transfer object if profile/userName not found, then CID
+            senderDisplayName = transfer.senderName || transfer.senderCid;
+          }
+        } else {
+          // Fallback to senderName from transfer object if clientState/userPublicKey not found, then CID
+          senderDisplayName = transfer.senderName || transfer.senderCid;
         }
+        if (!senderDisplayName) senderDisplayName = 'Peer'; // Final fallback if all else fails
       }
 
       return {
         id: `file-${transfer.id}`,
         type: 'file',
-        sender: senderDisplayName, // Use determined display name
-        timestamp: transfer.timestamp, // Use the timestamp from the transfer object
+        sender: senderDisplayName,
+        timestamp: transfer.timestamp,
         transfer: transfer,
-        cid: transfer.senderCid, // Pass sender CID for files (will be undefined for local sends)
+        cid: transfer.senderCid,
       };
     });
 
@@ -390,8 +416,11 @@
              class:bg-gray-400={!isConnected && !isFailed && !isConnecting}
              title={`Direct: ${client.cid}\nState: ${state ?? 'N/A'}\nICE: ${iceState ?? 'N/A'}`}
            ></div>
-           <p class="text-sm font-medium text-gray-700" title={client.cid}>
-             {client.cid}
+           {@const directClientState = getDirectClientState(client.cid)}
+           {@const userProfile = directClientState?.userPublicKey ? getPeerProfile(directClientState.userPublicKey) : undefined}
+           {@const displayName = userProfile?.userName || client.cid}
+           <p class="text-sm font-medium text-gray-700" title={`CID: ${client.cid}`}>
+             {displayName}
              {#if client.fingerprint}
                <span class="ml-1" title="Connection Fingerprint">{client.fingerprint}</span>
              {/if}
@@ -419,8 +448,11 @@
                class:bg-gray-200={!relayClient || (!isRelayConnected && !isRelayFailed && !isRelayConnecting)}
                title={`Relayed: ${participant.cid}\nVia: ${participant.relayCid}\nRelay State: ${relayState ?? 'N/A'}\nRelay ICE: ${relayIceState ?? 'N/A'}`}
              ></div>
-             <p class="text-sm font-medium text-gray-500 truncate" title={`${participant.cid} (via ${participant.relayCid})`}>
-               {participant.cid}... (Relayed)
+             {@const participantFullState = getParticipantState(participant.cid)}
+             {@const relayedUserProfile = participantFullState?.userPublicKey ? getPeerProfile(participantFullState.userPublicKey) : undefined}
+             {@const relayedDisplayName = relayedUserProfile?.userName || participant.cid}
+             <p class="text-sm font-medium text-gray-500 truncate" title={`CID: ${participant.cid} (via ${participant.relayCid})`}>
+               {relayedDisplayName}... (Relayed)
              </p>
            </div>
          {/if}

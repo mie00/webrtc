@@ -150,6 +150,11 @@ export function getDirectClientState(cid: string): DirectClientState | undefined
   return state.directClients[cid];
 }
 
+export function getParticipantState(cid: string): ParticipantState | undefined {
+  const state = get(connectionStore);
+  return state.participants[cid];
+}
+
 export function getDirectClient(cid: string): WebRTCClient | undefined {
   const state = get(connectionStore);
   return state.directClients[cid]?.client;
