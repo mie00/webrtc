@@ -6,6 +6,7 @@ import {
     PW_TIMEOUT,
     checkConnectionEstablished
 } from './pwTestHelpers';
+import { handleLoginIfNeeded } from './pwAuthHelper';
 
 export interface StandardSetupResult {
     pageA: Page;
@@ -43,6 +44,7 @@ export async function standardSetup(browser: Browser): Promise<StandardSetupResu
     console.log('Page B navigating to invite URL...');
     await pageB.goto(inviteUrl, { waitUntil: 'networkidle', timeout: PW_TIMEOUT });
     console.log('Page B navigation complete.');
+    await handleLoginIfNeeded(pageB, 'Page B');
 
     console.log('Waiting for copy button in Page B...');
     await pageB.locator('#test-copy-button').waitFor({ state: 'visible', timeout: PW_TIMEOUT });

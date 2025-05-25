@@ -6,6 +6,7 @@ import {
     PW_TIMEOUT,
     checkConnectionEstablished
 } from './pwTestHelpers';
+import { handleLoginIfNeeded } from './pwAuthHelper';
 
 export interface LinkClientSetupResult {
     pageA: Page;
@@ -30,6 +31,7 @@ export async function pwLinkClientSetup(browser: Browser): Promise<LinkClientSet
     console.log('Page A navigating to: /');
     await pageA.goto('/', { waitUntil: 'networkidle', timeout: PW_TIMEOUT });
     console.log('Page A navigation complete.');
+    await handleLoginIfNeeded(pageA, 'Page A');
 
     await pageA.locator('#test-open-config-button').waitFor({ state: 'visible', timeout: PW_TIMEOUT });
     await pageA.locator('#test-open-config-button').click();
@@ -38,6 +40,8 @@ export async function pwLinkClientSetup(browser: Browser): Promise<LinkClientSet
 
     await pageA.locator('#save-button').click();
     await pageA.waitForLoadState('networkidle', { timeout: PW_TIMEOUT });
+    // After potential reload due to config change, check for login again
+    await handleLoginIfNeeded(pageA, 'Page A');
 
     console.log('Waiting for invite URL copy button on Page A...');
     await pageA.locator(INVITE_URL_SELECTOR).waitFor({ state: 'visible', timeout: PW_TIMEOUT });
@@ -51,6 +55,7 @@ export async function pwLinkClientSetup(browser: Browser): Promise<LinkClientSet
     console.log('Page B navigating to invite URL...');
     await pageB.goto(inviteUrl, { waitUntil: 'networkidle', timeout: PW_TIMEOUT });
     console.log('Page B navigation complete.');
+    await handleLoginIfNeeded(pageB, 'Page B');
 
     console.log('Waiting for copy button in Page B...');
     await pageB.locator('#test-copy-button').waitFor({ state: 'visible', timeout: PW_TIMEOUT });
