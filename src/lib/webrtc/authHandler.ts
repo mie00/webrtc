@@ -4,7 +4,7 @@ import type {
   NegoData,
   TrustedNegoMessage
 } from '../../types/negoMessages.js';
-import type { WebRTCClient } from '../../../types/global.d.ts'; // Adjusted path for global types
+// WebRTCClient is globally available from types/global.d.ts
 import { getDirectClient } from '../../stores/connectionStore.js';
 import { setCidKeys } from '../../stores/cidKeyStore.js';
 import { updatePeerProfile } from '../../stores/peerProfileStore.js';
