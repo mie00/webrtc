@@ -1,7 +1,7 @@
 import type { AppLogic, AppLogicContext, AppLogicState } from './appLogic.js';
 /// <reference path="../../../types/global.d.ts" />
 // import { connectionStore } from '../stores/connectionStore'; // For direct $connectionStore access if needed
-import { sendFSK, receiveFSK } from '../utils/dsp.js';
+import { sendFSK, receiveFSK } from '../utils/dsp';
 
 export class ClientLogic implements AppLogic {
   private context: AppLogicContext;
