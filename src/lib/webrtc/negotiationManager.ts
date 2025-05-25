@@ -22,7 +22,7 @@ export interface NegotiationManagerContext {
   destroyClient: (cid: string) => void;
   destroyApp: () => void; // For polite hangup handling
   acceptClient: (cid: string, client: WebRTCClient) => void;
-  setCidKeys: (cid: string, publicKey: string | null, userPublicKey: string | null) => void;
+  setCidKeys: (cid: string, publicKey: string | null, userPublicKey: string) => void; // userPublicKey is now string
   getKeysByCid: (cid: string) => CidKeys | undefined;
   addParticipant: (cid: string, relayingClientCid: string) => void;
   removeParticipant: (cid: string) => void;
@@ -112,8 +112,13 @@ export class NegotiationManager {
 
     this.context.registerNegoHandler("participant", (data: ParticipantNegoMessage, relayingClientCid: string) => {
       const existingKeys = this.context.getKeysByCid(data.cid);
-      if (data.publicKey && (!existingKeys || !existingKeys.userPublicKey)) {
-        this.context.setCidKeys(data.cid, existingKeys?.publicKey || null, data.publicKey);
+      // data.publicKey is the userPublicKey for the participant.
+      // Ensure it's not null before calling setCidKeys, as the context now expects a string.
+      if (data.publicKey) { 
+        if (!existingKeys || !existingKeys.userPublicKey || existingKeys.userPublicKey !== data.publicKey) {
+          // Pass existingKeys?.publicKey (device key) as is, and data.publicKey (user key)
+          this.context.setCidKeys(data.cid, existingKeys?.publicKey || null, data.publicKey);
+        }
       }
       this.context.addParticipant(data.cid, relayingClientCid);
     });

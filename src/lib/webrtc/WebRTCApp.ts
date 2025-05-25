@@ -6,28 +6,20 @@ import {
   getKeysByCid
 } from '../../stores/cidKeyStore.js'; // Import new store
 import type {
-  NegoData,
+  NegoData, // Keep one NegoData
   NegoMessageMap,
   NegoMessageType,
-  OfferNegoMessage,
-  AnswerNegoMessage,
+  OfferNegoMessage, // Keep one OfferNegoMessage
+  AnswerNegoMessage, // Keep one AnswerNegoMessage
   // ChallengeNegoMessage, // Moved to authHandler
   // SolutionNegoMessage, // Moved to authHandler
-  // TrustedNegoMessage, // Handled by NegotiationManager
-  // ParticipantNegoMessage, // Handled by NegotiationManager
-  // ParticipantEndNegoMessage, // Handled by NegotiationManager
-  // HangupNegoMessage, // Handled by NegotiationManager
-  // BaseNegoMessage // Handled by NegotiationManager
-  // OfferNegoMessage, AnswerNegoMessage are still needed for onnegotiationneeded
-  // and NegoData for some typings.
-  OfferNegoMessage,
-  AnswerNegoMessage,
-  TrustedNegoMessage, // For authHandler context
-  ParticipantNegoMessage, // For acceptClient
-  ParticipantEndNegoMessage, // For destroyClient
-  HangupNegoMessage, // For cleanup
-  BaseNegoMessage, // For onmessage parsing before passing to negotiationManager
-  NegoData
+  TrustedNegoMessage, // For authHandler context & NegotiationManager
+  ParticipantNegoMessage, // For acceptClient & NegotiationManager
+  ParticipantEndNegoMessage, // For destroyClient & NegotiationManager
+  HangupNegoMessage, // For cleanup & NegotiationManager
+  BaseNegoMessage // For onmessage parsing before passing to negotiationManager
+  // OfferNegoMessage, AnswerNegoMessage are still needed for onnegotiationneeded - already listed
+  // and NegoData for some typings. - already listed
 } from '../../types/negoMessages.js'; // Adjusted import path
 import {
   addDirectClient,
@@ -142,10 +134,8 @@ export class WebRTCApp {
       // but authHandler might still use it if it constructs messages with IDs itself.
       // The current authHandler.createChallengeHandler doesn't seem to require uuidv4 in its context
       // as sendNego (now negotiationManager.sendNegoMessage) handles ID.
-      // For safety, we can keep it if authHandler's interface expects it.
-      // Looking at authHandler.ts, context.uuidv4() is commented out. So it's not strictly needed.
-      // Let's remove it from here for now. If type errors arise in authHandler, we'll add it back.
-      // uuidv4: this.uuidv4.bind(this) 
+      // The authHandler.ts ChallengeHandlerContext requires uuidv4.
+      uuidv4: this.uuidv4.bind(this) 
     };
     registerNegoHandler("challenge", createChallengeHandler(challengeHandlerContext));
   }
@@ -190,8 +180,9 @@ export class WebRTCApp {
     setupTranscriptionChannel(cid);
   }
 
-  // public sendNego(client: WebRTCClient, messageData: NegoData): void { // Moved to NegotiationManager
-  // }
+  public sendNegoMessage(client: WebRTCClient, messageData: NegoData): void {
+    this.negotiationManager.sendNegoMessage(client, messageData);
+  }
 
   public destroyClient(cid: string): void {
     // No need to get clientState for publicKeyToAnnounce, participant.end doesn't use it.
