@@ -30,7 +30,6 @@ export interface ParticipantNegoMessage extends BaseNegoMessage {
 export interface ParticipantEndNegoMessage extends BaseNegoMessage {
   type: "participant.end";
   cid: string;
-  publicKey: string | null; // publicKey of the departing participant
 }
 
 // Trust and Authentication Messages

@@ -33,6 +33,27 @@ interface JwtHeader {
   typ: string;
 }
 
+export async function verifyLoginJWTFromBase64(
+  newJwt: string,
+  receivedPubKeyJwkString: string,
+): Promise<LoginTokenPayload> {
+  // Import the stored public key JWK into a CryptoKey object for verification.
+  // Ensure the curve matches what verifyLoginJWT expects (e.g., P-384 if JWT alg is ES384).
+  // Our current key generation is P-384. This is a mismatch with verifyLoginJWT's ES384.
+  const publicKeyCryptoKey = await crypto.subtle.importKey(
+    "spki",
+    base64UrlToArrayBuffer(receivedPubKeyJwkString),
+    { name: "ECDSA", namedCurve: "P-384" }, // Use crv from JWK, default P-384
+    true,
+    ["verify"]
+  );
+  console.log("AuthStore: Public key imported for verification.");
+
+  // Verify the JWT using the imported public key.
+  // IMPORTANT: See notes in verifyLoginJWT about algorithm (ES384 vs ES256) and key usage.
+  return await verifyLoginJWT(newJwt, publicKeyCryptoKey);
+}
+
 /**
  * Verifies a JWT login token and returns its payload if valid.
  *
@@ -41,7 +62,7 @@ interface JwtHeader {
  * @returns A promise that resolves to the LoginTokenPayload if the JWT is valid.
  * @throws Error if the JWT is invalid for any reason.
  */
-async function verifyLoginJWT(
+export async function verifyLoginJWT(
   jwtString: string,
   publicKey: CryptoKey
 ): Promise<LoginTokenPayload> {
@@ -179,22 +200,10 @@ function createAuthStore() {
     }
 
     try {
-      // Import the stored public key JWK into a CryptoKey object for verification.
-      // Ensure the curve matches what verifyLoginJWT expects (e.g., P-384 if JWT alg is ES384).
-      // Our current key generation is P-384. This is a mismatch with verifyLoginJWT's ES384.
-      const publicKeyCryptoKey = await crypto.subtle.importKey(
-        "spki",
-        base64UrlToArrayBuffer(receivedPubKeyJwkString),
-        { name: "ECDSA", namedCurve: "P-384" }, // Use crv from JWK, default P-384
-        true,
-        ["verify"]
-      );
-      console.log("AuthStore: Public key imported for verification.");
-
       // Verify the JWT using the imported public key.
       // IMPORTANT: See notes in verifyLoginJWT about algorithm (ES384 vs ES256) and key usage.
-      const payload = await verifyLoginJWT(newJwt, publicKeyCryptoKey);
-      
+      const payload = await verifyLoginJWTFromBase64(newJwt, receivedPubKeyJwkString);
+
       // If verification is successful, store the JWT.
       // Optionally, store parts of the payload (e.g., user name, roles) in the authState.
       update(state => ({ ...state, jwt: newJwt /*, userName: payload.name */ }));

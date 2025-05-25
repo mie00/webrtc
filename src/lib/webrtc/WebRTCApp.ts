@@ -51,7 +51,7 @@ import { setupForwardChannel } from '../forwardBridge.js';
 import { setupChatChannel } from '../chatBridge.js';
 import { setupFileChannel } from '../fileBridge.js';
 import { setupTranscriptionChannel } from '../media/transcriber.js';
-import { verifyLoginJWT } from 'src/stores/authStore.js';
+import { verifyLoginJWT, verifyLoginJWTFromBase64 } from 'src/stores/authStore.js';
 
 
 export class WebRTCApp {
@@ -128,7 +128,7 @@ export class WebRTCApp {
     registerNegoHandler("solution", async (data: SolutionNegoMessage, cid: string) => {
       console.log("solution", data);
       // Assuming data.solution.jwt and data.solution.pubKey are correct based on SolutionNegoMessage type
-      const verified = await verifyLoginJWT(data.solution.jwt, data.solution.pubKey);
+      const verified = await verifyLoginJWTFromBase64(data.solution.jwt, data.solution.pubKey);
       if (verified) {
         const client = getDirectClient(cid);
         if (!client) return;
@@ -296,7 +296,6 @@ export class WebRTCApp {
           const participantEndMessage: ParticipantEndNegoMessage = {
             type: 'participant.end', 
             cid: cid, 
-            publicKey: publicKeyToAnnounce
           };
           this.sendNego(otherClient, participantEndMessage);
       }
