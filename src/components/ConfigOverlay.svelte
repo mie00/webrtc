@@ -1,5 +1,6 @@
 <script lang="ts">
   import { configStore, updateConfig, type Config, type GeneralConfig, type RtcConfig, type MediaConfig } from '../stores/configStore.js';
+  import { onMount } from 'svelte'; // onMount is not strictly needed if using $effect for this
   
   // Props
   let { 
@@ -13,6 +14,25 @@
   }>();
 
   let currentTab: keyof Config = $state('general');
+  let audioInputDevices: MediaDeviceInfo[] = $state([]);
+  let videoInputDevices: MediaDeviceInfo[] = $state([]);
+
+  async function loadMediaDevices() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      audioInputDevices = devices.filter(device => device.kind === 'audioinput');
+      videoInputDevices = devices.filter(device => device.kind === 'videoinput');
+    } catch (err) {
+      console.error("Error enumerating media devices:", err);
+      // Keep device lists empty, dropdowns will show 'Default' or be minimal
+    }
+  }
+
+  $effect(() => {
+    if (show && currentTab === 'media') {
+      loadMediaDevices();
+    }
+  });
   
   // Event handlers
   function handleClose(event: Event) {
@@ -184,27 +204,37 @@
         {#if currentTab === 'media'}
           <h2 class="text-xl font-semibold mb-3">Media Settings</h2>
            <div class="flex flex-col space-y-1">
-            <label for="audio-device" class="text-sm font-medium">Audio Device (ID)</label>
-            <input 
+            <label for="audio-device" class="text-sm font-medium">Audio Device</label>
+            <select 
               id="audio-device" 
-              type="text" 
-              placeholder="Audio device ID (e.g., default|default)"
-              class="w-full border border-gray-300 px-3 py-2 rounded-md" 
+              class="w-full border border-gray-300 px-3 py-2 rounded-md"
               value={$configStore.media.audioDevice}
-              oninput={(e) => handleInputChange(e, 'media', 'audioDevice')}
-            />
+              onchange={(e) => handleInputChange(e, 'media', 'audioDevice')}
+            >
+              <option value="default|default">Default</option>
+              {#each audioInputDevices as device, i (device.deviceId)}
+                <option value={`${device.groupId}|${device.deviceId}`}>
+                  {device.label || `Audio Input ${i + 1}`}
+                </option>
+              {/each}
+            </select>
           </div>
           
           <div class="flex flex-col space-y-1">
-            <label for="video-device" class="text-sm font-medium">Video Device (ID)</label>
-            <input 
+            <label for="video-device" class="text-sm font-medium">Video Device</label>
+            <select 
               id="video-device" 
-              type="text" 
-              placeholder="Video device ID (e.g., default|default)"
-              class="w-full border border-gray-300 px-3 py-2 rounded-md" 
+              class="w-full border border-gray-300 px-3 py-2 rounded-md"
               value={$configStore.media.videoDevice}
-              oninput={(e) => handleInputChange(e, 'media', 'videoDevice')}
-            />
+              onchange={(e) => handleInputChange(e, 'media', 'videoDevice')}
+            >
+              <option value="default|default">Default</option>
+              {#each videoInputDevices as device, i (device.deviceId)}
+                <option value={`${device.groupId}|${device.deviceId}`}>
+                  {device.label || `Video Input ${i + 1}`}
+                </option>
+              {/each}
+            </select>
           </div>
 
           <div class="flex flex-col space-y-1">
