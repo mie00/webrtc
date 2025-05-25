@@ -183,14 +183,20 @@ export class WebRTCApp {
         );
         const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
         const localProfile = get(profileStore);
+        const userPubKeyJwkString = authState.userPubKeyJwk ? JSON.stringify(authState.userPubKeyJwk) : null;
+
+        if (!userPubKeyJwkString) {
+          console.error("Cannot send solution: userPubKeyJwk is missing from authState.");
+          return;
+        }
       
         const solutionMessage: SolutionNegoMessage = {
           type: "solution",
           solution: {
             signedChallenge: signatureBase64,
             jwt: authState.jwt,
-            pubKey: JSON.stringify(authState.publicKeyJwk),
-            userPubKey: null, // TODO: get it out of the callback used in login
+            pubKey: JSON.stringify(authState.publicKeyJwk), // This is the device's public key
+            userPubKey: userPubKeyJwkString, // This is the user's public key from the auth server
             originalChallenge: originalChallengeContent
           },
           profile: {

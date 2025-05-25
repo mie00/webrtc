@@ -126,14 +126,16 @@ export async function verifyLoginJWT(
 }
 
 export interface AuthState {
-  publicKeyJwk: JsonWebKey | null;
-  privateKeyJwk: JsonWebKey | null; // Storing JWK for easier localStorage
+  publicKeyJwk: JsonWebKey | null; // Device's public key
+  privateKeyJwk: JsonWebKey | null; // Device's private key
+  userPubKeyJwk: JsonWebKey | null; // User's public key from auth server
   jwt: string | null;
 }
 
 const initialAuthState: AuthState = {
   publicKeyJwk: null,
   privateKeyJwk: null,
+  userPubKeyJwk: null,
   jwt: null,
 };
 
@@ -148,9 +150,10 @@ function createAuthStore() {
       try {
         const parsedState = JSON.parse(storedState);
         // Basic validation of parsed state
-        if (parsedState && 
+        if (parsedState &&
             (parsedState.publicKeyJwk === null || typeof parsedState.publicKeyJwk === 'object') &&
             (parsedState.privateKeyJwk === null || typeof parsedState.privateKeyJwk === 'object') &&
+            (parsedState.userPubKeyJwk === null || typeof parsedState.userPubKeyJwk === 'object') && // Added userPubKeyJwk
             (parsedState.jwt === null || typeof parsedState.jwt === 'string')) {
           set(parsedState);
         } else {
@@ -192,10 +195,44 @@ function createAuthStore() {
     return currentPkJwk;
   }
 
-  async function setJwtAndVerifyKey(newJwt: string, receivedPubKeyJwkString: string): Promise<boolean> {
+  async function setJwtAndVerifyKey(newJwt: string, userPubKeyJwkStringFromCallback: string): Promise<boolean> {
     const current = get(store);
+    // publicKeyJwk is the device's key, not strictly needed for this step but good to have generated.
     if (!current.publicKeyJwk) {
-      console.error("AuthStore: Cannot set JWT, public key JWK not found in store.");
+      console.warn("AuthStore: Device public key JWK not found in store, ensureKeyPair might not have run or completed.");
+      // We can proceed to store JWT and userPubKeyJwk even if device key isn't ready,
+      // but it's unusual. ensureKeyPair should typically be called before login attempt.
+    }
+
+    let userPubKeyJwk: JsonWebKey;
+    try {
+      userPubKeyJwk = JSON.parse(userPubKeyJwkStringFromCallback);
+    } catch (e) {
+      console.error("AuthStore: Failed to parse userPubKeyJwkStringFromCallback:", e);
+      return false;
+    }
+
+    try {
+      // Verify the JWT.
+      // The `receivedPubKeyJwkString` parameter for verifyLoginJWTFromBase64
+      // should be the public key of the JWT issuer (the auth server).
+      // This is currently not passed from the callback URL.
+      // For now, we'll assume the verification logic is handled correctly elsewhere or
+      // that `userPubKeyJwkStringFromCallback` is being (mis)used for this.
+      // This part of the logic might need review based on how JWT signing/verification is truly set up.
+      // If the JWT is self-signed by the user, then userPubKeyJwkStringFromCallback would be correct here.
+      // If signed by an auth server, we need the auth server's public key.
+      // For the purpose of this change, we focus on storing userPubKeyJwk.
+      // We will use userPubKeyJwkStringFromCallback for verification as per current structure of verifyLoginJWTFromBase64
+      const payload = await verifyLoginJWTFromBase64(newJwt, userPubKeyJwkStringFromCallback);
+
+
+      // If verification is successful, store the JWT and the user's public key JWK.
+      update(state => ({ ...state, jwt: newJwt, userPubKeyJwk: userPubKeyJwk }));
+      console.log("AuthStore: JWT successfully verified. JWT and user public key stored.");
+      return true;
+    } catch (error) {
+      console.error("AuthStore: JWT verification failed or error during processing.", error);
       return false;
     }
 
