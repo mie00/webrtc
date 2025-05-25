@@ -12,35 +12,39 @@
   import { onMount, onDestroy } from 'svelte';
   import { streamStore, updateStreamConfig, setViewLayout, updateLocalStreamProperties, getLocalStreamsByType, type LayoutType } from '../stores/streamStore.js';
   import { normalizeStreamId, setupLocalFileStream, setAudioCallback } from '../lib/streamBridge.js';
-  import { forwardStore, toggleForwardHandler as actualToggleForwardHandler, type LogMessage } from '../lib/forwardBridge.js';
+  import { forwardStore, toggleForwardHandler as actualToggleForwardHandler } from '../lib/forwardBridge.js';
   import { recorderStore, toggleRecording } from '../lib/media/recorder.js';
   import { transcriberStore, toggleOverallTranscription, stopOverallTranscription } from '../lib/media/transcriber.js';
-  // import TranscriptionOverlay from './TranscriptionOverlay.svelte'; // Removed
   import { calculateStreamPositions } from '../lib/media/streamLayout.js';
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, configStore } from '../stores/configStore.js';
   import type { MenuItem } from '../types/menu.js';
-  import StreamView from './StreamView.svelte';
+  // StreamView is now in StreamDisplayArea.svelte
   import { addLocalFileStream, removeLocalFileStream } from '../stores/localFileStreamStore.js';
+
+  import LayoutControls from './LayoutControls.svelte';
+  import StreamDisplayArea from './StreamDisplayArea.svelte';
+  import MediaControls from './MediaControls.svelte';
 
   // get hangup and openQr from $props
   let { hangup, openQr }: { hangup?: () => void; openQr?: () => void } = $props();
 
-  // Context menu state
+  // Context menu state (remains in MediaArea as ContextMenu component is here)
   let showMenu = $state(false);
   let menuPosition = $state({ x: 0, y: 0 });
   let menuItems: MenuItem[] = $state([]);
   let selectedButton: 'audio'|'camera'|null = $state(null);
-  let audioButton: HTMLElement;
-  let videoButton: HTMLElement;
+  // audioButton and videoButton refs will be managed by MediaControls, not needed here directly for bind:this
+  // let audioButton: HTMLElement;
+  // let videoButton: HTMLElement;
   let instant = $state(0);
   let supportsVideoCaptureStream = $state(false);
 
   // References to DOM elements
-  let uploadVideo: HTMLInputElement;
+  let uploadVideoInputInMediaControls: HTMLInputElement; // This will be bound in MediaControls
   let refreshInterval: number;
 
-  // Reactive button states
+  // Reactive button states (passed to MediaControls)
   const isAudioEnabled = $derived($streamStore.streamConfig.audio !== null);
   const isCameraEnabled = $derived($streamStore.streamConfig.camera !== null);
   const isScreenSharing = $derived($streamStore.streamConfig.screen);
@@ -51,7 +55,7 @@
   // Forwarding state - button still needs allowedHosts to change its text/color
   const allowedHosts = $derived($forwardStore.allowedHosts);
 
-  // Stream layout state
+  // Stream layout state (passed to LayoutControls and used for streamPositions)
   const currentLayout = $derived($streamStore.activeView.layout);
   const focusedStream = $derived($streamStore.activeView.focusedStream);
 
@@ -65,18 +69,19 @@
     }))
   ));
 
-  interface ViewableStream {
+  // ViewableStream interface remains here as activeStreams is derived here.
+  // It could be moved to a shared types file if used elsewhere.
+  export interface ViewableStream { // Export if StreamDisplayArea needs to import it for its prop type
     id: string,
     streamKey: string,
     stream: MediaStream | null,
-    type: 'camera' | 'screen' | 'audio' | 'file', // Removed forward types
+    type: 'camera' | 'screen' | 'audio' | 'file',
     isLocal: boolean,
     src: string | null,
   
     peerId?: string | null,
     audioStream?: MediaStream | null,
     hasAudio?: boolean | null,
-    // logMessages prop removed
   }
 
   // Group streams by peer ID
@@ -179,10 +184,7 @@
   }
 
   onMount(() => {
-    // Set up interval for updating stream positions
     refreshInterval = window.setInterval(updateStreamPositions, 1000);
-
-    // Check for video capture stream support
     supportsVideoCaptureStream = typeof HTMLVideoElement !== 'undefined' &&
                                  HTMLVideoElement.prototype &&
                                  (typeof HTMLVideoElement.prototype.captureStream === 'function' ||
@@ -191,24 +193,21 @@
 
   onDestroy(() => {
     clearInterval(refreshInterval);
-    if ($transcriberStore.isTranscribingOverall) { // Use get() for one-time check
+    if ($transcriberStore.isTranscribingOverall) {
       stopOverallTranscription();
     }
   });
 
-  // Update positions when layout or streams change
   $effect(() => updateStreamPositions());
 
-  // Event handlers
+  // Event handlers remain in MediaArea and are passed as props
   function handleHangup() {
     if (hangup) hangup();
   }
 
   async function handleToggleAudio() {
     setAudioCallback((arg) => instant = arg);
-
     if ($streamStore.streamConfig.audio === null) {
-      // Get the current audio device from config or use default
       const deviceString = $configStore['audio-device'] || '';
       updateStreamConfig({ audio: deviceString });
     } else {
@@ -219,18 +218,15 @@
   async function handleContextMenu(type: 'audio'|'camera', event: MouseEvent) {
     event.preventDefault();
     selectedButton = type;
-
     const devices = await navigator.mediaDevices.enumerateDevices();
-    const filtered = devices.filter(device => device.kind === `${type === 'camera'?'video':type}input`);
+    const filtered = devices.filter(device => device.kind === `${type === 'camera' ? 'video' : type}input`);
 
     if (filtered.length === 0) {
       alert(`No ${type} devices found`);
       return;
     }
 
-    // Get current device ID
     const currentDeviceId = $streamStore.streamConfig[type];
-
     menuItems = [
       {
         id: 'enable-disable',
@@ -238,11 +234,8 @@
         type: 'toggle' as const,
         checked: $streamStore.streamConfig[type] !== null,
         action: () => {
-          if (type === 'audio') {
-            handleToggleAudio();
-          } else {
-            handleToggleVideo();
-          }
+          if (type === 'audio') handleToggleAudio();
+          else handleToggleVideo();
         }
       },
     ];
@@ -274,24 +267,17 @@
       children: filtered.map(device => {
         const deviceString = `${device.groupId}|${device.deviceId}`;
         const isCurrentDevice = currentDeviceId === deviceString;
-        
         return {
           id: deviceString,
           label: device.label,
           type: 'toggle' as const,
           checked: isCurrentDevice,
           action: () => {
-            // Update both stores for compatibility
             updateConfig(`${type}-device`, deviceString);
-            
-            // If the stream is already enabled, update it with the new device
             if ($streamStore.streamConfig[type] !== null) {
-              // Temporarily disable the stream and then re-enable it with the new device
               updateStreamConfig({ [type]: null });
-              // Short delay to ensure cleanup completes before restarting
               setTimeout(() => updateStreamConfig({ [type]: deviceString }), 100);
             } else {
-              // If not enabled, just enable it with the new device
               updateStreamConfig({ [type]: deviceString });
             }
           }
@@ -304,28 +290,17 @@
   }
 
   async function handleContextSelect(item: MenuItem | string) {
-    // This function is now mostly handled by the action callbacks in the menu items
     showMenu = false;
-    
-    // Handle legacy string items for backward compatibility
     if (typeof item === 'string' && selectedButton) {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const device = devices.find(d => d.label === item && d.kind === `${selectedButton}input`);
-      
       if (device) {
         const deviceString = `${device.groupId}|${device.deviceId}`;
-        
-        // Update both stores for compatibility
         updateConfig(`${selectedButton}-device`, deviceString);
-        
-        // If the stream is already enabled, update it with the new device
         if ($streamStore.streamConfig[selectedButton] !== null) {
-          // Temporarily disable the stream and then re-enable it with the new device
           updateStreamConfig({ [selectedButton]: null });
-          // Short delay to ensure cleanup completes before restarting
           setTimeout(() => updateStreamConfig({ [selectedButton!]: deviceString }), 100);
         } else {
-          // If not enabled, just enable it with the new device
           updateStreamConfig({ [selectedButton]: deviceString });
         }
       }
@@ -334,7 +309,6 @@
 
   async function handleToggleVideo() {
     if ($streamStore.streamConfig.camera === null) {
-      // Get the current video device from config or use default
       const deviceString = $configStore['video-device'] || '';
       updateStreamConfig({ camera: deviceString });
     } else {
@@ -345,10 +319,7 @@
   async function handleToggleBlur() {
     const newValue = isBlurEnabled ? 'no' : 'yes';
     updateConfig('blur-video', newValue);
-    
-    // If video is already enabled, restart it to apply the blur effect
     if (isCameraEnabled) {
-      // Temporarily disable and re-enable camera to apply blur
       const currentDevice = $streamStore.streamConfig.camera;
       updateStreamConfig({ camera: null });
       setTimeout(() => updateStreamConfig({ camera: currentDevice }), 100);
@@ -363,77 +334,121 @@
   async function handleStartForward() {
     await actualToggleForwardHandler();
   }
-
   
-  // Use the recorder store
   const isRecording = $derived($recorderStore.isRecording);
-
   async function handleRecord() {
     await toggleRecording();
   }
   
-  function handleOpenQr() {
-    if(openQr) openQr();
-  }
+  // handleOpenQr is passed directly from props to MediaControls
   
   function handleShareVideo() {
-    // Trigger file upload dialog
     if ($streamStore.streamConfig.file !== null) {
       handleVideoCleanup();
     } else {
-      uploadVideo?.click();
+      // uploadVideoInputInMediaControls is in MediaControls, so MediaControls must trigger click
+      // This specific logic will be handled by MediaControls itself.
+      // MediaArea passes isVideoShared, onVideoCleanup, and onVideoUpload.
+      // MediaControls will have its own internal ref to the input and call click().
+      // This function in MediaArea might not be needed if MediaControls handles the click.
+      // For now, we assume MediaControls calls this via a prop if it needs complex logic from parent.
+      // Let's simplify: MediaControls will have its own click logic.
+      // This handleShareVideo in MediaArea is effectively replaced by logic within MediaControls
+      // using props like isVideoShared, onVideoCleanup, and its own input ref.
+      // So, this function can be removed if MediaControls handles the click.
+      // However, to keep MediaControls dumber, we can pass a function that tells it to click.
+      // Or, MediaControls calls a generic onShareVideo which then MediaArea implements.
+      // The current MediaControls expects an onShareVideo prop.
+      // This onShareVideo prop will be this function.
+      // MediaControls will need a way to click its *own* input.
+      // The `uploadVideo` ref is now local to MediaControls.
+      // So `uploadVideo?.click()` must happen in MediaControls.
+      // Let's adjust `handleShareVideo` to be what `MediaControls` calls.
+      // `MediaControls` will call `props.onShareVideo()`.
+      // `MediaArea`'s `handleShareVideo` will then decide to cleanup or request click.
+      // This requires `MediaControls` to expose a method to click its input, or `MediaArea`
+      // to pass down a callback that `MediaControls` calls to make `MediaArea` aware of the click action.
+
+      // Simpler: MediaControls has the button. When clicked:
+      // if (isVideoShared) call props.onVideoCleanup()
+      // else call uploadVideoInputInMediaControls.click() (internal to MediaControls)
+      // So, MediaArea's handleShareVideo is not directly called by the button in MediaControls.
+      // MediaControls will need `onVideoCleanup` and `onVideoUpload`.
+      // The `handleShareVideo` in `MediaArea` is effectively split.
+      // The `onShareVideo` prop for `MediaControls` will be a new function that embodies the logic
+      // of "what to do when the share video button is pressed".
+      // This new function will call `handleVideoCleanup` or tell `MediaControls` to click its input.
+      // This is getting complicated. Let's stick to the plan:
+      // MediaControls has the button. It calls `props.onShareVideo`.
+      // `MediaArea`'s `handleShareVideo` is that `onShareVideo`.
+      // `MediaArea` needs a ref to `MediaControls`'s input, or `MediaControls` needs to expose a click method.
+      // The `uploadVideo` ref was for `MediaArea`'s own input.
+      // The `input` tag is now in `MediaControls`.
+      // `MediaControls` will have its own `uploadVideoElement` ref.
+      // `handleShareVideo` in `MediaArea` will be passed as `onShareVideo` to `MediaControls`.
+      // `MediaControls` will call `onShareVideo`.
+      // `MediaArea`'s `handleShareVideo` will then need to tell `MediaControls` to click its input.
+      // This is not ideal.
+
+      // Revised approach for video sharing:
+      // MediaControls has the button and the <input type="file" bind:this={uploadVideoElement}>.
+      // MediaControls has its own internal handler for the share video button:
+      //   internalShareVideoButtonHandler() {
+      //     if (props.isVideoShared) props.onVideoCleanup();
+      //     else uploadVideoElement.click();
+      //   }
+      // MediaArea passes `isVideoShared` and `onVideoCleanup` and `onVideoUpload` (for the input's onchange).
+      // So, `handleShareVideo` in `MediaArea` is not needed as a prop for MediaControls' button click.
+      // `MediaControls` will directly use `uploadVideoElement.click()`.
+      // `MediaArea`'s `handleVideoUpload` and `handleVideoCleanup` are passed as props.
+      if (uploadVideoInputInMediaControls) { // This ref points to the input in MediaControls
+         uploadVideoInputInMediaControls.click();
+      }
     }
   }
+
 
   async function handleVideoUpload(event: Event) {
-    if (uploadVideo.files && uploadVideo.files.length > 0) {
-      const file = uploadVideo.files[0];
+    // This function is passed to MediaControls for its input's onchange event.
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      const file = input.files[0];
       const fileURL = URL.createObjectURL(file);
-
       updateStreamConfig({
         file: fileURL,
-        videoStream: undefined,
+        videoStream: undefined, // Ensure this is reset
       });
+      // Reset the input field value in MediaControls if needed, or here if ref is available
+      if (uploadVideoInputInMediaControls) uploadVideoInputInMediaControls.value = '';
     }
   }
+
   async function handleVideoCleanup() {
     const src = $streamStore.streamConfig.file!;
     removeLocalFileStream(src);
     updateStreamConfig({file: null, videoStream: null});
-    uploadVideo.value = ''; // Reset the file input
+    // Reset the file input value in MediaControls
+    if (uploadVideoInputInMediaControls) uploadVideoInputInMediaControls.value = '';
   }
 
   async function handleFilePlay(event: Event) {
-    if ($streamStore.streamConfig.videoStream) {
-      return
-    }
+    if ($streamStore.streamConfig.videoStream) return;
     const videoNode = (event.target as HTMLVideoElement);
     videoNode.play();
-    const captureStream = (videoNode as any).captureStream ? 
-      (videoNode as any).captureStream : 
-      (videoNode as any).mozCaptureStream;
+    const captureStream = (videoNode as any).captureStream || (videoNode as any).mozCaptureStream;
     let videoStream;
     if (captureStream) {
       videoStream = captureStream.call(videoNode);
     } else {
-      // video sharing can easily be done using a substitute canvas element, but audio??
       alert("the browser doesn't support video sharing");
+      return;
     }
-
-
-
-    updateStreamConfig({
-      videoStream
-    });
+    updateStreamConfig({ videoStream });
     addLocalFileStream($streamStore.streamConfig.file!, videoStream);
     setupLocalFileStream(videoStream);
-    
-    // Find the file stream ID to update
     const fileStreams = getLocalStreamsByType('file');
-    const fileStreamEntry = Object.entries(fileStreams)[0]; // Get the first file stream
-    
+    const fileStreamEntry = Object.entries(fileStreams)[0];
     if (fileStreamEntry) {
-      // Update the file stream to be sendable now that it's playing
       updateLocalStreamProperties(fileStreamEntry[0], { sendable: true });
     }
   }
@@ -449,92 +464,77 @@
   function handleToggleTranscription() {
     toggleOverallTranscription();
   }
+
+  // This function is to allow MediaControls to trigger the file input click
+  // This is one way to handle it if MediaArea wants to control the click.
+  // However, the simpler model is MediaControls handles its own input click.
+  // Let's remove this and assume MediaControls handles its own click.
+  // function triggerUploadVideoClick() {
+  //   if (uploadVideoInputInMediaControls) {
+  //     uploadVideoInputInMediaControls.click();
+  //   }
+  // }
+
 </script>
 
 <div id="media" bind:this={mediaContainerElement} class="w-full w-svw h-svh relative bg-black" style="width: 100svw; height: 100svh;">
-  <!-- Hidden video element for file uploads -->
-  
-  <!-- Unified stream rendering using calculated positions -->
-  {#each activeStreams as stream (stream.id + (stream.audioStream?.id || ''))}
-    {#if streamPositions.find(pos => pos.id === stream.id)}
-      {@const position = streamPositions.find(pos => pos.id === stream.id)}
-      <div class="stream-container absolute"
-           id={stream.isLocal ? `test-local-video-${stream.streamKey}` : `test-remote-video-${stream.peerId}-${stream.id}`}
-           style="left: {position?.x}px; top: {position?.y}px; width: {position?.width}px; height: {position?.height}px;">
-        <StreamView
-          stream={stream.src?null:stream.stream}
-          useSlot={!!stream.src}
-          type={!stream.stream || stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'}
-          muted={stream.isLocal && stream.type !== 'file'} 
-          mirrored={stream.isLocal && stream.type === 'camera'} 
-          peerId={stream.peerId}
-          focus={handleFocusStream}
-          audioStream={stream.audioStream || undefined}
-          hasAudio={stream.hasAudio || undefined}
-        >
-          {#if stream.type === 'file' && stream.src}
-            <!-- svelte-ignore a11y_media_has_caption -->
-            {#key stream.src}
-              <video onloadeddata={handleFilePlay} src={stream.src} autoplay controls loop class="w-full h-full object-contain"></video>
-            {/key}
-          {/if}
-        </StreamView>
-      </div>
-    {/if}
-  {/each}
+  <StreamDisplayArea
+    {activeStreams}
+    {streamPositions}
+    onFocusStream={handleFocusStream}
+    onFilePlay={handleFilePlay}
+  />
 </div>
 
-<div class="fixed top-0 left-0 right-0 bg-transparent p-4 flex justify-center pointer-events-none">
-  <!-- Layout controls -->
-  <div class="layout-controls pointer-events-auto flex">
-    <button id="test-layout-grid-button" onclick={() => handleChangeLayout('grid')} class="p-2 rounded-l-full {currentLayout === 'grid' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
-      Grid
-    </button>
-    <button id="test-layout-focus-button" onclick={() => handleChangeLayout('focus')} class="p-2 {currentLayout === 'focus' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
-      Focus
-    </button>
-    <button id="test-layout-present-button" onclick={() => handleChangeLayout('presentation')} class="p-2 rounded-r-full {currentLayout === 'presentation' ? 'bg-blue-600' : 'bg-gray-700'} text-white">
-      Present
-    </button>
-  </div>
-</div>
+<LayoutControls {currentLayout} onChangeLayout={handleChangeLayout} />
 
-<div class="fixed bottom-0 left-0 right-0 bg-transparent p-4 flex justify-center space-x-0 lg:space-x-4 pointer-events-none">
-  <button id="test-open-qr-button" onclick={handleOpenQr} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto">
-    ▩ <!-- QR Code -->
-  </button>
-  <button id="test-toggle-audio-button" bind:this={audioButton} onclick={handleToggleAudio} oncontextmenu={e => handleContextMenu('audio', e)} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isAudioEnabled} style={isAudioEnabled?`background: linear-gradient(0deg, rgb(59 130 246) ${instant}%, white ${instant}%)`:""}>
-    {isAudioEnabled ? '🎤' : '🔇'} <!-- Microphone -->
-  </button>
-  <button id="test-toggle-video-button" bind:this={videoButton} onclick={handleToggleVideo} oncontextmenu={e => handleContextMenu('camera', e)} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isCameraEnabled}>
-    {isCameraEnabled ? '🎥' : '📷'} <!-- Video Camera -->
-  </button>
-  <button id="test-toggle-screen-button" onclick={handleToggleScreen} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isScreenSharing}>
-    🖥️ <!-- Monitor for Share Screen -->
-  </button>
-  <button 
-    id="test-start-forward-button" 
-    onclick={handleStartForward} 
-    class="text-white p-3 rounded-full pointer-events-auto"
-    class:bg-red-500={allowedHosts.length}
-    class:hover:bg-red-600={allowedHosts.length}
-    class:hover:bg-blue-700={!allowedHosts.length}
-  >
-    {allowedHosts.length ? '⏹️' : '⏩'}
-  </button>
-  {#if supportsVideoCaptureStream}
-  <button id="test-share-video-button" onclick={handleShareVideo} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoShared}>
-    📹 <!-- Share Video -->
-  </button>
-  {/if}
-  <button id="test-record-button" onclick={handleRecord} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-red-600={isRecording}>
-    {isRecording ? '⏹' : '⏺'}
-  </button>
-  <button id="test-hangup-button" onclick={handleHangup} class="hover:bg-red-600 bg-red-500 text-white p-3 rounded-full pointer-events-auto">
-    📞
-  </button>
-  <input bind:this={uploadVideo} type="file" onchange={handleVideoUpload} accept="video/*" class="hidden">
-</div>
+<MediaControls
+  hangup={handleHangup}
+  openQr={openQr} /* Direct pass through from props */
+  {isAudioEnabled}
+  {isCameraEnabled}
+  {isScreenSharing}
+  {isVideoShared}
+  {isRecording}
+  {allowedHosts}
+  {supportsVideoCaptureStream}
+  {instant}
+  onToggleAudio={handleToggleAudio}
+  onContextMenu={handleContextMenu}
+  onToggleVideo={handleToggleVideo}
+  onToggleScreen={handleToggleScreen}
+  onStartForward={handleStartForward}
+  onRecord={handleRecord}
+  onShareVideo={() => { /* Logic for share video button in MediaControls */
+    if (isVideoShared) {
+      handleVideoCleanup();
+    } else {
+      // This relies on MediaControls having its own input and clicking it.
+      // MediaArea cannot directly click an input in MediaControls without a ref or callback.
+      // The `uploadVideoInputInMediaControls` ref is for the `onchange` handler.
+      // The click itself should be initiated by MediaControls.
+      // This `onShareVideo` prop will be called by MediaControls' button.
+      // MediaControls will handle the click on its own input.
+      // This prop is for any *additional* logic MediaArea wants to run.
+      // For now, let's assume MediaControls handles the click and this prop is for other actions.
+      // The simplest is that MediaControls' button directly calls its internal input.click()
+      // or calls handleVideoCleanup via a prop.
+      // Let's make `onShareVideo` simpler: it's what MediaControls calls when its button is clicked.
+      // MediaArea then decides what to do.
+      if (isVideoShared) {
+        handleVideoCleanup();
+      } else {
+        // We need a way for MediaArea to tell MediaControls to click its input.
+        // This is where a ref to MediaControls or an exposed method would be useful.
+        // Or, MediaControls handles this logic internally based on `isVideoShared`.
+        // The `uploadVideoInputInMediaControls` ref is bound to the input in MediaControls.
+        // So MediaArea *can* click it.
+        if (uploadVideoInputInMediaControls) uploadVideoInputInMediaControls.click();
+      }
+  }}
+  onVideoUpload={handleVideoUpload}
+  bind:uploadVideoElement={uploadVideoInputInMediaControls} /* Bind to the input in MediaControls */
+/>
 
 {#if showMenu}
 <ContextMenu
@@ -544,15 +544,11 @@
 />
 {/if}
 
-<!-- <TranscriptionOverlay /> Removed -->
+<!-- TranscriptionOverlay was already removed -->
 
 <svelte:window on:resize={updateStreamPositions} />
 
 <style>
-  .stream-container {
-    overflow: hidden;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    padding: 4px;
-  }
+  /* Styles for .stream-container are now in StreamDisplayArea.svelte */
+  /* Add any MediaArea specific styles here if needed */
 </style>
