@@ -405,6 +405,9 @@
         {@const isConnected = state === 'connected' && iceState === 'connected'}
         {@const isFailed = state === 'failed' || iceState === 'failed' || state === 'closed' || iceState === 'closed' || state === 'disconnected' || iceState === 'disconnected'}
         {@const isConnecting = !isConnected && !isFailed && (state !== null || iceState !== null)} <!-- Show yellow if not connected/failed but trying -->
+        {@const directClientState = getDirectClientState(client.cid)}
+        {@const userProfile = directClientState?.userPublicKey ? getPeerProfile(directClientState.userPublicKey) : undefined}
+        {@const displayName = userProfile?.userName || client.cid}
          <div class="flex items-center space-x-2 mb-1">
            <div
              id="test-indicator-{client.cid}"
@@ -416,9 +419,6 @@
              class:bg-gray-400={!isConnected && !isFailed && !isConnecting}
              title={`Direct: ${client.cid}\nState: ${state ?? 'N/A'}\nICE: ${iceState ?? 'N/A'}`}
            ></div>
-           {@const directClientState = getDirectClientState(client.cid)}
-           {@const userProfile = directClientState?.userPublicKey ? getPeerProfile(directClientState.userPublicKey) : undefined}
-           {@const displayName = userProfile?.userName || client.cid}
            <p class="text-sm font-medium text-gray-700" title={`CID: ${client.cid}`}>
              {displayName}
              {#if client.fingerprint}

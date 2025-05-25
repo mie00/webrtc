@@ -82,79 +82,6 @@
 </script>
 
 {#if show && currentItem}
-<script lang="ts">
-  import { onMount, onDestroy, tick } from 'svelte';
-  import type { FileTransfer } from '../lib/fileBridge.js';
-  // No need to import getPeerProfile or connectionStore getters here,
-  // as ControlPanel.svelte should pass the resolved sender name.
-
-  type Props = {
-    items?: CarouselMediaItem[];
-    startIndex?: number;
-    show?: boolean;
-    onClose?: () => void;
-  };
-  let { items = [], startIndex = 0, show = false, onClose }: Props = $props();
-
-  let currentIndex = $state(0);
-  let currentItem = $derived(items[currentIndex]);
-  let mediaElement: HTMLImageElement | HTMLVideoElement | null = $state(null);
-
-  // Effect to initialize/update currentIndex when show, items, or startIndex change
-  $effect(() => {
-    if (show && items.length > 0) {
-      currentIndex = Math.max(0, Math.min(startIndex, items.length - 1));
-    }
-  });
-
-  // Effect for video handling when currentItem or mediaElement changes
-  $effect(() => {
-    if (currentItem && mediaElement && currentItem.transfer.type.startsWith('video/')) {
-      // Ensure video reloads and autoplays if it's a video element
-      tick().then(() => {
-        const video = mediaElement as HTMLVideoElement;
-        video.load(); // Reload the source
-        video.play().catch(e => console.warn("Autoplay prevented for video:", e));
-      });
-    }
-  });
-
-  function closeCarousel() {
-    if (onClose) {
-      onClose();
-    }
-  }
-
-  function nextItem() {
-    if (items.length === 0) return;
-    currentIndex = (currentIndex + 1) % items.length;
-  }
-
-  function prevItem() {
-    if (items.length === 0) return;
-    currentIndex = (currentIndex - 1 + items.length) % items.length;
-  }
-
-  function handleKeydown(event: KeyboardEvent) {
-    if (!show) return;
-    if (event.key === 'Escape') {
-      closeCarousel();
-    } else if (event.key === 'ArrowRight') {
-      nextItem();
-    } else if (event.key === 'ArrowLeft') {
-      prevItem();
-    }
-  }
-
-  // Helper to get playable type, similar to ControlPanel
-  function getPlayableMediaType(fileType: string): 'video' | 'image' | null {
-    if (fileType?.startsWith('video/')) return 'video';
-    if (fileType?.startsWith('image/')) return 'image';
-    return null;
-  }
-</script>
-
-{#if show && currentItem}
   <div
     class="fixed inset-0 bg-black/75 flex items-center justify-center z-[1000] p-4"
     onclick={(e) => { if (e.target === e.currentTarget) closeCarousel(); }}
@@ -238,5 +165,4 @@
     </div>
   </div>
 {/if}
-
 <svelte:window on:keydown={handleKeydown} />
