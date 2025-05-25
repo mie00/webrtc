@@ -127,17 +127,16 @@ export class WebRTCApp {
     registerNegoHandler("solution", async (data: SolutionNegoMessage, cid: string) => {
       console.log("solution", data);
       // Use verifyLoginJWTFromBase64 as data.solution.pubKey is a JWK string
-      const payload = await verifyLoginJWTFromBase64(data.solution.jwt, data.solution.pubKey);
+      const payload = await verifyLoginJWTFromBase64(data.solution.jwt, data.solution.userPubKey);
       if (payload) { // verifyLoginJWTFromBase64 returns payload on success, throws on error
+        console.log(data, payload);
         const client = getDirectClient(cid);
         if (!client) return;
-
-        const peerPublicKey = data.solution.pubKey;
-        if (peerPublicKey && typeof peerPublicKey === 'string') {
-          updateDirectClientPublicKey(cid, peerPublicKey);
-        } else {
-          console.warn(`Solution from ${cid} did not contain a valid pubKey.`);
+        if (data.solution.pubKey != payload.cstm_dat) {
+          console.log("Provided public key doesn't match the signed publickey.")
+          return;
         }
+        // TODO: implement the challenge verification of the challenge data using the data.solution.pubKey
         
         client.trusted = true; // We now trust this peer
 
