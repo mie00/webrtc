@@ -518,6 +518,7 @@
         // So MediaArea *can* click it.
         if (uploadVideoInputInMediaControls) uploadVideoInputInMediaControls.click();
       }
+    }
   }}
   onVideoUpload={handleVideoUpload}
   bind:uploadVideoElement={uploadVideoInputInMediaControls}
