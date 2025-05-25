@@ -146,7 +146,7 @@ const tearDownStream = async (stream: MediaStream): Promise<void> => {
                 }
             });
             // Assuming sendNego is available on window.webRTCApp
-            window.webRTCApp.sendNego(client, {
+            window.webRTCApp.sendNegoMessage(client, {
                 type: "stream.end",
                 stream: normalizeStreamId(stream.id),
             });

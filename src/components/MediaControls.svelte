@@ -10,13 +10,14 @@
     isVideoShared,
     isRecording,
     allowedHosts,
+    forwardHost,
     supportsVideoCaptureStream,
     instant,
     onToggleAudio,
     onContextMenu,
     onToggleVideo,
     onToggleScreen,
-    onStartForward,
+    onToggleForward,
     onRecord,
     onStopSharingVideo, // Renamed from onShareVideo
     onVideoUpload,
@@ -29,13 +30,14 @@
     isVideoShared: boolean;
     isRecording: boolean;
     allowedHosts: string[];
+    forwardHost: string | null,
     supportsVideoCaptureStream: boolean;
     instant: number;
     onToggleAudio: () => Promise<void>;
     onContextMenu: (type: 'audio' | 'camera', event: MouseEvent) => Promise<void>;
     onToggleVideo: () => Promise<void>;
     onToggleScreen: () => Promise<void>;
-    onStartForward: () => Promise<void>;
+    onToggleForward: () => Promise<void>;
     onRecord: () => Promise<void>;
     onStopSharingVideo: () => void; // Renamed from onShareVideo
     onVideoUpload: (event: Event) => Promise<void>;
@@ -62,12 +64,12 @@
   </button>
   <button
     id="test-start-forward-button"
-    onclick={onStartForward}
+    onclick={onToggleForward}
     class="text-white p-3 rounded-full pointer-events-auto"
     class:bg-red-500={allowedHosts.length > 0}
     class:hover:bg-red-600={allowedHosts.length > 0}
     class:hover:bg-blue-700={!(allowedHosts.length > 0)}
-    class:bg-blue-500={!(allowedHosts.length > 0)} 
+    class:bg-blue-500={forwardHost?.length} 
   >
     {allowedHosts.length > 0 ? '⏹️' : '⏩'}
   </button>

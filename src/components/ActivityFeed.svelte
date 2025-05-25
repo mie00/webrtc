@@ -154,7 +154,7 @@
                         aria-label={`View video: ${transfer.name}`}
                       >
                         <!-- svelte-ignore a11y_media_has_caption -->
-                        <video src={transfer.url} controls class="w-full rounded aspect-video min-w-md pointer-events-none"></video>
+                        <video src={transfer.url} controls class="w-full rounded aspect-video pointer-events-none"></video>
                       </div>
                     {:else if playableMediaType === 'image'}
                       <div
@@ -184,7 +184,7 @@
                         />
                       </div>
                     {:else if playableMediaType === 'audio'}
-                      <audio src={transfer.url} controls class="w-full min-w-md"></audio>
+                      <audio src={transfer.url} controls class="w-full"></audio>
                     {/if}
                   </div>
                 {/if}

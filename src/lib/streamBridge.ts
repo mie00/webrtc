@@ -49,7 +49,7 @@ export function streamInit(): void {
       if (cid == cid2) continue;
       const client = clients[cid2];
       const streamEndMessage: StreamEndNegoMessage = { type: 'stream.end', stream: streamId };
-      window.webRTCApp.sendNego(client, streamEndMessage);
+      window.webRTCApp.sendNegoMessage(client, streamEndMessage);
     }
   });
   // Set up cleanup handler
@@ -67,7 +67,7 @@ export function streamInit(): void {
             // Iterate over client objects from the store
             Object.values(clients).forEach((client) => {
               const streamEndMessage: StreamEndNegoMessage = { type: 'stream.end', stream: normalizedStreamId };
-              window.webRTCApp.sendNego(client, streamEndMessage);
+              window.webRTCApp.sendNegoMessage(client, streamEndMessage);
             });
           } catch (e) {
               console.error("Error sending stream.end during global cleanup:", e);
@@ -126,7 +126,7 @@ export function setupTrackHandler(cid: string): void { // app might be needed fo
       const allClients = getAllDirectClients(); // Get clients from store
       Object.values(allClients).forEach((c) => { // Iterate over client objects
         const streamEndMessage: StreamEndNegoMessage = { type: 'stream.end', stream: associatedStreamId };
-        window.webRTCApp.sendNego(c, streamEndMessage);
+        window.webRTCApp.sendNegoMessage(c, streamEndMessage);
       });
 
       // Remove from enhanced store structure using the correct stream ID

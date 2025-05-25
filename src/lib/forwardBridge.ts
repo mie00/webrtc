@@ -340,7 +340,6 @@ export const toggleForwardHandler = async (): Promise<void> => {
       if (client.forward && client.forward.readyState === 'open') {
         client.forward.send(JSON.stringify({
           type: "offer.end",
-          host: state.allowedHosts // Use host from store state
         }));
       }
     }

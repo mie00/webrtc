@@ -54,6 +54,7 @@
 
   // Forwarding state - button still needs allowedHosts to change its text/color
   const allowedHosts = $derived($forwardStore.allowedHosts);
+  const forwardHost = $derived($forwardStore.forwardHost);
 
   // Stream layout state (passed to LayoutControls and used for streamPositions)
   const currentLayout = $derived($streamStore.activeView.layout);
@@ -149,7 +150,7 @@
     });
 
     // Forwarding elements are now handled by ForwardOverlay.svelte
-
+    console.log("MIEMIEMIE", result);
     return result;
   });
   // Stream positions
@@ -318,7 +319,7 @@
     updateStreamConfig({ screen: newValue });
   }
   
-  async function handleStartForward() {
+  async function handleToggleForward() {
     await actualToggleForwardHandler();
   }
   
@@ -423,13 +424,14 @@
   {isVideoShared}
   {isRecording}
   {allowedHosts}
+  {forwardHost}
   {supportsVideoCaptureStream}
   {instant}
   onToggleAudio={handleToggleAudio}
   onContextMenu={handleContextMenu}
   onToggleVideo={handleToggleVideo}
   onToggleScreen={handleToggleScreen}
-  onStartForward={handleStartForward}
+  onToggleForward={handleToggleForward}
   onRecord={handleRecord}
   onStopSharingVideo={handleVideoCleanup}
   onVideoUpload={handleVideoUpload}
