@@ -17,7 +17,8 @@ import {
   addDirectClient,
   updateDirectClientState,
   updateDirectClientFingerprint,
-  updateDirectClientPublicKey, // Renamed
+  updateDirectClientPublicKey,
+  updateDirectClientUserPublicKey, // Added for user's public key
   removeDirectClient,
   addParticipant,
   removeParticipant,
@@ -226,6 +227,11 @@ export class WebRTCApp {
 
         // All checks passed
         client.trusted = true; // We now trust this peer
+        
+        // Store peer's device public key and user public key
+        updateDirectClientPublicKey(cid, data.solution.pubKey);
+        updateDirectClientUserPublicKey(cid, data.solution.userPubKey);
+        
         updatePeerProfile(data.solution.userPubKey, { userName: data.profile.userName });
         
         this.sendNego(client, { type: "trusted" });
@@ -320,24 +326,26 @@ export class WebRTCApp {
         if (existingCid !== cid) {
             const existingClientPeerObject = getDirectClient(existingCid);
             const newClientState = getDirectClientState(cid);
-            const newClientPublicKey = newClientState?.publicKey;
+            // Send the USER public key for participant announcements
+            const newUserPublicKey = newClientState?.userPublicKey;
 
-            if (existingClientPeerObject && newClientPublicKey) {
+            if (existingClientPeerObject && newUserPublicKey) {
                 const participantMessage: ParticipantNegoMessage = { 
                     type: "participant", 
                     cid: cid, 
-                    publicKey: newClientPublicKey 
+                    publicKey: newUserPublicKey // This is the user public key
                 };
                 this.sendNego(existingClientPeerObject, participantMessage);
             }
 
             const existingClientState = getDirectClientState(existingCid);
-            const existingClientPublicKey = existingClientState?.publicKey;
-            if (existingClientPublicKey) {
+            // Send the USER public key for participant announcements
+            const existingUserPublicKey = existingClientState?.userPublicKey;
+            if (existingUserPublicKey) {
                 const participantMessageToNew: ParticipantNegoMessage = { 
                     type: "participant", 
                     cid: existingCid, 
-                    publicKey: existingClientPublicKey 
+                    publicKey: existingUserPublicKey // This is the user public key
                 };
                 this.sendNego(client, participantMessageToNew);
             }

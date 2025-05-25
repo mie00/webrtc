@@ -13,13 +13,14 @@ export interface DirectClientState {
   connectionState: RTCPeerConnectionState | null; // Use client's state
   iceConnectionState: RTCIceConnectionState | null; // Use client's state
   fingerprint: string | null; // Added for fingerprint display
-  publicKey: string | null; // Added for peer's public key
+  publicKey: string | null; // Stores the peer's DEVICE public key
+  userPublicKey: string | null; // Stores the peer's USER public key
 }
 
 export interface ParticipantState {
   cid: string;
   relayCid: string;
-  publicKey: string | null; // Added for participant's public key
+  userPublicKey: string | null; // Stores the participant's USER public key
 }
 
 export interface ConnectionState {
@@ -47,18 +48,30 @@ export function addDirectClient(cid: string, client: WebRTCClient): void {
       connectionState: client.pc?.connectionState ?? 'new',
       iceConnectionState: client.pc?.iceConnectionState ?? 'new',
       fingerprint: null, // Initialize fingerprint
-      publicKey: null, // Initialize publicKey
+      publicKey: null, // Initialize device publicKey
+      userPublicKey: null, // Initialize userPublicKey
     };
     return { ...state, directClients };
   });
 }
 
-export function updateDirectClientPublicKey(cid: string, publicKey: string): void {
+export function updateDirectClientPublicKey(cid: string, publicKey: string): void { // For DEVICE public key
   connectionStore.update(state => {
     if (state.directClients[cid]) {
       state.directClients[cid].publicKey = publicKey;
     } else {
       console.warn(`Attempted to update publicKey for non-existent direct client: ${cid}`);
+    }
+    return state;
+  });
+}
+
+export function updateDirectClientUserPublicKey(cid: string, userPublicKey: string): void { // For USER public key
+  connectionStore.update(state => {
+    if (state.directClients[cid]) {
+      state.directClients[cid].userPublicKey = userPublicKey;
+    } else {
+      console.warn(`Attempted to update userPublicKey for non-existent direct client: ${cid}`);
     }
     return state;
   });
@@ -100,11 +113,11 @@ export function removeDirectClient(cid: string): void {
   });
 }
 
-export function addParticipant(cid: string, relayCid: string, publicKey: string | null): void {
+export function addParticipant(cid: string, relayCid: string, userPublicKey: string | null): void {
   connectionStore.update(state => {
     // Avoid adding self or existing direct clients as relayed participants
     if (cid !== relayCid && !state.directClients[cid]) {
-       state.participants[cid] = { cid, relayCid, publicKey };
+       state.participants[cid] = { cid, relayCid, userPublicKey };
     }
     return state;
   });
