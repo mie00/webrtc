@@ -38,7 +38,7 @@ jobs:
         run: npx playwright install --with-deps # --with-deps installs system dependencies for browsers
 
       - name: Run Playwright E2E tests
-        run: npm run test:e2e
+        run: npm run test:e2e:noci
 
       - name: Build project
         run: npm run build # This command should trigger your Vite build

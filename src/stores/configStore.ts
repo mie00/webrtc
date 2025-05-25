@@ -35,7 +35,7 @@ const defaultConfig: Config = {
     configLoader: 'server',
     userName: '',
     configHost: '',
-    identityProviderHost: 'http://localhost:5173',
+    identityProviderHost: 'https://xauth.mie00.com',
     coordinatorUrl: 'ws://127.0.0.1:5001',
   },
   rtc: {

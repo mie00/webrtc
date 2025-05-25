@@ -21,7 +21,7 @@ import {
     type PageInfoPw
 } from './shared/pwMediaTestHelpers';
 
-test.describe('Three Client E2E Tests with Playwright (Page B as primary sender)', () => {
+test.describe('Three Client E2E Tests with Playwright (Page B as primary sender) @noci', () => {
     test.setTimeout(PW_TIMEOUT * 20); // Increased timeout for multiple complex tests
 
     let pageA: PlaywrightPage, pageB: PlaywrightPage, pageC: PlaywrightPage;

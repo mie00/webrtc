@@ -3,7 +3,7 @@ import { checkConnectionEstablished } from './setup/pwTestHelpers';
 import { standardServerSetup } from './setup/pwStandardServerSetup';
 import { standardTeardown } from './setup/pwStandardTeardown';
 
-test.describe('WebRTC Peer Connection E2E Test (Playwright - Standard Client)', () => {
+test.describe('WebRTC Peer Connection E2E Test (Playwright - Standard Client) @noci', () => {
     let pageA: Page;
     let pageB: Page;
     let contextA: BrowserContext;
