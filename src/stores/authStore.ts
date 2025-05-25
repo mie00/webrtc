@@ -28,6 +28,20 @@ function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
   return bytes.buffer;
 }
 
+// Helper to convert ArrayBuffer to Base64URL string
+function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  // Avoid String.fromCharCode.apply for large buffers due to stack limits
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  let base64 = window.btoa(binary);
+  // Convert Base64 to Base64URL
+  base64 = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return base64;
+}
+
 interface JwtHeader {
   alg: string;
   typ: string;
@@ -254,7 +268,48 @@ function createAuthStore() {
     setJwtAndVerifyKey,
     getPrivateKey, // To be used by WebRTCApp logic
     getAuthState: () => get(store), // For non-Svelte contexts to get current state
-    logout
+    logout,
+    async getDevicePublicKeyAsSpki(): Promise<string | null> {
+      const current = get(store);
+      if (!current.publicKeyJwk) {
+        console.warn("AuthStore: Device public key JWK not found to export as SPKI.");
+        // Attempt to generate it if missing, though ensureKeyPair should ideally be called first.
+        if (!(await ensureKeyPair())) {
+          console.error("AuthStore: Failed to ensure key pair for SPKI export.");
+          return null;
+        }
+        // Re-fetch after generation
+        const updatedState = get(store);
+        if (!updatedState.publicKeyJwk) {
+           console.error("AuthStore: Still no public key JWK after attempting generation for SPKI export.");
+           return null;
+        }
+        // Use the newly generated key
+        const importedKeyForSpki = await crypto.subtle.importKey(
+          "jwk",
+          updatedState.publicKeyJwk,
+          { name: "ECDSA", namedCurve: "P-384" }, // Ensure this matches key generation
+          true,
+          [] // No specific usage needed for export
+        );
+        const spkiBuffer = await crypto.subtle.exportKey("spki", importedKeyForSpki);
+        return arrayBufferToBase64Url(spkiBuffer);
+      }
+      try {
+        const importedKey = await crypto.subtle.importKey(
+          "jwk",
+          current.publicKeyJwk,
+          { name: "ECDSA", namedCurve: "P-384" }, // Ensure this matches key generation
+          true, // Needs to be true if the key was generated as extractable
+          []    // No specific key usages needed for exportKey
+        );
+        const spkiBuffer = await crypto.subtle.exportKey("spki", importedKey);
+        return arrayBufferToBase64Url(spkiBuffer);
+      } catch (error) {
+        console.error("Error exporting device public key as SPKI:", error);
+        return null;
+      }
+    }
   };
 }
 

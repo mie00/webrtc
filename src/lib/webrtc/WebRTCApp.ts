@@ -189,13 +189,19 @@ export class WebRTCApp {
           console.error("Cannot send solution: userPubKey is missing from authState.");
           return;
         }
+
+        const devicePublicKeySpki = await window.authStore.getDevicePublicKeyAsSpki();
+        if (!devicePublicKeySpki) {
+          console.error("Cannot send solution: Failed to get device public key as SPKI.");
+          return;
+        }
       
         const solutionMessage: SolutionNegoMessage = {
           type: "solution",
           solution: {
             signedChallenge: signatureBase64,
             jwt: authState.jwt,
-            pubKey: JSON.stringify(authState.publicKeyJwk), // This is the device's public key (JWK string)
+            pubKey: devicePublicKeySpki, // This is the device's public key (SPKI string)
             userPubKey: userPubKeyString, // This is the user's public key from the auth server (SPKI string)
             originalChallenge: originalChallengeContent
           },
