@@ -39,7 +39,7 @@ export default defineConfig({
 				...devices['Desktop Safari'],
 				launchOptions:{
 					args:[
-						"--enable-mock-capture-devices=true",
+						"--=true",
 						"--enable-media-stream=true"
 					]
 				}
