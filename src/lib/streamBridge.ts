@@ -18,7 +18,7 @@ import {
   registerNegoHandler, 
   registerCleanup 
 } from '../stores/appStateStore.js'; // Import store functions
-import type { StreamEndNegoMessage } from '../types/negoMessages'; // Adjusted import path
+import type { StreamEndNegoMessage } from '../types/negoMessages.js'; // Adjusted import path
 import {
   type AudioNodes,
   normalizeStreamId,

@@ -13,7 +13,7 @@ import type {
   ParticipantEndNegoMessage,
   HangupNegoMessage,
   BaseNegoMessage
-} from '../../types/negoMessages'; // Adjusted import path
+} from '../../types/negoMessages.js'; // Adjusted import path
 import {
   addDirectClient,
   updateDirectClientState,
