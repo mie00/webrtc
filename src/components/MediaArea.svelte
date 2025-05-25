@@ -41,7 +41,7 @@
   let supportsVideoCaptureStream = $state(false);
 
   // References to DOM elements
-  let uploadVideoInputInMediaControls: HTMLInputElement; // This will be bound in MediaControls
+  // let uploadVideoInputInMediaControls: HTMLInputElement; // This ref is no longer needed here
   let refreshInterval: number;
 
   // Reactive button states (passed to MediaControls)
@@ -329,71 +329,9 @@
   
   // handleOpenQr is passed directly from props to MediaControls
   
-  function handleShareVideo() {
-    if ($streamStore.streamConfig.file !== null) {
-      handleVideoCleanup();
-    } else {
-      // uploadVideoInputInMediaControls is in MediaControls, so MediaControls must trigger click
-      // This specific logic will be handled by MediaControls itself.
-      // MediaArea passes isVideoShared, onVideoCleanup, and onVideoUpload.
-      // MediaControls will have its own internal ref to the input and call click().
-      // This function in MediaArea might not be needed if MediaControls handles the click.
-      // For now, we assume MediaControls calls this via a prop if it needs complex logic from parent.
-      // Let's simplify: MediaControls will have its own click logic.
-      // This handleShareVideo in MediaArea is effectively replaced by logic within MediaControls
-      // using props like isVideoShared, onVideoCleanup, and its own input ref.
-      // So, this function can be removed if MediaControls handles the click.
-      // However, to keep MediaControls dumber, we can pass a function that tells it to click.
-      // Or, MediaControls calls a generic onShareVideo which then MediaArea implements.
-      // The current MediaControls expects an onShareVideo prop.
-      // This onShareVideo prop will be this function.
-      // MediaControls will need a way to click its *own* input.
-      // The `uploadVideo` ref is now local to MediaControls.
-      // So `uploadVideo?.click()` must happen in MediaControls.
-      // Let's adjust `handleShareVideo` to be what `MediaControls` calls.
-      // `MediaControls` will call `props.onShareVideo()`.
-      // `MediaArea`'s `handleShareVideo` will then decide to cleanup or request click.
-      // This requires `MediaControls` to expose a method to click its input, or `MediaArea`
-      // to pass down a callback that `MediaControls` calls to make `MediaArea` aware of the click action.
-
-      // Simpler: MediaControls has the button. When clicked:
-      // if (isVideoShared) call props.onVideoCleanup()
-      // else call uploadVideoInputInMediaControls.click() (internal to MediaControls)
-      // So, MediaArea's handleShareVideo is not directly called by the button in MediaControls.
-      // MediaControls will need `onVideoCleanup` and `onVideoUpload`.
-      // The `handleShareVideo` in `MediaArea` is effectively split.
-      // The `onShareVideo` prop for `MediaControls` will be a new function that embodies the logic
-      // of "what to do when the share video button is pressed".
-      // This new function will call `handleVideoCleanup` or tell `MediaControls` to click its input.
-      // This is getting complicated. Let's stick to the plan:
-      // MediaControls has the button. It calls `props.onShareVideo`.
-      // `MediaArea`'s `handleShareVideo` is that `onShareVideo`.
-      // `MediaArea` needs a ref to `MediaControls`'s input, or `MediaControls` needs to expose a click method.
-      // The `uploadVideo` ref was for `MediaArea`'s own input.
-      // The `input` tag is now in `MediaControls`.
-      // `MediaControls` will have its own `uploadVideoElement` ref.
-      // `handleShareVideo` in `MediaArea` will be passed as `onShareVideo` to `MediaControls`.
-      // `MediaControls` will call `onShareVideo`.
-      // `MediaArea`'s `handleShareVideo` will then need to tell `MediaControls` to click its input.
-      // This is not ideal.
-
-      // Revised approach for video sharing:
-      // MediaControls has the button and the <input type="file" bind:this={uploadVideoElement}>.
-      // MediaControls has its own internal handler for the share video button:
-      //   internalShareVideoButtonHandler() {
-      //     if (props.isVideoShared) props.onVideoCleanup();
-      //     else uploadVideoElement.click();
-      //   }
-      // MediaArea passes `isVideoShared` and `onVideoCleanup` and `onVideoUpload` (for the input's onchange).
-      // So, `handleShareVideo` in `MediaArea` is not needed as a prop for MediaControls' button click.
-      // `MediaControls` will directly use `uploadVideoElement.click()`.
-      // `MediaArea`'s `handleVideoUpload` and `handleVideoCleanup` are passed as props.
-      if (uploadVideoInputInMediaControls) { // This ref points to the input in MediaControls
-         uploadVideoInputInMediaControls.click();
-      }
-    }
-  }
-
+  // The old handleShareVideo function is removed as its logic is now split:
+  // - Clicking the input is handled by MediaControls directly.
+  // - Cleaning up (stopping sharing) is handled by handleVideoCleanup, passed as a prop.
 
   async function handleVideoUpload(event: Event) {
     // This function is passed to MediaControls for its input's onchange event.
@@ -405,8 +343,9 @@
         file: fileURL,
         videoStream: undefined, // Ensure this is reset
       });
-      // Reset the input field value in MediaControls if needed, or here if ref is available
-      if (uploadVideoInputInMediaControls) uploadVideoInputInMediaControls.value = '';
+      // Resetting input value is handled by MediaControls if it keeps a ref to its input for that purpose,
+      // or by the browser default behavior. MediaArea doesn't need to manage this directly.
+      // if (uploadVideoInputInMediaControls) uploadVideoInputInMediaControls.value = ''; 
     }
   }
 
@@ -414,8 +353,8 @@
     const src = $streamStore.streamConfig.file!;
     removeLocalFileStream(src);
     updateStreamConfig({file: null, videoStream: null});
-    // Reset the file input value in MediaControls
-    if (uploadVideoInputInMediaControls) uploadVideoInputInMediaControls.value = '';
+    // Resetting input value is handled by MediaControls if it needs to.
+    // if (uploadVideoInputInMediaControls) uploadVideoInputInMediaControls.value = '';
   }
 
   async function handleFilePlay(event: Event) {
@@ -492,36 +431,9 @@
   onToggleScreen={handleToggleScreen}
   onStartForward={handleStartForward}
   onRecord={handleRecord}
-  onShareVideo={() => { /* Logic for share video button in MediaControls */
-    if (isVideoShared) {
-      handleVideoCleanup();
-    } else {
-      // This relies on MediaControls having its own input and clicking it.
-      // MediaArea cannot directly click an input in MediaControls without a ref or callback.
-      // The `uploadVideoInputInMediaControls` ref is for the `onchange` handler.
-      // The click itself should be initiated by MediaControls.
-      // This `onShareVideo` prop will be called by MediaControls' button.
-      // MediaControls will handle the click on its own input.
-      // This prop is for any *additional* logic MediaArea wants to run.
-      // For now, let's assume MediaControls handles the click and this prop is for other actions.
-      // The simplest is that MediaControls' button directly calls its internal input.click()
-      // or calls handleVideoCleanup via a prop.
-      // Let's make `onShareVideo` simpler: it's what MediaControls calls when its button is clicked.
-      // MediaArea then decides what to do.
-      if (isVideoShared) {
-        handleVideoCleanup();
-      } else {
-        // We need a way for MediaArea to tell MediaControls to click its input.
-        // This is where a ref to MediaControls or an exposed method would be useful.
-        // Or, MediaControls handles this logic internally based on `isVideoShared`.
-        // The `uploadVideoInputInMediaControls` ref is bound to the input in MediaControls.
-        // So MediaArea *can* click it.
-        if (uploadVideoInputInMediaControls) uploadVideoInputInMediaControls.click();
-      }
-    }
-  }}
+  onStopSharingVideo={handleVideoCleanup} // Pass cleanup function
   onVideoUpload={handleVideoUpload}
-  bind:uploadVideoElement={uploadVideoInputInMediaControls}
+  // bind:uploadVideoElement is removed as MediaControls manages its own input element
 />
 
 {#if showMenu}

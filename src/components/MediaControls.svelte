@@ -18,7 +18,7 @@
     onToggleScreen,
     onStartForward,
     onRecord,
-    onShareVideo,
+    onStopSharingVideo, // Renamed from onShareVideo
     onVideoUpload,
   }: {
     hangup?: () => void;
@@ -37,7 +37,7 @@
     onToggleScreen: () => Promise<void>;
     onStartForward: () => Promise<void>;
     onRecord: () => Promise<void>;
-    onShareVideo: () => void;
+    onStopSharingVideo: () => void; // Renamed from onShareVideo
     onVideoUpload: (event: Event) => Promise<void>;
   } = $props();
 
@@ -72,7 +72,13 @@
     {allowedHosts.length > 0 ? '⏹️' : '⏩'}
   </button>
   {#if supportsVideoCaptureStream}
-  <button id="test-share-video-button" onclick={onShareVideo} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoShared}>
+  <button id="test-share-video-button" onclick={() => {
+    if (isVideoShared) {
+      onStopSharingVideo();
+    } else {
+      uploadVideoElement.click();
+    }
+  }} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoShared}>
     📹 <!-- Share Video -->
   </button>
   {/if}
