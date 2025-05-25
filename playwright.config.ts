@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os'; // Import the os module
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -37,12 +39,12 @@ export default defineConfig({
 			name: 'webkit',
 			use: {
 				...devices['Desktop Safari'],
-				launchOptions:{
+				launchOptions: os.platform() === 'darwin' ? { // Conditionally add args for macOS
 					args:[
-						"--=true",
+						"--enable-mock-capture-devices=true", // Note: This arg looks unusual, ensure it's correct
 						"--enable-media-stream=true"
 					]
-				}
+				} : {},
 			},
 		},
 		/* Test against mobile viewports. */
@@ -64,12 +66,12 @@ export default defineConfig({
 			name: 'Mobile Safari',
 			use: {
 				...devices['iPhone 12'],
-				launchOptions:{
+				launchOptions: os.platform() === 'darwin' ? { // Conditionally add args for macOS
 					args:[
 						"--enable-mock-capture-devices=true",
 						"--enable-media-stream=true"
 					]
-				}
+				} : {},
 			},
 		},
 	],

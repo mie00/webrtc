@@ -46,8 +46,8 @@ export async function handleLoginIfNeeded(page: Page, pageAlias: string): Promis
         await doneSavedKeyButton.click({ timeout: PW_TIMEOUT });
         console.log(`${pageAlias}: Clicked "Done, I've Saved My Key" button.`);
 
-        console.log(`${pageAlias}: Waiting for redirect (5 seconds)...`);
-        await page.waitForTimeout(5000); // As requested
+        console.log(`${pageAlias}: Waiting for redirect (500 milli seconds)...`);
+        await page.waitForTimeout(500); // As requested
 
         const confirmLoginButton = page.locator(CONFIRM_LOGIN_BUTTON_SELECTOR);
         await confirmLoginButton.waitFor({ state: 'visible', timeout: PW_TIMEOUT });
