@@ -8,7 +8,7 @@ import type {
 import { getDirectClient } from '../../stores/connectionStore.js';
 import { setCidKeys } from '../../stores/cidKeyStore.js';
 import { updatePeerProfile } from '../../stores/peerProfileStore.js';
-import { verifyLoginJWTFromBase64 } from '../../stores/authStore.js';
+import { verifyLoginJWTFromBase64, authStore } from '../../stores/authStore.js';
 import { profileStore } from '../../stores/profileStore.js';
 import { get } from 'svelte/store';
 
@@ -147,7 +147,7 @@ export interface ChallengeHandlerContext {
 export function createChallengeHandler(context: ChallengeHandlerContext) {
   return async (data: ChallengeNegoMessage, cid: string) => {
     console.log("challenge received from", cid, "data:", data.data);
-    const authState = window.authStore?.getAuthState();
+    const authState = authStore.getAuthState();
 
     if (!authState || !authState.privateKeyJwk || !authState.jwt || !authState.publicKeyJwk) {
       console.warn(`Cannot respond to challenge from ${cid}: User not authenticated or keys/JWT missing.`);
@@ -187,7 +187,7 @@ export function createChallengeHandler(context: ChallengeHandlerContext) {
         return;
       }
 
-      const devicePublicKeySpki = await window.authStore.getDevicePublicKeyAsSpki();
+      const devicePublicKeySpki = await authStore.getDevicePublicKeyAsSpki();
       if (!devicePublicKeySpki) {
         console.error("Cannot send solution: Failed to get device public key as SPKI.");
         return;
