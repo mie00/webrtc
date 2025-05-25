@@ -126,6 +126,18 @@
           </div>
           
           <div class="flex flex-col space-y-1">
+            <label for="config-host" class="text-sm font-medium">Host</label>
+            <input 
+              id="config-host" 
+              type="text" 
+              placeholder="Host URL (e.g., https://app.example.com)"
+              class="w-full border border-gray-300 px-3 py-2 rounded-md" 
+              value={$configStore.general.configHost}
+              oninput={(e) => handleInputChange(e, 'general', 'configHost')}
+            />
+          </div>
+
+          <div class="flex flex-col space-y-1">
             <label for="identity-provider-host" class="text-sm font-medium">Identity Provider Host</label>
             <input 
               id="identity-provider-host" 
