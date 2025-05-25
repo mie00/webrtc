@@ -126,14 +126,14 @@
           </div>
           
           <div class="flex flex-col space-y-1">
-            <label for="config-host" class="text-sm font-medium">Host</label>
+            <label for="identity-provider-host" class="text-sm font-medium">Identity Provider Host</label>
             <input 
-              id="config-host" 
+              id="identity-provider-host" 
               type="text" 
               placeholder="Host (e.g., https://example.com)"
               class="w-full border border-gray-300 px-3 py-2 rounded-md" 
-              value={$configStore.general.configHost}
-              oninput={(e) => handleInputChange(e, 'general', 'configHost')}
+              value={$configStore.general.identityProviderHost}
+              oninput={(e) => handleInputChange(e, 'general', 'identityProviderHost')}
             />
           </div>
 

@@ -4,7 +4,7 @@ import { writable, derived, get } from 'svelte/store';
 export interface GeneralConfig {
   configLoader: 'server' | 'client';
   userName: string;
-  configHost: string;
+  identityProviderHost: string;
   coordinatorUrl: string;
 }
 
@@ -33,7 +33,7 @@ const defaultConfig: Config = {
   general: {
     configLoader: 'server',
     userName: '',
-    configHost: 'http://localhost:5173',
+    identityProviderHost: 'http://localhost:5173',
     coordinatorUrl: 'ws://127.0.0.1:5001',
   },
   rtc: {

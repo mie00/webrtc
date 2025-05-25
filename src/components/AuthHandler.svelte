@@ -20,8 +20,8 @@
       // Append current query parameters to the callbackTarget
       const callbackTarget = `${window.location.origin}/cb${window.location.search}`;
       // The payload is now the base64 URL encoded SPKI string
-      const configHost = getConfigValue('general', 'configHost');
-      const loginUrl = `${configHost}/login?callback=${encodeURIComponent(callbackTarget)}&payload=${encodeURIComponent(devicePublicKeySpki)}`;
+      const identityProviderHost = getConfigValue('general', 'identityProviderHost');
+      const loginUrl = `${identityProviderHost}/login?callback=${encodeURIComponent(callbackTarget)}&payload=${encodeURIComponent(devicePublicKeySpki)}`;
       performLoginRedirect(loginUrl);
     } else {
       console.error("Failed to get device public key as SPKI for login redirect.");
