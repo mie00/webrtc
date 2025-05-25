@@ -431,7 +431,7 @@
   onToggleScreen={handleToggleScreen}
   onStartForward={handleStartForward}
   onRecord={handleRecord}
-  onStopSharingVideo={handleVideoCleanup} // Pass cleanup function
+  onStopSharingVideo={handleVideoCleanup}
   onVideoUpload={handleVideoUpload}
   // bind:uploadVideoElement is removed as MediaControls manages its own input element
 />
