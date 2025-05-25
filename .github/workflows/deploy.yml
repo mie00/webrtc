@@ -26,6 +26,12 @@ jobs:
       - name: Install dependencies
         run: npm ci # Use 'yarn install --frozen-lockfile' if you use Yarn
 
+      - name: Run Svelte check
+        run: npm run check
+
+      - name: Run Playwright E2E tests
+        run: npm run test:e2e
+
       - name: Build project
         run: npm run build # This command should trigger your Vite build
 
