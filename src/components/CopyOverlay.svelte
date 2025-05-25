@@ -11,11 +11,13 @@
     showCopyButton = true,
     showPasteText = false,
     cid = null, // Receive CID as prop,
+    soundNegotiationActive = false, // New prop for sound negotiation state
     close,
     openConfig,
     reset,
     accept,
     join,
+    toggleSoundNegotiation, // New prop for toggling sound negotiation
   }: {
     show : boolean;
     copyText : string;
@@ -25,11 +27,13 @@
     showCopyButton : boolean;
     showPasteText : boolean;
     cid: string | null; // Allow null as per the original logic
+    soundNegotiationActive?: boolean;
     close: () => void;
     openConfig: () => void;
     reset: () => void;
     accept: (detail: AcceptEventDetail) => void; // Define the 'accept' prop
     join: () => void;
+    toggleSoundNegotiation?: () => void;
   } = $props();
 
   let pasteValue = $state('');
@@ -103,6 +107,12 @@
     join();
     copyButtonText = 'Copy';
   }
+
+  function handleSoundConnect() {
+    if (toggleSoundNegotiation) {
+      toggleSoundNegotiation();
+    }
+  }
 </script>
 
 {#if show}
@@ -110,6 +120,12 @@
   <div class="bg-white p-4 rounded-md shadow-md text-center">
     <button id="test-open-config-button" onclick={handleOpenConfig}>⚙️</button>
     <button id="test-reset-button" onclick={handleReset}>↺</button>
+    {#if toggleSoundNegotiation}
+      <button id="test-sound-connect-button" onclick={handleSoundConnect}
+        class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md mt-2 ml-2">
+        {soundNegotiationActive ? 'Stop Sound Connect' : 'Start Sound Connect'}
+      </button>
+    {/if}
     {#if qrCodeDataURL}
     <div id="test-qr" class="flex justify-center" title={qrCodeUrl}><img src={qrCodeDataURL} alt="QR Code" class="max-w-xs" /></div>
     {/if}
