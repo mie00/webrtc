@@ -17,7 +17,10 @@ export interface NegotiationManagerContext {
   uuidv4: () => string;
   actualSend: (dc: RTCDataChannel | undefined, data: string) => void;
   getNegoHandler: <K extends NegoMessageType>(type: K) => SpecificNegoHandler<K> | undefined;
-  registerNegoHandler: <K extends NegoMessageType>(type: K, handler: SpecificNegoHandler<K>) => void;
+  registerNegoHandler: <K extends NegoMessageType>(
+    type: K,
+    handler: SpecificNegoHandler<K>
+  ) => void;
   getDirectClient: (cid: string) => WebRTCClient | undefined;
   destroyClient: (cid: string) => void;
   destroyApp: () => void; // For polite hangup handling
@@ -50,7 +53,7 @@ export class NegotiationManager {
     try {
       this.context.actualSend(client.nego_dc, JSON.stringify(finalMessage));
     } catch (e) {
-      console.log("error sending data", finalMessage, "to", client, "error", e);
+      console.log('error sending data', finalMessage, 'to', client, 'error', e);
     }
   }
 
@@ -58,8 +61,8 @@ export class NegotiationManager {
     const parsedData = JSON.parse(eventData) as BaseNegoMessage;
 
     if (!client.trusted || !client.trusting) {
-      if (!["challenge", "solution", "trusted"].includes(parsedData.type)) {
-        console.log("ignoring message from untrusted peer", parsedData);
+      if (!['challenge', 'solution', 'trusted'].includes(parsedData.type)) {
+        console.log('ignoring message from untrusted peer', parsedData);
         return;
       }
     }
@@ -70,38 +73,40 @@ export class NegotiationManager {
     }
     this.nego_messages_processed[messageId] = {}; // Mark as processed
 
-    console.log("got negotiation message", parsedData);
+    console.log('got negotiation message', parsedData);
 
     const messageType = parsedData.type as NegoMessageType;
     const handler = this.context.getNegoHandler(messageType);
 
     if (!handler) {
-      console.log("cannot find handler for", messageType);
+      console.log('cannot find handler for', messageType);
       return;
     }
     handler(parsedData as NegoMessageMap[typeof messageType], cid);
   }
 
   public initializeStandardNegoHandlers(): void {
-    this.context.registerNegoHandler("answer", (data: AnswerNegoMessage, cid: string) => {
-      this.context.getDirectClient(cid)?.pc?.setRemoteDescription(data as RTCSessionDescriptionInit);
+    this.context.registerNegoHandler('answer', (data: AnswerNegoMessage, cid: string) => {
+      this.context
+        .getDirectClient(cid)
+        ?.pc?.setRemoteDescription(data as RTCSessionDescriptionInit);
     });
 
-    this.context.registerNegoHandler("offer", async (data: OfferNegoMessage, cid: string) => {
+    this.context.registerNegoHandler('offer', async (data: OfferNegoMessage, cid: string) => {
       const client = this.context.getDirectClient(cid);
       if (!client || !client.pc) return;
       if (!client.polite) {
         if (client.makingOffer) return;
-        if (client.pc.signalingState != "stable") return;
+        if (client.pc.signalingState != 'stable') return;
       }
       await client.pc.setRemoteDescription(data as RTCSessionDescriptionInit);
       await client.pc.setLocalDescription();
       if (client.pc.localDescription) {
-        this.sendNegoMessage(client, { type: "answer", sdp: client.pc.localDescription.sdp });
+        this.sendNegoMessage(client, { type: 'answer', sdp: client.pc.localDescription.sdp });
       }
     });
 
-    this.context.registerNegoHandler("hangup", (data: HangupNegoMessage, cid: string) => {
+    this.context.registerNegoHandler('hangup', (data: HangupNegoMessage, cid: string) => {
       const client = this.context.getDirectClient(cid);
       if (client && !client.polite) {
         this.context.destroyClient(cid);
@@ -110,24 +115,34 @@ export class NegotiationManager {
       }
     });
 
-    this.context.registerNegoHandler("participant", (data: ParticipantNegoMessage, relayingClientCid: string) => {
-      const existingKeys = this.context.getKeysByCid(data.cid);
-      // data.publicKey is the userPublicKey for the participant.
-      // Ensure it's not null before calling setCidKeys, as the context now expects a string.
-      if (data.publicKey) { 
-        if (!existingKeys || !existingKeys.userPublicKey || existingKeys.userPublicKey !== data.publicKey) {
-          // Pass existingKeys?.publicKey (device key) as is, and data.publicKey (user key)
-          this.context.setCidKeys(data.cid, existingKeys?.publicKey || null, data.publicKey);
+    this.context.registerNegoHandler(
+      'participant',
+      (data: ParticipantNegoMessage, relayingClientCid: string) => {
+        const existingKeys = this.context.getKeysByCid(data.cid);
+        // data.publicKey is the userPublicKey for the participant.
+        // Ensure it's not null before calling setCidKeys, as the context now expects a string.
+        if (data.publicKey) {
+          if (
+            !existingKeys ||
+            !existingKeys.userPublicKey ||
+            existingKeys.userPublicKey !== data.publicKey
+          ) {
+            // Pass existingKeys?.publicKey (device key) as is, and data.publicKey (user key)
+            this.context.setCidKeys(data.cid, existingKeys?.publicKey || null, data.publicKey);
+          }
         }
+        this.context.addParticipant(data.cid, relayingClientCid);
       }
-      this.context.addParticipant(data.cid, relayingClientCid);
-    });
+    );
 
-    this.context.registerNegoHandler("participant.end", (data: ParticipantEndNegoMessage, cid: string) => {
-      this.context.removeParticipant(data.cid);
-    });
+    this.context.registerNegoHandler(
+      'participant.end',
+      (data: ParticipantEndNegoMessage, cid: string) => {
+        this.context.removeParticipant(data.cid);
+      }
+    );
 
-    this.context.registerNegoHandler("trusted", (data: TrustedNegoMessage, cid: string) => {
+    this.context.registerNegoHandler('trusted', (data: TrustedNegoMessage, cid: string) => {
       const client = this.context.getDirectClient(cid);
       if (!client) return;
       client.trusting = true;

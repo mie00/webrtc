@@ -34,14 +34,14 @@ export interface StreamState {
   // Enhanced structure
   localStreams: Record<string, LocalStreamData>; // Key is now a unique ID, not just the type
   remoteStreams: Record<string, RemoteStreamData>;
-  
+
   // View configuration
   activeView: {
     layout: LayoutType;
     focusedStream?: string;
     gridSize?: number;
   };
-  
+
   streamConfig: StreamConfig;
 }
 
@@ -50,18 +50,18 @@ const initialState: StreamState = {
   // Enhanced structure
   localStreams: {},
   remoteStreams: {},
-  
+
   // View configuration
   activeView: {
     layout: 'grid'
   },
-  
+
   streamConfig: {
     audio: null,
     camera: null,
     screen: false,
     file: null,
-    videoStream: null,
+    videoStream: null
   }
 };
 
@@ -75,7 +75,7 @@ export function getStreamState() {
 
 // Stream config updates
 export function updateStreamConfig(config: Partial<StreamConfig>): void {
-  streamStore.update(state => ({
+  streamStore.update((state) => ({
     ...state,
     streamConfig: {
       ...state.streamConfig,
@@ -85,25 +85,34 @@ export function updateStreamConfig(config: Partial<StreamConfig>): void {
 }
 
 // Enhanced stream management functions
-export function addLocalStream(type: StreamType, stream: MediaStream | null, src: string | null, viewable: boolean = true, sendable: boolean = true): string {
+export function addLocalStream(
+  type: StreamType,
+  stream: MediaStream | null,
+  src: string | null,
+  viewable: boolean = true,
+  sendable: boolean = true
+): string {
   // Generate a unique ID for the stream
   const streamId = `${type}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-  
-  streamStore.update(state => {
+
+  streamStore.update((state) => {
     const localStreams = { ...state.localStreams };
     localStreams[streamId] = { id: streamId, type, stream, src, viewable, sendable };
     return { ...state, localStreams };
   });
-  
+
   return streamId;
 }
 
-export function updateLocalStreamProperties(id: string, properties: Partial<LocalStreamData>): void {
-  streamStore.update(state => {
+export function updateLocalStreamProperties(
+  id: string,
+  properties: Partial<LocalStreamData>
+): void {
+  streamStore.update((state) => {
     if (!state.localStreams[id]) return state;
-    
+
     const localStreams = { ...state.localStreams };
-    localStreams[id] = { 
+    localStreams[id] = {
       ...localStreams[id],
       ...properties
     };
@@ -112,7 +121,7 @@ export function updateLocalStreamProperties(id: string, properties: Partial<Loca
 }
 
 export function removeLocalStream(id: string): void {
-  streamStore.update(state => {
+  streamStore.update((state) => {
     const localStreams = { ...state.localStreams };
     delete localStreams[id];
     return { ...state, localStreams };
@@ -135,36 +144,42 @@ export function getFirstLocalStreamByType(type: StreamType): [string, LocalStrea
 }
 
 export function addRemoteStream(peerId: string, streamId: string, stream: MediaStream): void {
-  streamStore.update(state => {
-    const remoteStreams = { ...state.remoteStreams, [peerId]: { peerId, streams: {...(state.remoteStreams[peerId]?.streams || {}), [streamId]: stream} } };
+  streamStore.update((state) => {
+    const remoteStreams = {
+      ...state.remoteStreams,
+      [peerId]: {
+        peerId,
+        streams: { ...(state.remoteStreams[peerId]?.streams || {}), [streamId]: stream }
+      }
+    };
     return { ...state, remoteStreams };
   });
 }
 
 export function removeRemoteStream(peerId: string, streamId: string): void {
-  streamStore.update(state => {
+  streamStore.update((state) => {
     if (!state.remoteStreams[peerId]) return state;
-    
+
     const remoteStreams = { ...state.remoteStreams };
     const peerStreams = { ...remoteStreams[peerId].streams };
     delete peerStreams[streamId];
-    
+
     remoteStreams[peerId] = {
       ...remoteStreams[peerId],
       streams: peerStreams
     };
-    
+
     // If no more streams for this peer, remove the peer entry
     if (Object.keys(peerStreams).length === 0) {
       delete remoteStreams[peerId];
     }
-    
+
     return { ...state, remoteStreams };
   });
 }
 
 export function setViewLayout(layout: LayoutType, focusedStream?: string): void {
-  streamStore.update(state => ({
+  streamStore.update((state) => ({
     ...state,
     activeView: {
       ...state.activeView,
@@ -175,7 +190,7 @@ export function setViewLayout(layout: LayoutType, focusedStream?: string): void 
 }
 
 export function setGridSize(size: number): void {
-  streamStore.update(state => ({
+  streamStore.update((state) => ({
     ...state,
     activeView: {
       ...state.activeView,

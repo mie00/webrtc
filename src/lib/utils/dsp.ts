@@ -3,15 +3,20 @@ const context = new AudioContext();
 const BIT_DURATION = 0.1; // seconds
 const FREQ_0 = 1200;
 const FREQ_1 = 2200;
-const PREAMBLE = "10101010";
+const PREAMBLE = '10101010';
 
 // -- Utils --
 function textToBinary(text: string): string {
-  return [...text].map(c => c.charCodeAt(0).toString(2).padStart(8, '0')).join('');
+  return [...text].map((c) => c.charCodeAt(0).toString(2).padStart(8, '0')).join('');
 }
 
 function binaryToText(binary: string): string {
-  return binary.match(/.{8}/g)?.map(b => String.fromCharCode(parseInt(b, 2))).join('') || '';
+  return (
+    binary
+      .match(/.{8}/g)
+      ?.map((b) => String.fromCharCode(parseInt(b, 2)))
+      .join('') || ''
+  );
 }
 
 function xorChecksum(bin: string): string {
@@ -55,12 +60,12 @@ export async function receiveFSK(timeoutMs = 4000): Promise<string> {
 
   const sampleRate = context.sampleRate;
   const buffer = new Uint8Array(analyser.frequencyBinCount);
-  const indexToFreq = (i: number) => i * sampleRate / analyser.fftSize;
+  const indexToFreq = (i: number) => (i * sampleRate) / analyser.fftSize;
 
   let bits: string[] = [];
   const start = Date.now();
 
-  return new Promise<string>(resolve => {
+  return new Promise<string>((resolve) => {
     const interval = setInterval(() => {
       analyser.getByteFrequencyData(buffer);
 
@@ -84,7 +89,7 @@ export async function receiveFSK(timeoutMs = 4000): Promise<string> {
       // Time out after timeoutMs
       if (Date.now() - start > timeoutMs) {
         clearInterval(interval);
-        stream.getTracks().forEach(t => t.stop());
+        stream.getTracks().forEach((t) => t.stop());
 
         const bitStr = bits.join('');
         const preambleIndex = bitStr.indexOf(PREAMBLE);

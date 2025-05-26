@@ -21,12 +21,15 @@ export const PW_TIMEOUT = 7000; // Playwright specific timeout
 
 // --- Helper Function ---
 export async function checkConnectionEstablished(page: Page, description: string): Promise<void> {
-    console.log(`Waiting for connection indicator in ${description}...`);
-    await page.waitForSelector(CONNECTION_INDICATOR_SELECTOR, { state: 'visible', timeout: PW_TIMEOUT });
-    // For more idiomatic Playwright, you might use:
-    // await expect(page.locator(CONNECTION_INDICATOR_SELECTOR)).toBeVisible({ timeout: PW_TIMEOUT });
-    // However, waitForSelector is a closer match to the original and works fine.
-    console.log(`Connection indicator found in ${description}.`);
+  console.log(`Waiting for connection indicator in ${description}...`);
+  await page.waitForSelector(CONNECTION_INDICATOR_SELECTOR, {
+    state: 'visible',
+    timeout: PW_TIMEOUT
+  });
+  // For more idiomatic Playwright, you might use:
+  // await expect(page.locator(CONNECTION_INDICATOR_SELECTOR)).toBeVisible({ timeout: PW_TIMEOUT });
+  // However, waitForSelector is a closer match to the original and works fine.
+  console.log(`Connection indicator found in ${description}.`);
 }
 
 // Note: calculateSHA256 from the original testHelpers.ts can be copied here if needed by other tests,
@@ -41,5 +44,5 @@ export async function checkConnectionEstablished(page: Page, description: string
 // This is a direct port from the Puppeteer testHelpers.ts
 import crypto from 'crypto';
 export function calculateSHA256(content: string | Buffer): string {
-    return crypto.createHash('sha256').update(content).digest('hex');
+  return crypto.createHash('sha256').update(content).digest('hex');
 }

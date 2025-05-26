@@ -1,5 +1,11 @@
 import { writable, get } from 'svelte/store';
-import { streamStore, getStreamState, type LocalStreamData, type RemoteStreamData, type StreamState } from '../../stores/streamStore.js';
+import {
+  streamStore,
+  getStreamState,
+  type LocalStreamData,
+  type RemoteStreamData,
+  type StreamState
+} from '../../stores/streamStore.js';
 import { getDirectClient, getAllDirectClients } from '../../stores/connectionStore.js'; // Added
 
 const WEBSOCKET_URL = 'ws://localhost:8888/asr'; // Ensure this matches your ASR backend
@@ -22,7 +28,7 @@ export interface TranscriberState {
 export interface FinalTranscriptionBroadcastPayload {
   type: 'transcription_data';
   finalSegments: TranscriptionSegment[]; // Array of finalized segments since last broadcast or for an utterance
-  activeBuffer?: { sessionId: string, speakerLabel: string, text: string }; // Current active buffer for a session
+  activeBuffer?: { sessionId: string; speakerLabel: string; text: string }; // Current active buffer for a session
   originalSessionId: string; // The sessionId from the source ASR
 }
 // --- End Payload ---
@@ -30,7 +36,7 @@ export interface FinalTranscriptionBroadcastPayload {
 // Store for overall transcription state (on/off, active sessions)
 export const transcriberStore = writable<TranscriberState>({
   isTranscribingOverall: false,
-  activeSessions: {},
+  activeSessions: {}
 });
 
 // --- New Store for Displayable Transcription Data ---
@@ -46,29 +52,38 @@ export interface TranscriptionSegment {
 }
 
 export interface TranscriptionDisplayStoreState {
-  segments: TranscriptionSegment[]; 
-  activeBuffers: Record<string, { sessionId: string, speakerLabel: string, text: string }>; // Keyed by sessionId
-  lastTextBySpeaker: Record<string, { text: string, utteranceId: string }>; // Track last text per speaker
+  segments: TranscriptionSegment[];
+  activeBuffers: Record<string, { sessionId: string; speakerLabel: string; text: string }>; // Keyed by sessionId
+  lastTextBySpeaker: Record<string, { text: string; utteranceId: string }>; // Track last text per speaker
 }
 
 const initialDisplayState: TranscriptionDisplayStoreState = {
   segments: [],
   activeBuffers: {},
-  lastTextBySpeaker: {},
+  lastTextBySpeaker: {}
 };
-export const transcriptionDisplayStore = writable<TranscriptionDisplayStoreState>(initialDisplayState);
+export const transcriptionDisplayStore =
+  writable<TranscriptionDisplayStoreState>(initialDisplayState);
 // --- End New Store ---
 
 // Stores the last known active buffer for each original ASR session ID
-const lastKnownActiveBuffers: Map<string, { sessionId: string, speakerLabel: string, text: string }> = new Map();
+const lastKnownActiveBuffers: Map<
+  string,
+  { sessionId: string; speakerLabel: string; text: string }
+> = new Map();
 
 function generateSessionId(isLocal: boolean, streamId: string, peerId?: string): string {
   // Normalize streamId by removing potential curly braces from some WebRTC implementations
-  const normalizedStreamId = streamId.replace(/[{}]/g, "");
+  const normalizedStreamId = streamId.replace(/[{}]/g, '');
   return isLocal ? `local|${normalizedStreamId}` : `remote|${peerId}|${normalizedStreamId}`;
 }
 
-async function startTranscriptionForStream(stream: MediaStream, streamId: string, isLocal: boolean, peerId?: string) {
+async function startTranscriptionForStream(
+  stream: MediaStream,
+  streamId: string,
+  isLocal: boolean,
+  peerId?: string
+) {
   if (!stream.getAudioTracks().length) {
     console.log(`Stream ${streamId} has no audio tracks. Skipping transcription.`);
     return;
@@ -91,7 +106,9 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
     try {
       const options = { mimeType: MEDIA_RECORDER_MIME_TYPE };
       if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-        console.warn(`${options.mimeType} is not supported for MediaRecorder on stream ${sessionId}. Trying default.`);
+        console.warn(
+          `${options.mimeType} is not supported for MediaRecorder on stream ${sessionId}. Trying default.`
+        );
         mediaRecorder = new MediaRecorder(stream); // Fallback to default
       } else {
         mediaRecorder = new MediaRecorder(stream, options);
@@ -108,16 +125,16 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
         // Attempt to clean up this specific session
         stopTranscriptionForSession(sessionId);
       };
-      
+
       mediaRecorder.start(TRANSCRIPTION_CHUNK_DURATION_MS);
       console.log(`Audio capture started for ${sessionId}.`);
 
-      transcriberStore.update(state => ({
+      transcriberStore.update((state) => ({
         ...state,
         activeSessions: {
           ...state.activeSessions,
-          [sessionId]: { streamId, mediaRecorder, websocket, peerId },
-        },
+          [sessionId]: { streamId, mediaRecorder, websocket, peerId }
+        }
       }));
     } catch (e) {
       console.error(`Error starting MediaRecorder for ${sessionId}:`, e);
@@ -137,7 +154,9 @@ async function startTranscriptionForStream(stream: MediaStream, streamId: string
   };
 
   websocket.onclose = (event) => {
-    console.log(`WebSocket connection closed for ${sessionId}. Code: ${event.code}, Reason: ${event.reason}`);
+    console.log(
+      `WebSocket connection closed for ${sessionId}. Code: ${event.code}, Reason: ${event.reason}`
+    );
     stopTranscriptionForSession(sessionId, false); // Don't try to close websocket again
   };
 
@@ -159,15 +178,15 @@ function stopTranscriptionForSession(sessionId: string, closeWebSocketIntent = t
 
   // This function is now primarily called by websocket.onclose or in specific error fallbacks.
   const cleanupStoreEntries = () => {
-    transcriberStore.update(state => {
+    transcriberStore.update((state) => {
       const sessionInStore = state.activeSessions[sessionId];
       if (!sessionInStore) return state;
 
-      transcriptionDisplayStore.update(s => {
+      transcriptionDisplayStore.update((s) => {
         const newBuffers = { ...s.activeBuffers };
         delete newBuffers[sessionId];
         const newLastTextBySpeaker = { ...s.lastTextBySpeaker };
-        Object.keys(newLastTextBySpeaker).forEach(key => {
+        Object.keys(newLastTextBySpeaker).forEach((key) => {
           if (key.startsWith(`${sessionId}-`)) {
             delete newLastTextBySpeaker[key];
           }
@@ -180,17 +199,23 @@ function stopTranscriptionForSession(sessionId: string, closeWebSocketIntent = t
     });
   };
 
-  if (session.mediaRecorder && session.mediaRecorder.state === "recording") {
-    console.log(`Instructing MediaRecorder to stop for ${sessionId}. EOS will be sent on 'stop' event.`);
+  if (session.mediaRecorder && session.mediaRecorder.state === 'recording') {
+    console.log(
+      `Instructing MediaRecorder to stop for ${sessionId}. EOS will be sent on 'stop' event.`
+    );
     const originalOnError = session.mediaRecorder.onerror;
 
     session.mediaRecorder.onstop = () => {
-      console.log(`MediaRecorder.onstop event for ${sessionId}. All local audio chunks processed by recorder.`);
+      console.log(
+        `MediaRecorder.onstop event for ${sessionId}. All local audio chunks processed by recorder.`
+      );
       if (session.websocket && session.websocket.readyState === WebSocket.OPEN) {
         try {
           const emptyBlob = new Blob([], { type: MEDIA_RECORDER_MIME_TYPE });
           session.websocket.send(emptyBlob);
-          console.log(`Sent empty blob (EOS) for ${sessionId}. Waiting for server's ready_to_stop signal.`);
+          console.log(
+            `Sent empty blob (EOS) for ${sessionId}. Waiting for server's ready_to_stop signal.`
+          );
         } catch (e) {
           console.warn(`Could not send empty blob for ${sessionId}:`, e);
           // If sending EOS fails, and we intended to close the WebSocket (e.g. from stopOverallTranscription),
@@ -209,19 +234,25 @@ function stopTranscriptionForSession(sessionId: string, closeWebSocketIntent = t
 
     session.mediaRecorder.onerror = (event) => {
       console.error(`MediaRecorder error during explicit stop process for ${sessionId}:`, event);
-      if (session.websocket &&
-          (session.websocket.readyState === WebSocket.OPEN || session.websocket.readyState === WebSocket.CONNECTING)) {
+      if (
+        session.websocket &&
+        (session.websocket.readyState === WebSocket.OPEN ||
+          session.websocket.readyState === WebSocket.CONNECTING)
+      ) {
         console.log(`Closing WebSocket due to MediaRecorder error during stop for ${sessionId}.`);
         session.websocket.close(); // This will trigger websocket.onclose, which then calls cleanupStoreEntries.
       } else {
-        console.log(`WebSocket not open/connecting during MediaRecorder error (stop) for ${sessionId}. Cleaning store entries directly.`);
+        console.log(
+          `WebSocket not open/connecting during MediaRecorder error (stop) for ${sessionId}. Cleaning store entries directly.`
+        );
         cleanupStoreEntries(); // Fallback if WebSocket is already gone or in a weird state.
       }
       if (originalOnError && session.mediaRecorder) {
         originalOnError.call(session.mediaRecorder, event);
       }
-      if (session.mediaRecorder) { // Ensure this specific onerror is removed
-         session.mediaRecorder.onerror = originalOnError;
+      if (session.mediaRecorder) {
+        // Ensure this specific onerror is removed
+        session.mediaRecorder.onerror = originalOnError;
       }
     };
 
@@ -235,7 +266,9 @@ function stopTranscriptionForSession(sessionId: string, closeWebSocketIntent = t
       // This path is taken if stopTranscriptionForSession is called when MR is already stopped/null,
       // AND there's an intent to manage the WebSocket (e.g., from stopOverallTranscription).
       if (session.websocket.readyState === WebSocket.OPEN) {
-        console.log(`MediaRecorder for ${sessionId} not recording. Sending EOS and waiting for ready_to_stop.`);
+        console.log(
+          `MediaRecorder for ${sessionId} not recording. Sending EOS and waiting for ready_to_stop.`
+        );
         try {
           const emptyBlob = new Blob([], { type: MEDIA_RECORDER_MIME_TYPE });
           session.websocket.send(emptyBlob);
@@ -246,22 +279,31 @@ function stopTranscriptionForSession(sessionId: string, closeWebSocketIntent = t
         }
         // Wait for "ready_to_stop" -> onmessage -> onclose -> cleanup.
       } else if (session.websocket.readyState === WebSocket.CONNECTING) {
-        console.log(`MediaRecorder for ${sessionId} not recording, WebSocket is CONNECTING. Cannot send EOS. Waiting for server or error.`);
+        console.log(
+          `MediaRecorder for ${sessionId} not recording, WebSocket is CONNECTING. Cannot send EOS. Waiting for server or error.`
+        );
         // Wait for onopen (then normal flow), or onclose/onerror.
-      } else { // WebSocket is CLOSING or CLOSED
-        console.log(`MediaRecorder for ${sessionId} not recording, WebSocket is ${session.websocket.readyState}. Cleaning store entries.`);
+      } else {
+        // WebSocket is CLOSING or CLOSED
+        console.log(
+          `MediaRecorder for ${sessionId} not recording, WebSocket is ${session.websocket.readyState}. Cleaning store entries.`
+        );
         cleanupStoreEntries(); // WS is already closing/closed, "ready_to_stop" won't come.
       }
     } else if (!closeWebSocketIntent) {
       // This path is taken if stopTranscriptionForSession is called with closeWebSocketIntent = false,
       // typically from websocket.onclose or websocket.onerror.
       // This means the WebSocket is already definitively closing or closed.
-      console.log(`MediaRecorder for ${sessionId} not recording. WebSocket closure in progress or completed. Cleaning store entries.`);
+      console.log(
+        `MediaRecorder for ${sessionId} not recording. WebSocket closure in progress or completed. Cleaning store entries.`
+      );
       cleanupStoreEntries();
     } else {
       // No WebSocket to manage, or no intent to close it from this call, and MR not recording.
       // This might happen if called on a session without a WebSocket.
-      console.log(`MediaRecorder for ${sessionId} not recording, no WebSocket to manage or no intent to close. Cleaning store entries.`);
+      console.log(
+        `MediaRecorder for ${sessionId} not recording, no WebSocket to manage or no intent to close. Cleaning store entries.`
+      );
       cleanupStoreEntries();
     }
   }
@@ -272,45 +314,51 @@ export function startOverallTranscription(): void {
   let transcriptionStarted = false;
 
   // Transcribe local streams
-  Object.entries(streamState.localStreams).forEach(([localStreamId, data]: [string, LocalStreamData]) => {
-    if (data.stream && data.stream.getAudioTracks().length > 0) {
-      startTranscriptionForStream(data.stream, localStreamId, true);
-      transcriptionStarted = true;
-    }
-  });
-
-  // Transcribe remote streams
-  Object.entries(streamState.remoteStreams).forEach(([peerId, remoteData]: [string, RemoteStreamData]) => {
-    Object.entries(remoteData.streams).forEach(([remoteStreamId, stream]) => {
-      if (stream.getAudioTracks().length > 0) {
-        startTranscriptionForStream(stream, remoteStreamId, false, peerId);
+  Object.entries(streamState.localStreams).forEach(
+    ([localStreamId, data]: [string, LocalStreamData]) => {
+      if (data.stream && data.stream.getAudioTracks().length > 0) {
+        startTranscriptionForStream(data.stream, localStreamId, true);
         transcriptionStarted = true;
       }
-    });
-  });
-  
+    }
+  );
+
+  // Transcribe remote streams
+  Object.entries(streamState.remoteStreams).forEach(
+    ([peerId, remoteData]: [string, RemoteStreamData]) => {
+      Object.entries(remoteData.streams).forEach(([remoteStreamId, stream]) => {
+        if (stream.getAudioTracks().length > 0) {
+          startTranscriptionForStream(stream, remoteStreamId, false, peerId);
+          transcriptionStarted = true;
+        }
+      });
+    }
+  );
+
   // Always set isTranscribingOverall to true when this function is called.
   // The streamStore subscription will handle starting individual transcriptions when streams appear.
-  transcriberStore.update(s => ({ ...s, isTranscribingOverall: true }));
+  transcriberStore.update((s) => ({ ...s, isTranscribingOverall: true }));
 
   if (!transcriptionStarted) {
-    console.log("No streams with audio found to transcribe yet. Transcription is enabled and will start when audio streams become available.");
+    console.log(
+      'No streams with audio found to transcribe yet. Transcription is enabled and will start when audio streams become available.'
+    );
   }
 }
 
 export function stopOverallTranscription(): void {
   const currentState = get(transcriberStore);
-  Object.keys(currentState.activeSessions).forEach(sessionId => {
+  Object.keys(currentState.activeSessions).forEach((sessionId) => {
     stopTranscriptionForSession(sessionId);
   });
   // isTranscribingOverall will be set to false by the last call to stopTranscriptionForSession
   // Also, explicitly set it here to ensure it's false if no sessions were active to begin with.
-  transcriberStore.update(s => ({ ...s, isTranscribingOverall: false, activeSessions: {} }));
+  transcriberStore.update((s) => ({ ...s, isTranscribingOverall: false, activeSessions: {} }));
   // Clear displayable segments and buffers when stopping overall transcription
   // Retain lastTextBySpeaker as it's managed by processReceivedTranscriptionPayload now.
-  transcriptionDisplayStore.update(s => ({
+  transcriptionDisplayStore.update((s) => ({
     ...s,
-    activeBuffers: {},
+    activeBuffers: {}
   }));
 }
 
@@ -325,24 +373,23 @@ export function toggleOverallTranscription(): void {
 
 // Helper to generate a user-friendly speaker label
 function getSpeakerLabelFromAsr(sessionId: string, asrSpeakerId: number, text: string): string {
-  if (asrSpeakerId === -2) return "Silence"; // Typically, ASR indicates silence.
+  if (asrSpeakerId === -2) return 'Silence'; // Typically, ASR indicates silence.
   // if (asrSpeakerId === 0) return "Processing..."; // ASR might use 0 for segments under diarization.
 
   const sessionParts = sessionId.split('|');
-  let baseLabel = "Unknown Speaker";
+  let baseLabel = 'Unknown Speaker';
 
   if (sessionParts[0] === 'local') {
     // For local streams, streamId might be 'audio', 'camera-XYZ', 'screen-XYZ', 'file-XYZ'
     // We can simplify this to "You" or "Your Audio", "Your Screen" etc.
-    baseLabel = "You"; 
-    if (sessionParts[1].startsWith('screen')) baseLabel = "Your Screen";
-    else if (sessionParts[1].startsWith('file')) baseLabel = "Shared Video";
-
+    baseLabel = 'You';
+    if (sessionParts[1].startsWith('screen')) baseLabel = 'Your Screen';
+    else if (sessionParts[1].startsWith('file')) baseLabel = 'Shared Video';
   } else if (sessionParts[0] === 'remote') {
     // For remote, sessionParts[1] is peerId, sessionParts[2] is remote streamId
     baseLabel = `Peer ${sessionParts[1].substring(0, 5)}`;
   }
-  
+
   // Append ASR's speaker number if it's specific (e.g., -1, 1, 2 for diarized speakers)
   // ASR often uses -1 as a generic "speaker" if no specific diarization ID is assigned.
   // if (asrSpeakerId !== 0) { // Don't append for "Processing..."
@@ -351,21 +398,22 @@ function getSpeakerLabelFromAsr(sessionId: string, asrSpeakerId: number, text: s
   //   return `${baseLabel} (Spk ${asrSpeakerId})`;
   // }
   // Always return baseLabel after Silence check and baseLabel determination, per user request.
-  return baseLabel; 
+  return baseLabel;
 }
-
 
 /**
  * Processes a FinalTranscriptionBroadcastPayload to update the transcriptionDisplayStore.
  * This function is called when new transcription data is available, either from the
  * local ASR service or received from a peer.
  */
-export function processReceivedTranscriptionPayload(payload: FinalTranscriptionBroadcastPayload): void {
-  transcriptionDisplayStore.update(s => {
+export function processReceivedTranscriptionPayload(
+  payload: FinalTranscriptionBroadcastPayload
+): void {
+  transcriptionDisplayStore.update((s) => {
     const newSegments = [...s.segments]; // Operate on a mutable copy for this update
     const lastTextBySpeaker = { ...s.lastTextBySpeaker };
 
-    payload.finalSegments.forEach(currentAsrSegment => {
+    payload.finalSegments.forEach((currentAsrSegment) => {
       const speakerKey = `${currentAsrSegment.sessionId}-${currentAsrSegment.speakerLabel}`;
       const lastTrackedInfo = lastTextBySpeaker[speakerKey];
 
@@ -395,11 +443,14 @@ export function processReceivedTranscriptionPayload(payload: FinalTranscriptionB
             // of an utterance that wasn't the immediately preceding one.
             newSegments.push({
               ...currentAsrSegment, // base properties (id, utteranceId, sessionId, speakerLabel, beg, end, timestamp)
-              text: textDiff,        // only the difference in text
+              text: textDiff // only the difference in text
             });
           }
           // Update tracking for this speaker with the full current text of the utterance
-          lastTextBySpeaker[speakerKey] = { text: currentAsrSegment.text, utteranceId: currentAsrSegment.utteranceId };
+          lastTextBySpeaker[speakerKey] = {
+            text: currentAsrSegment.text,
+            utteranceId: currentAsrSegment.utteranceId
+          };
         }
       } else {
         // Case 3: Utterance not seen before for this speaker (or speaker entirely new).
@@ -407,7 +458,10 @@ export function processReceivedTranscriptionPayload(payload: FinalTranscriptionB
         newSegments.push({ ...currentAsrSegment }); // currentAsrSegment.text is already the full text
 
         // Update tracking for this speaker
-        lastTextBySpeaker[speakerKey] = { text: currentAsrSegment.text, utteranceId: currentAsrSegment.utteranceId };
+        lastTextBySpeaker[speakerKey] = {
+          text: currentAsrSegment.text,
+          utteranceId: currentAsrSegment.utteranceId
+        };
       }
     });
 
@@ -426,11 +480,10 @@ export function processReceivedTranscriptionPayload(payload: FinalTranscriptionB
     return {
       segments: newSegments,
       activeBuffers: newActiveBuffers,
-      lastTextBySpeaker,
+      lastTextBySpeaker
     };
   });
 }
-
 
 /**
  * Sets up the transcription data channel for a given client.
@@ -444,7 +497,7 @@ export function setupTranscriptionChannel(cid: string): void {
   }
 
   console.log(`Setting up transcription data channel for client ${cid}`);
-  const dc_transcription = client.pc.createDataChannel("transcription", {
+  const dc_transcription = client.pc.createDataChannel('transcription', {
     negotiated: true,
     id: 4 // Unique ID for the transcription channel
   });
@@ -478,9 +531,8 @@ export function setupTranscriptionChannel(cid: string): void {
   }
 }
 
-
 // Subscribe to streamStore to dynamically manage transcription sessions
-streamStore.subscribe(currentStreamState => {
+streamStore.subscribe((currentStreamState) => {
   const transcriberState = get(transcriberStore);
   if (!transcriberState.isTranscribingOverall) {
     return; // Only manage sessions if overall transcription is active
@@ -506,40 +558,42 @@ streamStore.subscribe(currentStreamState => {
   });
 
   // Start transcription for new audio streams
-  allCurrentAudioStreamSessionIds.forEach(sessionId => {
+  allCurrentAudioStreamSessionIds.forEach((sessionId) => {
     if (!transcriberState.activeSessions[sessionId]) {
       // Extract details to call startTranscriptionForStream
       const parts = sessionId.split('|');
       const isLocal = parts[0] === 'local';
       const streamIdInStore = isLocal ? parts[1] : parts[2]; // streamId might contain hyphens
       const peerId = isLocal ? undefined : parts[1];
-      
+
       let streamToTranscribe: MediaStream | null = null;
       if (isLocal) {
         streamToTranscribe = currentStreamState.localStreams[streamIdInStore]?.stream || null;
       } else if (peerId) {
-        console.log(currentStreamState.remoteStreams, peerId, parts)
-        streamToTranscribe = currentStreamState.remoteStreams[peerId]?.streams[streamIdInStore] || null;
+        console.log(currentStreamState.remoteStreams, peerId, parts);
+        streamToTranscribe =
+          currentStreamState.remoteStreams[peerId]?.streams[streamIdInStore] || null;
       }
 
       if (streamToTranscribe) {
         console.log(`Dynamically starting transcription for new/updated stream: ${sessionId}`);
         startTranscriptionForStream(streamToTranscribe, streamIdInStore, isLocal, peerId);
       } else {
-        console.warn(`Stream for session ID ${sessionId} not found in current stream state. Cannot start transcription.`);
+        console.warn(
+          `Stream for session ID ${sessionId} not found in current stream state. Cannot start transcription.`
+        );
       }
     }
   });
 
   // Stop transcription for streams that are no longer present
-  Object.keys(transcriberState.activeSessions).forEach(activeSessionId => {
+  Object.keys(transcriberState.activeSessions).forEach((activeSessionId) => {
     if (!allCurrentAudioStreamSessionIds.has(activeSessionId)) {
       console.log(`Dynamically stopping transcription for removed stream: ${activeSessionId}`);
       stopTranscriptionForSession(activeSessionId);
     }
   });
 });
-
 
 // --- Unified Message Handler ---
 /**
@@ -556,47 +610,57 @@ function handleIncomingTranscriptionMessage(
   try {
     const parsedData = JSON.parse(rawMessage);
 
-    const effectiveOriginalSessionId = sourceType === 'websocket' 
-      ? sourceIdentifier // For direct WS, sourceIdentifier is the asrSessionId
-      : parsedData.originalSessionId as string; // For DC, expect originalSessionId in payload
+    const effectiveOriginalSessionId =
+      sourceType === 'websocket'
+        ? sourceIdentifier // For direct WS, sourceIdentifier is the asrSessionId
+        : (parsedData.originalSessionId as string); // For DC, expect originalSessionId in payload
 
     const clientsToRelayFinalBuffer = getAllDirectClients();
     const finalBufferMessageToRelayStr = JSON.stringify({
       ...parsedData,
-      originalSessionId: parsedData.originalSessionId || sourceIdentifier,
+      originalSessionId: parsedData.originalSessionId || sourceIdentifier
     });
-    console.log("MIEMIE", clientsToRelayFinalBuffer, sourceIdentifier)
+    console.log('MIEMIE', clientsToRelayFinalBuffer, sourceIdentifier);
     for (const peerCid_relay in clientsToRelayFinalBuffer) {
       // If the ready_to_stop came from a datachannel (sourceIdentifier is peerCid), don't send final buffer back to that peer.
       if (sourceType === 'datachannel' && peerCid_relay === sourceIdentifier) {
-        console.log("MIEMIE", "skipping")
+        console.log('MIEMIE', 'skipping');
         continue;
       }
       const client_relay = clientsToRelayFinalBuffer[peerCid_relay];
       if (client_relay.dc_transcription && client_relay.dc_transcription.readyState === 'open') {
         try {
-        console.log("MIEMIE", "sending")
+          console.log('MIEMIE', 'sending');
           client_relay.dc_transcription.send(finalBufferMessageToRelayStr);
         } catch (err) {
-          console.error(`Failed to relay buffer segment to ${peerCid_relay} (origin: ${sourceType} ${sourceIdentifier}, effectiveSession: ${effectiveOriginalSessionId}):`, err);
+          console.error(
+            `Failed to relay buffer segment to ${peerCid_relay} (origin: ${sourceType} ${sourceIdentifier}, effectiveSession: ${effectiveOriginalSessionId}):`,
+            err
+          );
         }
       } else {
-        console.log("MIEMIE", client_relay.dc_transcription)
+        console.log('MIEMIE', client_relay.dc_transcription);
       }
     }
 
     // Handle "ready_to_stop" signal
-    if (parsedData.type === "ready_to_stop") {
+    if (parsedData.type === 'ready_to_stop') {
       console.log(`Received ready_to_stop signal for ${sourceType} ${effectiveOriginalSessionId}.`);
-      
+
       if (effectiveOriginalSessionId) {
         const finalBufferData = lastKnownActiveBuffers.get(effectiveOriginalSessionId);
 
         if (finalBufferData && finalBufferData.text && finalBufferData.text.trim().length > 0) {
-          console.log(`Processing final stored buffer for ${effectiveOriginalSessionId}: "${finalBufferData.text}"`);
+          console.log(
+            `Processing final stored buffer for ${effectiveOriginalSessionId}: "${finalBufferData.text}"`
+          );
           const messageTimestamp = Date.now();
-          const pseudoBeg = new Date(messageTimestamp - 1000).toLocaleTimeString('en-US', { hour12: false });
-          const pseudoEnd = new Date(messageTimestamp).toLocaleTimeString('en-US', { hour12: false });
+          const pseudoBeg = new Date(messageTimestamp - 1000).toLocaleTimeString('en-US', {
+            hour12: false
+          });
+          const pseudoEnd = new Date(messageTimestamp).toLocaleTimeString('en-US', {
+            hour12: false
+          });
           const utteranceId = `${effectiveOriginalSessionId}-${finalBufferData.speakerLabel}-${pseudoBeg}-finalbuffer`;
           const svelteKeyId = `${utteranceId}-${messageTimestamp}-finalbuffer`;
 
@@ -608,30 +672,38 @@ function handleIncomingTranscriptionMessage(
             text: finalBufferData.text.trim(),
             beg: pseudoBeg,
             end: pseudoEnd,
-            timestamp: messageTimestamp,
+            timestamp: messageTimestamp
           };
-          
+
           const finalBufferPayload: FinalTranscriptionBroadcastPayload = {
             type: 'transcription_data',
             finalSegments: [finalBufferSegment],
             activeBuffer: undefined,
-            originalSessionId: effectiveOriginalSessionId,
+            originalSessionId: effectiveOriginalSessionId
           };
           processReceivedTranscriptionPayload(finalBufferPayload);
         }
         lastKnownActiveBuffers.delete(effectiveOriginalSessionId); // Clear the buffer after processing
       } else if (sourceType === 'datachannel' && !effectiveOriginalSessionId) {
         // This case means a peer relayed a "ready_to_stop" signal without specifying which original ASR session it was for.
-        console.warn(`Received ready_to_stop from datachannel peer ${effectiveOriginalSessionId} without an originalSessionId. Cannot process final buffer.`);
+        console.warn(
+          `Received ready_to_stop from datachannel peer ${effectiveOriginalSessionId} without an originalSessionId. Cannot process final buffer.`
+        );
       }
 
       if (sourceType === 'websocket') {
         const asrSessionIdToClose = effectiveOriginalSessionId; // This is the direct ASR session ID
         const currentTranscriberState = get(transcriberStore);
         const sessionToClose = currentTranscriberState.activeSessions[asrSessionIdToClose];
-        if (sessionToClose && sessionToClose.websocket &&
-            (sessionToClose.websocket.readyState === WebSocket.OPEN || sessionToClose.websocket.readyState === WebSocket.CONNECTING)) {
-          console.log(`Closing WebSocket for session ${asrSessionIdToClose} after processing ready_to_stop.`);
+        if (
+          sessionToClose &&
+          sessionToClose.websocket &&
+          (sessionToClose.websocket.readyState === WebSocket.OPEN ||
+            sessionToClose.websocket.readyState === WebSocket.CONNECTING)
+        ) {
+          console.log(
+            `Closing WebSocket for session ${asrSessionIdToClose} after processing ready_to_stop.`
+          );
           sessionToClose.websocket.close();
         }
       }
@@ -641,38 +713,65 @@ function handleIncomingTranscriptionMessage(
     let finalPayloadToProcess: FinalTranscriptionBroadcastPayload;
 
     // Message is directly from ASR server for session `effectiveOriginalSessionId`
-    console.log(`ASR Data Received (processing) from session ${effectiveOriginalSessionId}:`, parsedData);
+    console.log(
+      `ASR Data Received (processing) from session ${effectiveOriginalSessionId}:`,
+      parsedData
+    );
     const messageTimestamp = Date.now();
     const finalSegments: TranscriptionSegment[] = [];
-    let activeBuffer: { sessionId: string, speakerLabel: string, text: string } | undefined = undefined;
+    let activeBuffer: { sessionId: string; speakerLabel: string; text: string } | undefined =
+      undefined;
     const currentAsrSessionId = effectiveOriginalSessionId; // This is the sessionId of the ASR connection
 
     if (parsedData.lines && Array.isArray(parsedData.lines)) {
       parsedData.lines.forEach((line: any, index: number) => {
-        if (line.text && line.text.trim().length > 0 && typeof line.speaker === 'number' && typeof line.beg === 'string' && typeof line.end === 'string') {
+        if (
+          line.text &&
+          line.text.trim().length > 0 &&
+          typeof line.speaker === 'number' &&
+          typeof line.beg === 'string' &&
+          typeof line.end === 'string'
+        ) {
           const speakerLabel = getSpeakerLabelFromAsr(currentAsrSessionId, line.speaker, line.text);
           const utteranceId = `${currentAsrSessionId}-${line.speaker}-${line.beg}`;
           const currentText = line.text.trim();
           const svelteKeyId = `${utteranceId}-${messageTimestamp}-${index}`;
           finalSegments.push({
-            id: svelteKeyId, utteranceId, sessionId: currentAsrSessionId, speakerLabel,
-            text: currentText, beg: line.beg, end: line.end, timestamp: messageTimestamp + index,
+            id: svelteKeyId,
+            utteranceId,
+            sessionId: currentAsrSessionId,
+            speakerLabel,
+            text: currentText,
+            beg: line.beg,
+            end: line.end,
+            timestamp: messageTimestamp + index
           });
         }
       });
     }
     const bufferText = parsedData.buffer_transcription;
     if (bufferText && bufferText.trim().length > 0) {
-      const lastFinalizedSpeaker = parsedData.lines && parsedData.lines.length > 0 ? parsedData.lines[parsedData.lines.length - 1].speaker : -1;
-      const bufferSpeakerLabel = getSpeakerLabelFromAsr(currentAsrSessionId, lastFinalizedSpeaker, bufferText);
-      activeBuffer = { sessionId: currentAsrSessionId, speakerLabel: bufferSpeakerLabel, text: bufferText.trim() };
+      const lastFinalizedSpeaker =
+        parsedData.lines && parsedData.lines.length > 0
+          ? parsedData.lines[parsedData.lines.length - 1].speaker
+          : -1;
+      const bufferSpeakerLabel = getSpeakerLabelFromAsr(
+        currentAsrSessionId,
+        lastFinalizedSpeaker,
+        bufferText
+      );
+      activeBuffer = {
+        sessionId: currentAsrSessionId,
+        speakerLabel: bufferSpeakerLabel,
+        text: bufferText.trim()
+      };
     }
-    
+
     finalPayloadToProcess = {
       type: 'transcription_data',
       finalSegments: finalSegments,
       activeBuffer: activeBuffer,
-      originalSessionId: currentAsrSessionId,
+      originalSessionId: currentAsrSessionId
     };
 
     // Process the unified payload to update local display
@@ -680,13 +779,19 @@ function handleIncomingTranscriptionMessage(
 
     // Update lastKnownActiveBuffers with the latest active buffer from this payload
     if (finalPayloadToProcess.activeBuffer) {
-      lastKnownActiveBuffers.set(finalPayloadToProcess.originalSessionId, finalPayloadToProcess.activeBuffer);
+      lastKnownActiveBuffers.set(
+        finalPayloadToProcess.originalSessionId,
+        finalPayloadToProcess.activeBuffer
+      );
     } else {
       // If the payload explicitly clears the buffer for its originalSessionId (activeBuffer is undefined)
       lastKnownActiveBuffers.delete(finalPayloadToProcess.originalSessionId);
     }
-
   } catch (e) {
-    console.error(`Error processing transcription message (source: ${sourceType} ${sourceIdentifier}):`, e, rawMessage);
+    console.error(
+      `Error processing transcription message (source: ${sourceType} ${sourceIdentifier}):`,
+      e,
+      rawMessage
+    );
   }
 }

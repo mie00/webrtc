@@ -19,6 +19,5 @@ mount(App, {
   target: targetElement
 });
 
-
 // Add to window for legacy code
-window.addEventListener("beforeunload", () => webRTCApp.cleanup());
+window.addEventListener('beforeunload', () => webRTCApp.cleanup());

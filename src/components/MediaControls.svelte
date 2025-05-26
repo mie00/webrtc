@@ -20,7 +20,7 @@
     onToggleForward,
     onRecord,
     onStopSharingVideo, // Renamed from onShareVideo
-    onVideoUpload,
+    onVideoUpload
   }: {
     hangup?: () => void;
     openQr?: () => void;
@@ -30,7 +30,7 @@
     isVideoShared: boolean;
     isRecording: boolean;
     allowedHosts: string[];
-    forwardHost: string | null,
+    forwardHost: string | null;
     supportsVideoCaptureStream: boolean;
     instant: number;
     onToggleAudio: () => Promise<void>;
@@ -92,38 +92,59 @@
   // --- End of long press logic ---
 </script>
 
-<div class="fixed bottom-0 left-0 right-0 bg-transparent p-4 flex justify-center space-x-0 lg:space-x-4 pointer-events-none">
-  <button id="test-open-qr-button" onclick={openQr} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto">
+<div
+  class="fixed bottom-0 left-0 right-0 bg-transparent p-4 flex justify-center space-x-0 lg:space-x-4 pointer-events-none"
+>
+  <button
+    id="test-open-qr-button"
+    onclick={openQr}
+    class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto"
+  >
     ▩ <!-- QR Code -->
   </button>
   <button
     id="test-toggle-audio-button"
     bind:this={audioButtonElement}
     onclick={onToggleAudio}
-    oncontextmenu={e => { e.preventDefault(); onContextMenu('audio', e); }}
+    oncontextmenu={(e) => {
+      e.preventDefault();
+      onContextMenu('audio', e);
+    }}
     ontouchstart={(e) => handleTouchStart('audio', e)}
     ontouchend={handleTouchEnd}
     ontouchmove={handleTouchMove}
     class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto"
     class:bg-blue-600={isAudioEnabled}
-    style={isAudioEnabled ? `background: linear-gradient(0deg, rgb(59 130 246) ${instant}%, white ${instant}%)` : ""}
+    style={isAudioEnabled
+      ? `background: linear-gradient(0deg, rgb(59 130 246) ${instant}%, white ${instant}%)`
+      : ''}
   >
-    {isAudioEnabled ? '🎤' : '🔇'} <!-- Microphone -->
+    {isAudioEnabled ? '🎤' : '🔇'}
+    <!-- Microphone -->
   </button>
   <button
     id="test-toggle-video-button"
     bind:this={videoButtonElement}
     onclick={onToggleVideo}
-    oncontextmenu={e => { e.preventDefault(); onContextMenu('camera', e); }}
+    oncontextmenu={(e) => {
+      e.preventDefault();
+      onContextMenu('camera', e);
+    }}
     ontouchstart={(e) => handleTouchStart('camera', e)}
     ontouchend={handleTouchEnd}
     ontouchmove={handleTouchMove}
     class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto"
     class:bg-blue-600={isCameraEnabled}
   >
-    {isCameraEnabled ? '🎥' : '📷'} <!-- Video Camera -->
+    {isCameraEnabled ? '🎥' : '📷'}
+    <!-- Video Camera -->
   </button>
-  <button id="test-toggle-screen-button" onclick={onToggleScreen} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isScreenSharing}>
+  <button
+    id="test-toggle-screen-button"
+    onclick={onToggleScreen}
+    class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto"
+    class:bg-blue-600={isScreenSharing}
+  >
     🖥️ <!-- Monitor for Share Screen -->
   </button>
   <button
@@ -133,26 +154,46 @@
     class:bg-red-500={allowedHosts.length > 0}
     class:hover:bg-red-600={allowedHosts.length > 0}
     class:hover:bg-blue-700={!(allowedHosts.length > 0)}
-    class:bg-blue-500={forwardHost?.length} 
+    class:bg-blue-500={forwardHost?.length}
   >
     {allowedHosts.length > 0 ? '⏹️' : '⏩'}
   </button>
   {#if supportsVideoCaptureStream}
-  <button id="test-share-video-button" onclick={() => {
-    if (isVideoShared) {
-      onStopSharingVideo();
-    } else {
-      uploadVideoElement.click();
-    }
-  }} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-blue-600={isVideoShared}>
-    📹 <!-- Share Video -->
-  </button>
+    <button
+      id="test-share-video-button"
+      onclick={() => {
+        if (isVideoShared) {
+          onStopSharingVideo();
+        } else {
+          uploadVideoElement.click();
+        }
+      }}
+      class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto"
+      class:bg-blue-600={isVideoShared}
+    >
+      📹 <!-- Share Video -->
+    </button>
   {/if}
-  <button id="test-record-button" onclick={onRecord} class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto" class:bg-red-600={isRecording}>
+  <button
+    id="test-record-button"
+    onclick={onRecord}
+    class="hover:bg-blue-700 text-white p-3 rounded-full pointer-events-auto"
+    class:bg-red-600={isRecording}
+  >
     {isRecording ? '⏹' : '⏺'}
   </button>
-  <button id="test-hangup-button" onclick={hangup} class="hover:bg-red-600 bg-red-500 text-white p-3 rounded-full pointer-events-auto">
+  <button
+    id="test-hangup-button"
+    onclick={hangup}
+    class="hover:bg-red-600 bg-red-500 text-white p-3 rounded-full pointer-events-auto"
+  >
     📞
   </button>
-  <input bind:this={uploadVideoElement} type="file" onchange={onVideoUpload} accept="video/*" class="hidden">
+  <input
+    bind:this={uploadVideoElement}
+    type="file"
+    onchange={onVideoUpload}
+    accept="video/*"
+    class="hidden"
+  />
 </div>

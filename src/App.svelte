@@ -9,14 +9,14 @@
   import { onDestroy } from 'svelte';
 
   const webRTCApp = new WebRTCApp();
-  
+
   let currentAuthState: AuthState;
-  const unsubscribeAuth = authStore.subscribe(value => {
+  const unsubscribeAuth = authStore.subscribe((value) => {
     currentAuthState = value;
   });
 
   let currentProfileState: ProfileState;
-  const unsubscribeProfile = profileStore.subscribe(value => {
+  const unsubscribeProfile = profileStore.subscribe((value) => {
     currentProfileState = value;
   });
 

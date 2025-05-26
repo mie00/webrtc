@@ -12,7 +12,10 @@ declare function handleChange(cid?: string): void;
 
 // Declare global variables used in main.js
 declare const Diff: {
-  diffChars: (text1: string, text2: string) => Array<{
+  diffChars: (
+    text1: string,
+    text2: string
+  ) => Array<{
     value: string;
     added?: boolean;
     removed?: boolean;

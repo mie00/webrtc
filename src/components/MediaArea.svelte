@@ -1,10 +1,28 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { streamStore, updateStreamConfig, setViewLayout, updateLocalStreamProperties, getLocalStreamsByType, type LayoutType } from '../stores/streamStore.js';
-  import { normalizeStreamId, setupLocalFileStream, setAudioCallback } from '../lib/streamBridge.js';
-  import { forwardStore, toggleForwardHandler as actualToggleForwardHandler } from '../lib/forwardBridge.js';
+  import {
+    streamStore,
+    updateStreamConfig,
+    setViewLayout,
+    updateLocalStreamProperties,
+    getLocalStreamsByType,
+    type LayoutType
+  } from '../stores/streamStore.js';
+  import {
+    normalizeStreamId,
+    setupLocalFileStream,
+    setAudioCallback
+  } from '../lib/streamBridge.js';
+  import {
+    forwardStore,
+    toggleForwardHandler as actualToggleForwardHandler
+  } from '../lib/forwardBridge.js';
   import { recorderStore, toggleRecording } from '../lib/media/recorder.js';
-  import { transcriberStore, toggleOverallTranscription, stopOverallTranscription } from '../lib/media/transcriber.js';
+  import {
+    transcriberStore,
+    toggleOverallTranscription,
+    stopOverallTranscription
+  } from '../lib/media/transcriber.js';
   import { calculateStreamPositions } from '../lib/media/streamLayout.js';
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, configStore } from '../stores/configStore.js';
@@ -20,7 +38,7 @@
   let showMenu = $state(false);
   let menuPosition = $state({ x: 0, y: 0 });
   let menuItems: MenuItem[] = $state([]);
-  let selectedButton: 'audio'|'camera'|null = $state(null);
+  let selectedButton: 'audio' | 'camera' | null = $state(null);
   let instant = $state(0);
   let supportsVideoCaptureStream = $state(false);
 
@@ -43,22 +61,27 @@
   const focusedStream = $derived($streamStore.activeView.focusedStream);
 
   const localStreams = $derived(Object.entries($streamStore.localStreams));
-  const remoteStreams = $derived(Object.entries($streamStore.remoteStreams).flatMap(([peerId, data]) =>
-    Object.entries(data.streams).map(([streamId, stream]) => ({
-      id: streamId,
-      stream,
-      peerId
-    }))
-  ));
+  const remoteStreams = $derived(
+    Object.entries($streamStore.remoteStreams).flatMap(([peerId, data]) =>
+      Object.entries(data.streams).map(([streamId, stream]) => ({
+        id: streamId,
+        stream,
+        peerId
+      }))
+    )
+  );
 
   import type { ViewableStream } from '../types/viewableStream.js';
 
   const groupedStreams = $derived.by(() => {
-    const groups: Record<string, {
-      peerId: string | null,
-      streams: Array<ViewableStream>
-    }> = {};
-    
+    const groups: Record<
+      string,
+      {
+        peerId: string | null;
+        streams: Array<ViewableStream>;
+      }
+    > = {};
+
     // Add local streams
     const localPeerId = 'local';
     groups[localPeerId] = {
@@ -72,51 +95,56 @@
           type: data.type,
           isLocal: true,
           peerId: null,
-          src: data.src,
+          src: data.src
         }))
     };
-    
+
     // Add remote streams
     remoteStreams.forEach(({ id, stream, peerId }) => {
       if (!groups[peerId]) {
         groups[peerId] = { peerId, streams: [] };
       }
-      
+
       groups[peerId].streams.push({
         id: normalizeStreamId(stream.id),
         streamKey: id,
         stream,
         type: stream.getVideoTracks().length > 0 ? 'camera' : 'audio',
         isLocal: false,
-        src: null,
+        src: null
       });
     });
-    
+
     return groups;
   });
-  
+
   const activeStreams = $derived.by(() => {
     const result: ViewableStream[] = [];
-    
+
     // Process each peer's streams from groupedStreams
     Object.values(groupedStreams).forEach(({ streams }) => {
-      const hasVideoStreams = streams.some(s => 
-        (s.type === 'camera' || s.type === 'screen' || s.type === 'file') && 
-        (s.stream && s.stream.getVideoTracks().length > 0 || s.type === 'file')
+      const hasVideoStreams = streams.some(
+        (s) =>
+          (s.type === 'camera' || s.type === 'screen' || s.type === 'file') &&
+          ((s.stream && s.stream.getVideoTracks().length > 0) || s.type === 'file')
       );
-      
-      const audioStreams = streams.filter(s => 
-        s.type === 'audio' || 
-        (s.stream && s.stream.getVideoTracks().length === 0 && s.stream.getAudioTracks().length > 0)
+
+      const audioStreams = streams.filter(
+        (s) =>
+          s.type === 'audio' ||
+          (s.stream &&
+            s.stream.getVideoTracks().length === 0 &&
+            s.stream.getAudioTracks().length > 0)
       );
-      
+
       if (hasVideoStreams) {
-        const videoStreams = streams.filter(s => 
-          s.type !== 'audio' && 
-          (s.stream && s.stream?.getVideoTracks().length > 0 || s.type === 'file')
+        const videoStreams = streams.filter(
+          (s) =>
+            s.type !== 'audio' &&
+            ((s.stream && s.stream?.getVideoTracks().length > 0) || s.type === 'file')
         );
-        
-        videoStreams.forEach(stream => {
+
+        videoStreams.forEach((stream) => {
           const audioStream = audioStreams.length > 0 ? audioStreams[0].stream : null;
           const streamHasAudio = stream.stream && stream.stream.getAudioTracks().length > 0;
           stream.audioStream = audioStream;
@@ -131,14 +159,15 @@
     return result;
   });
   let mediaContainerElement: HTMLElement;
-  let streamPositions: Array<{ id: string; x: number; y: number; width: number; height: number }> = $state([]);
-  
+  let streamPositions: Array<{ id: string; x: number; y: number; width: number; height: number }> =
+    $state([]);
+
   function updateStreamPositions() {
     if (!mediaContainerElement) return;
-    
+
     const containerWidth = mediaContainerElement.clientWidth;
     const containerHeight = mediaContainerElement.clientHeight;
-    
+
     streamPositions = calculateStreamPositions(
       containerWidth,
       containerHeight,
@@ -149,10 +178,11 @@
 
   onMount(() => {
     refreshInterval = window.setInterval(updateStreamPositions, 1000);
-    supportsVideoCaptureStream = typeof HTMLVideoElement !== 'undefined' &&
-                                 HTMLVideoElement.prototype &&
-                                 (typeof HTMLVideoElement.prototype.captureStream === 'function' ||
-                                  typeof (HTMLVideoElement.prototype as any).mozCaptureStream === 'function');
+    supportsVideoCaptureStream =
+      typeof HTMLVideoElement !== 'undefined' &&
+      HTMLVideoElement.prototype &&
+      (typeof HTMLVideoElement.prototype.captureStream === 'function' ||
+        typeof (HTMLVideoElement.prototype as any).mozCaptureStream === 'function');
   });
 
   onDestroy(() => {
@@ -169,7 +199,7 @@
   }
 
   async function handleToggleAudio() {
-    setAudioCallback((arg) => instant = arg);
+    setAudioCallback((arg) => (instant = arg));
     if ($streamStore.streamConfig.audio === null) {
       const deviceString = $configStore.media.audioDevice || '';
       updateStreamConfig({ audio: deviceString });
@@ -178,11 +208,13 @@
     }
   }
 
-  async function handleContextMenu(type: 'audio'|'camera', event: MouseEvent) {
+  async function handleContextMenu(type: 'audio' | 'camera', event: MouseEvent) {
     event.preventDefault();
     selectedButton = type;
     const devices = await navigator.mediaDevices.enumerateDevices();
-    const filtered = devices.filter(device => device.kind === `${type === 'camera' ? 'video' : type}input`);
+    const filtered = devices.filter(
+      (device) => device.kind === `${type === 'camera' ? 'video' : type}input`
+    );
 
     if (filtered.length === 0) {
       alert(`No ${type} devices found`);
@@ -200,7 +232,7 @@
           if (type === 'audio') handleToggleAudio();
           else handleToggleVideo();
         }
-      },
+      }
     ];
 
     if (type === 'camera') {
@@ -227,7 +259,7 @@
       id: 'select-device',
       label: 'Select Device',
       type: 'submenu' as const,
-      children: filtered.map(device => {
+      children: filtered.map((device) => {
         const deviceString = `${device.groupId}|${device.deviceId}`;
         const isCurrentDevice = currentDeviceId === deviceString;
         return {
@@ -248,7 +280,7 @@
         };
       })
     });
-    
+
     menuPosition = { x: event.pageX, y: event.pageY };
     showMenu = true;
   }
@@ -272,17 +304,16 @@
     const newValue = !$streamStore.streamConfig.screen;
     updateStreamConfig({ screen: newValue });
   }
-  
+
   async function handleToggleForward() {
     await actualToggleForwardHandler();
   }
-  
+
   const isRecording = $derived($recorderStore.isRecording);
   async function handleRecord() {
     await toggleRecording();
   }
-  
-  
+
   async function handleVideoUpload(event: Event) {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
@@ -290,7 +321,7 @@
       const fileURL = URL.createObjectURL(file);
       updateStreamConfig({
         file: fileURL,
-        videoStream: undefined,
+        videoStream: undefined
       });
     }
   }
@@ -298,12 +329,12 @@
   async function handleVideoCleanup() {
     const src = $streamStore.streamConfig.file!;
     removeLocalFileStream(src);
-    updateStreamConfig({file: null, videoStream: null});
+    updateStreamConfig({ file: null, videoStream: null });
   }
 
   async function handleFilePlay(event: Event) {
     if ($streamStore.streamConfig.videoStream) return;
-    const videoNode = (event.target as HTMLVideoElement);
+    const videoNode = event.target as HTMLVideoElement;
     videoNode.play();
     const captureStream = (videoNode as any).captureStream || (videoNode as any).mozCaptureStream;
     let videoStream;
@@ -327,17 +358,26 @@
     setViewLayout(layout);
   }
 
-  function handleFocusStream({streamId}:{streamId: string|undefined; peerId : string | null}) {
+  function handleFocusStream({
+    streamId
+  }: {
+    streamId: string | undefined;
+    peerId: string | null;
+  }) {
     setViewLayout('focus', streamId);
   }
 
   function handleToggleTranscription() {
     toggleOverallTranscription();
   }
-
 </script>
 
-<div id="media" bind:this={mediaContainerElement} class="w-full w-svw h-svh relative bg-black" style="width: 100svw; height: 100svh;">
+<div
+  id="media"
+  bind:this={mediaContainerElement}
+  class="w-full w-svw h-svh relative bg-black"
+  style="width: 100svw; height: 100svh;"
+>
   <StreamDisplayArea
     {activeStreams}
     {streamPositions}
@@ -350,7 +390,7 @@
 
 <MediaControls
   hangup={handleHangup}
-  openQr={openQr}
+  {openQr}
   {isAudioEnabled}
   {isCameraEnabled}
   {isScreenSharing}
@@ -371,11 +411,7 @@
 />
 
 {#if showMenu}
-<ContextMenu
-  {menuItems}
-  position={menuPosition}
-  hide={() => showMenu = false}
-/>
+  <ContextMenu {menuItems} position={menuPosition} hide={() => (showMenu = false)} />
 {/if}
 
 <svelte:window on:resize={updateStreamPositions} />

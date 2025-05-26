@@ -10,25 +10,29 @@ export interface CidKeyState {
 }
 
 const initialState: CidKeyState = {
-  keysByCid: {},
+  keysByCid: {}
 };
 
 const cidKeyStore: Writable<CidKeyState> = writable(initialState);
 
 // --- Store Actions ---
 
-export function setCidKeys(cid: string, devicePublicKey: string | null, userPublicKey: string): void {
-  cidKeyStore.update(state => {
+export function setCidKeys(
+  cid: string,
+  devicePublicKey: string | null,
+  userPublicKey: string
+): void {
+  cidKeyStore.update((state) => {
     state.keysByCid[cid] = {
       publicKey: devicePublicKey,
-      userPublicKey: userPublicKey,
+      userPublicKey: userPublicKey
     };
     return state;
   });
 }
 
 export function removeCidKeys(cid: string): void {
-  cidKeyStore.update(state => {
+  cidKeyStore.update((state) => {
     delete state.keysByCid[cid];
     return state;
   });

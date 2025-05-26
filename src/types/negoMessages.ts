@@ -6,44 +6,44 @@ export interface BaseNegoMessage {
 
 // WebRTC Signaling Messages
 export interface OfferNegoMessage extends BaseNegoMessage {
-  type: "offer";
+  type: 'offer';
   sdp?: string; // sdp is part of RTCSessionDescriptionInit
 }
 
 export interface AnswerNegoMessage extends BaseNegoMessage {
-  type: "answer";
+  type: 'answer';
   sdp?: string; // sdp is part of RTCSessionDescriptionInit
 }
 
 // Lifecycle Messages
 export interface HangupNegoMessage extends BaseNegoMessage {
-  type: "hangup";
+  type: 'hangup';
 }
 
 // Participant Management Messages
 export interface ParticipantNegoMessage extends BaseNegoMessage {
-  type: "participant";
+  type: 'participant';
   cid: string;
   publicKey: string | null;
 }
 
 export interface ParticipantEndNegoMessage extends BaseNegoMessage {
-  type: "participant.end";
+  type: 'participant.end';
   cid: string;
 }
 
 // Trust and Authentication Messages
 export interface TrustedNegoMessage extends BaseNegoMessage {
-  type: "trusted";
+  type: 'trusted';
 }
 
 export interface ChallengeNegoMessage extends BaseNegoMessage {
-  type: "challenge";
+  type: 'challenge';
   data: string; // The random challenge string
 }
 
 export interface SolutionNegoMessage extends BaseNegoMessage {
-  type: "solution";
+  type: 'solution';
   solution: {
     signedChallenge: string;
     jwt: string;
@@ -58,7 +58,7 @@ export interface SolutionNegoMessage extends BaseNegoMessage {
 
 // Stream Management Messages
 export interface StreamEndNegoMessage extends BaseNegoMessage {
-  type: "stream.end";
+  type: 'stream.end';
   stream: string; // Normalized stream ID
 }
 
@@ -77,15 +77,15 @@ export type NegoData =
 
 // For registerNegoHandler and getNegoHandler's type safety
 export interface NegoMessageMap {
-  "offer": OfferNegoMessage;
-  "answer": AnswerNegoMessage;
-  "hangup": HangupNegoMessage;
-  "participant": ParticipantNegoMessage;
-  "participant.end": ParticipantEndNegoMessage;
-  "trusted": TrustedNegoMessage;
-  "challenge": ChallengeNegoMessage;
-  "solution": SolutionNegoMessage;
-  "stream.end": StreamEndNegoMessage;
+  offer: OfferNegoMessage;
+  answer: AnswerNegoMessage;
+  hangup: HangupNegoMessage;
+  participant: ParticipantNegoMessage;
+  'participant.end': ParticipantEndNegoMessage;
+  trusted: TrustedNegoMessage;
+  challenge: ChallengeNegoMessage;
+  solution: SolutionNegoMessage;
+  'stream.end': StreamEndNegoMessage;
 }
 
 export type NegoMessageType = keyof NegoMessageMap;

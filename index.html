@@ -1,38 +1,38 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-	<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
-	<link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
-	<link rel="manifest" href="/site.webmanifest">
-	<link rel="mask-icon" href="/icons/safari-pinned-tab.svg" color="#5bbad5">
-	<meta name="msapplication-TileColor" content="#da532c">
-	<meta name="theme-color" content="#ffffff">
-	<title>WebRTC Project</title>
-	<!-- add main.css css file -->
-	<link rel="stylesheet" href="main.css">
-</head>
-<body class="bg-gray-100 h-screen flex flex-col">
-	<div id="app"></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="mask-icon" href="/icons/safari-pinned-tab.svg" color="#5bbad5" />
+    <meta name="msapplication-TileColor" content="#da532c" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>WebRTC Project</title>
+    <!-- add main.css css file -->
+    <link rel="stylesheet" href="main.css" />
+  </head>
+  <body class="bg-gray-100 h-screen flex flex-col">
+    <div id="app"></div>
 
-	<!-- Main app entry point -->
-	<script type="module" src="/src/main.ts"></script>
-	
-	<!-- Global app object for backward compatibility -->
-	<script>
-		window.app = window.app || {
-			clients: {},
-			nego_handlers: {},
-			cleanups: {},
-			streams: {},
-			viewStreams: {},
-			config: {},
-			inflight: {},
-			file_stuff: {}
-		};
-		window.isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
-	</script>
-</body>
+    <!-- Main app entry point -->
+    <script type="module" src="/src/main.ts"></script>
+
+    <!-- Global app object for backward compatibility -->
+    <script>
+      window.app = window.app || {
+        clients: {},
+        nego_handlers: {},
+        cleanups: {},
+        streams: {},
+        viewStreams: {},
+        config: {},
+        inflight: {},
+        file_stuff: {}
+      };
+      window.isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+    </script>
+  </body>
 </html>

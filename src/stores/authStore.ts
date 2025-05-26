@@ -49,19 +49,19 @@ interface JwtHeader {
 
 export async function verifyLoginJWTFromBase64(
   newJwt: string,
-  receivedPubKeyJwkString: string,
+  receivedPubKeyJwkString: string
 ): Promise<LoginTokenPayload> {
   // Import the stored public key JWK into a CryptoKey object for verification.
   // Ensure the curve matches what verifyLoginJWT expects (e.g., P-384 if JWT alg is ES384).
   // Our current key generation is P-384. This is a mismatch with verifyLoginJWT's ES384.
   const publicKeyCryptoKey = await crypto.subtle.importKey(
-    "spki",
+    'spki',
     base64UrlToArrayBuffer(receivedPubKeyJwkString),
-    { name: "ECDSA", namedCurve: "P-384" }, // Use crv from JWK, default P-384
+    { name: 'ECDSA', namedCurve: 'P-384' }, // Use crv from JWK, default P-384
     true,
-    ["verify"]
+    ['verify']
   );
-  console.log("AuthStore: Public key imported for verification.");
+  console.log('AuthStore: Public key imported for verification.');
 
   // Verify the JWT using the imported public key.
   // IMPORTANT: See notes in verifyLoginJWT about algorithm (ES384 vs ES256) and key usage.
@@ -83,7 +83,7 @@ export async function verifyLoginJWT(
   try {
     const parts = jwtString.split('.');
     if (parts.length !== 3) {
-      throw new Error("JWT Verifier: Invalid JWT structure (not three parts).");
+      throw new Error('JWT Verifier: Invalid JWT structure (not three parts).');
     }
 
     const encodedHeader = parts[0];
@@ -95,8 +95,10 @@ export async function verifyLoginJWT(
     const header = JSON.parse(headerString) as JwtHeader;
 
     // 2. Check Algorithm - IMPORTANT: This expects ES384. Key generation uses P-384 (ES256). These MUST match.
-    if (header.alg !== "ES384" || header.typ !== "JWT") {
-      throw new Error(`JWT Verifier: Invalid JWT header. Expected alg ES384 and typ JWT, got alg ${header.alg} and typ ${header.typ}.`);
+    if (header.alg !== 'ES384' || header.typ !== 'JWT') {
+      throw new Error(
+        `JWT Verifier: Invalid JWT header. Expected alg ES384 and typ JWT, got alg ${header.alg} and typ ${header.typ}.`
+      );
     }
 
     // 3. Decode Payload
@@ -106,7 +108,9 @@ export async function verifyLoginJWT(
     // 4. Verify Expiry (exp)
     const nowSeconds = Math.floor(Date.now() / 1000);
     if (payload.exp <= nowSeconds) {
-      throw new Error(`JWT Verifier: Token expired. Expiry: ${new Date(payload.exp * 1000)}, Current: ${new Date(nowSeconds * 1000)}`);
+      throw new Error(
+        `JWT Verifier: Token expired. Expiry: ${new Date(payload.exp * 1000)}, Current: ${new Date(nowSeconds * 1000)}`
+      );
     }
 
     // 5. Verify Signature
@@ -116,10 +120,10 @@ export async function verifyLoginJWT(
 
     const isValidSignature = await window.crypto.subtle.verify(
       {
-        name: "ECDSA",
+        name: 'ECDSA',
         // IMPORTANT: Hash must match the 'alg' in the JWT header (SHA-384 for ES384).
         // Key generation uses P-384 (implies SHA-256). These MUST match.
-        hash: { name: "SHA-384" }, 
+        hash: { name: 'SHA-384' }
       },
       publicKey, // This public key MUST correspond to the private key that signed the JWT.
       signatureData,
@@ -127,14 +131,14 @@ export async function verifyLoginJWT(
     );
 
     if (!isValidSignature) {
-      throw new Error("JWT Verifier: Signature verification failed.");
+      throw new Error('JWT Verifier: Signature verification failed.');
     }
 
-    console.log("JWT Verifier: Token successfully verified.", payload);
+    console.log('JWT Verifier: Token successfully verified.', payload);
     return payload;
   } catch (error: any) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("JWT Verifier: Error during JWT verification:", errorMessage);
+    console.error('JWT Verifier: Error during JWT verification:', errorMessage);
     throw new Error(`JWT Verifier: Verification failed. ${errorMessage}`);
   }
 }
@@ -150,7 +154,7 @@ const initialAuthState: AuthState = {
   publicKeyJwk: null,
   privateKeyJwk: null,
   userPubKey: null,
-  jwt: null,
+  jwt: null
 };
 
 function createAuthStore() {
@@ -164,24 +168,26 @@ function createAuthStore() {
       try {
         const parsedState = JSON.parse(storedState);
         // Basic validation of parsed state
-        if (parsedState &&
-            (parsedState.publicKeyJwk === null || typeof parsedState.publicKeyJwk === 'object') &&
-            (parsedState.privateKeyJwk === null || typeof parsedState.privateKeyJwk === 'object') &&
-            (parsedState.userPubKey === null || typeof parsedState.userPubKey === 'string') && // Changed userPubKeyJwk to userPubKey, expecting string
-            (parsedState.jwt === null || typeof parsedState.jwt === 'string')) {
+        if (
+          parsedState &&
+          (parsedState.publicKeyJwk === null || typeof parsedState.publicKeyJwk === 'object') &&
+          (parsedState.privateKeyJwk === null || typeof parsedState.privateKeyJwk === 'object') &&
+          (parsedState.userPubKey === null || typeof parsedState.userPubKey === 'string') && // Changed userPubKeyJwk to userPubKey, expecting string
+          (parsedState.jwt === null || typeof parsedState.jwt === 'string')
+        ) {
           set(parsedState);
         } else {
           localStorage.removeItem(AUTH_STORAGE_KEY); // Clear invalid state
         }
       } catch (e) {
-        console.error("Failed to parse auth state from localStorage", e);
+        console.error('Failed to parse auth state from localStorage', e);
         localStorage.removeItem(AUTH_STORAGE_KEY);
       }
     }
   }
 
   // Persist to localStorage whenever the store changes
-  subscribe(currentAuthState => {
+  subscribe((currentAuthState) => {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentAuthState));
     }
@@ -192,28 +198,33 @@ function createAuthStore() {
     if (!currentPkJwk) {
       try {
         const keyPair = await crypto.subtle.generateKey(
-          { name: "ECDSA", namedCurve: "P-384" },
+          { name: 'ECDSA', namedCurve: 'P-384' },
           true, // extractable
-          ["sign", "verify"]
+          ['sign', 'verify']
         );
-        const publicKeyJwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
-        const privateKeyJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
-        
-        update(state => ({ ...state, publicKeyJwk, privateKeyJwk }));
+        const publicKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
+        const privateKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
+
+        update((state) => ({ ...state, publicKeyJwk, privateKeyJwk }));
         currentPkJwk = publicKeyJwk;
       } catch (error) {
-        console.error("Error generating key pair:", error);
+        console.error('Error generating key pair:', error);
         return null;
       }
     }
     return currentPkJwk;
   }
 
-  async function setJwtAndVerifyKey(newJwt: string, userPubKeyJwkStringFromCallback: string): Promise<boolean> {
+  async function setJwtAndVerifyKey(
+    newJwt: string,
+    userPubKeyJwkStringFromCallback: string
+  ): Promise<boolean> {
     const current = get(store);
     // publicKeyJwk is the device's key, not strictly needed for this step but good to have generated.
     if (!current.publicKeyJwk) {
-      console.warn("AuthStore: Device public key JWK not found in store, ensureKeyPair might not have run or completed.");
+      console.warn(
+        'AuthStore: Device public key JWK not found in store, ensureKeyPair might not have run or completed.'
+      );
       // We can proceed to store JWT and userPubKeyJwk even if device key isn't ready,
       // but it's unusual. ensureKeyPair should typically be called before login attempt.
     }
@@ -227,15 +238,17 @@ function createAuthStore() {
       const payload = await verifyLoginJWTFromBase64(newJwt, userPubKeyJwkStringFromCallback);
 
       // If verification is successful, store the JWT and the user's public key (as SPKI string).
-      update(state => ({ ...state, jwt: newJwt, userPubKey: userPubKeyJwkStringFromCallback }));
-      console.log("AuthStore: JWT successfully verified. JWT and user public key (SPKI string) stored.");
+      update((state) => ({ ...state, jwt: newJwt, userPubKey: userPubKeyJwkStringFromCallback }));
+      console.log(
+        'AuthStore: JWT successfully verified. JWT and user public key (SPKI string) stored.'
+      );
       return true;
     } catch (error) {
-      console.error("AuthStore: JWT verification failed or error during processing.", error);
+      console.error('AuthStore: JWT verification failed or error during processing.', error);
       return false;
     }
   }
-  
+
   async function getPrivateKey(): Promise<CryptoKey | null> {
     const current = get(store);
     if (!current.privateKeyJwk) {
@@ -243,14 +256,14 @@ function createAuthStore() {
     }
     try {
       return await crypto.subtle.importKey(
-        "jwk",
+        'jwk',
         current.privateKeyJwk,
-        { name: "ECDSA", namedCurve: "P-384" },
+        { name: 'ECDSA', namedCurve: 'P-384' },
         true, // extractable
-        ["sign"]
+        ['sign']
       );
     } catch (error) {
-      console.error("Error importing private key:", error);
+      console.error('Error importing private key:', error);
       return null;
     }
   }
@@ -258,7 +271,7 @@ function createAuthStore() {
   function logout() {
     update(() => ({ ...initialAuthState })); // Reset to initial state
     if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
     }
   }
 
@@ -272,41 +285,43 @@ function createAuthStore() {
     async getDevicePublicKeyAsSpki(): Promise<string | null> {
       const current = get(store);
       if (!current.publicKeyJwk) {
-        console.warn("AuthStore: Device public key JWK not found to export as SPKI.");
+        console.warn('AuthStore: Device public key JWK not found to export as SPKI.');
         // Attempt to generate it if missing, though ensureKeyPair should ideally be called first.
         if (!(await ensureKeyPair())) {
-          console.error("AuthStore: Failed to ensure key pair for SPKI export.");
+          console.error('AuthStore: Failed to ensure key pair for SPKI export.');
           return null;
         }
         // Re-fetch after generation
         const updatedState = get(store);
         if (!updatedState.publicKeyJwk) {
-           console.error("AuthStore: Still no public key JWK after attempting generation for SPKI export.");
-           return null;
+          console.error(
+            'AuthStore: Still no public key JWK after attempting generation for SPKI export.'
+          );
+          return null;
         }
         // Use the newly generated key
         const importedKeyForSpki = await crypto.subtle.importKey(
-          "jwk",
+          'jwk',
           updatedState.publicKeyJwk,
-          { name: "ECDSA", namedCurve: "P-384" }, // Ensure this matches key generation
+          { name: 'ECDSA', namedCurve: 'P-384' }, // Ensure this matches key generation
           true,
           [] // No specific usage needed for export
         );
-        const spkiBuffer = await crypto.subtle.exportKey("spki", importedKeyForSpki);
+        const spkiBuffer = await crypto.subtle.exportKey('spki', importedKeyForSpki);
         return arrayBufferToBase64Url(spkiBuffer);
       }
       try {
         const importedKey = await crypto.subtle.importKey(
-          "jwk",
+          'jwk',
           current.publicKeyJwk,
-          { name: "ECDSA", namedCurve: "P-384" }, // Ensure this matches key generation
+          { name: 'ECDSA', namedCurve: 'P-384' }, // Ensure this matches key generation
           true, // Needs to be true if the key was generated as extractable
-          []    // No specific key usages needed for exportKey
+          [] // No specific key usages needed for exportKey
         );
-        const spkiBuffer = await crypto.subtle.exportKey("spki", importedKey);
+        const spkiBuffer = await crypto.subtle.exportKey('spki', importedKey);
         return arrayBufferToBase64Url(spkiBuffer);
       } catch (error) {
-        console.error("Error exporting device public key as SPKI:", error);
+        console.error('Error exporting device public key as SPKI:', error);
         return null;
       }
     }

@@ -11,14 +11,14 @@
   import { connectionStore, getDirectClient } from '../stores/connectionStore.js';
   import { compress, decompress } from '../lib/utils/sdpCompress.js';
   import type { WebRTCApp } from '../lib/webrtc/WebRTCApp.js';
-  
+
   import type { AppLogic, AppLogicContext, AppLogicState } from '../lib/appLogic.js';
   import { ClientLogic } from '../lib/clientLogic.js';
   import { ServerLogic } from '../lib/serverLogic.js';
 
   // Props
   export let webRTCApp: WebRTCApp;
-  
+
   // State managed by this component, accessible/modifiable by logic modules via context
   let appLogicModuleState: AppLogicState = {
     showCopyOverlay: false,
@@ -30,23 +30,25 @@
     showCopyButton: true,
     showPasteText: false,
     currentOfferCid: null,
-    isDuringInitialServerLoad: false,
+    isDuringInitialServerLoad: false
   };
 
   // Other component specific state
   let showConfigOverlay = false;
   // currentPath is still used by onMount logic for parameter parsing, but not for /cb routing
-  let currentPath = window.location.pathname; 
+  let currentPath = window.location.pathname;
   // let currentAuthState: AuthState; // No longer needed for UI logic here
 
   // authStore.subscribe(value => { // No longer needed for UI logic here
   //   currentAuthState = value;
   // });
-  
+
   let appLogicInstance: AppLogic | null = null;
   let configUnsubscribe: (() => void) | null = null;
-  
-  const setState = (updater: Partial<AppLogicState> | ((prevState: AppLogicState) => Partial<AppLogicState>)) => {
+
+  const setState = (
+    updater: Partial<AppLogicState> | ((prevState: AppLogicState) => Partial<AppLogicState>)
+  ) => {
     if (typeof updater === 'function') {
       appLogicModuleState = { ...appLogicModuleState, ...updater(appLogicModuleState) };
     } else {
@@ -59,16 +61,19 @@
   };
 
   const appOnId = () => {
-    const newUrl = ($configStore.general.configHost || window.location.origin) + window.location.pathname + window.location.search;
+    const newUrl =
+      ($configStore.general.configHost || window.location.origin) +
+      window.location.pathname +
+      window.location.search;
     setState({
       showCopyOverlay: true,
       copyText: newUrl,
-      qrCodeUrl: newUrl,
+      qrCodeUrl: newUrl
     });
   };
 
   const broadcastManuallyEnteredAnswer = async (offer: string, answer: string) => {
-    const bc = new BroadcastChannel("manual_rtc");
+    const bc = new BroadcastChannel('manual_rtc');
     const offerCid = appLogicModuleState.currentOfferCid;
     await bc.postMessage({ offer, answer, offerCid });
     bc.close();
@@ -77,8 +82,12 @@
   const reportCriticalError = async (type: string, error?: any) => {
     console.error(`Critical error reported to MainAppRouter.svelte: ${type}`, error);
     if (type === 'socket') {
-      history.replaceState(null, '', window.location.origin + window.location.pathname.split('/cb')[0]); // Ensure path is clean
-      
+      history.replaceState(
+        null,
+        '',
+        window.location.origin + window.location.pathname.split('/cb')[0]
+      ); // Ensure path is clean
+
       const urlParams = new URLSearchParams(window.location.search);
       let reinitMode: 'client' | 'server';
       if ($configStore.general.configLoader === 'client') reinitMode = 'client';
@@ -88,15 +97,15 @@
         appLogicInstance.destroy();
       }
 
-      const newContext: AppLogicContext = { 
-        webRTCApp, 
-        config: $configStore, 
-        getDirectClient, 
-        compress, 
-        decompress, 
-        setState, 
-        getState, 
-        appOnId, 
+      const newContext: AppLogicContext = {
+        webRTCApp,
+        config: $configStore,
+        getDirectClient,
+        compress,
+        decompress,
+        setState,
+        getState,
+        appOnId,
         broadcastManuallyEnteredAnswer,
         reportCriticalError
       };
@@ -108,9 +117,12 @@
       }
       try {
         await appLogicInstance.initialize(urlParams);
-        console.log("MainAppRouter.svelte: Re-initialized logic module after critical error.");
+        console.log('MainAppRouter.svelte: Re-initialized logic module after critical error.');
       } catch (e) {
-        console.error("MainAppRouter.svelte: Failed to re-initialize logic module after critical error:", e);
+        console.error(
+          'MainAppRouter.svelte: Failed to re-initialize logic module after critical error:',
+          e
+        );
       }
     }
   };
@@ -148,24 +160,24 @@
       getState,
       appOnId,
       broadcastManuallyEnteredAnswer,
-      reportCriticalError,
+      reportCriticalError
     };
-    
+
     if (mode === 'client') {
       appLogicInstance = new ClientLogic(context);
     } else {
       appLogicInstance = new ServerLogic(context);
     }
-    
+
     await appLogicInstance.initialize(urlParams);
 
-    configUnsubscribe = configStore.subscribe(newConfig => {
+    configUnsubscribe = configStore.subscribe((newConfig) => {
       if (appLogicInstance && appLogicInstance.setConfig) {
         appLogicInstance.setConfig(newConfig);
       }
     });
   });
-  
+
   onDestroy(() => {
     if (appLogicInstance && appLogicInstance.destroy) {
       appLogicInstance.destroy();
@@ -174,47 +186,53 @@
       configUnsubscribe();
     }
   });
-  
+
   function handleJoin() {
-    if (appLogicInstance && 'handleJoin' in appLogicInstance && typeof appLogicInstance.handleJoin === 'function') {
+    if (
+      appLogicInstance &&
+      'handleJoin' in appLogicInstance &&
+      typeof appLogicInstance.handleJoin === 'function'
+    ) {
       const urlParams = new URLSearchParams(window.location.search);
       const id = urlParams.get('r');
       if (id) {
         appLogicInstance.handleJoin(id);
       }
     } else {
-      console.warn("handleJoin called, but not available on current appLogicInstance or instance is null");
+      console.warn(
+        'handleJoin called, but not available on current appLogicInstance or instance is null'
+      );
     }
   }
-  
+
   function toggleConfigOverlay() {
     showConfigOverlay = !showConfigOverlay;
   }
-  
+
   async function handleHangup() {
     webRTCApp.destroy();
     setState({
-        showCopyOverlay: false,
-        initialOverlayShown: false,
-        currentOfferCid: null,
+      showCopyOverlay: false,
+      initialOverlayShown: false,
+      currentOfferCid: null
     });
   }
-  
+
   async function handleReset() {
-    webRTCApp.reset(); 
-    console.log("Handling reset, re-initializing logic module.");
+    webRTCApp.reset();
+    console.log('Handling reset, re-initializing logic module.');
     const urlParams = new URLSearchParams(window.location.search);
     if (appLogicInstance) {
-        if (appLogicInstance.setConfig) {
-          appLogicInstance.setConfig($configStore);
-        }
-        try {
-            await appLogicInstance.initialize(urlParams);
-        } catch (err) {
-            console.error("Error re-initializing after reset:", err);
-        }
+      if (appLogicInstance.setConfig) {
+        appLogicInstance.setConfig($configStore);
+      }
+      try {
+        await appLogicInstance.initialize(urlParams);
+      } catch (err) {
+        console.error('Error re-initializing after reset:', err);
+      }
     } else {
-        console.error("Cannot re-initialize after reset: appLogicInstance is null.");
+      console.error('Cannot re-initialize after reset: appLogicInstance is null.');
     }
   }
 
@@ -223,20 +241,23 @@
       const urlParams = new URLSearchParams(window.location.search);
       await appLogicInstance.handleOpenQrRequest(urlParams);
     } else {
-      console.warn("handleOpenQrRequest called, but appLogicInstance is null.");
+      console.warn('handleOpenQrRequest called, but appLogicInstance is null.');
     }
   }
 
   // Reactive statement to hide copy overlay
   $: {
-    if (appLogicModuleState.showCopyOverlay && appLogicModuleState.initialOverlayShown) { 
+    if (appLogicModuleState.showCopyOverlay && appLogicModuleState.initialOverlayShown) {
       const clients = Object.values($connectionStore.directClients);
       const isAnyClientConnected = clients.some(
-        client => client && client.connectionState === 'connected' && client.iceConnectionState === 'connected'
+        (client) =>
+          client &&
+          client.connectionState === 'connected' &&
+          client.iceConnectionState === 'connected'
       );
 
       if (isAnyClientConnected) {
-        console.log("A client connected while initial overlay was visible, hiding copy overlay.");
+        console.log('A client connected while initial overlay was visible, hiding copy overlay.');
         setState({ showCopyOverlay: false, initialOverlayShown: false });
       }
     }
@@ -250,38 +271,44 @@
 -->
 <main class="flex-1 flex">
   <MediaArea hangup={handleHangup} openQr={handleOpenQrRequest} />
-    <ControlPanel />
-  </main>
+  <ControlPanel />
+</main>
 
-  <CopyOverlay 
-    show={appLogicModuleState.showCopyOverlay} 
-    copyText={appLogicModuleState.copyText}
-    qrCodeUrl={appLogicModuleState.qrCodeUrl}
-    cid={appLogicModuleState.currentOfferCid}
-    showAcceptButton={appLogicModuleState.showAcceptButton}
-    showJoinButton={appLogicModuleState.showJoinButton}
-    showCopyButton={appLogicModuleState.showCopyButton}
-    showPasteText={appLogicModuleState.showPasteText}
-    close={() => setState({ showCopyOverlay: false })}
-    openConfig={toggleConfigOverlay}
-    reset={handleReset}
-    accept={(e) => {
-      if (appLogicInstance && 'acceptHandler' in appLogicInstance && typeof appLogicInstance.acceptHandler === 'function') {
-        appLogicInstance.acceptHandler(e.cid, e.pasteValue);
-      } else {
-        console.warn("acceptHandler called, but not available on current appLogicInstance or instance is null");
-      }
-    }}
-    join={handleJoin}
-  />
+<CopyOverlay
+  show={appLogicModuleState.showCopyOverlay}
+  copyText={appLogicModuleState.copyText}
+  qrCodeUrl={appLogicModuleState.qrCodeUrl}
+  cid={appLogicModuleState.currentOfferCid}
+  showAcceptButton={appLogicModuleState.showAcceptButton}
+  showJoinButton={appLogicModuleState.showJoinButton}
+  showCopyButton={appLogicModuleState.showCopyButton}
+  showPasteText={appLogicModuleState.showPasteText}
+  close={() => setState({ showCopyOverlay: false })}
+  openConfig={toggleConfigOverlay}
+  reset={handleReset}
+  accept={(e) => {
+    if (
+      appLogicInstance &&
+      'acceptHandler' in appLogicInstance &&
+      typeof appLogicInstance.acceptHandler === 'function'
+    ) {
+      appLogicInstance.acceptHandler(e.cid, e.pasteValue);
+    } else {
+      console.warn(
+        'acceptHandler called, but not available on current appLogicInstance or instance is null'
+      );
+    }
+  }}
+  join={handleJoin}
+/>
 
-  <ConfigOverlay 
-    show={showConfigOverlay} 
-    onclose={() => showConfigOverlay = false}
-    onconfigUpdated={handleReset}
-  />
+<ConfigOverlay
+  show={showConfigOverlay}
+  onclose={() => (showConfigOverlay = false)}
+  onconfigUpdated={handleReset}
+/>
 
-  <ForwardOverlay />
+<ForwardOverlay />
 
-  <div id="diffs" class="whitespace-pre-line hidden"></div>
+<div id="diffs" class="whitespace-pre-line hidden"></div>
 <!-- Removed {:else} block for /cb path -->

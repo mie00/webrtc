@@ -13,7 +13,12 @@
     thumbnailUrl: string | null; // URL for image previews (Data URL)
   }
 
-  let { isPanelOpen, onSentSomething, showCompletedTranscriptions, onToggleShowCompletedTranscriptions } = $props<{
+  let {
+    isPanelOpen,
+    onSentSomething,
+    showCompletedTranscriptions,
+    onToggleShowCompletedTranscriptions
+  } = $props<{
     isPanelOpen: boolean;
     onSentSomething: () => void;
     showCompletedTranscriptions: boolean;
@@ -43,8 +48,8 @@
 
   // Moved from ControlPanel.svelte
   function uuidv4(): string {
-    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
-      (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
+    return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) =>
+      (+c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c / 4)))).toString(16)
     );
   }
 
@@ -66,7 +71,7 @@
 
   // Moved from ControlPanel.svelte
   function removeStagedFile(fileIdToRemove: string) {
-    stagedFiles = stagedFiles.filter(sf => sf.id !== fileIdToRemove);
+    stagedFiles = stagedFiles.filter((sf) => sf.id !== fileIdToRemove);
   }
 
   // Event handlers
@@ -77,7 +82,7 @@
       triggerSend();
     }
   }
-  
+
   // Moved from ControlPanel.svelte
   async function triggerSend() {
     if (isSending) return;
@@ -96,7 +101,7 @@
 
       if (stagedFiles.length > 0) {
         const filesToSend = [...stagedFiles];
-        stagedFiles = []; 
+        stagedFiles = [];
 
         for (const stagedFileObj of filesToSend) {
           await sendFile(stagedFileObj.file);
@@ -104,25 +109,25 @@
         successfullySentSomething = true;
       }
     } catch (error) {
-      console.error("Error sending message or files:", error);
+      console.error('Error sending message or files:', error);
     } finally {
       isSending = false;
       if (successfullySentSomething) {
         onSentSomething(); // Notify parent
       }
-      await tick(); 
+      await tick();
       if (isPanelOpen && chatInput) {
         chatInput.focus();
       }
     }
   }
-  
+
   // Moved from ControlPanel.svelte
   async function stageFilesFromInput(event: Event) {
     const input = event.target as HTMLInputElement;
     if (input.files) {
       await addFilesToStaging(input.files);
-      input.value = ''; 
+      input.value = '';
     }
   }
 
@@ -154,13 +159,25 @@
       <div class="flex items-center justify-between p-1.5 bg-gray-50 rounded shadow-sm text-sm">
         <div class="flex items-center space-x-2 overflow-hidden min-w-0">
           {#if stagedFile.thumbnailUrl}
-            <img src={stagedFile.thumbnailUrl} alt="Preview" class="w-10 h-10 object-cover rounded border border-gray-200">
+            <img
+              src={stagedFile.thumbnailUrl}
+              alt="Preview"
+              class="w-10 h-10 object-cover rounded border border-gray-200"
+            />
           {:else}
-            <div class="w-10 h-10 flex items-center justify-center bg-gray-200 rounded border border-gray-300">
-              <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a2 2 0 00-2 2v8l-3 3v2h12v-2l-3-3V4a2 2 0 00-2-2H9zm7 11h-2v2h2v-2zm-4 0H8v2h4v-2zM7 2H5v2h2V2z"></path></svg>
+            <div
+              class="w-10 h-10 flex items-center justify-center bg-gray-200 rounded border border-gray-300"
+            >
+              <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20"
+                ><path
+                  d="M9 2a2 2 0 00-2 2v8l-3 3v2h12v-2l-3-3V4a2 2 0 00-2-2H9zm7 11h-2v2h2v-2zm-4 0H8v2h4v-2zM7 2H5v2h2V2z"
+                ></path></svg
+              >
             </div>
           {/if}
-          <span class="truncate text-gray-700" title={stagedFile.file.name}>{stagedFile.file.name}</span>
+          <span class="truncate text-gray-700" title={stagedFile.file.name}
+            >{stagedFile.file.name}</span
+          >
         </div>
         <button
           type="button"
@@ -170,7 +187,13 @@
           class="text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed p-1 ml-2 flex-shrink-0"
           title="Remove file"
         >
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"
+            ><path
+              fill-rule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+              clip-rule="evenodd"
+            ></path></svg
+          >
         </button>
       </div>
     {/each}
@@ -178,8 +201,10 @@
 {/if}
 
 <!-- Pending Transcriptions Area - Always shown if active and has content -->
-{#if $transcriberStore.isTranscribingOverall && Object.values($transcriptionDisplayStore.activeBuffers).some(b => b.text && b.text.length > 0)}
-  <div class="pending-transcriptions px-4 py-2 text-xs text-gray-500 border-t border-gray-300 bg-gray-50">
+{#if $transcriberStore.isTranscribingOverall && Object.values($transcriptionDisplayStore.activeBuffers).some((b) => b.text && b.text.length > 0)}
+  <div
+    class="pending-transcriptions px-4 py-2 text-xs text-gray-500 border-t border-gray-300 bg-gray-50"
+  >
     {#each Object.values($transcriptionDisplayStore.activeBuffers) as buffer (buffer.sessionId)}
       {#if buffer.text && buffer.text.length > 0}
         <div class="py-0.5" data-testid="pending-transcription-buffer">
@@ -193,14 +218,19 @@
 
 <!-- Message Input and Upload Button (Remains at the bottom) -->
 <div class="flex items-center space-x-2 p-4 border-t border-gray-300 mt-auto bg-gray-100">
-  <input id="test-chat-input" type="text" placeholder="Type message..."
+  <input
+    id="test-chat-input"
+    type="text"
+    placeholder="Type message..."
     bind:value={message}
     bind:this={chatInput}
     disabled={isSending}
     class="flex-1 border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
     onkeypress={handleKeyPress}
-    onpaste={handlePaste}>
-  <div class="relative"> <!-- Use relative positioning for the button container -->
+    onpaste={handlePaste}
+  />
+  <div class="relative">
+    <!-- Use relative positioning for the button container -->
     <button
       id="test-attach-file-button"
       type="button"
@@ -209,8 +239,8 @@
       class="cursor-pointer text-white px-3 py-2 rounded-md text-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
       class:bg-blue-500={!isSending}
       class:bg-gray-500={isSending}
-      title={!isSending ? "Attach file" : "Sending..."}
-    >📎</button>
+      title={!isSending ? 'Attach file' : 'Sending...'}>📎</button
+    >
     {#if $transcriptionDisplayStore.segments.length}
       <button
         type="button"
@@ -218,10 +248,15 @@
         class="text-white px-3 py-2 rounded-md text-lg hover:opacity-80"
         class:bg-blue-500={showCompletedTranscriptions}
         class:bg-gray-400={!showCompletedTranscriptions}
-        title={showCompletedTranscriptions ? "Hide Transcriptions from Feed" : "Show Transcriptions in Feed"}
-        aria-label={showCompletedTranscriptions ? "Hide Transcriptions from Feed" : "Show Transcriptions in Feed"}
+        title={showCompletedTranscriptions
+          ? 'Hide Transcriptions from Feed'
+          : 'Show Transcriptions in Feed'}
+        aria-label={showCompletedTranscriptions
+          ? 'Hide Transcriptions from Feed'
+          : 'Show Transcriptions in Feed'}
       >
-        {showCompletedTranscriptions ? '📜' : '📝'} <!-- Icons for showing/hiding feed transcripts -->
+        {showCompletedTranscriptions ? '📜' : '📝'}
+        <!-- Icons for showing/hiding feed transcripts -->
       </button>
     {/if}
     <input
@@ -232,6 +267,6 @@
       class="hidden"
       onchange={stageFilesFromInput}
       bind:this={uploadField}
-    >
+    />
   </div>
 </div>

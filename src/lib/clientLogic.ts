@@ -10,44 +10,53 @@ export class ClientLogic implements AppLogic {
   }
 
   async initialize(urlParams: URLSearchParams): Promise<void> {
-    const { webRTCApp, decompress, setState, broadcastManuallyEnteredAnswer, config, getDirectClient } = this.context;
-    console.log("client logic initialize");
+    const {
+      webRTCApp,
+      decompress,
+      setState,
+      broadcastManuallyEnteredAnswer,
+      config,
+      getDirectClient
+    } = this.context;
+    console.log('client logic initialize');
 
     if (!urlParams.get('offer') && !urlParams.get('answer')) {
-      setState({ currentOfferCid: null }); 
+      setState({ currentOfferCid: null });
       const { offerCid } = await this.prepareOfferForClientModeDisplay();
-      setState(currentVal => ({ ...currentVal, initialOverlayShown: true }));
+      setState((currentVal) => ({ ...currentVal, initialOverlayShown: true }));
       if (offerCid) {
-        const bc = new BroadcastChannel("manual_rtc");
+        const bc = new BroadcastChannel('manual_rtc');
         bc.onmessage = async (event) => {
           const data = event.data;
           if (typeof data === 'object' && data !== null && data.offer && data.answer) {
-            console.log("Received matching answer via broadcast channel for offer:", data.offer);
+            console.log('Received matching answer via broadcast channel for offer:', data.offer);
             // Ensure the offer matches the one this client instance is holding, if applicable
             // This check might need refinement based on how offerCid is managed across tabs for the *same* offer
             const currentContextOfferCid = this.context.getState().currentOfferCid;
             if (data.offerCid && currentContextOfferCid !== data.offerCid) {
-                 console.warn("Broadcast answer is for a different offer CID. Ignoring.");
-                 // bc.close(); // Close if we are sure this channel is only for one offer
-                 return;
+              console.warn('Broadcast answer is for a different offer CID. Ignoring.');
+              // bc.close(); // Close if we are sure this channel is only for one offer
+              return;
             }
 
             const answer = await decompress(data.answer.trim());
             const client = getDirectClient(offerCid); // Use offerCid from when the offer was made
             if (client?.pc) {
               try {
-                await client.pc.setRemoteDescription({ type: "answer", sdp: answer.trim() + '\n' });
-                console.log("Successfully set remote description from broadcast answer.");
+                await client.pc.setRemoteDescription({ type: 'answer', sdp: answer.trim() + '\n' });
+                console.log('Successfully set remote description from broadcast answer.');
                 bc.close();
                 setState({ showCopyOverlay: false, initialOverlayShown: false });
               } catch (e) {
-                console.error("Error setting remote description from broadcast answer:", e);
+                console.error('Error setting remote description from broadcast answer:', e);
               }
             } else {
-              console.warn("Client or PeerConnection not found when processing broadcast answer.");
+              console.warn('Client or PeerConnection not found when processing broadcast answer.');
             }
           } else {
-            console.warn("Received broadcast message with non-matching/invalid offer. Ignoring.", { receivedData: data });
+            console.warn('Received broadcast message with non-matching/invalid offer. Ignoring.', {
+              receivedData: data
+            });
           }
         };
       }
@@ -66,44 +75,54 @@ export class ClientLogic implements AppLogic {
         showCopyButton: false,
         showAcceptButton: false,
         showPasteText: false,
-        showJoinButton: false,
+        showJoinButton: false
       });
     } else if (urlParams.get('offer')) {
       const now = Date.now();
       const offerParam = urlParams.get('offer');
       if (offerParam) {
         const offer = await decompress(offerParam);
-        setState(currentVal => ({
+        setState((currentVal) => ({
           ...currentVal,
           showCopyOverlay: true,
           initialOverlayShown: true,
           showAcceptButton: false, // When receiving an offer URL, we generate an answer to share
           showPasteText: false,
-          showCopyButton: true, // To copy the generated answer link
+          showCopyButton: true // To copy the generated answer link
         }));
-        
-        let answererCid: string; 
-        answererCid = await webRTCApp.getAnswer(offer, async (candidate: RTCIceCandidateInit | null) => {
-          if (Date.now() - now > 10 * 1000) { return; }
-          if (!answererCid) return; // Ensure answererCid is set
-          const client = getDirectClient(answererCid);
-          const sdp = client?.pc?.localDescription?.sdp;
-          if (sdp) {
-            const compressedAnswer = await this.context.compress(sdp);
-            const answerUrlParams = new URLSearchParams(window.location.search); // Preserves original offer
-            answerUrlParams.set('answer', compressedAnswer);
-            const newUrl = (config.general.configHost || window.location.origin) + window.location.pathname + '?' + answerUrlParams.toString();
-            
-            setState(currentVal => ({
+
+        let answererCid: string;
+        answererCid = await webRTCApp.getAnswer(
+          offer,
+          async (candidate: RTCIceCandidateInit | null) => {
+            if (Date.now() - now > 10 * 1000) {
+              return;
+            }
+            if (!answererCid) return; // Ensure answererCid is set
+            const client = getDirectClient(answererCid);
+            const sdp = client?.pc?.localDescription?.sdp;
+            if (sdp) {
+              const compressedAnswer = await this.context.compress(sdp);
+              const answerUrlParams = new URLSearchParams(window.location.search); // Preserves original offer
+              answerUrlParams.set('answer', compressedAnswer);
+              const newUrl =
+                (config.general.configHost || window.location.origin) +
+                window.location.pathname +
+                '?' +
+                answerUrlParams.toString();
+
+              setState((currentVal) => ({
                 ...currentVal,
                 qrCodeUrl: newUrl,
-                copyText: compressedAnswer,
-            }));
-            history.replaceState('', '', newUrl);
-          }
-        }, { sid: '' }); 
-         // Store this CID if needed, though it's for an incoming offer handling
-         // setState({ currentOfferCid: answererCid }); // This might be confusing; currentOfferCid is for *outgoing* offers.
+                copyText: compressedAnswer
+              }));
+              history.replaceState('', '', newUrl);
+            }
+          },
+          { sid: '' }
+        );
+        // Store this CID if needed, though it's for an incoming offer handling
+        // setState({ currentOfferCid: answererCid }); // This might be confusing; currentOfferCid is for *outgoing* offers.
       }
     }
   }
@@ -112,62 +131,75 @@ export class ClientLogic implements AppLogic {
     this.context.config = config;
   }
 
-  async prepareOfferForClientModeDisplay(): Promise<{ offerCid: string | null, newCompressedOffer: string | null }> {
+  async prepareOfferForClientModeDisplay(): Promise<{
+    offerCid: string | null;
+    newCompressedOffer: string | null;
+  }> {
     const { webRTCApp, getState, setState, getDirectClient, compress, config } = this.context;
     const { currentOfferCid: existingOfferCid } = getState(); // Renamed to avoid conflict
-    
+
     const currentOfferClient = existingOfferCid ? getDirectClient(existingOfferCid) : null;
-    if (existingOfferCid && currentOfferClient?.pc?.connectionState === 'new') { // 'new' implies offer made, no answer yet
-        setState(currentVal => ({
-            ...currentVal,
-            showCopyOverlay: true,
-            showAcceptButton: true,
-            showPasteText: true,
-            showCopyButton: true, // To copy the offer link
-            showJoinButton: false,
-            // qrCodeUrl and copyText should be preserved from previous generation
-        }));
+    if (existingOfferCid && currentOfferClient?.pc?.connectionState === 'new') {
+      // 'new' implies offer made, no answer yet
+      setState((currentVal) => ({
+        ...currentVal,
+        showCopyOverlay: true,
+        showAcceptButton: true,
+        showPasteText: true,
+        showCopyButton: true, // To copy the offer link
+        showJoinButton: false
+        // qrCodeUrl and copyText should be preserved from previous generation
+      }));
       return { offerCid: existingOfferCid, newCompressedOffer: null };
     }
 
     const now = Date.now();
-    setState(currentVal => ({
-        ...currentVal,
-        showAcceptButton: true,
-        showPasteText: true,
-        showCopyButton: true,
-        showJoinButton: false,
-        qrCodeUrl: '', 
-        copyText: '',  
-        showCopyOverlay: true, // Show overlay while generating
+    setState((currentVal) => ({
+      ...currentVal,
+      showAcceptButton: true,
+      showPasteText: true,
+      showCopyButton: true,
+      showJoinButton: false,
+      qrCodeUrl: '',
+      copyText: '',
+      showCopyOverlay: true // Show overlay while generating
     }));
 
     let newCidForOffer: string | null = null; // Renamed for clarity
     let compressedOfferForReturn: string | null = null;
 
-    newCidForOffer = await webRTCApp.getOffer(async (candidate: RTCIceCandidateInit | null) => {
-      if (Date.now() - now > 10 * 1000) { return; }
-      if (!newCidForOffer) return; 
-      const client = getDirectClient(newCidForOffer);
-      const sdp = client?.pc?.localDescription?.sdp;
-      if (sdp) {
-        const compressed = await compress(sdp);
-        compressedOfferForReturn = compressed;
-        const displayUrlParams = new URLSearchParams();
-        displayUrlParams.set('offer', compressed);
-        // Potentially add offerCid to URL for BroadcastChannel matching, though it makes URL longer
-        // displayUrlParams.set('offerCid', newCidForOffer); 
-        const newUrlForOverlay = (config.general.configHost || window.location.origin) + window.location.pathname + '?' + displayUrlParams.toString();
-        
-        setState(currentVal => ({
+    newCidForOffer = await webRTCApp.getOffer(
+      async (candidate: RTCIceCandidateInit | null) => {
+        if (Date.now() - now > 10 * 1000) {
+          return;
+        }
+        if (!newCidForOffer) return;
+        const client = getDirectClient(newCidForOffer);
+        const sdp = client?.pc?.localDescription?.sdp;
+        if (sdp) {
+          const compressed = await compress(sdp);
+          compressedOfferForReturn = compressed;
+          const displayUrlParams = new URLSearchParams();
+          displayUrlParams.set('offer', compressed);
+          // Potentially add offerCid to URL for BroadcastChannel matching, though it makes URL longer
+          // displayUrlParams.set('offerCid', newCidForOffer);
+          const newUrlForOverlay =
+            (config.general.configHost || window.location.origin) +
+            window.location.pathname +
+            '?' +
+            displayUrlParams.toString();
+
+          setState((currentVal) => ({
             ...currentVal,
             qrCodeUrl: newUrlForOverlay,
-            copyText: newUrlForOverlay,
-        }));
-        history.replaceState(null, '', newUrlForOverlay); // Update URL to reflect the offer being displayed
-      }
-    }, { sid: '' }); 
-    
+            copyText: newUrlForOverlay
+          }));
+          history.replaceState(null, '', newUrlForOverlay); // Update URL to reflect the offer being displayed
+        }
+      },
+      { sid: '' }
+    );
+
     setState({ currentOfferCid: newCidForOffer });
     return { offerCid: newCidForOffer, newCompressedOffer: compressedOfferForReturn };
   }
@@ -187,12 +219,12 @@ export class ClientLogic implements AppLogic {
     } else {
       // Offer or answer (or both) is in URL. Display current URL.
       appOnId(); // This sets showCopyOverlay, copyText, qrCodeUrl based on current URL.
-      setState(currentVal => ({
+      setState((currentVal) => ({
         ...currentVal,
         showCopyButton: true, // Default to show copy button for the URL
         showAcceptButton: false, // Not accepting an answer via QR click
-        showPasteText: false,  // Not pasting an answer via QR click
-        showJoinButton: false, // No joining in client mode
+        showPasteText: false, // Not pasting an answer via QR click
+        showJoinButton: false // No joining in client mode
       }));
       // Special case: if the URL indicates "Call started on another tab"
       if (currentCopyText && currentCopyText.startsWith('Call started on another tab')) {
@@ -205,7 +237,7 @@ export class ClientLogic implements AppLogic {
     const { decompress, getDirectClient, setState, getState } = this.context;
     const targetCid = cidFromEvent || getState().currentOfferCid; // Use event CID or fallback to current app offer CID
     if (!pasteValue || !targetCid) {
-      console.warn("Accept handler: Paste value or CID is missing.", { pasteValue, targetCid });
+      console.warn('Accept handler: Paste value or CID is missing.', { pasteValue, targetCid });
       return;
     }
 
@@ -213,14 +245,18 @@ export class ClientLogic implements AppLogic {
       const answer = await decompress(pasteValue.trim());
       const client = getDirectClient(targetCid);
       if (client?.pc) {
-        await client.pc.setRemoteDescription({ type: "answer", sdp: answer.trim() + '\n' });
-        console.log("Successfully set remote description from pasted answer for CID:", targetCid);
+        await client.pc.setRemoteDescription({ type: 'answer', sdp: answer.trim() + '\n' });
+        console.log('Successfully set remote description from pasted answer for CID:', targetCid);
         setState({ showCopyOverlay: false, initialOverlayShown: false }); // Hide overlay on success
       } else {
-        console.warn("Client or PeerConnection not found for CID:", targetCid, "when accepting pasted answer.");
+        console.warn(
+          'Client or PeerConnection not found for CID:',
+          targetCid,
+          'when accepting pasted answer.'
+        );
       }
     } catch (e) {
-      console.error("Error processing pasted answer for CID:", targetCid, e);
+      console.error('Error processing pasted answer for CID:', targetCid, e);
     }
   }
 }

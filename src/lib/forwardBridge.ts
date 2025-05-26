@@ -35,28 +35,28 @@ export function getForwardState() {
 }
 
 export function setAllowedHosts(host: string[]): void {
-  forwardStore.update(state => ({
+  forwardStore.update((state) => ({
     ...state,
     allowedHosts: host
   }));
 }
 
 export function setForwardPeer(peer: string | null): void {
-  forwardStore.update(state => ({
+  forwardStore.update((state) => ({
     ...state,
     forwardPeer: peer
   }));
 }
 
 export function setForwardHost(host: string | null): void {
-  forwardStore.update(state => ({
+  forwardStore.update((state) => ({
     ...state,
     forwardHost: host
   }));
 }
 
 export function addInflight(id: string, callback: (data: any) => void): void {
-  forwardStore.update(state => {
+  forwardStore.update((state) => {
     const inflight = { ...state.inflight };
     inflight[id] = callback;
     return { ...state, inflight };
@@ -64,7 +64,7 @@ export function addInflight(id: string, callback: (data: any) => void): void {
 }
 
 export function removeInflight(id: string): void {
-  forwardStore.update(state => {
+  forwardStore.update((state) => {
     const inflight = { ...state.inflight };
     delete inflight[id];
     return { ...state, inflight };
@@ -72,23 +72,21 @@ export function removeInflight(id: string): void {
 }
 
 export function addLogMessage(id: string, text: string): void {
-  forwardStore.update(state => ({
+  forwardStore.update((state) => ({
     ...state,
     logMessages: [...state.logMessages, { id, text, status: '🌀' }]
   }));
 }
 
 export function updateLogMessageStatus(id: string, status: string): void {
-  forwardStore.update(state => ({
+  forwardStore.update((state) => ({
     ...state,
-    logMessages: state.logMessages.map(msg =>
-      msg.id === id ? { ...msg, status } : msg
-    )
+    logMessages: state.logMessages.map((msg) => (msg.id === id ? { ...msg, status } : msg))
   }));
 }
 
 export function clearLogMessages(): void {
-  forwardStore.update(state => ({
+  forwardStore.update((state) => ({
     ...state,
     logMessages: []
   }));
@@ -108,7 +106,7 @@ export function forwardInit(): void {
       clearInterval(sendHostInterval);
       sendHostInterval = null;
     }
-    
+
     // Update the Svelte store
     setAllowedHosts([]);
     setForwardPeer(null);
@@ -118,11 +116,7 @@ export function forwardInit(): void {
 }
 
 // Export utility functions from the original forward.ts
-import { 
-  sendData, 
-  concatUint8Arrays,
-  setButton
-} from './webrtc/forward.js';
+import { sendData, concatUint8Arrays, setButton } from './webrtc/forward.js';
 
 export { concatUint8Arrays }; // Export for use in tests or other modules
 
@@ -136,21 +130,22 @@ export function setupForwardChannel(cid: string): void {
   const client = getDirectClient(cid);
   const pc = client?.pc;
   if (!client || !pc) {
-    console.error(`Client or PeerConnection not found for client ${cid} when setting up forward channel (bridge).`);
+    console.error(
+      `Client or PeerConnection not found for client ${cid} when setting up forward channel (bridge).`
+    );
     return;
   }
-  const forward = pc.createDataChannel("forward", {
+  const forward = pc.createDataChannel('forward', {
     negotiated: true,
     id: 3
   });
   (client as ForwardClient).forward = forward; // Assign to the retrieved client object
 
-  forward.onopen = () => {
-  };
+  forward.onopen = () => {};
 
   forward.onmessage = async (e: MessageEvent) => {
     const data = JSON.parse(e.data);
-    console.log("got message in forward channel from peer", data);
+    console.log('got message in forward channel from peer', data);
 
     // Re-fetch client in case state changed
     const currentClient = getDirectClient(cid);
@@ -160,13 +155,16 @@ export function setupForwardChannel(cid: string): void {
     const state = getForwardState();
 
     switch (data.type) {
-      case "offer":
+      case 'offer':
         if (!('serviceWorker' in navigator)) {
           alert("cannot do service workers, won't be able to do forwarding");
-          (currentClient as ForwardClient).forward?.send(JSON.stringify({ // Use currentClient
-            type: "offer.error",
-            error: "no service worker on peer"
-          }));
+          (currentClient as ForwardClient).forward?.send(
+            JSON.stringify({
+              // Use currentClient
+              type: 'offer.error',
+              error: 'no service worker on peer'
+            })
+          );
           return;
         }
 
@@ -175,7 +173,7 @@ export function setupForwardChannel(cid: string): void {
         if (!accepted) {
           return;
         }
-        
+
         // Update the forward peer in the store
         setForwardPeer(cid);
         setForwardHost(data.host);
@@ -184,12 +182,12 @@ export function setupForwardChannel(cid: string): void {
         const url = new URL(window.location.href);
         url.searchParams.set('hosts_host', data.host);
         window.history.pushState(null, '', url.toString());
-        
+
         const sendHost = () => {
           if (navigator.serviceWorker.controller) {
             navigator.serviceWorker.controller.postMessage({
               type: 'host',
-              host: data.host,
+              host: data.host
             });
           }
         };
@@ -204,55 +202,66 @@ export function setupForwardChannel(cid: string): void {
         // Iframe creation will be handled by Svelte component based on allowedHosts
         break;
 
-      case "request":
+      case 'request':
         addLogMessage(data.id, data.url);
 
         // Use allowed_host from the store via state variable
         if (!data.url.startsWith(state.allowedHosts || '')) {
-          console.log("not allowed", state.allowedHosts, data.url);
+          console.log('not allowed', state.allowedHosts, data.url);
           updateLogMessageStatus(data.id, '❌');
           return;
         }
 
-        fetch(data.url, data).then(async response => {
-          (currentClient as ForwardClient).forward?.send(JSON.stringify({ // Use currentClient
-            type: "response",
-            id: data.id,
-            status: response.status,
-            statusText: response.statusText,
-            headers: Object.fromEntries(Array.from(response.headers.entries())),
-          }));
-          
-          return (async function(): Promise<void> {
-            if (response.body === null) {
-              (currentClient as ForwardClient).forward?.send(JSON.stringify({ // Use currentClient
-                type: "end",
+        fetch(data.url, data)
+          .then(async (response) => {
+            (currentClient as ForwardClient).forward?.send(
+              JSON.stringify({
+                // Use currentClient
+                type: 'response',
                 id: data.id,
-              }));
-              return; // Return void, not null
-            }
-            const reader = response.body.getReader();
-            // Pass currentClient's forward channel to sendData
-            await sendData(reader, data.id, (currentClient as ForwardClient).forward);
-            updateLogMessageStatus(data.id, '✅');
-          }());
-        }).catch(err => {
-          (currentClient as ForwardClient).forward?.send(JSON.stringify({ // Use currentClient
-            type: "error",
-            err: JSON.stringify(err, Object.getOwnPropertyNames(err)),
-          }));
-          updateLogMessageStatus(data.id, '⭕');
-        });
+                status: response.status,
+                statusText: response.statusText,
+                headers: Object.fromEntries(Array.from(response.headers.entries()))
+              })
+            );
+
+            return (async function (): Promise<void> {
+              if (response.body === null) {
+                (currentClient as ForwardClient).forward?.send(
+                  JSON.stringify({
+                    // Use currentClient
+                    type: 'end',
+                    id: data.id
+                  })
+                );
+                return; // Return void, not null
+              }
+              const reader = response.body.getReader();
+              // Pass currentClient's forward channel to sendData
+              await sendData(reader, data.id, (currentClient as ForwardClient).forward);
+              updateLogMessageStatus(data.id, '✅');
+            })();
+          })
+          .catch((err) => {
+            (currentClient as ForwardClient).forward?.send(
+              JSON.stringify({
+                // Use currentClient
+                type: 'error',
+                err: JSON.stringify(err, Object.getOwnPropertyNames(err))
+              })
+            );
+            updateLogMessageStatus(data.id, '⭕');
+          });
         break;
-        
-      case "response":
-      case "data":
+
+      case 'response':
+      case 'data':
         const callback = state.inflight[data.id];
         if (callback) callback(data);
         break;
-        
-      case "end":
-      case "error":
+
+      case 'end':
+      case 'error':
         const endCallback = state.inflight[data.id];
         if (endCallback) {
           endCallback(data);
@@ -260,7 +269,7 @@ export function setupForwardChannel(cid: string): void {
         }
         break;
 
-      case "offer.end":
+      case 'offer.end':
         // Use local variable for interval management
         if (sendHostInterval) {
           clearInterval(sendHostInterval);
@@ -269,20 +278,20 @@ export function setupForwardChannel(cid: string): void {
         // Iframe removal will be handled by Svelte component
         clearLogMessages();
         break;
-        
-      case "offer.error":
-        alert("failed to forward to the other side");
+
+      case 'offer.error':
+        alert('failed to forward to the other side');
         await toggleForwardHandler();
         break;
-        
+
       default:
-        console.log("unknown message type", data);
+        console.log('unknown message type', data);
     }
   };
 }
 
 // Store the last forwarded URL
-let lastForwardedUrls: string = "http://127.0.0.1:11434";
+let lastForwardedUrls: string = 'http://127.0.0.1:11434';
 
 /**
  * Toggle forward handler - adapted to work with Svelte store
@@ -292,32 +301,40 @@ export const toggleForwardHandler = async (): Promise<void> => {
   const state = getForwardState();
 
   if (!state.allowedHosts.length) {
-    let vals = prompt("Please enter the url to forward", lastForwardedUrls);
-    
+    let vals = prompt('Please enter the url to forward', lastForwardedUrls);
+
     if (vals) {
       lastForwardedUrls = vals;
     } else {
-      alert("empty value");
+      alert('empty value');
       return;
     }
-    const valsArray = vals.split(",").map(val => val.trim());
+    const valsArray = vals.split(',').map((val) => val.trim());
 
     for (const i in valsArray) {
       try {
         const res = await fetch(valsArray[i]);
         await res.arrayBuffer();
       } catch {
-        if (valsArray[i].startsWith('http://127.0.0.1') || valsArray[i].startsWith('http://localhost')) {
+        if (
+          valsArray[i].startsWith('http://127.0.0.1') ||
+          valsArray[i].startsWith('http://localhost')
+        ) {
           valsArray[i] = valsArray[i].replace(/http:\/\/[^/:]+/, 'http://local.mie00.com');
           try {
             const res = await fetch(valsArray[i]);
             await res.arrayBuffer();
           } catch {
-            alert(`error doing fetch, use firefox. Or if you want to keep using chrome, click on the site settings besides the url and choose "Allow" for "Insecure content"`);
+            alert(
+              `error doing fetch, use firefox. Or if you want to keep using chrome, click on the site settings besides the url and choose "Allow" for "Insecure content"`
+            );
             return;
           }
         } else {
-          alert("error doing fetch, make sure CORS is set to allow requests from " + window.location.host);
+          alert(
+            'error doing fetch, make sure CORS is set to allow requests from ' +
+              window.location.host
+          );
           return;
         }
       }
@@ -327,10 +344,11 @@ export const toggleForwardHandler = async (): Promise<void> => {
     setAllowedHosts(valsArray);
     // Log container creation will be handled by Svelte component
 
-    for (const clientId in clients) { // Iterate over clients from store
+    for (const clientId in clients) {
+      // Iterate over clients from store
       const client = clients[clientId] as ForwardClient;
       if (client.forward && client.forward.readyState === 'open') {
-        client.forward.send(JSON.stringify({ type: "offer", host: valsArray[0] }));
+        client.forward.send(JSON.stringify({ type: 'offer', host: valsArray[0] }));
       }
     }
   } else {
@@ -338,12 +356,14 @@ export const toggleForwardHandler = async (): Promise<void> => {
     for (const clientId in clients) {
       const client = clients[clientId] as ForwardClient;
       if (client.forward && client.forward.readyState === 'open') {
-        client.forward.send(JSON.stringify({
-          type: "offer.end",
-        }));
+        client.forward.send(
+          JSON.stringify({
+            type: 'offer.end'
+          })
+        );
       }
     }
-    
+
     // Log container removal will be handled by Svelte component
     // Update both the app and the store
     setAllowedHosts([]);
@@ -369,40 +389,37 @@ interface ForwardResponse {
 
 // Initialize service worker if available
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register(
-    'service-worker.js',
-    { scope: '/' }
-  )
-    .then(() => navigator.serviceWorker
-      .ready
-      .then((worker) => {
+  navigator.serviceWorker
+    .register('service-worker.js', { scope: '/' })
+    .then(() =>
+      navigator.serviceWorker.ready.then((worker) => {
         console.log(worker);
       })
     )
     .catch((err) => console.log(err));
-  
-  const handler = function(event: MessageEvent): void {
+
+  const handler = function (event: MessageEvent): void {
     console.log('got event from service worker, sending message to peer', event);
     const id = event.data.id;
-    
+
     // Get current state from store
     const state = getForwardState();
     const forwardPeer = state.forwardPeer;
-    
+
     if (!forwardPeer) {
       console.error('No forward peer available');
       return;
     }
-    
+
     // Get client from store
     const client = getDirectClient(forwardPeer) as ForwardClient;
     if (!client || !client.forward) {
       console.error('Forward client not available');
       return;
     }
-    
+
     let r: ForwardResponse = { data: [] };
-    
+
     addInflight(id, (data: any) => {
       console.log('called inflight', id, data);
       if (data.type === 'error') {
@@ -421,12 +438,14 @@ if ('serviceWorker' in navigator) {
         }
       }
     });
-    
-    client.forward.send(JSON.stringify({
-      type: "request",
-      ...event.data
-    }));
+
+    client.forward.send(
+      JSON.stringify({
+        type: 'request',
+        ...event.data
+      })
+    );
   };
-  
+
   navigator.serviceWorker.addEventListener('message', handler);
 }

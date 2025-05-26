@@ -1,6 +1,5 @@
 import { writable, get } from 'svelte/store';
 
-
 // Stream state interface
 export interface localFileStreamState {
   localFileStreams: Record<string, MediaStream>;
@@ -8,7 +7,7 @@ export interface localFileStreamState {
 
 // Initial state
 const initialState: localFileStreamState = {
-  localFileStreams: {},
+  localFileStreams: {}
 };
 
 // Create the store
@@ -24,8 +23,8 @@ export function addLocalFileStream(src: string, stream: MediaStream) {
     ...state,
     localFileStreams: {
       ...state.localFileStreams,
-      [src]: stream,
-    },
+      [src]: stream
+    }
   }));
 }
 
@@ -34,7 +33,7 @@ export function removeLocalFileStream(src: string) {
     ...state,
     localFileStreams: Object.fromEntries(
       Object.entries(state.localFileStreams).filter(([key]) => key !== src)
-    ),
+    )
   }));
 }
 
@@ -50,7 +49,7 @@ export interface streamMetadataState {
 
 // Initial state
 const initialMetadataState: streamMetadataState = {
-  metadata: {},
+  metadata: {}
 };
 
 // Create the store
@@ -67,6 +66,6 @@ export function setStreamMetadata(src: string, metadata: StreamMetadata) {
     metadata: {
       ...state.metadata,
       [src]: metadata
-    },
+    }
   }));
 }

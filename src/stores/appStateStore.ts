@@ -2,7 +2,10 @@ import { writable, get } from 'svelte/store';
 import type { NegoMessageMap, NegoMessageType } from '../types/negoMessages.js'; // Adjusted import path
 
 // Define types for handlers and cleanup functions
-export type SpecificNegoHandler<K extends NegoMessageType> = (data: NegoMessageMap[K], cid: string) => void | Promise<void>;
+export type SpecificNegoHandler<K extends NegoMessageType> = (
+  data: NegoMessageMap[K],
+  cid: string
+) => void | Promise<void>;
 export type CleanupFunc = (cid?: string) => void;
 
 // Define the state interface for the store
@@ -16,7 +19,7 @@ interface AppState {
 // Initial state for the store
 const initialState: AppState = {
   negoHandlers: {},
-  cleanups: {},
+  cleanups: {}
 };
 
 // Create the Svelte store
@@ -33,12 +36,12 @@ export function registerNegoHandler<K extends NegoMessageType>(
   type: K,
   handler: SpecificNegoHandler<K>
 ): void {
-  appStateStore.update(state => ({
+  appStateStore.update((state) => ({
     ...state,
     negoHandlers: {
       ...state.negoHandlers,
-      [type]: handler, // Handler is now specifically typed
-    },
+      [type]: handler // Handler is now specifically typed
+    }
   }));
 }
 
@@ -62,12 +65,12 @@ export function getNegoHandler<K extends NegoMessageType>(
  * @param func - The cleanup function.
  */
 export function registerCleanup(name: string, func: CleanupFunc): void {
-  appStateStore.update(state => ({
+  appStateStore.update((state) => ({
     ...state,
     cleanups: {
       ...state.cleanups,
-      [name]: func,
-    },
+      [name]: func
+    }
   }));
 }
 
