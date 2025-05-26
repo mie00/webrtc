@@ -31,7 +31,6 @@
     showPasteText: false,
     currentOfferCid: null,
     isDuringInitialServerLoad: false,
-    soundNegotiationActive: false, // Ensure this is initialized in appLogicModuleState
   };
 
   // Other component specific state
@@ -242,14 +241,6 @@
       }
     }
   }
-
-  function handleToggleSoundNegotiation() {
-    if (appLogicInstance && appLogicInstance.handleToggleSoundNegotiation) {
-      appLogicInstance.handleToggleSoundNegotiation();
-    } else {
-      console.warn("handleToggleSoundNegotiation called, but not available on current appLogicInstance or instance is null");
-    }
-  }
 </script>
 
 <!-- 
@@ -267,7 +258,6 @@
     copyText={appLogicModuleState.copyText}
     qrCodeUrl={appLogicModuleState.qrCodeUrl}
     cid={appLogicModuleState.currentOfferCid}
-    soundNegotiationActive={appLogicModuleState.soundNegotiationActive}
     showAcceptButton={appLogicModuleState.showAcceptButton}
     showJoinButton={appLogicModuleState.showJoinButton}
     showCopyButton={appLogicModuleState.showCopyButton}
@@ -275,7 +265,6 @@
     close={() => setState({ showCopyOverlay: false })}
     openConfig={toggleConfigOverlay}
     reset={handleReset}
-    toggleSoundNegotiation={handleToggleSoundNegotiation}
     accept={(e) => {
       if (appLogicInstance && 'acceptHandler' in appLogicInstance && typeof appLogicInstance.acceptHandler === 'function') {
         appLogicInstance.acceptHandler(e.cid, e.pasteValue);

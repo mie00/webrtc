@@ -1,42 +1,23 @@
 import type { AppLogic, AppLogicContext, AppLogicState } from './appLogic.js';
 /// <reference path="../../../types/global.d.ts" />
-import { sendFSK, receiveFSK } from './utils/dsp.js';
+// import { connectionStore } from '../stores/connectionStore'; // For direct $connectionStore access if needed
 
 export class ClientLogic implements AppLogic {
   private context: AppLogicContext;
-  private soundIntervalId: ReturnType<typeof setInterval> | null = null;
 
   constructor(context: AppLogicContext) {
     this.context = context;
   }
 
-  private stopSoundNegotiationLogic(): void {
-    if (this.soundIntervalId) {
-      clearInterval(this.soundIntervalId);
-      this.soundIntervalId = null;
-    }
-    // TODO: Implement actual sound stopping (playback and listening)
-    console.log("Sound negotiation stopped.");
-    this.context.setState({ soundNegotiationActive: false });
-  }
-
   async initialize(urlParams: URLSearchParams): Promise<void> {
-    const { webRTCApp, decompress, setState, broadcastManuallyEnteredAnswer, config, getDirectClient, getState } = this.context;
+    const { webRTCApp, decompress, setState, broadcastManuallyEnteredAnswer, config, getDirectClient } = this.context;
     console.log("client logic initialize");
 
-    const isFromSoundNego = urlParams.get('sound_nego_source') === 'true';
-
-    if (isFromSoundNego && getState().soundNegotiationActive) {
-        // If we landed here due to sound negotiation, ensure the mode is considered active for this page load.
-        // This might already be true if App.svelte preserves state across soft navigations, but explicit is safer.
-        setState({ soundNegotiationActive: true });
-    }
-
     if (!urlParams.get('offer') && !urlParams.get('answer')) {
-      setState({ currentOfferCid: null, soundNegotiationActive: false }); // Ensure sound negotiation is off if starting fresh
+      setState({ currentOfferCid: null }); 
       const { offerCid } = await this.prepareOfferForClientModeDisplay();
       setState(currentVal => ({ ...currentVal, initialOverlayShown: true }));
-      if (offerCid && !isFromSoundNego) { // Only set up broadcast channel if not in sound negotiation context
+      if (offerCid) {
         const bc = new BroadcastChannel("manual_rtc");
         bc.onmessage = async (event) => {
           const data = event.data;
@@ -92,59 +73,37 @@ export class ClientLogic implements AppLogic {
       const offerParam = urlParams.get('offer');
       if (offerParam) {
         const offer = await decompress(offerParam);
-        
-        if (isFromSoundNego) {
-            setState(currentVal => ({
-                ...currentVal,
-                showCopyOverlay: true,
-                initialOverlayShown: true,
-                copyText: 'Received offer via sound. Generating and transmitting answer via sound...',
-                qrCodeUrl: '', // No QR code needed
-                showAcceptButton: false,
-                showPasteText: false,
-                showCopyButton: false,
-                soundNegotiationActive: true, // Explicitly set
-            }));
-        } else {
-            setState(currentVal => ({
-              ...currentVal,
-              showCopyOverlay: true,
-              initialOverlayShown: true,
-              showAcceptButton: false, // When receiving an offer URL, we generate an answer to share
-              showPasteText: false,
-              showCopyButton: true, // To copy the generated answer link
-            }));
-        }
+        setState(currentVal => ({
+          ...currentVal,
+          showCopyOverlay: true,
+          initialOverlayShown: true,
+          showAcceptButton: false, // When receiving an offer URL, we generate an answer to share
+          showPasteText: false,
+          showCopyButton: true, // To copy the generated answer link
+        }));
         
         let answererCid: string; 
         answererCid = await webRTCApp.getAnswer(offer, async (candidate: RTCIceCandidateInit | null) => {
-          if (Date.now() - now > 10 * 1000 && !isFromSoundNego) { return; } // Timeout for non-sound nego
-          if (!answererCid) return; 
+          if (Date.now() - now > 10 * 1000) { return; }
+          if (!answererCid) return; // Ensure answererCid is set
           const client = getDirectClient(answererCid);
           const sdp = client?.pc?.localDescription?.sdp;
           if (sdp) {
             const compressedAnswer = await this.context.compress(sdp);
-            if (isFromSoundNego) {
-              console.log("Sound Nego: Sending answer via sound:", compressedAnswer);
-              setState({ copyText: "Transmitting answer via sound. Please wait..." });
-              await sendFSK(compressedAnswer);
-              // After sending, the original offerer should pick this up.
-              // The connection will establish, then onconnectionstatechange 'connected' could stop sound.
-              // For now, we might leave soundNegotiationActive true until explicitly stopped or connection forms.
-              setState({ copyText: "Answer sent via sound. Listening for connection..." });
-            } else {
-              const answerUrlParams = new URLSearchParams(window.location.search); 
-              answerUrlParams.set('answer', compressedAnswer);
-              const newUrl = (config.general.configHost || window.location.origin) + window.location.pathname + '?' + answerUrlParams.toString();
-              setState(currentVal => ({
-                  ...currentVal,
-                  qrCodeUrl: newUrl,
-                  copyText: compressedAnswer,
-              }));
-              history.replaceState('', '', newUrl);
-            }
+            const answerUrlParams = new URLSearchParams(window.location.search); // Preserves original offer
+            answerUrlParams.set('answer', compressedAnswer);
+            const newUrl = (config.general.configHost || window.location.origin) + window.location.pathname + '?' + answerUrlParams.toString();
+            
+            setState(currentVal => ({
+                ...currentVal,
+                qrCodeUrl: newUrl,
+                copyText: compressedAnswer,
+            }));
+            history.replaceState('', '', newUrl);
           }
         }, { sid: '' }); 
+         // Store this CID if needed, though it's for an incoming offer handling
+         // setState({ currentOfferCid: answererCid }); // This might be confusing; currentOfferCid is for *outgoing* offers.
       }
     }
   }
@@ -256,116 +215,12 @@ export class ClientLogic implements AppLogic {
       if (client?.pc) {
         await client.pc.setRemoteDescription({ type: "answer", sdp: answer.trim() + '\n' });
         console.log("Successfully set remote description from pasted answer for CID:", targetCid);
-        setState({ showCopyOverlay: false, initialOverlayShown: false }); 
-        if (getState().soundNegotiationActive) {
-            this.stopSoundNegotiationLogic();
-            // UI should update to reflect connection, overlay already hidden.
-        }
+        setState({ showCopyOverlay: false, initialOverlayShown: false }); // Hide overlay on success
       } else {
         console.warn("Client or PeerConnection not found for CID:", targetCid, "when accepting pasted answer.");
       }
     } catch (e) {
       console.error("Error processing pasted answer for CID:", targetCid, e);
-    }
-  }
-
-  handleToggleSoundNegotiation(): void {
-    const { setState, getState } = this.context;
-    const currentSoundState = getState().soundNegotiationActive;
-
-    if (currentSoundState) {
-      this.stopSoundNegotiationLogic();
-      setState({ copyText: "Sound negotiation stopped.", showCopyOverlay: true, initialOverlayShown: false });
-      setTimeout(() => setState({ showCopyOverlay: false }), 2000); // Briefly show status
-    } else {
-      setState({ soundNegotiationActive: true, showCopyOverlay: true, initialOverlayShown: false, copyText: "Starting sound negotiation... Transmitting offer and listening for response..." });
-      
-      const listenForSound = async () => {
-        while (getState().soundNegotiationActive) {
-          try {
-            console.log("Sound Nego: Starting to listen for FSK data.");
-            const receivedData = await receiveFSK(15000); // Listen for up to 15 seconds
-            
-            if (!getState().soundNegotiationActive) {
-              console.log("Sound Nego: Stopped while waiting for sound data.");
-              break; 
-            }
-
-            console.log("Sound Nego: Received via sound:", receivedData);
-            // Process data only if it's not an error/timeout indicator from receiveFSK
-            if (receivedData && !receivedData.startsWith('[')) { 
-              await this.processSoundData(receivedData);
-              // If processSoundData leads to navigation or successful connection, 
-              // soundNegotiationActive will be set to false by other logic, breaking this loop.
-            } else {
-              console.log("Sound Nego: FSK data was an error/timeout indicator or empty, listening again if active.");
-            }
-          } catch (error) {
-            console.error("Sound Nego: Error in FSK listening cycle:", error);
-            if (!getState().soundNegotiationActive) break;
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait before retrying on error
-          }
-          if (!getState().soundNegotiationActive) break; 
-        }
-        console.log("Sound Nego: Listening loop ended.");
-      };
-      listenForSound(); // Start listening loop
-
-      const performOfferCycle = async () => {
-        if (!getState().soundNegotiationActive) return; 
-
-        console.log("Sound Nego: Preparing and sending offer via sound.");
-        await this.prepareOfferForClientModeDisplay(); // Generates and sets offer URL in state
-        const offerUrlToPlay = getState().qrCodeUrl;
-
-        if (offerUrlToPlay) {
-          setState({copyText: `Transmitting offer via sound, listening for response... (${new Date().toLocaleTimeString()})`, qrCodeUrl: offerUrlToPlay});
-          await sendFSK(offerUrlToPlay);
-          console.log("Sound Nego: Offer sent via sound:", offerUrlToPlay);
-          // Update UI to reflect that offer has been sent, still listening.
-          if(getState().soundNegotiationActive) { // Check if still active after potentially long sendFSK
-             setState({copyText: `Offer sent. Listening for response... (${new Date().toLocaleTimeString()})`});
-          }
-        } else {
-          console.warn("Sound Nego: No offer URL generated to send.");
-          if(getState().soundNegotiationActive) {
-             setState({copyText: `Failed to generate offer. Retrying...`});
-          }
-        }
-      };
-
-      performOfferCycle(); // Initial offer cycle
-      this.soundIntervalId = setInterval(performOfferCycle, 20000); // Repeat offer cycle every 20 seconds (adjust as needed)
-    }
-  }
-
-  async processSoundData(data: string): Promise<void> {
-    const { getState } = this.context;
-    console.log("Sound Nego: Received data via sound:", data);
-
-    if (!getState().soundNegotiationActive) {
-      console.log("Sound Nego: Ignoring sound data as negotiation is not active.");
-      return;
-    }
-
-    // Heuristic: if it looks like a URL, it's an offer. Otherwise, assume it's an answer.
-    // This needs to be robust in a real implementation (e.g., prefix data with type).
-    if (data.startsWith('http://') || data.startsWith('https://') || data.startsWith(this.context.config.general.configHost || window.location.origin)) {
-      console.log("Sound Nego: Interpreted sound data as an offer URL. Navigating...");
-      this.stopSoundNegotiationLogic(); // Stop current activities before navigating
-      // Append a parameter to indicate the source for the next page load
-      const navUrl = data + (data.includes('?') ? '&' : '?') + 'sound_nego_source=true';
-      window.location.href = navUrl;
-    } else {
-      // Assuming it's an answer (compressed SDP)
-      console.log("Sound Nego: Interpreted sound data as an answer. Attempting to accept...");
-      const currentOfferCid = getState().currentOfferCid;
-      if (currentOfferCid) {
-        await this.acceptHandler(currentOfferCid, data);
-        // acceptHandler will call stopSoundNegotiationLogic on success if soundNegotiationActive is true
-      } else {
-        console.warn("Sound Nego: Received an answer via sound, but no current offer CID is set.");
-      }
     }
   }
 }

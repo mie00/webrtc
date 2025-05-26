@@ -194,26 +194,6 @@ export class ServerLogic implements AppLogic {
     this.context.config = config;
   }
 
-  handleToggleSoundNegotiation(): void {
-    // Server logic does not implement sound negotiation
-    console.warn("Sound negotiation is not implemented for server mode.");
-    const { setState } = this.context;
-    setState({ 
-        showCopyOverlay: true, 
-        initialOverlayShown: false, 
-        copyText: "Sound negotiation is not available in server mode.",
-        showCopyButton: false,
-        showAcceptButton: false,
-        showPasteText: false,
-    });
-    setTimeout(() => setState({ showCopyOverlay: false }), 3000);
-  }
-
-  async processSoundData(data: string): Promise<void> {
-    // Server logic does not implement sound negotiation
-    console.warn("Sound negotiation (processSoundData) is not implemented for server mode. Data:", data);
-  }
-
   destroy(): void {
     if (this.socket) {
       if (this.socket.connected) {
