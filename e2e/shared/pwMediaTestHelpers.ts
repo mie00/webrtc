@@ -126,24 +126,24 @@ export async function teardownCameraTestMediaPw(): Promise<void> {
 // --- Watch Test Media ---
 export const WATCH_TEST_QR_CONTENT_PW = 'watch_test_qr_content_pw';
 const WATCH_VIDEO_FRAMES_PW = DEFAULT_AUDIO_DURATION_SECONDS * DEFAULT_VIDEO_FRAMERATE;
-const WATCH_TEMP_VIDEO_FILE_NAME_PW = 'watch_test_temp_video_qr_pw.mp4';
+const WATCH_TEMP_VIDEO_FILE_NAME_PW = 'watch_test_temp_video_qr_pw.webm'; // Changed from .mp4
 const WATCH_AUDIO_FILE_NAME_PW = 'watch_test_audio_chirp_pw.wav';
-export const WATCH_FINAL_MP4_FILE_NAME_PW = 'watch_test_combined_video_audio_pw.mp4';
+export const WATCH_FINAL_WEBM_FILE_NAME_PW = 'watch_test_combined_video_audio_pw.webm'; // Renamed and changed from .mp4
 
 const watchTestTempVideoPathPw = path.join(MEDIA_SETUP_DIR_PW, WATCH_TEMP_VIDEO_FILE_NAME_PW);
 const watchTestAudioPathPw = path.join(MEDIA_SETUP_DIR_PW, WATCH_AUDIO_FILE_NAME_PW);
-export const watchTestFinalMp4PathPw = path.join(MEDIA_SETUP_DIR_PW, WATCH_FINAL_MP4_FILE_NAME_PW);
+export const watchTestFinalWebmPathPw = path.join(MEDIA_SETUP_DIR_PW, WATCH_FINAL_WEBM_FILE_NAME_PW); // Renamed variable
 
 let watchTestTempVideoFramesDirPw: string | undefined;
-const watchTestFilesToCleanPw: string[] = [
+const watchTestFilesToCleanPw: string[] = [ // This array lists intermediate/final files for potential cleanup
   watchTestTempVideoPathPw,
   watchTestAudioPathPw,
-  watchTestFinalMp4PathPw
+  watchTestFinalWebmPathPw // Updated to new final file name
 ];
 
 export async function setupWatchTestMediaPw(): Promise<void> {
-  if (await fileExists(watchTestFinalMp4PathPw)) {
-    console.log(`Watch file ${watchTestFinalMp4PathPw} already exists. Skipping generation.`);
+  if (await fileExists(watchTestFinalWebmPathPw)) { // Updated to new final file name
+    console.log(`Watch file ${watchTestFinalWebmPathPw} already exists. Skipping generation.`); // Updated to new final file name
     return;
   }
   console.log('--- Generating test media for Watch Test (Playwright) ---');
@@ -175,11 +175,11 @@ export async function setupWatchTestMediaPw(): Promise<void> {
   await combineAudioAndVideo(
     watchTestTempVideoPathPw,
     watchTestAudioPathPw,
-    watchTestFinalMp4PathPw
+    watchTestFinalWebmPathPw // Updated to new final file name
   );
 }
 export async function teardownWatchTestMediaPw(): Promise<void> {
-  // Main watch video file (watchTestFinalMp4PathPw) is preserved.
+  // Main watch video file (watchTestFinalWebmPathPw) is preserved.
   // Intermediate files used for its creation are cleaned up.
   const intermediateFiles = [watchTestTempVideoPathPw, watchTestAudioPathPw];
   const dirsToClean = watchTestTempVideoFramesDirPw ? [watchTestTempVideoFramesDirPw] : [];
@@ -188,7 +188,7 @@ export async function teardownWatchTestMediaPw(): Promise<void> {
   if (dirsToClean.length > 0) {
     console.log(`Cleaning up temporary watch frames directory: ${watchTestTempVideoFramesDirPw}`);
   }
-  console.log(`Skipping cleanup of main watch video file: ${watchTestFinalMp4PathPw}`);
+  console.log(`Skipping cleanup of main watch video file: ${watchTestFinalWebmPathPw}`); // Updated to new final file name
   await cleanupMedia(intermediateFiles, dirsToClean);
   watchTestTempVideoFramesDirPw = undefined; // Reset
 }
@@ -537,8 +537,8 @@ export async function performWatchTestPw(
   // This input is visually hidden but can be interacted with.
   const fileInputElement = sender.page.locator(UPLOAD_VIDEO_INPUT_SELECTOR);
   // No need to wait for hidden:true, setInputFiles works on hidden inputs
-  await fileInputElement.setInputFiles(watchTestFinalMp4PathPw);
-  console.log(`${sender.name}: File "${watchTestFinalMp4PathPw}" selected for upload.`);
+  await fileInputElement.setInputFiles(watchTestFinalWebmPathPw); // Updated to new final file name
+  console.log(`${sender.name}: File "${watchTestFinalWebmPathPw}" selected for upload.`); // Updated to new final file name
   await expect(
     sender.page.locator(`${SHARE_VIDEO_BUTTON_SELECTOR}[class*="bg-blue-600"]`)
   ).toBeVisible({ timeout: getEffectiveTimeout(sender.page) });
