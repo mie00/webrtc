@@ -2,7 +2,9 @@
   import { onMount } from 'svelte';
   import { authStore, type AuthState } from '../stores/authStore.js';
   import { getConfigValue } from '../stores/configStore.js';
+  import ConfigOverlay from './ConfigOverlay.svelte';
 
+  let showConfigOverlay = $state(false);
   let currentAuthState: AuthState;
   authStore.subscribe((value) => {
     currentAuthState = value;
@@ -92,7 +94,19 @@
             (Dev) Logout / Clear Auth
           </button>
         </div>
+        <div class="items-center px-4 py-3">
+          <button
+            class="px-4 py-2 bg-yellow-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-300"
+            on:click={() => (showConfigOverlay = true)}
+          >
+            Open Configuration
+          </button>
+        </div>
       </div>
     </div>
   </div>
+{/if}
+
+{#if showConfigOverlay}
+  <ConfigOverlay show={showConfigOverlay} onclose={() => (showConfigOverlay = false)} />
 {/if}
