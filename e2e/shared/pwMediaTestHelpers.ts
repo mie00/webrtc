@@ -132,17 +132,22 @@ export const WATCH_FINAL_WEBM_FILE_NAME_PW = 'watch_test_combined_video_audio_pw
 
 const watchTestTempVideoPathPw = path.join(MEDIA_SETUP_DIR_PW, WATCH_TEMP_VIDEO_FILE_NAME_PW);
 const watchTestAudioPathPw = path.join(MEDIA_SETUP_DIR_PW, WATCH_AUDIO_FILE_NAME_PW);
-export const watchTestFinalWebmPathPw = path.join(MEDIA_SETUP_DIR_PW, WATCH_FINAL_WEBM_FILE_NAME_PW); // Renamed variable
+export const watchTestFinalWebmPathPw = path.join(
+  MEDIA_SETUP_DIR_PW,
+  WATCH_FINAL_WEBM_FILE_NAME_PW
+); // Renamed variable
 
 let watchTestTempVideoFramesDirPw: string | undefined;
-const watchTestFilesToCleanPw: string[] = [ // This array lists intermediate/final files for potential cleanup
+const watchTestFilesToCleanPw: string[] = [
+  // This array lists intermediate/final files for potential cleanup
   watchTestTempVideoPathPw,
   watchTestAudioPathPw,
   watchTestFinalWebmPathPw // Updated to new final file name
 ];
 
 export async function setupWatchTestMediaPw(): Promise<void> {
-  if (await fileExists(watchTestFinalWebmPathPw)) { // Updated to new final file name
+  if (await fileExists(watchTestFinalWebmPathPw)) {
+    // Updated to new final file name
     console.log(`Watch file ${watchTestFinalWebmPathPw} already exists. Skipping generation.`); // Updated to new final file name
     return;
   }
