@@ -17,6 +17,7 @@
 
   let currentProfileState: ProfileState;
   const unsubscribeProfile = profileStore.subscribe((value) => {
+
     currentProfileState = value;
   });
 
@@ -32,6 +33,7 @@
       unsubscribeProfile();
     }
   });
+
 </script>
 
 <AuthHandler />
