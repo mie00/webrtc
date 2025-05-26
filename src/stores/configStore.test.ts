@@ -15,7 +15,7 @@ import {
   type MediaConfig,
 } from './configStore';
 */
-import { get } from 'svelte/store';
+import { get, type Writable, type Readable } from 'svelte/store';
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -59,19 +59,26 @@ const defaultConfig = {
 
 describe('configStore', () => {
   // Type aliases for config structure using dynamic import type
-  type Config = import('./configStore').Config;
+  type Config = import('./configStore.js').Config;
   // type GeneralConfig = import('./configStore').GeneralConfig; // Not directly used for annotations
   // type RtcConfig = import('./configStore').RtcConfig;       // Not directly used for annotations
   // type MediaConfig = import('./configStore').MediaConfig;     // Not directly used for annotations
 
   // Variables to hold dynamically imported store and functions
-  let configStore: import('./configStore').configStore;
-  let updateConfig: import('./configStore').updateConfig;
-  let resetConfig: import('./configStore').resetConfig;
-  let isServerMode: import('./configStore').isServerMode;
-  let rtcServers: import('./configStore').rtcServers;
-  let getConfigValue: import('./configStore').getConfigValue;
-  let getAllConfig: import('./configStore').getAllConfig;
+  let configStore: Writable<Config>;
+  let updateConfig: <G extends keyof Config, K extends keyof Config[G]>(
+    group: G,
+    key: K,
+    value: Config[G][K]
+  ) => void;
+  let resetConfig: () => void;
+  let isServerMode: Readable<boolean>;
+  let rtcServers: Readable<{ iceServers: RTCIceServer[] }>;
+  let getConfigValue: <G extends keyof Config, K extends keyof Config[G]>(
+    group: G,
+    key: K
+  ) => Config[G][K];
+  let getAllConfig: () => Config;
 
   const CONFIG_STORAGE_KEY = 'dealer-config';
 
@@ -80,7 +87,7 @@ describe('configStore', () => {
     localStorageMock.clear();
 
     // Dynamically import the configStore module
-    const configModule = await import('./configStore');
+    const configModule = await import('./configStore.js');
     configStore = configModule.configStore;
     updateConfig = configModule.updateConfig;
     resetConfig = configModule.resetConfig;
@@ -133,7 +140,7 @@ describe('configStore', () => {
     // Force re-initialization of the store by resetting modules and re-importing.
     // This ensures loadInitialConfig() in configStore.ts runs again and picks up the new localStorage value.
     vi.resetModules();
-    const reloadedConfigModule = await import('./configStore');
+    const reloadedConfigModule = await import('./configStore.js');
     const localConfigStore = reloadedConfigModule.configStore; // This instance loaded from savedUserConfig
 
     const loadedConfig = get(localConfigStore);
@@ -223,7 +230,13 @@ describe('configStore', () => {
       // Update TURN server details
       updateConfig('rtc', 'turnPassword', 'securepass');
       servers = get(rtcServers);
-      const turnServer = servers.iceServers.find((s) => s.urls.startsWith('turn:'));
+      const turnServer = servers.iceServers.find((s) => {
+        if (typeof s.urls === 'string') {
+          return s.urls.startsWith('turn:');
+        } else {
+          return s.urls.some(url => url.startsWith('turn:'));
+        }
+      });
       expect(turnServer).toBeDefined();
       expect(turnServer?.username).toBe('mie');
       expect(turnServer?.credential).toBe('securepass');
@@ -231,12 +244,24 @@ describe('configStore', () => {
       // Remove TURN server by clearing password (as per logic in store)
       updateConfig('rtc', 'turnPassword', '');
       servers = get(rtcServers);
-      expect(servers.iceServers.some((s) => s.urls.startsWith('turn:'))).toBe(true); // TURN server still there but with empty credential
+      expect(servers.iceServers.some((s) => {
+        if (typeof s.urls === 'string') {
+          return s.urls.startsWith('turn:');
+        } else {
+          return s.urls.some(url => url.startsWith('turn:'));
+        }
+      })).toBe(true); // TURN server still there but with empty credential
 
       // Remove TURN by clearing username
       updateConfig('rtc', 'turnUsername', '');
       servers = get(rtcServers);
-      expect(servers.iceServers.some((s) => s.urls.startsWith('turn:'))).toBe(false);
+      expect(servers.iceServers.some((s) => {
+        if (typeof s.urls === 'string') {
+          return s.urls.startsWith('turn:');
+        } else {
+          return s.urls.some(url => url.startsWith('turn:'));
+        }
+      })).toBe(false);
     });
   });
 });

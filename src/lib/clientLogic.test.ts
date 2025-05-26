@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { ClientLogic } from './clientLogic';
-import type { AppLogicContext, AppLogicState } from './appLogic';
-import type { Config } from '../stores/configStore';
+import { ClientLogic } from './clientLogic.js';
+import type { AppLogicContext, AppLogicState } from './appLogic.js';
+import type { Config } from '../stores/configStore.js';
 // REMOVED: import { defaultConfig } from '../stores/configStore';
 
 // Mock BroadcastChannel
@@ -39,8 +39,8 @@ const mockContext: AppLogicContext = {
   webRTCApp: mockWebRTCApp as any,
   config: undefined as any, // Will be set in beforeEach
   getDirectClient: vi.fn(),
-  compress: vi.fn(async (sdp: string) => `compressed-${sdp}`),
-  decompress: vi.fn(async (text: string) => text.replace(/^compressed-/, '')),
+  compress: vi.fn((sdp: string | null | undefined) => sdp ? `compressed-${sdp}` : ''),
+  decompress: vi.fn((text: string) => text.replace(/^compressed-/, '')),
   getState: vi.fn(), // Will be set in beforeEach
   setState: vi.fn(), // Will be set in beforeEach
   appOnId: vi.fn(),
@@ -56,7 +56,7 @@ describe('ClientLogic', () => {
     // Make beforeEach async
     // Dynamically import defaultConfig to ensure we get the fresh, unmocked version
     const configStoreModule =
-      await vi.importActual<typeof import('../stores/configStore')>('../stores/configStore');
+      await vi.importActual<typeof import('../stores/configStore.js')>('../stores/configStore.js');
     actualDefaultConfig = configStoreModule.defaultConfig;
 
     if (typeof actualDefaultConfig === 'undefined') {
@@ -116,12 +116,12 @@ describe('ClientLogic', () => {
     mockContext.webRTCApp = mockWebRTCApp as any;
 
     // Other context functions
-    mockContext.getDirectClient.mockClear();
-    mockContext.compress = vi.fn(async (sdp: string) => `compressed-${sdp}`);
-    mockContext.decompress = vi.fn(async (text: string) => text.replace(/^compressed-/, ''));
-    mockContext.appOnId.mockClear();
-    mockContext.broadcastManuallyEnteredAnswer.mockClear();
-    mockContext.reportCriticalError.mockClear();
+    (mockContext.getDirectClient as any).mockClear();
+    mockContext.compress = vi.fn((sdp: string | null | undefined) => sdp ? `compressed-${sdp}` : '');
+    mockContext.decompress = vi.fn((text: string) => text.replace(/^compressed-/, ''));
+    (mockContext.appOnId as any).mockClear();
+    (mockContext.broadcastManuallyEnteredAnswer as any).mockClear();
+    (mockContext.reportCriticalError! as any).mockClear();
 
     clientLogic = new ClientLogic(mockContext);
   });
@@ -161,7 +161,7 @@ describe('ClientLogic', () => {
       const mockCid = 'mock-offer-cid';
       let iceCallback: ((candidate: any) => Promise<void>) | null = null;
 
-      mockContext.webRTCApp.getOffer.mockImplementation(async (cb: any, options: any) => {
+      (mockContext.webRTCApp.getOffer as any).mockImplementation(async (cb: any, options: any) => {
         iceCallback = cb; // Capture the ICE callback
         return mockCid; // Resolve with a mock CID
       });
@@ -170,14 +170,14 @@ describe('ClientLogic', () => {
         localDescription: { sdp: 'mockOfferSdp' }
       };
       const mockClient = { pc: mockClientPc };
-      mockContext.getDirectClient.mockReturnValue(mockClient as any);
+      (mockContext.getDirectClient as any).mockReturnValue(mockClient as any);
 
       await clientLogic.initialize(new URLSearchParams((vi.mocked(window).location as any).search));
 
       // Manually trigger the ICE callback
       expect(iceCallback).not.toBeNull();
       if (iceCallback) {
-        await iceCallback(null); // Simulate ICE gathering complete
+        await (iceCallback as any)(null); // Simulate ICE gathering complete
       }
 
       expect(mockContext.webRTCApp.getOffer).toHaveBeenCalledTimes(1);
@@ -208,11 +208,11 @@ describe('ClientLogic', () => {
       (vi.mocked(window).location as any).search = `?offer=${compressedOfferInUrl}`;
       const urlParams = new URLSearchParams((vi.mocked(window).location as any).search);
 
-      mockContext.decompress.mockResolvedValue(offerSdp);
+      (mockContext.decompress as any).mockResolvedValue(offerSdp);
 
       const mockAnswererCid = 'mock-answerer-cid';
       let answerIceCallback: ((candidate: any) => Promise<void>) | null = null;
-      mockContext.webRTCApp.getAnswer.mockImplementation(async (offer, cb, options) => {
+      (mockContext.webRTCApp.getAnswer as any).mockImplementation(async (offer: string, cb: (candidate: any) => Promise<void>, options: any) => {
         expect(offer).toBe(offerSdp);
         answerIceCallback = cb;
         return mockAnswererCid;
@@ -220,7 +220,7 @@ describe('ClientLogic', () => {
 
       const mockClientPc = { localDescription: { sdp: 'mockAnswerSdp' } };
       const mockClient = { pc: mockClientPc };
-      mockContext.getDirectClient.mockReturnValue(mockClient as any);
+      (mockContext.getDirectClient as any).mockReturnValue(mockClient as any);
 
       // mockContext.compress is already mocked in beforeEach to return `compressed-${sdp}`
 
@@ -229,7 +229,7 @@ describe('ClientLogic', () => {
       // Trigger ICE callback for getAnswer
       expect(answerIceCallback).not.toBeNull();
       if (answerIceCallback) {
-        await answerIceCallback(null);
+        await (answerIceCallback as any)(null);
       }
 
       expect(mockContext.decompress).toHaveBeenCalledWith(compressedOfferInUrl);
@@ -297,19 +297,19 @@ describe('ClientLogic', () => {
 
       const mockCid = 'mock-offer-cid-for-qr';
       let iceCallback: ((candidate: any) => Promise<void>) | null = null;
-      mockContext.webRTCApp.getOffer.mockImplementation(async (cb: any, options: any) => {
+      (mockContext.webRTCApp.getOffer as any).mockImplementation(async (cb: any, options: any) => {
         iceCallback = cb;
         return mockCid;
       });
       const mockClientPc = { localDescription: { sdp: 'mockOfferSdpForQr' } };
       const mockClient = { pc: mockClientPc };
-      mockContext.getDirectClient.mockReturnValue(mockClient as any);
+      (mockContext.getDirectClient as any).mockReturnValue(mockClient as any);
 
       await clientLogic.handleOpenQrRequest(urlParams);
 
       expect(iceCallback).not.toBeNull();
       if (iceCallback) {
-        await iceCallback(null);
+        await (iceCallback as any)(null);
       }
 
       expect(mockContext.setState).toHaveBeenCalledWith({ initialOverlayShown: false });
@@ -331,7 +331,7 @@ describe('ClientLogic', () => {
       const urlParams = new URLSearchParams('?offer=someoffer');
       (vi.mocked(window).location as any).search = '?offer=someoffer';
 
-      mockContext.appOnId.mockImplementation(() => {
+      (mockContext.appOnId as any).mockImplementation(() => {
         mockContext.setState({
           qrCodeUrl: 'http://localhost/testpath?offer=someoffer',
           copyText: 'http://localhost/testpath?offer=someoffer',
@@ -364,7 +364,7 @@ describe('ClientLogic', () => {
       // The `getState()` in handleOpenQrRequest happens before `appOnId()`
       mockAppLogicState.copyText = 'Call started on another tab, please close this one';
 
-      mockContext.appOnId.mockImplementation(() => {
+      (mockContext.appOnId as any).mockImplementation(() => {
         // appOnId might change copyText, but the check in handleOpenQrRequest uses the *old* one
         mockContext.setState({
           qrCodeUrl: 'http://localhost/testpath?answer=someanswer',
@@ -391,10 +391,10 @@ describe('ClientLogic', () => {
       const pastedAnswer = 'compressedAnswerValue '; // With trailing space for trim test
       const decompressedAnswer = 'decompressedAnswerValue';
 
-      mockContext.decompress.mockResolvedValue(decompressedAnswer);
+      (mockContext.decompress as any).mockResolvedValue(decompressedAnswer);
       const mockSetRemoteDescription = vi.fn().mockResolvedValue(undefined);
       const mockClient = { pc: { setRemoteDescription: mockSetRemoteDescription } };
-      mockContext.getDirectClient.mockReturnValue(mockClient as any);
+      (mockContext.getDirectClient as any).mockReturnValue(mockClient as any);
       // To ensure targetCid is resolved from cidFromEvent
       mockAppLogicState.currentOfferCid = null;
 
@@ -418,10 +418,10 @@ describe('ClientLogic', () => {
       const pastedAnswer = 'pastedSdp';
       const decompressedAnswer = 'decompressedSdp';
 
-      mockContext.decompress.mockResolvedValue(decompressedAnswer);
+      (mockContext.decompress as any).mockResolvedValue(decompressedAnswer);
       const mockSetRemoteDescription = vi.fn().mockResolvedValue(undefined);
       const mockClient = { pc: { setRemoteDescription: mockSetRemoteDescription } };
-      mockContext.getDirectClient.mockReturnValue(mockClient as any);
+      (mockContext.getDirectClient as any).mockReturnValue(mockClient as any);
 
       await clientLogic.acceptHandler(null, pastedAnswer);
 
@@ -469,8 +469,8 @@ describe('ClientLogic', () => {
     it('should warn if getDirectClient returns no client', async () => {
       const cid = 'test-cid';
       const pastedAnswer = 'pastedAnswer';
-      mockContext.decompress.mockResolvedValue('decompressedAnswer');
-      mockContext.getDirectClient.mockReturnValue(null);
+      (mockContext.decompress as any).mockResolvedValue('decompressedAnswer');
+      (mockContext.getDirectClient as any).mockReturnValue(null);
       const consoleWarnSpy = vi.spyOn(console, 'warn');
 
       await clientLogic.acceptHandler(cid, pastedAnswer);
@@ -489,8 +489,8 @@ describe('ClientLogic', () => {
     it('should warn if client.pc is null', async () => {
       const cid = 'test-cid';
       const pastedAnswer = 'pastedAnswer';
-      mockContext.decompress.mockResolvedValue('decompressedAnswer');
-      mockContext.getDirectClient.mockReturnValue({ pc: null } as any);
+      (mockContext.decompress as any).mockResolvedValue('decompressedAnswer');
+      (mockContext.getDirectClient as any).mockReturnValue({ pc: null } as any);
       const consoleWarnSpy = vi.spyOn(console, 'warn');
 
       await clientLogic.acceptHandler(cid, pastedAnswer);
@@ -510,7 +510,7 @@ describe('ClientLogic', () => {
       const cid = 'test-cid';
       const pastedAnswer = 'pastedAnswer';
       const decompressError = new Error('Decompression failed');
-      mockContext.decompress.mockRejectedValue(decompressError);
+      (mockContext.decompress as any).mockRejectedValue(decompressError);
       const consoleErrorSpy = vi.spyOn(console, 'error');
 
       await clientLogic.acceptHandler(cid, pastedAnswer);
@@ -532,10 +532,10 @@ describe('ClientLogic', () => {
       const decompressedAnswer = 'decompressedAnswer';
       const setError = new Error('Set remote failed');
 
-      mockContext.decompress.mockResolvedValue(decompressedAnswer);
+      (mockContext.decompress as any).mockResolvedValue(decompressedAnswer);
       const mockSetRemoteDescription = vi.fn().mockRejectedValue(setError);
       const mockClient = { pc: { setRemoteDescription: mockSetRemoteDescription } };
-      mockContext.getDirectClient.mockReturnValue(mockClient as any);
+      (mockContext.getDirectClient as any).mockReturnValue(mockClient as any);
       const consoleErrorSpy = vi.spyOn(console, 'error');
 
       await clientLogic.acceptHandler(cid, pastedAnswer);

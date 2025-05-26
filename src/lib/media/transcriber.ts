@@ -49,6 +49,7 @@ export interface TranscriptionSegment {
   beg: string; // From ASR, e.g., "0:00:00"
   end: string; // From ASR, e.g., "0:00:04"
   timestamp: number; // Message arrival timestamp, for tie-breaking in sort
+  final?: boolean; // Indicates if the segment is final (true) or interim (false)
 }
 
 export interface TranscriptionDisplayStoreState {

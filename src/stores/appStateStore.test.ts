@@ -7,7 +7,7 @@ import {
   resetAppStateStore,
   type SpecificNegoHandler,
   type CleanupFunc
-} from './appStateStore';
+} from './appStateStore.js';
 import type { NegoMessageType, NegoMessageMap } from '../types/negoMessages.js';
 
 describe('appStateStore', () => {
@@ -76,12 +76,12 @@ describe('appStateStore', () => {
 
   describe('resetAppStateStore', () => {
     it('should reset all negotiation handlers', () => {
-      const mockHandler: SpecificNegoHandler<'icecandidate'> = vi.fn();
-      registerNegoHandler('icecandidate', mockHandler);
-      expect(getNegoHandler('icecandidate')).toBeDefined(); // Ensure it's there before reset
+      const mockHandler: SpecificNegoHandler<'offer'> = vi.fn();
+      registerNegoHandler('offer', mockHandler);
+      expect(getNegoHandler('offer')).toBeDefined(); // Ensure it's there before reset
 
       resetAppStateStore();
-      const retrievedHandler = getNegoHandler('icecandidate');
+      const retrievedHandler = getNegoHandler('offer');
       expect(retrievedHandler).toBeUndefined();
     });
 
