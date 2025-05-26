@@ -125,13 +125,12 @@ export class ClientLogic implements AppLogic {
           if (sdp) {
             const compressedAnswer = await this.context.compress(sdp);
             if (isFromSoundNego) {
-              console.log("Sound Nego: Sending answer via sound:", compressedAnswer);
-              setState({ copyText: "Transmitting answer via sound. Please wait..." });
-              await sendFSK(compressedAnswer);
-              // After sending, the original offerer should pick this up.
+              console.log("Sound Nego: Playing answer via sound:", compressedAnswer);
+              // TODO: Implement playSound(compressedAnswer)
+              // After playing, the original offerer should pick this up.
               // The connection will establish, then onconnectionstatechange 'connected' could stop sound.
               // For now, we might leave soundNegotiationActive true until explicitly stopped or connection forms.
-              setState({ copyText: "Answer sent via sound. Listening for connection..." });
+              setState({ copyText: "Transmitting answer via sound. Listening for connection..." });
             } else {
               const answerUrlParams = new URLSearchParams(window.location.search); 
               answerUrlParams.set('answer', compressedAnswer);
