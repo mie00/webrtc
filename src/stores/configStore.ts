@@ -30,7 +30,7 @@ export interface Config {
 }
 
 // Default configuration
-const defaultConfig: Config = {
+export const defaultConfig: Config = {
   general: {
     configLoader: 'server',
     userName: '',
@@ -121,7 +121,10 @@ export const rtcServers = derived(configStore, ($config) => {
   const iceServers: RTCIceServer[] = [];
 
   // Add STUN servers
-  const stunServersList = $config.rtc.stunServers.split(',').filter((server) => server.trim());
+  const stunServersList = $config.rtc.stunServers
+    .split(',')
+    .map((s) => s.trim())
+    .filter((server) => server);
   for (const server of stunServersList) {
     iceServers.push({
       urls: `stun:${server}`
@@ -129,7 +132,11 @@ export const rtcServers = derived(configStore, ($config) => {
   }
 
   // Add TURN server if configured
-  if ($config.rtc.turnServerV2 && $config.rtc.turnUsername && $config.rtc.turnPassword) {
+  if (
+    $config.rtc.turnServerV2 &&
+    $config.rtc.turnUsername &&
+    typeof $config.rtc.turnPassword === 'string'
+  ) {
     iceServers.push({
       urls: `turn:${$config.rtc.turnServerV2}`,
       username: $config.rtc.turnUsername,

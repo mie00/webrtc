@@ -1,11 +1,15 @@
 import { render, fireEvent, screen } from '@testing-library/svelte';
+import '@testing-library/jest-dom';
 import { describe, it, expect, vi } from 'vitest';
 import ConfigOverlay from './ConfigOverlay.svelte';
 
 // Mock the configStore as it's used internally by the component
 vi.mock('../stores/configStore.ts', async () => {
   // Added async here
-  const { writable: actualWritable } = await vi.importActual('svelte/store'); // Import inside
+  const {
+    writable: actualWritable
+  }: { writable: <T>(value: T, start?: any) => import('svelte/store').Writable<T> } =
+    await vi.importActual('svelte/store'); // Import inside
   // Define the mock data structure
   const mockConfigData = {
     general: {
