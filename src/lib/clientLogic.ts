@@ -1,6 +1,6 @@
 import type { AppLogic, AppLogicContext, AppLogicState } from './appLogic.js';
 /// <reference path="../../../types/global.d.ts" />
-import { sendFSK, receiveFSK } from './utils/dsp.js';
+// import { connectionStore } from '../stores/connectionStore'; // For direct $connectionStore access if needed
 
 export class ClientLogic implements AppLogic {
   private context: AppLogicContext;
@@ -277,64 +277,32 @@ export class ClientLogic implements AppLogic {
       setState({ copyText: "Sound negotiation stopped.", showCopyOverlay: true, initialOverlayShown: false });
       setTimeout(() => setState({ showCopyOverlay: false }), 2000); // Briefly show status
     } else {
-      setState({ soundNegotiationActive: true, showCopyOverlay: true, initialOverlayShown: false, copyText: "Starting sound negotiation... Transmitting offer and listening for response..." });
+      setState({ soundNegotiationActive: true, showCopyOverlay: true, initialOverlayShown: false, copyText: "Starting sound negotiation... Playing offer and listening..." });
       
-      const listenForSound = async () => {
-        while (getState().soundNegotiationActive) {
-          try {
-            console.log("Sound Nego: Starting to listen for FSK data.");
-            const receivedData = await receiveFSK(15000); // Listen for up to 15 seconds
-            
-            if (!getState().soundNegotiationActive) {
-              console.log("Sound Nego: Stopped while waiting for sound data.");
-              break; 
-            }
-
-            console.log("Sound Nego: Received via sound:", receivedData);
-            // Process data only if it's not an error/timeout indicator from receiveFSK
-            if (receivedData && !receivedData.startsWith('[')) { 
-              await this.processSoundData(receivedData);
-              // If processSoundData leads to navigation or successful connection, 
-              // soundNegotiationActive will be set to false by other logic, breaking this loop.
-            } else {
-              console.log("Sound Nego: FSK data was an error/timeout indicator or empty, listening again if active.");
-            }
-          } catch (error) {
-            console.error("Sound Nego: Error in FSK listening cycle:", error);
-            if (!getState().soundNegotiationActive) break;
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait before retrying on error
-          }
-          if (!getState().soundNegotiationActive) break; 
-        }
-        console.log("Sound Nego: Listening loop ended.");
-      };
-      listenForSound(); // Start listening loop
+      // TODO: Start actual sound listening: startListeningSound(this.processSoundData.bind(this))
+      console.log("Sound Nego: Started listening for sound.");
 
       const performOfferCycle = async () => {
-        if (!getState().soundNegotiationActive) return; 
+        if (!getState().soundNegotiationActive) return; // Stop if deactivated
 
-        console.log("Sound Nego: Preparing and sending offer via sound.");
-        await this.prepareOfferForClientModeDisplay(); // Generates and sets offer URL in state
+        console.log("Sound Nego: Preparing and playing offer via sound.");
+        // Use prepareOfferForClientModeDisplay to generate and set offer URL in state
+        // It internally calls setState for qrCodeUrl and copyText
+        await this.prepareOfferForClientModeDisplay();
         const offerUrlToPlay = getState().qrCodeUrl;
 
         if (offerUrlToPlay) {
-          setState({copyText: `Transmitting offer via sound, listening for response... (${new Date().toLocaleTimeString()})`, qrCodeUrl: offerUrlToPlay});
-          await sendFSK(offerUrlToPlay);
-          console.log("Sound Nego: Offer sent via sound:", offerUrlToPlay);
-          // Update UI to reflect that offer has been sent, still listening.
-          if(getState().soundNegotiationActive) { // Check if still active after potentially long sendFSK
-             setState({copyText: `Offer sent. Listening for response... (${new Date().toLocaleTimeString()})`});
-          }
+          console.log("Sound Nego: Playing offer URL via sound:", offerUrlToPlay);
+          // TODO: Implement playSound(offerUrlToPlay)
+          setState({copyText: `Playing offer, listening... (${new Date().toLocaleTimeString()})`, qrCodeUrl: offerUrlToPlay});
         } else {
-          console.warn("Sound Nego: No offer URL generated to send.");
-          if(getState().soundNegotiationActive) {
-             setState({copyText: `Failed to generate offer. Retrying...`});
-          }
+          console.warn("Sound Nego: No offer URL generated to play.");
+           setState({copyText: `Failed to generate offer. Retrying...`});
         }
       };
 
-      performOfferCycle(); // Initial offer cycle
-      this.soundIntervalId = setInterval(performOfferCycle, 20000); // Repeat offer cycle every 20 seconds (adjust as needed)
+      performOfferCycle(); // Initial cycle
+      this.soundIntervalId = setInterval(performOfferCycle, 10000); // Repeat every 10 seconds
     }
   }
 
