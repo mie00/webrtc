@@ -181,8 +181,9 @@ export async function combineAudioAndVideo(
   }
   try {
     await fs.mkdir(path.dirname(outputMp4Path), { recursive: true });
-    const isInputMjpeg = videoInputPath.toLowerCase().endsWith('.mjpeg');
-    const videoCodecParams = isInputMjpeg ? '-c:v libx264 -pix_fmt yuv420p -crf 23' : '-c:v copy';
+    // Always re-encode video to H.264 (libx264) for maximum compatibility in MP4.
+    // yuv420p is a widely compatible pixel format. crf 23 is a good quality/size balance.
+    const videoCodecParams = '-c:v libx264 -pix_fmt yuv420p -crf 23';
     const ffmpegCommand = `ffmpeg -y -i "${videoInputPath}" -i "${audioInputPath}" ${videoCodecParams} -c:a flac -shortest "${outputMp4Path}"`;
 
     console.log(
