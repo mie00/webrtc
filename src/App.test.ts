@@ -23,16 +23,28 @@ const mockProfileStore = writable<MockProfileStoreState>({
 // Mock child components to isolate App.svelte logic
 vi.mock('./components/AuthHandler.svelte', () => ({
   default: (target: Element, anchor: Node | null, props?: any) => {
-
     const el = document.createElement('div');
     el.textContent = 'AuthHandlerMock';
     // Ensure target is a valid DOM element or a comment node for insertion
-    if (target && target.nodeType === 1 /* Node.ELEMENT_NODE */ && typeof target.insertBefore === 'function') {
+    if (
+      target &&
+      target.nodeType === 1 /* Node.ELEMENT_NODE */ &&
+      typeof target.insertBefore === 'function'
+    ) {
       target.insertBefore(el, anchor instanceof Node ? anchor : null);
-    } else if (target && (target.nodeType === 8 /* Node.COMMENT_NODE */ || target.nodeType === 3 /* Node.TEXT_NODE */) && target.parentNode && typeof target.parentNode.insertBefore === 'function') {
+    } else if (
+      target &&
+      (target.nodeType === 8 /* Node.COMMENT_NODE */ ||
+        target.nodeType === 3) /* Node.TEXT_NODE */ &&
+      target.parentNode &&
+      typeof target.parentNode.insertBefore === 'function'
+    ) {
       target.parentNode.insertBefore(el, target.nextSibling);
     } else {
-      console.error('[MOCK] AuthHandler: Invalid target for DOM manipulation or parentNode missing', { target, anchor });
+      console.error(
+        '[MOCK] AuthHandler: Invalid target for DOM manipulation or parentNode missing',
+        { target, anchor }
+      );
     }
     return {
       update: vi.fn((newProps: any) => {
@@ -48,15 +60,27 @@ vi.mock('./components/AuthHandler.svelte', () => ({
 }));
 vi.mock('./components/MainAppRouter.svelte', () => ({
   default: (target: Element, anchor: Node | null, props?: any) => {
-
     const el = document.createElement('div');
     el.textContent = 'MainAppRouterMock';
-    if (target && target.nodeType === 1 /* Node.ELEMENT_NODE */ && typeof target.insertBefore === 'function') {
+    if (
+      target &&
+      target.nodeType === 1 /* Node.ELEMENT_NODE */ &&
+      typeof target.insertBefore === 'function'
+    ) {
       target.insertBefore(el, anchor instanceof Node ? anchor : null);
-    } else if (target && (target.nodeType === 8 /* Node.COMMENT_NODE */ || target.nodeType === 3 /* Node.TEXT_NODE */) && target.parentNode && typeof target.parentNode.insertBefore === 'function') {
+    } else if (
+      target &&
+      (target.nodeType === 8 /* Node.COMMENT_NODE */ ||
+        target.nodeType === 3) /* Node.TEXT_NODE */ &&
+      target.parentNode &&
+      typeof target.parentNode.insertBefore === 'function'
+    ) {
       target.parentNode.insertBefore(el, target.nextSibling);
     } else {
-      console.error('[MOCK] MainAppRouter: Invalid target for DOM manipulation or parentNode missing', { target, anchor });
+      console.error(
+        '[MOCK] MainAppRouter: Invalid target for DOM manipulation or parentNode missing',
+        { target, anchor }
+      );
     }
     return {
       update: vi.fn(),
@@ -68,15 +92,27 @@ vi.mock('./components/MainAppRouter.svelte', () => ({
 }));
 vi.mock('./components/ProfileSetup.svelte', () => ({
   default: (target: Element, anchor: Node | null, props?: any) => {
-
     const el = document.createElement('div');
     el.textContent = 'ProfileSetupMock';
-    if (target && target.nodeType === 1 /* Node.ELEMENT_NODE */ && typeof target.insertBefore === 'function') {
+    if (
+      target &&
+      target.nodeType === 1 /* Node.ELEMENT_NODE */ &&
+      typeof target.insertBefore === 'function'
+    ) {
       target.insertBefore(el, anchor instanceof Node ? anchor : null);
-    } else if (target && (target.nodeType === 8 /* Node.COMMENT_NODE */ || target.nodeType === 3 /* Node.TEXT_NODE */) && target.parentNode && typeof target.parentNode.insertBefore === 'function') {
+    } else if (
+      target &&
+      (target.nodeType === 8 /* Node.COMMENT_NODE */ ||
+        target.nodeType === 3) /* Node.TEXT_NODE */ &&
+      target.parentNode &&
+      typeof target.parentNode.insertBefore === 'function'
+    ) {
       target.parentNode.insertBefore(el, target.nextSibling);
     } else {
-      console.error('[MOCK] ProfileSetup: Invalid target for DOM manipulation or parentNode missing', { target, anchor });
+      console.error(
+        '[MOCK] ProfileSetup: Invalid target for DOM manipulation or parentNode missing',
+        { target, anchor }
+      );
     }
     return {
       update: vi.fn(),
