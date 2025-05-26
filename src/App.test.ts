@@ -1,4 +1,5 @@
 import { render, screen, cleanup } from '@testing-library/svelte';
+import { tick } from 'svelte';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { writable } from 'svelte/store';
 
@@ -22,16 +23,16 @@ const mockProfileStore = writable<MockProfileStoreState>({
 // Mock child components to isolate App.svelte logic
 vi.mock('./components/AuthHandler.svelte', () => ({
   default: (target: Element, anchor: Node | null, props?: any) => {
-    console.log('[MOCK] AuthHandler DIRECT RENDERER called with:', { target, anchor, props });
+
     const el = document.createElement('div');
     el.textContent = 'AuthHandlerMock';
-    // Ensure target is a valid DOM element before attempting to use it
-    if (target && typeof target.insertBefore === 'function') {
-      target.insertBefore(el, anchor);
+    // Ensure target is a valid DOM element or a comment node for insertion
+    if (target && target.nodeType === 1 /* Node.ELEMENT_NODE */ && typeof target.insertBefore === 'function') {
+      target.insertBefore(el, anchor instanceof Node ? anchor : null);
+    } else if (target && (target.nodeType === 8 /* Node.COMMENT_NODE */ || target.nodeType === 3 /* Node.TEXT_NODE */) && target.parentNode && typeof target.parentNode.insertBefore === 'function') {
+      target.parentNode.insertBefore(el, target.nextSibling);
     } else {
-      console.error('[MOCK] AuthHandler: Invalid target in direct renderer call', target);
-      // If target is invalid, the mock cannot render, but we avoid a crash.
-      // The test will fail due to missing text, which is informative.
+      console.error('[MOCK] AuthHandler: Invalid target for DOM manipulation or parentNode missing', { target, anchor });
     }
     return {
       update: vi.fn((newProps: any) => {
@@ -47,13 +48,15 @@ vi.mock('./components/AuthHandler.svelte', () => ({
 }));
 vi.mock('./components/MainAppRouter.svelte', () => ({
   default: (target: Element, anchor: Node | null, props?: any) => {
-    // console.log('[MOCK] MainAppRouter DIRECT RENDERER called with:', { target, anchor, props });
+
     const el = document.createElement('div');
     el.textContent = 'MainAppRouterMock';
-    if (target && typeof target.insertBefore === 'function') {
-      target.insertBefore(el, anchor);
+    if (target && target.nodeType === 1 /* Node.ELEMENT_NODE */ && typeof target.insertBefore === 'function') {
+      target.insertBefore(el, anchor instanceof Node ? anchor : null);
+    } else if (target && (target.nodeType === 8 /* Node.COMMENT_NODE */ || target.nodeType === 3 /* Node.TEXT_NODE */) && target.parentNode && typeof target.parentNode.insertBefore === 'function') {
+      target.parentNode.insertBefore(el, target.nextSibling);
     } else {
-      // console.error('[MOCK] MainAppRouter: Invalid target in direct renderer call', target);
+      console.error('[MOCK] MainAppRouter: Invalid target for DOM manipulation or parentNode missing', { target, anchor });
     }
     return {
       update: vi.fn(),
@@ -65,13 +68,15 @@ vi.mock('./components/MainAppRouter.svelte', () => ({
 }));
 vi.mock('./components/ProfileSetup.svelte', () => ({
   default: (target: Element, anchor: Node | null, props?: any) => {
-    // console.log('[MOCK] ProfileSetup DIRECT RENDERER called with:', { target, anchor, props });
+
     const el = document.createElement('div');
     el.textContent = 'ProfileSetupMock';
-    if (target && typeof target.insertBefore === 'function') {
-      target.insertBefore(el, anchor);
+    if (target && target.nodeType === 1 /* Node.ELEMENT_NODE */ && typeof target.insertBefore === 'function') {
+      target.insertBefore(el, anchor instanceof Node ? anchor : null);
+    } else if (target && (target.nodeType === 8 /* Node.COMMENT_NODE */ || target.nodeType === 3 /* Node.TEXT_NODE */) && target.parentNode && typeof target.parentNode.insertBefore === 'function') {
+      target.parentNode.insertBefore(el, target.nextSibling);
     } else {
-      // console.error('[MOCK] ProfileSetup: Invalid target in direct renderer call', target);
+      console.error('[MOCK] ProfileSetup: Invalid target for DOM manipulation or parentNode missing', { target, anchor });
     }
     return {
       update: vi.fn(),
@@ -126,17 +131,19 @@ describe('App.svelte', () => {
     expect(screen.getByText('AuthHandlerMock')).toBeInTheDocument();
   });
 
-  it('renders ProfileSetup when authenticated but profile is not complete', () => {
+  it('renders ProfileSetup when authenticated but profile is not complete', async () => {
     mockAuthStore.set({ jwt: 'test-jwt', error: null, user: { id: 'test' } });
     mockProfileStore.set({ isProfileComplete: false, profile: null });
     render(App);
+    await tick();
     expect(screen.getByText('ProfileSetupMock')).toBeInTheDocument();
   });
 
-  it('renders MainAppRouter when authenticated and profile is complete', () => {
+  it('renders MainAppRouter when authenticated and profile is complete', async () => {
     mockAuthStore.set({ jwt: 'test-jwt', error: null, user: { id: 'test' } });
     mockProfileStore.set({ isProfileComplete: true, profile: { userName: 'TestUser' } });
     render(App);
+    await tick();
     expect(screen.getByText('MainAppRouterMock')).toBeInTheDocument();
   });
 
