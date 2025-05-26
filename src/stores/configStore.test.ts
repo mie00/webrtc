@@ -234,7 +234,7 @@ describe('configStore', () => {
         if (typeof s.urls === 'string') {
           return s.urls.startsWith('turn:');
         } else {
-          return s.urls.some(url => url.startsWith('turn:'));
+          return s.urls.some((url) => url.startsWith('turn:'));
         }
       });
       expect(turnServer).toBeDefined();
@@ -244,24 +244,28 @@ describe('configStore', () => {
       // Remove TURN server by clearing password (as per logic in store)
       updateConfig('rtc', 'turnPassword', '');
       servers = get(rtcServers);
-      expect(servers.iceServers.some((s) => {
-        if (typeof s.urls === 'string') {
-          return s.urls.startsWith('turn:');
-        } else {
-          return s.urls.some(url => url.startsWith('turn:'));
-        }
-      })).toBe(true); // TURN server still there but with empty credential
+      expect(
+        servers.iceServers.some((s) => {
+          if (typeof s.urls === 'string') {
+            return s.urls.startsWith('turn:');
+          } else {
+            return s.urls.some((url) => url.startsWith('turn:'));
+          }
+        })
+      ).toBe(true); // TURN server still there but with empty credential
 
       // Remove TURN by clearing username
       updateConfig('rtc', 'turnUsername', '');
       servers = get(rtcServers);
-      expect(servers.iceServers.some((s) => {
-        if (typeof s.urls === 'string') {
-          return s.urls.startsWith('turn:');
-        } else {
-          return s.urls.some(url => url.startsWith('turn:'));
-        }
-      })).toBe(false);
+      expect(
+        servers.iceServers.some((s) => {
+          if (typeof s.urls === 'string') {
+            return s.urls.startsWith('turn:');
+          } else {
+            return s.urls.some((url) => url.startsWith('turn:'));
+          }
+        })
+      ).toBe(false);
     });
   });
 });

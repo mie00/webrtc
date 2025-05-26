@@ -7,7 +7,7 @@ import { PW_TIMEOUT } from './setup/pwTestHelpers';
 test.describe('WebRTC Watch (Share Video File) E2E Test with Playwright (2 Peers) @media', () => {
   test.skip(
     ({ browserName }) => browserName === 'webkit',
-    'Watch tests are skipped on WebKit browsers (Safari/iOS)'
+    "Watch tests are skipped on WebKit browsers (Safari/iOS), videoElement.captureStream doesn't work"
   );
   // Increased timeout for media generation, upload, and analysis
   test.setTimeout(PW_TIMEOUT * 12); // Adjusted timeout

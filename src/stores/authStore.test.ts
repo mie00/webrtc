@@ -66,7 +66,6 @@ interface AuthStoreType extends Pick<Writable<AuthState>, 'subscribe'> {
 // For now, we'll rely on logout() and clearing localStorage for most reset needs.
 
 describe('authStore', () => {
-
   let authStore: AuthStoreType; // To hold the dynamically imported authStore instance
   // Add other module exports here if needed, e.g.:
   // let verifyLoginJWT: any;

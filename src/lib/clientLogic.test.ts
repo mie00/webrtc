@@ -39,7 +39,7 @@ const mockContext: AppLogicContext = {
   webRTCApp: mockWebRTCApp as any,
   config: undefined as any, // Will be set in beforeEach
   getDirectClient: vi.fn(),
-  compress: vi.fn((sdp: string | null | undefined) => sdp ? `compressed-${sdp}` : ''),
+  compress: vi.fn((sdp: string | null | undefined) => (sdp ? `compressed-${sdp}` : '')),
   decompress: vi.fn((text: string) => text.replace(/^compressed-/, '')),
   getState: vi.fn(), // Will be set in beforeEach
   setState: vi.fn(), // Will be set in beforeEach
@@ -55,8 +55,9 @@ describe('ClientLogic', () => {
   beforeEach(async () => {
     // Make beforeEach async
     // Dynamically import defaultConfig to ensure we get the fresh, unmocked version
-    const configStoreModule =
-      await vi.importActual<typeof import('../stores/configStore.js')>('../stores/configStore.js');
+    const configStoreModule = await vi.importActual<typeof import('../stores/configStore.js')>(
+      '../stores/configStore.js'
+    );
     actualDefaultConfig = configStoreModule.defaultConfig;
 
     if (typeof actualDefaultConfig === 'undefined') {
@@ -117,7 +118,9 @@ describe('ClientLogic', () => {
 
     // Other context functions
     (mockContext.getDirectClient as any).mockClear();
-    mockContext.compress = vi.fn((sdp: string | null | undefined) => sdp ? `compressed-${sdp}` : '');
+    mockContext.compress = vi.fn((sdp: string | null | undefined) =>
+      sdp ? `compressed-${sdp}` : ''
+    );
     mockContext.decompress = vi.fn((text: string) => text.replace(/^compressed-/, ''));
     (mockContext.appOnId as any).mockClear();
     (mockContext.broadcastManuallyEnteredAnswer as any).mockClear();
@@ -212,11 +215,13 @@ describe('ClientLogic', () => {
 
       const mockAnswererCid = 'mock-answerer-cid';
       let answerIceCallback: ((candidate: any) => Promise<void>) | null = null;
-      (mockContext.webRTCApp.getAnswer as any).mockImplementation(async (offer: string, cb: (candidate: any) => Promise<void>, options: any) => {
-        expect(offer).toBe(offerSdp);
-        answerIceCallback = cb;
-        return mockAnswererCid;
-      });
+      (mockContext.webRTCApp.getAnswer as any).mockImplementation(
+        async (offer: string, cb: (candidate: any) => Promise<void>, options: any) => {
+          expect(offer).toBe(offerSdp);
+          answerIceCallback = cb;
+          return mockAnswererCid;
+        }
+      );
 
       const mockClientPc = { localDescription: { sdp: 'mockAnswerSdp' } };
       const mockClient = { pc: mockClientPc };

@@ -14,7 +14,10 @@ interface MockProfileStoreState {
 }
 
 const mockAuthStore = writable<MockAuthStoreState>({ jwt: null, error: null, user: null });
-const mockProfileStore = writable<MockProfileStoreState>({ isProfileComplete: false, profile: null });
+const mockProfileStore = writable<MockProfileStoreState>({
+  isProfileComplete: false,
+  profile: null
+});
 
 // Mock child components to isolate App.svelte logic
 vi.mock('./components/AuthHandler.svelte', () => ({
