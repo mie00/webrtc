@@ -20,16 +20,16 @@ vi.mock('./components/AuthHandler.svelte', () => ({
       // The test will fail due to missing text, which is informative.
     }
     return {
-      update: vi.fn((newProps: any) => { 
+      update: vi.fn((newProps: any) => {
         // console.log('[MOCK] AuthHandler update', newProps);
         // If props were actually passed and used, handle updates here.
       }),
-      destroy: vi.fn(() => { 
-        // console.log('[MOCK] AuthHandler destroy'); 
-        if (el.parentNode) el.remove(); 
-      }),
+      destroy: vi.fn(() => {
+        // console.log('[MOCK] AuthHandler destroy');
+        if (el.parentNode) el.remove();
+      })
     };
-  },
+  }
 }));
 vi.mock('./components/MainAppRouter.svelte', () => ({
   default: (target: Element, anchor: Node | null, props?: any) => {
@@ -43,9 +43,11 @@ vi.mock('./components/MainAppRouter.svelte', () => ({
     }
     return {
       update: vi.fn(),
-      destroy: vi.fn(() => { if (el.parentNode) el.remove(); }),
+      destroy: vi.fn(() => {
+        if (el.parentNode) el.remove();
+      })
     };
-  },
+  }
 }));
 vi.mock('./components/ProfileSetup.svelte', () => ({
   default: (target: Element, anchor: Node | null, props?: any) => {
@@ -59,26 +61,28 @@ vi.mock('./components/ProfileSetup.svelte', () => ({
     }
     return {
       update: vi.fn(),
-      destroy: vi.fn(() => { if (el.parentNode) el.remove(); }),
+      destroy: vi.fn(() => {
+        if (el.parentNode) el.remove();
+      })
     };
-  },
+  }
 }));
 
 // Mock stores
 
 vi.mock('./stores/authStore.js', () => ({
-  authStore: mockAuthStore,
+  authStore: mockAuthStore
 }));
 
 vi.mock('./stores/profileStore.js', () => ({
-  profileStore: mockProfileStore,
+  profileStore: mockProfileStore
 }));
 
 // Mock WebRTCApp
 vi.mock('./lib/webrtc/WebRTCApp.js', () => ({
   WebRTCApp: vi.fn().mockImplementation(() => ({
     // Mock any methods used by App.svelte if necessary
-  })),
+  }))
 }));
 
 describe('App.svelte', () => {
@@ -92,7 +96,7 @@ describe('App.svelte', () => {
     // Reset window.location.pathname for consistent testing
     Object.defineProperty(window, 'location', {
       value: { pathname: '/' },
-      writable: true,
+      writable: true
     });
   });
 
@@ -132,7 +136,7 @@ describe('App.svelte', () => {
   it('does not render ProfileSetup or MainAppRouter on /cb path even if authenticated', () => {
     Object.defineProperty(window, 'location', {
       value: { pathname: '/cb' },
-      writable: true,
+      writable: true
     });
     mockAuthStore.set({ jwt: 'test-jwt', error: null, user: { id: 'test' } });
     mockProfileStore.set({ isProfileComplete: true, profile: { userName: 'TestUser' } });
@@ -140,5 +144,4 @@ describe('App.svelte', () => {
     expect(screen.queryByText('ProfileSetupMock')).not.toBeInTheDocument();
     expect(screen.queryByText('MainAppRouterMock')).not.toBeInTheDocument();
   });
-
 });

@@ -20,7 +20,6 @@ export class ClientLogic implements AppLogic {
     } = this.context;
     console.log('client logic initialize');
 
-
     if (!urlParams.get('offer') && !urlParams.get('answer')) {
       setState({ currentOfferCid: null });
       const { offerCid } = await this.prepareOfferForClientModeDisplay();

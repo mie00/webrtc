@@ -12,7 +12,7 @@ describe('ActivityFeed.svelte', () => {
     combinedFeed: [],
     localUserName: mockLocalUserName,
     showCompletedTranscriptions: true,
-    onOpenMediaCarousel: mockOnOpenMediaCarousel,
+    onOpenMediaCarousel: mockOnOpenMediaCarousel
   };
 
   it('renders empty state when combinedFeed is empty', () => {
@@ -27,8 +27,8 @@ describe('ActivityFeed.svelte', () => {
         type: 'chat',
         sender: mockLocalUserName,
         timestamp: Date.now(),
-        text: 'Hello from local user',
-      },
+        text: 'Hello from local user'
+      }
     ];
     render(ActivityFeed, { ...defaultProps, combinedFeed: feed });
     expect(screen.getByText('Hello from local user')).toBeInTheDocument();
@@ -45,8 +45,8 @@ describe('ActivityFeed.svelte', () => {
         sender: 'RemoteUser',
         timestamp: Date.now(),
         text: 'Hello from remote user',
-        cid: 'remoteCID123',
-      },
+        cid: 'remoteCID123'
+      }
     ];
     render(ActivityFeed, { ...defaultProps, combinedFeed: feed });
     expect(screen.getByText('Hello from remote user')).toBeInTheDocument();
@@ -69,9 +69,9 @@ describe('ActivityFeed.svelte', () => {
           status: 'complete',
           progress: 100,
           isLocal: false,
-          url: 'blob:http://localhost/some-uuid',
-        },
-      },
+          url: 'blob:http://localhost/some-uuid'
+        }
+      }
     ];
     render(ActivityFeed, { ...defaultProps, combinedFeed: feed });
     expect(screen.getByText('testfile.txt')).toBeInTheDocument();
@@ -93,9 +93,9 @@ describe('ActivityFeed.svelte', () => {
           size: 102400,
           status: 'sending',
           progress: 50,
-          isLocal: true,
-        },
-      },
+          isLocal: true
+        }
+      }
     ];
     render(ActivityFeed, { ...defaultProps, combinedFeed: feed });
     expect(screen.getByText('bigfile.zip')).toBeInTheDocument();
@@ -116,9 +116,9 @@ describe('ActivityFeed.svelte', () => {
           text: 'This is a transcribed segment.',
           beg: 0,
           end: 5000,
-          final: true,
-        },
-      },
+          final: true
+        }
+      }
     ];
     render(ActivityFeed, { ...defaultProps, combinedFeed: feed });
     expect(screen.getByText('This is a transcribed segment.')).toBeInTheDocument();
@@ -137,11 +137,15 @@ describe('ActivityFeed.svelte', () => {
           text: 'Another transcribed segment.',
           beg: 0,
           end: 3000,
-          final: true,
-        },
-      },
+          final: true
+        }
+      }
     ];
-    render(ActivityFeed, { ...defaultProps, combinedFeed: feed, showCompletedTranscriptions: false });
+    render(ActivityFeed, {
+      ...defaultProps,
+      combinedFeed: feed,
+      showCompletedTranscriptions: false
+    });
     expect(screen.queryByText('Another transcribed segment.')).not.toBeInTheDocument();
   });
 
@@ -158,13 +162,15 @@ describe('ActivityFeed.svelte', () => {
         status: 'complete',
         progress: 100,
         isLocal: false,
-        url: 'blob:http://localhost/video-uuid',
+        url: 'blob:http://localhost/video-uuid'
       },
-      cid: 'videoCID',
+      cid: 'videoCID'
     };
     render(ActivityFeed, { ...defaultProps, combinedFeed: [videoFileItem] });
 
-    const videoElementContainer = screen.getByLabelText(`View video: ${videoFileItem.transfer!.name}`);
+    const videoElementContainer = screen.getByLabelText(
+      `View video: ${videoFileItem.transfer!.name}`
+    );
     await fireEvent.click(videoElementContainer);
 
     expect(mockOnOpenMediaCarousel).toHaveBeenCalledTimes(1);
@@ -174,9 +180,11 @@ describe('ActivityFeed.svelte', () => {
       sender: videoFileItem.sender,
       timestamp: videoFileItem.timestamp,
       transfer: videoFileItem.transfer as any, // Cast because of specific type in CarouselMediaItem
-      cid: videoFileItem.cid,
+      cid: videoFileItem.cid
     };
-    expect(mockOnOpenMediaCarousel).toHaveBeenCalledWith(expect.objectContaining(expectedCarouselItem));
+    expect(mockOnOpenMediaCarousel).toHaveBeenCalledWith(
+      expect.objectContaining(expectedCarouselItem)
+    );
   });
 
   // Add more tests for image clicks, different file statuses, error states, etc.

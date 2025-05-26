@@ -123,7 +123,6 @@ export function sendChatMessage(message: string, sender: string = 'You'): void {
   }
 }
 
-
 export class ChatBridge {
   private chatHistory: ChatState['messages'];
 
@@ -148,4 +147,3 @@ export class ChatBridge {
   //   // this.context = context;
   // }
 }
-

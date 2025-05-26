@@ -30,7 +30,7 @@ const localStorageMock = (() => {
     },
     clear: () => {
       store = {};
-    },
+    }
   };
 })();
 
@@ -42,23 +42,22 @@ const defaultConfig = {
     userName: '',
     configHost: '',
     identityProviderHost: 'https://xauth.mie00.com',
-    coordinatorUrl: 'ws://127.0.0.1:5001',
+    coordinatorUrl: 'ws://127.0.0.1:5001'
   },
   rtc: {
     stunServers: 'dealer.mie00.com:3478',
     turnServerV2: 'dealer.mie00.com:5349',
     turnUsername: 'mie',
-    turnPassword: '',
+    turnPassword: ''
   },
   media: {
     blurVideo: 'no',
     audioDevice: 'default|default',
-    videoDevice: 'default|default',
+    videoDevice: 'default|default'
   }
 };
 
 describe('configStore', () => {
-
   // Type aliases for config structure using dynamic import type
   type Config = import('./configStore').Config;
   // type GeneralConfig = import('./configStore').GeneralConfig; // Not directly used for annotations
@@ -76,7 +75,8 @@ describe('configStore', () => {
 
   const CONFIG_STORAGE_KEY = 'dealer-config';
 
-  beforeEach(async () => { // Make async
+  beforeEach(async () => {
+    // Make async
     localStorageMock.clear();
 
     // Dynamically import the configStore module
@@ -113,19 +113,19 @@ describe('configStore', () => {
         ...defaultConfig.general,
         configLoader: 'client',
         userName: 'LoadedUserFromStorage',
-        coordinatorUrl: 'ws://loaded.coord.com',
+        coordinatorUrl: 'ws://loaded.coord.com'
       },
       rtc: {
         ...defaultConfig.rtc,
         stunServers: 'stun:new.stun.com, stun:another.stun.com',
         turnServerV2: 'turn:new.turn.com:3478',
         turnUsername: 'loadedTurnUser',
-        turnPassword: 'loadedTurnPassword',
+        turnPassword: 'loadedTurnPassword'
       },
       media: {
         ...defaultConfig.media,
         blurVideo: 'yes',
-        audioDevice: 'loadedAudioDevice',
+        audioDevice: 'loadedAudioDevice'
       }
     };
     localStorageMock.setItem(CONFIG_STORAGE_KEY, JSON.stringify(savedUserConfig));
@@ -147,7 +147,7 @@ describe('configStore', () => {
     expect(loadedConfig.rtc.turnServerV2).toBe('turn:new.turn.com:3478');
     expect(loadedConfig.rtc.turnUsername).toBe('loadedTurnUser');
     expect(loadedConfig.rtc.turnPassword).toBe('loadedTurnPassword');
-    
+
     expect(loadedConfig.media.blurVideo).toBe('yes');
     expect(loadedConfig.media.audioDevice).toBe('loadedAudioDevice');
 
@@ -160,7 +160,9 @@ describe('configStore', () => {
     updateConfig('general', 'userName', 'NewUser');
     const currentConfig = get(configStore);
     expect(currentConfig.general.userName).toBe('NewUser');
-    expect(JSON.parse(localStorageMock.getItem(CONFIG_STORAGE_KEY)!).general.userName).toBe('NewUser');
+    expect(JSON.parse(localStorageMock.getItem(CONFIG_STORAGE_KEY)!).general.userName).toBe(
+      'NewUser'
+    );
   });
 
   it('should update a media config value', () => {
@@ -221,20 +223,20 @@ describe('configStore', () => {
       // Update TURN server details
       updateConfig('rtc', 'turnPassword', 'securepass');
       servers = get(rtcServers);
-      const turnServer = servers.iceServers.find(s => s.urls.startsWith('turn:'));
+      const turnServer = servers.iceServers.find((s) => s.urls.startsWith('turn:'));
       expect(turnServer).toBeDefined();
       expect(turnServer?.username).toBe('mie');
       expect(turnServer?.credential).toBe('securepass');
-      
+
       // Remove TURN server by clearing password (as per logic in store)
       updateConfig('rtc', 'turnPassword', '');
       servers = get(rtcServers);
-      expect(servers.iceServers.some(s => s.urls.startsWith('turn:'))).toBe(true); // TURN server still there but with empty credential
-      
+      expect(servers.iceServers.some((s) => s.urls.startsWith('turn:'))).toBe(true); // TURN server still there but with empty credential
+
       // Remove TURN by clearing username
       updateConfig('rtc', 'turnUsername', '');
       servers = get(rtcServers);
-      expect(servers.iceServers.some(s => s.urls.startsWith('turn:'))).toBe(false);
+      expect(servers.iceServers.some((s) => s.urls.startsWith('turn:'))).toBe(false);
     });
   });
 });

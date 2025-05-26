@@ -36,18 +36,18 @@ export const defaultConfig: Config = {
     userName: '',
     configHost: '',
     identityProviderHost: 'https://xauth.mie00.com',
-    coordinatorUrl: 'ws://127.0.0.1:5001',
+    coordinatorUrl: 'ws://127.0.0.1:5001'
   },
   rtc: {
     stunServers: 'dealer.mie00.com:3478',
     turnServerV2: 'dealer.mie00.com:5349',
     turnUsername: 'mie',
-    turnPassword: '',
+    turnPassword: ''
   },
   media: {
     blurVideo: 'no',
     audioDevice: 'default|default',
-    videoDevice: 'default|default',
+    videoDevice: 'default|default'
   }
 };
 
@@ -58,14 +58,21 @@ function loadInitialConfig(): Config {
     if (savedConfigString) {
       const savedConfig = JSON.parse(savedConfigString);
       // Basic structural check for the new grouped format
-      if (savedConfig && typeof savedConfig === 'object' &&
-          'general' in savedConfig && 'rtc' in savedConfig && 'media' in savedConfig &&
-          typeof savedConfig.general === 'object' && typeof savedConfig.rtc === 'object' && typeof savedConfig.media === 'object') {
+      if (
+        savedConfig &&
+        typeof savedConfig === 'object' &&
+        'general' in savedConfig &&
+        'rtc' in savedConfig &&
+        'media' in savedConfig &&
+        typeof savedConfig.general === 'object' &&
+        typeof savedConfig.rtc === 'object' &&
+        typeof savedConfig.media === 'object'
+      ) {
         // Deep merge with defaultConfig to ensure all keys are present and defaults are applied for missing ones
         return {
           general: { ...defaultConfig.general, ...savedConfig.general },
           rtc: { ...defaultConfig.rtc, ...savedConfig.rtc },
-          media: { ...defaultConfig.media, ...savedConfig.media },
+          media: { ...defaultConfig.media, ...savedConfig.media }
         };
       }
     }
@@ -80,7 +87,7 @@ function loadInitialConfig(): Config {
 export const configStore = writable<Config>(loadInitialConfig());
 
 // Subscribe to changes and save to localStorage
-configStore.subscribe(config => {
+configStore.subscribe((config) => {
   try {
     localStorage.setItem('dealer-config', JSON.stringify(config));
   } catch (e) {
@@ -94,7 +101,7 @@ export function updateConfig<G extends keyof Config, K extends keyof Config[G]>(
   key: K,
   value: Config[G][K]
 ): void {
-  configStore.update(currentConfig => {
+  configStore.update((currentConfig) => {
     const newGroup = { ...currentConfig[group], [key]: value };
     return { ...currentConfig, [group]: newGroup };
   });
@@ -107,29 +114,36 @@ export function resetConfig(): void {
 // Create derived stores for specific config needs
 export const isServerMode = derived(
   configStore,
-  $config => $config.general.configLoader === 'server'
+  ($config) => $config.general.configLoader === 'server'
 );
 
-export const rtcServers = derived(configStore, $config => {
+export const rtcServers = derived(configStore, ($config) => {
   const iceServers: RTCIceServer[] = [];
-  
+
   // Add STUN servers
-  const stunServersList = $config.rtc.stunServers.split(',').map(s => s.trim()).filter(server => server);
+  const stunServersList = $config.rtc.stunServers
+    .split(',')
+    .map((s) => s.trim())
+    .filter((server) => server);
   for (const server of stunServersList) {
     iceServers.push({
       urls: `stun:${server}`
     });
   }
-  
+
   // Add TURN server if configured
-  if ($config.rtc.turnServerV2 && $config.rtc.turnUsername && typeof $config.rtc.turnPassword === 'string') {
+  if (
+    $config.rtc.turnServerV2 &&
+    $config.rtc.turnUsername &&
+    typeof $config.rtc.turnPassword === 'string'
+  ) {
     iceServers.push({
       urls: `turn:${$config.rtc.turnServerV2}`,
       username: $config.rtc.turnUsername,
       credential: $config.rtc.turnPassword
     });
   }
-  
+
   return { iceServers };
 });
 
@@ -145,5 +159,3 @@ export function getConfigValue<G extends keyof Config, K extends keyof Config[G]
 export function getAllConfig(): Config {
   return get(configStore);
 }
-
-

@@ -6,7 +6,7 @@ import {
   getKeysByCid,
   getAllCidKeys,
   cidKeyStore, // Import the store itself for direct inspection if needed
-  type CidKeys,
+  type CidKeys
 } from './cidKeyStore';
 import { get } from 'svelte/store';
 
@@ -14,13 +14,13 @@ describe('cidKeyStore', () => {
   const mockCid1 = 'testCid123';
   const mockKeys1: CidKeys = {
     publicKey: 'devicePubKey1',
-    userPublicKey: 'userPubKey1',
+    userPublicKey: 'userPubKey1'
   };
 
   const mockCid2 = 'anotherCid456';
   const mockKeys2: CidKeys = {
     publicKey: 'devicePubKey2',
-    userPublicKey: 'userPubKey2',
+    userPublicKey: 'userPubKey2'
   };
 
   beforeEach(() => {
@@ -42,9 +42,13 @@ describe('cidKeyStore', () => {
   it('should allow setting keys with a null devicePublicKey', () => {
     const keysWithNullDevice: CidKeys = {
       publicKey: null,
-      userPublicKey: 'userPubKeyOnly',
+      userPublicKey: 'userPubKeyOnly'
     };
-    setCidKeys('cidWithNullDeviceKey', keysWithNullDevice.publicKey, keysWithNullDevice.userPublicKey!);
+    setCidKeys(
+      'cidWithNullDeviceKey',
+      keysWithNullDevice.publicKey,
+      keysWithNullDevice.userPublicKey!
+    );
     const retrieved = getKeysByCid('cidWithNullDeviceKey');
     expect(retrieved).toEqual(keysWithNullDevice);
   });
@@ -53,7 +57,7 @@ describe('cidKeyStore', () => {
     setCidKeys(mockCid1, mockKeys1.publicKey, mockKeys1.userPublicKey!);
     const newKeysForCid1: CidKeys = {
       publicKey: 'newDeviceKey',
-      userPublicKey: 'newUserKey',
+      userPublicKey: 'newUserKey'
     };
     setCidKeys(mockCid1, newKeysForCid1.publicKey, newKeysForCid1.userPublicKey!);
     const retrievedKeys = getKeysByCid(mockCid1);
@@ -87,7 +91,7 @@ describe('cidKeyStore', () => {
     const allKeys = getAllCidKeys();
     expect(allKeys).toEqual({
       [mockCid1]: mockKeys1,
-      [mockCid2]: mockKeys2,
+      [mockCid2]: mockKeys2
     });
   });
 

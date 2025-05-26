@@ -10,11 +10,15 @@ const localStorageMock = (() => {
   return {
     getItem: (key: string) => {
       const value = store[key] || null;
-      console.log(`[localStorageMock ID: ${mockId}] getItem: key=${key}, value=${value ? value.substring(0,100) : 'null'}...`);
+      console.log(
+        `[localStorageMock ID: ${mockId}] getItem: key=${key}, value=${value ? value.substring(0, 100) : 'null'}...`
+      );
       return value;
     },
     setItem: (key: string, value: string) => {
-      console.log(`[localStorageMock ID: ${mockId}] setItem: key=${key}, value=${value.substring(0, 100)}...`); // Log first 100 chars
+      console.log(
+        `[localStorageMock ID: ${mockId}] setItem: key=${key}, value=${value.substring(0, 100)}...`
+      ); // Log first 100 chars
       store[key] = value.toString();
     },
     removeItem: (key: string) => {
@@ -24,7 +28,7 @@ const localStorageMock = (() => {
     clear: () => {
       console.log(`[localStorageMock ID: ${mockId}] clear`);
       store = {};
-    },
+    }
   };
 })();
 
@@ -36,10 +40,10 @@ const mockCrypto = {
     generateKey: vi.fn(),
     exportKey: vi.fn(),
     importKey: vi.fn(),
-    verify: vi.fn(),
+    verify: vi.fn()
     // Add other methods like sign, encrypt, decrypt if they become necessary for tests
   },
-  getRandomValues: vi.fn(), // if used directly or indirectly
+  getRandomValues: vi.fn() // if used directly or indirectly
 };
 
 Object.defineProperty(window, 'crypto', { value: mockCrypto });
@@ -49,8 +53,6 @@ Object.defineProperty(window, 'crypto', { value: mockCrypto });
 // For now, we'll rely on logout() and clearing localStorage for most reset needs.
 
 describe('authStore', () => {
-
-
   // Type alias for AuthState structure using dynamic import type
   type AuthState = import('./authStore').AuthState;
 
@@ -60,11 +62,16 @@ describe('authStore', () => {
   // let verifyLoginJWTFromBase64: any;
 
   const AUTH_STORAGE_KEY = 'webrtc-auth-state';
-  const initialAuthState: { publicKeyJwk: any; privateKeyJwk: any; userPubKey: string | null; jwt: string | null; } = {
+  const initialAuthState: {
+    publicKeyJwk: any;
+    privateKeyJwk: any;
+    userPubKey: string | null;
+    jwt: string | null;
+  } = {
     publicKeyJwk: null,
     privateKeyJwk: null,
     userPubKey: null,
-    jwt: null,
+    jwt: null
   };
 
   beforeEach(async () => {
@@ -82,10 +89,13 @@ describe('authStore', () => {
     // For example, to make generateKey resolve with mock keys:
     mockCrypto.subtle.generateKey.mockResolvedValue({
       publicKey: { alg: 'ES384', kty: 'EC', crv: 'P-384', x: 'x_val', y: 'y_val' }, // Mock JWK
-      privateKey: { alg: 'ES384', kty: 'EC', crv: 'P-384', d: 'd_val', x: 'x_val', y: 'y_val' }, // Mock JWK
+      privateKey: { alg: 'ES384', kty: 'EC', crv: 'P-384', d: 'd_val', x: 'x_val', y: 'y_val' } // Mock JWK
     } as CryptoKeyPair);
     mockCrypto.subtle.exportKey.mockImplementation(async (format, key) => key); // Simple passthrough
-    mockCrypto.subtle.importKey.mockImplementation(async (format, keyData, alg, extractable, usages) => ({ keyData, alg, extractable, usages }) as unknown as CryptoKey); // Mock CryptoKey
+    mockCrypto.subtle.importKey.mockImplementation(
+      async (format, keyData, alg, extractable, usages) =>
+        ({ keyData, alg, extractable, usages }) as unknown as CryptoKey
+    ); // Mock CryptoKey
     mockCrypto.subtle.verify.mockResolvedValue(true); // Default to successful verification
 
     // To ensure tests start with a fresh store state, effectively re-initialize or use logout
@@ -109,9 +119,17 @@ describe('authStore', () => {
   it('should load state from localStorage if present and valid', async () => {
     const storedState: AuthState = {
       publicKeyJwk: { kty: 'EC', crv: 'P-384', x: 'x', y: 'y', alg: 'ES384', key_ops: ['verify'] },
-      privateKeyJwk: { kty: 'EC', crv: 'P-384', x: 'x', y: 'y', d: 'd', alg: 'ES384', key_ops: ['sign'] },
+      privateKeyJwk: {
+        kty: 'EC',
+        crv: 'P-384',
+        x: 'x',
+        y: 'y',
+        d: 'd',
+        alg: 'ES384',
+        key_ops: ['sign']
+      },
       userPubKey: 'mockUserPublicKeyString',
-      jwt: 'mock.jwt.token',
+      jwt: 'mock.jwt.token'
     };
     localStorageMock.setItem(AUTH_STORAGE_KEY, JSON.stringify(storedState));
 
@@ -122,10 +140,13 @@ describe('authStore', () => {
     // Given the current structure, we'll test the effect of `logout` and `setJwtAndVerifyKey` later.
     // A simple check: if we set localStorage and then read the store, it should reflect it *if* it re-reads.
     // However, the store reads on module load. So, this test is more about persistence.
-    
+
     // Let's test persistence: set state, then check localStorage
     const newJwtHeader = JSON.stringify({ alg: 'ES384', typ: 'JWT' });
-    const newJwtPayload = JSON.stringify({ sub: 'new-user', exp: Math.floor(Date.now() / 1000) + 3600 }); // Add exp for completeness
+    const newJwtPayload = JSON.stringify({
+      sub: 'new-user',
+      exp: Math.floor(Date.now() / 1000) + 3600
+    }); // Add exp for completeness
     const newJwt = btoa(newJwtHeader) + '.' + btoa(newJwtPayload) + '.'; // A structurally valid JWT for the verifier
     await authStore.setJwtAndVerifyKey(newJwt, 'newUserKeyString'); // This will update the store & localStorage
     const rawStored = localStorageMock.getItem(AUTH_STORAGE_KEY);
@@ -138,7 +159,10 @@ describe('authStore', () => {
   it('should clear localStorage and reset state on logout', async () => {
     // Set some state first
     const logoutJwtHeader = JSON.stringify({ alg: 'ES384', typ: 'JWT' });
-    const logoutJwtPayload = JSON.stringify({ sub: 'logout-test', exp: Math.floor(Date.now() / 1000) + 3600 });
+    const logoutJwtPayload = JSON.stringify({
+      sub: 'logout-test',
+      exp: Math.floor(Date.now() / 1000) + 3600
+    });
     const validJwtForLogoutTest = btoa(logoutJwtHeader) + '.' + btoa(logoutJwtPayload) + '.';
     await authStore.setJwtAndVerifyKey(validJwtForLogoutTest, 'testUserKey');
     expect(localStorageMock.getItem(AUTH_STORAGE_KEY)).not.toBeNull();
@@ -161,12 +185,25 @@ describe('authStore', () => {
       expect(pubKey).not.toBeNull();
 
       const finalKeys = get(authStore);
-      expect(finalKeys.publicKeyJwk).toEqual({ alg: 'ES384', kty: 'EC', crv: 'P-384', x: 'x_val', y: 'y_val' });
-      expect(finalKeys.privateKeyJwk).toEqual({ alg: 'ES384', kty: 'EC', crv: 'P-384', d: 'd_val', x: 'x_val', y: 'y_val' });
+      expect(finalKeys.publicKeyJwk).toEqual({
+        alg: 'ES384',
+        kty: 'EC',
+        crv: 'P-384',
+        x: 'x_val',
+        y: 'y_val'
+      });
+      expect(finalKeys.privateKeyJwk).toEqual({
+        alg: 'ES384',
+        kty: 'EC',
+        crv: 'P-384',
+        d: 'd_val',
+        x: 'x_val',
+        y: 'y_val'
+      });
       expect(mockCrypto.subtle.generateKey).toHaveBeenCalledWith(
-        { name: "ECDSA", namedCurve: "P-384" },
+        { name: 'ECDSA', namedCurve: 'P-384' },
         true,
-        ["sign", "verify"]
+        ['sign', 'verify']
       );
       expect(mockCrypto.subtle.exportKey).toHaveBeenCalledTimes(2); // Once for public, once for private
     });
@@ -189,5 +226,4 @@ describe('authStore', () => {
 
   // More tests to come for setJwtAndVerifyKey, getPrivateKey, getDevicePublicKeyAsSpki, and JWT functions
   // These will require more detailed mocking of crypto.subtle.verify and JWT structures.
-
 });

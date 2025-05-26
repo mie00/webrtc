@@ -6,7 +6,7 @@ import {
   getAllCleanups,
   resetAppStateStore,
   type SpecificNegoHandler,
-  type CleanupFunc,
+  type CleanupFunc
 } from './appStateStore';
 import type { NegoMessageType, NegoMessageMap } from '../types/negoMessages.js';
 

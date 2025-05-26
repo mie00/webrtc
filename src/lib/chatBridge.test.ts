@@ -30,14 +30,14 @@ describe('chatBridge', () => {
         text: 'Hello world',
         sender: 'Alice',
         timestamp: mockTimestamp,
-        cid: undefined,
+        cid: undefined
       });
     });
 
     it('should add a message to the store with text, sender, and cid', () => {
       const mockTimestamp = 1678886400000; // March 15, 2023 12:00:00 PM UTC
       vi.setSystemTime(new Date(mockTimestamp));
-      
+
       chatBridgeModule.addMessage('Hi there', 'Bob', 'bob-cid-123');
       const currentState = get(chatBridgeModule.chatStore);
 
@@ -46,7 +46,7 @@ describe('chatBridge', () => {
         text: 'Hi there',
         sender: 'Bob',
         timestamp: mockTimestamp,
-        cid: 'bob-cid-123',
+        cid: 'bob-cid-123'
       });
     });
 
@@ -66,13 +66,13 @@ describe('chatBridge', () => {
         text: 'First message',
         sender: 'Alice',
         timestamp: mockTimestamp1,
-        cid: undefined,
+        cid: undefined
       });
       expect(currentState.messages[1]).toEqual({
         text: 'Second message',
         sender: 'Bob',
         timestamp: mockTimestamp2,
-        cid: 'bob-cid-123',
+        cid: 'bob-cid-123'
       });
     });
   });
@@ -93,9 +93,7 @@ describe('chatBridge', () => {
   });
 });
 
-
 describe('ChatBridge class', () => {
-
   let chatBridge: chatBridgeModule.ChatBridge;
   let mockContext: any;
   let mockPc: any;
@@ -112,7 +110,7 @@ describe('ChatBridge class', () => {
 
     mockContext = {
       connectionStore: { update: mockConnectionStoreUpdate },
-      appStateStore: { update: mockAppStateStoreUpdate },
+      appStateStore: { update: mockAppStateStoreUpdate }
     };
 
     // Mock RTCPeerConnection and RTCDataChannel
@@ -124,12 +122,12 @@ describe('ChatBridge class', () => {
       onmessage: null,
       onerror: null,
       readyState: 'open', // Default to open for some tests
-      label: 'chat',
+      label: 'chat'
     };
 
     mockPc = {
       createDataChannel: vi.fn().mockReturnValue(mockDataChannel),
-      ondatachannel: null,
+      ondatachannel: null
     };
 
     chatBridge = new chatBridgeModule.ChatBridge();
@@ -156,17 +154,30 @@ describe('ChatBridge class', () => {
       const timestamp1 = Date.now();
       chatBridge.addMessageToHistory({ text: 'Hello', sender: 'local', timestamp: timestamp1 });
       expect(chatBridge.getChatHistory().length).toBe(1);
-      expect(chatBridge.getChatHistory()[0]).toEqual(expect.objectContaining({ text: 'Hello', sender: 'local', timestamp: timestamp1 }));
+      expect(chatBridge.getChatHistory()[0]).toEqual(
+        expect.objectContaining({ text: 'Hello', sender: 'local', timestamp: timestamp1 })
+      );
 
       vi.advanceTimersByTime(1000);
       const timestamp2 = Date.now();
-      chatBridge.addMessageToHistory({ text: 'World', sender: 'remote', timestamp: timestamp2, cid: 'remote-cid' });
+      chatBridge.addMessageToHistory({
+        text: 'World',
+        sender: 'remote',
+        timestamp: timestamp2,
+        cid: 'remote-cid'
+      });
       expect(chatBridge.getChatHistory().length).toBe(2);
-      expect(chatBridge.getChatHistory()[1]).toEqual(expect.objectContaining({ text: 'World', sender: 'remote', timestamp: timestamp2, cid: 'remote-cid' }));
+      expect(chatBridge.getChatHistory()[1]).toEqual(
+        expect.objectContaining({
+          text: 'World',
+          sender: 'remote',
+          timestamp: timestamp2,
+          cid: 'remote-cid'
+        })
+      );
 
       chatBridge.clearChatHistory();
       expect(chatBridge.getChatHistory().length).toBe(0);
     });
   });
 });
-
