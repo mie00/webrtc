@@ -2,8 +2,19 @@ import { render, screen, cleanup } from '@testing-library/svelte';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { writable } from 'svelte/store';
 
-const mockAuthStore = writable({ jwt: null, error: null, user: null });
-const mockProfileStore = writable({ isProfileComplete: false, profile: null });
+interface MockAuthStoreState {
+  jwt: string | null;
+  error: any | null; // Keeping error flexible for now, can be string | Error etc.
+  user: { id: string } | null;
+}
+
+interface MockProfileStoreState {
+  isProfileComplete: boolean;
+  profile: { userName: string } | null;
+}
+
+const mockAuthStore = writable<MockAuthStoreState>({ jwt: null, error: null, user: null });
+const mockProfileStore = writable<MockProfileStoreState>({ isProfileComplete: false, profile: null });
 
 // Mock child components to isolate App.svelte logic
 vi.mock('./components/AuthHandler.svelte', () => ({

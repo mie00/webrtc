@@ -6,8 +6,9 @@ import {
   getKeysByCid,
   getAllCidKeys,
   cidKeyStore, // Import the store itself for direct inspection if needed
-  type CidKeys
-} from './cidKeyStore';
+  type CidKeys,
+  type CidKeyState // Added for typing the store's state
+} from './cidKeyStore.js';
 import { get } from 'svelte/store';
 
 describe('cidKeyStore', () => {
@@ -29,7 +30,7 @@ describe('cidKeyStore', () => {
   });
 
   it('should initialize with an empty keysByCid record', () => {
-    const state = get(cidKeyStore);
+    const state: CidKeyState = get(cidKeyStore);
     expect(state.keysByCid).toEqual({});
   });
 
@@ -101,7 +102,7 @@ describe('cidKeyStore', () => {
 
     resetCidKeyStore();
 
-    const state = get(cidKeyStore);
+    const state: CidKeyState = get(cidKeyStore);
     expect(state.keysByCid).toEqual({});
     expect(getAllCidKeys()).toEqual({});
   });

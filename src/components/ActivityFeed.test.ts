@@ -63,6 +63,8 @@ describe('ActivityFeed.svelte', () => {
         timestamp: Date.now(),
         cid: 'remoteCIDFile',
         transfer: {
+          id: 'file1',
+          timestamp: Date.now(),
           name: 'testfile.txt',
           type: 'text/plain',
           size: 1024,
@@ -88,6 +90,8 @@ describe('ActivityFeed.svelte', () => {
         sender: mockLocalUserName, // Local sending
         timestamp: Date.now(),
         transfer: {
+          id: 'file2-transfer',
+          timestamp: Date.now(),
           name: 'bigfile.zip',
           type: 'application/zip',
           size: 102400,
@@ -112,10 +116,14 @@ describe('ActivityFeed.svelte', () => {
         sender: 'Speaker1 (local|sessionABC)', // Example sender format for transcription
         timestamp: Date.now(),
         segment: {
+          id: 'seg1',
+          utteranceId: 'utt1',
+          speakerLabel: 'Speaker 1',
+          timestamp: Date.now(),
           sessionId: 'local|sessionABC',
           text: 'This is a transcribed segment.',
-          beg: 0,
-          end: 5000,
+          beg: '0',
+          end: '5000',
           final: true
         }
       }
@@ -133,10 +141,14 @@ describe('ActivityFeed.svelte', () => {
         sender: 'Speaker2',
         timestamp: Date.now(),
         segment: {
+          id: 'seg2',
+          utteranceId: 'utt2',
+          speakerLabel: 'Speaker 2',
+          timestamp: Date.now(),
           sessionId: 'remote|sessionXYZ',
           text: 'Another transcribed segment.',
-          beg: 0,
-          end: 3000,
+          beg: '0',
+          end: '3000',
           final: true
         }
       }
@@ -156,6 +168,8 @@ describe('ActivityFeed.svelte', () => {
       sender: 'VideoSender',
       timestamp: Date.now(),
       transfer: {
+        id: 'videoFile1-transfer',
+        timestamp: Date.now(),
         name: 'coolvideo.mp4',
         type: 'video/mp4',
         size: 5000000,

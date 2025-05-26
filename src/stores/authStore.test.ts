@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 // import { authStore, type AuthState, verifyLoginJWT, verifyLoginJWTFromBase64, type LoginTokenPayload } from './authStore'; // Now imported dynamically
-import { get } from 'svelte/store';
+import { get, type Writable } from 'svelte/store';
 
 // Mock localStorage
 const mockId = Math.random(); // Unique ID for this mock instance
@@ -48,15 +48,26 @@ const mockCrypto = {
 
 Object.defineProperty(window, 'crypto', { value: mockCrypto });
 
+// Type alias for AuthState structure using dynamic import type
+type AuthState = import('./authStore.js').AuthState;
+
+// Define the type for the authStore object
+interface AuthStoreType extends Pick<Writable<AuthState>, 'subscribe'> {
+  ensureKeyPair: () => Promise<JsonWebKey | null>;
+  getDevicePublicKeyAsSpki: () => Promise<string | null>;
+  setJwtAndVerifyKey: (newJwt: string, userPubKey: string) => Promise<boolean>; // Actual return is boolean
+  logout: () => void;
+  getPrivateKey: () => Promise<CryptoKey | null>;
+  getAuthState: () => AuthState;
+}
+
 // Helper to reset the authStore to its initial state by re-creating it or calling a reset method
 // Since authStore is created immediately, we need to manipulate its internal state or mock its creation for full reset.
 // For now, we'll rely on logout() and clearing localStorage for most reset needs.
 
 describe('authStore', () => {
-  // Type alias for AuthState structure using dynamic import type
-  type AuthState = import('./authStore').AuthState;
 
-  let authStore: any; // To hold the dynamically imported authStore instance
+  let authStore: AuthStoreType; // To hold the dynamically imported authStore instance
   // Add other module exports here if needed, e.g.:
   // let verifyLoginJWT: any;
   // let verifyLoginJWTFromBase64: any;
@@ -82,15 +93,15 @@ describe('authStore', () => {
 
     // Dynamically import authStore AFTER localStorage is mocked
     // This ensures authStore picks up the mocked localStorage during its initialization
-    const authStoreModule = await import('./authStore');
-    authStore = authStoreModule.authStore;
+    const authStoreModule = await import('./authStore.js');
+    authStore = authStoreModule.authStore as AuthStoreType;
 
     // Reset crypto mocks to default behavior or specific test behavior if needed
     // For example, to make generateKey resolve with mock keys:
     mockCrypto.subtle.generateKey.mockResolvedValue({
       publicKey: { alg: 'ES384', kty: 'EC', crv: 'P-384', x: 'x_val', y: 'y_val' }, // Mock JWK
       privateKey: { alg: 'ES384', kty: 'EC', crv: 'P-384', d: 'd_val', x: 'x_val', y: 'y_val' } // Mock JWK
-    } as CryptoKeyPair);
+    } as any); // Changed CryptoKeyPair to any
     mockCrypto.subtle.exportKey.mockImplementation(async (format, key) => key); // Simple passthrough
     mockCrypto.subtle.importKey.mockImplementation(
       async (format, keyData, alg, extractable, usages) =>

@@ -18,6 +18,7 @@ export interface FileTransfer {
   senderName?: string; // Added: Display name of the sender (for received files)
   url?: string;
   error?: string;
+  isLocal?: boolean; // Added for distinguishing sender/receiver in UI, true if originated by local client
 }
 
 export interface FileState {

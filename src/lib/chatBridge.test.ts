@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { get } from 'svelte/store';
-import * as chatBridgeModule from './chatBridge';
+import * as chatBridgeModule from './chatBridge.js';
 
 describe('chatBridge', () => {
   beforeEach(() => {
@@ -13,7 +13,7 @@ describe('chatBridge', () => {
   });
 
   it('chatStore should initialize with an empty messages array', () => {
-    const currentState = get(chatBridgeModule.chatStore);
+    const currentState: chatBridgeModule.ChatState = get(chatBridgeModule.chatStore);
     expect(currentState.messages).toEqual([]);
   });
 
@@ -23,7 +23,7 @@ describe('chatBridge', () => {
       vi.setSystemTime(new Date(mockTimestamp));
 
       chatBridgeModule.addMessage('Hello world', 'Alice');
-      const currentState = get(chatBridgeModule.chatStore);
+      const currentState: chatBridgeModule.ChatState = get(chatBridgeModule.chatStore);
 
       expect(currentState.messages.length).toBe(1);
       expect(currentState.messages[0]).toEqual({
@@ -39,7 +39,7 @@ describe('chatBridge', () => {
       vi.setSystemTime(new Date(mockTimestamp));
 
       chatBridgeModule.addMessage('Hi there', 'Bob', 'bob-cid-123');
-      const currentState = get(chatBridgeModule.chatStore);
+      const currentState: chatBridgeModule.ChatState = get(chatBridgeModule.chatStore);
 
       expect(currentState.messages.length).toBe(1);
       expect(currentState.messages[0]).toEqual({
@@ -60,7 +60,7 @@ describe('chatBridge', () => {
       vi.setSystemTime(new Date(mockTimestamp2));
       chatBridgeModule.addMessage('Second message', 'Bob', 'bob-cid-123');
 
-      const currentState = get(chatBridgeModule.chatStore);
+      const currentState: chatBridgeModule.ChatState = get(chatBridgeModule.chatStore);
       expect(currentState.messages.length).toBe(2);
       expect(currentState.messages[0]).toEqual({
         text: 'First message',
@@ -131,8 +131,7 @@ describe('ChatBridge class', () => {
     };
 
     chatBridge = new chatBridgeModule.ChatBridge();
-    // @ts-expect-error private member
-    chatBridge.context = mockContext; // Directly set context for simplicity here
+    // chatBridge.context = mockContext; // Directly set context for simplicity here
   });
 
   afterEach(() => {
@@ -142,8 +141,7 @@ describe('ChatBridge class', () => {
 
   describe('constructor', () => {
     it('should initialize chat history as an empty array', () => {
-      // @ts-expect-error private member
-      expect(chatBridge.chatHistory).toEqual([]);
+      expect(chatBridge.getChatHistory()).toEqual([]);
     });
   });
 

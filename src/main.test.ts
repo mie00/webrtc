@@ -55,7 +55,7 @@ vi.mock('./lib/webrtc/WebRTCApp.js', () => {
 
 describe('main.ts', () => {
   let mockAppDiv: HTMLElement;
-  let addEventListenerSpy: vi.SpyInstance; // Declare spy here
+  let addEventListenerSpy: any; // Declare spy here
 
   beforeEach(async () => {
     // Reset mocks before each test
@@ -72,7 +72,7 @@ describe('main.ts', () => {
     addEventListenerSpy = vi.spyOn(window, 'addEventListener');
 
     // Import main.ts after mocks are set up. This will execute the script.
-    await import('./main.ts');
+    await import('./main.js');
   });
 
   afterEach(() => {
@@ -154,7 +154,7 @@ describe('main.ts', () => {
     vi.spyOn(document, 'getElementById').mockReturnValue(null);
 
     try {
-      await import('./main.ts');
+      await import('./main.js');
       // Should not reach here
       expect(true).toBe(false);
     } catch (e: any) {
