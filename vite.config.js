@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import tailwindcss from '@tailwindcss/vite'
@@ -47,6 +48,9 @@ export default defineConfig({
       ]
     }),
   ],
+  resolve: {
+    conditions: ['browser'],
+  },
   server: {
     host: '127.0.0.1', // Listen only on localhost IP
     port: 3000,
@@ -77,5 +81,15 @@ export default defineConfig({
         assetFileNames: 'assets/[name]-[hash][extname]',
       }
     }
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './vitest.setup.js',
+    include: ['src/**/*.{test,spec}.{js,ts,svelte}'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+    },
   }
 });
