@@ -5,7 +5,6 @@ import { writable, get } from 'svelte/store';
 export type RTCPeerConnectionState = globalThis.RTCPeerConnectionState; // Use built-in type
 export type RTCIceConnectionState = globalThis.RTCIceConnectionState; // Use built-in type
 
-
 export interface DirectClientState {
   cid: string;
   polite: boolean;
@@ -29,7 +28,7 @@ export interface ConnectionState {
 
 const initialState: ConnectionState = {
   directClients: {},
-  participants: {},
+  participants: {}
 };
 
 const connectionStore = writable<ConnectionState>(initialState);
@@ -38,7 +37,7 @@ const connectionStore = writable<ConnectionState>(initialState);
 
 // Add or update a direct client
 export function addDirectClient(cid: string, client: WebRTCClient): void {
-  connectionStore.update(state => {
+  connectionStore.update((state) => {
     const directClients = { ...state.directClients };
     directClients[cid] = {
       cid,
@@ -46,7 +45,7 @@ export function addDirectClient(cid: string, client: WebRTCClient): void {
       polite: client.polite ?? false, // Get polite from client object
       connectionState: client.pc?.connectionState ?? 'new',
       iceConnectionState: client.pc?.iceConnectionState ?? 'new',
-      fingerprint: null, // Initialize fingerprint
+      fingerprint: null // Initialize fingerprint
       // publicKey and userPublicKey are now managed by cidKeyStore
     };
     return { ...state, directClients };
@@ -61,7 +60,7 @@ export function updateDirectClientState(
   connectionState: RTCPeerConnectionState | null,
   iceConnectionState: RTCIceConnectionState | null
 ): void {
-  connectionStore.update(state => {
+  connectionStore.update((state) => {
     if (state.directClients[cid]) {
       state.directClients[cid].connectionState = connectionState;
       state.directClients[cid].iceConnectionState = iceConnectionState;
@@ -73,7 +72,7 @@ export function updateDirectClientState(
 }
 
 export function updateDirectClientFingerprint(cid: string, fingerprint: string): void {
-  connectionStore.update(state => {
+  connectionStore.update((state) => {
     if (state.directClients[cid]) {
       state.directClients[cid].fingerprint = fingerprint;
     } else {
@@ -84,7 +83,7 @@ export function updateDirectClientFingerprint(cid: string, fingerprint: string):
 }
 
 export function removeDirectClient(cid: string): void {
-  connectionStore.update(state => {
+  connectionStore.update((state) => {
     delete state.directClients[cid];
     // If self was added as a participant, remove here too.
     // delete state.participants[cid];
@@ -92,19 +91,22 @@ export function removeDirectClient(cid: string): void {
   });
 }
 
-export function addParticipant(cid: string, relayCid: string /* userPublicKey no longer passed here */): void {
-  connectionStore.update(state => {
+export function addParticipant(
+  cid: string,
+  relayCid: string /* userPublicKey no longer passed here */
+): void {
+  connectionStore.update((state) => {
     // Avoid adding self or existing direct clients as relayed participants
     // userPublicKey will be retrieved from cidKeyStore when needed
     if (cid !== relayCid && !state.directClients[cid]) {
-       state.participants[cid] = { cid, relayCid };
+      state.participants[cid] = { cid, relayCid };
     }
     return state;
   });
 }
 
 export function removeParticipant(cid: string): void {
-  connectionStore.update(state => {
+  connectionStore.update((state) => {
     delete state.participants[cid];
     return state;
   });
@@ -120,7 +122,7 @@ export { connectionStore };
 
 // Optional: Getter for non-Svelte contexts if necessary
 export function getConnectionState(): ConnectionState {
-    return get(connectionStore);
+  return get(connectionStore);
 }
 
 // --- Getters ---

@@ -15,7 +15,9 @@
     "test:unit": "vitest",
     "test:unit:ui": "vitest --ui",
     "coverage": "vitest run --coverage",
-    "test": "npm run test:unit"
+    "test": "npm run test:unit",
+    "format": "prettier --write .",
+    "lint": "prettier --check ."
   },
   "keywords": [
     "webrtc",
@@ -51,6 +53,8 @@
     "jimp": "^1.6.0",
     "jsdom": "^26.1.0",
     "mkdirp": "^3.0.1",
+    "prettier": "^3.5.3",
+    "prettier-plugin-svelte": "^3.4.0",
     "qrcode": "^1.5.4",
     "qrcode-reader": "^1.0.4",
     "rimraf": "^5.0.10",

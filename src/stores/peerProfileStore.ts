@@ -21,9 +21,10 @@ function getInitialState(): PeerProfilesState {
         // Basic validation to ensure the structure is somewhat correct
         if (parsedState && typeof parsedState.profiles === 'object') {
           // Ensure all profiles have at least userName property
-          for (const publicKey in parsedState.profiles) { // Iterate by publicKey
+          for (const publicKey in parsedState.profiles) {
+            // Iterate by publicKey
             if (typeof parsedState.profiles[publicKey].userName === 'undefined') {
-               parsedState.profiles[publicKey].userName = null; // Or handle as error
+              parsedState.profiles[publicKey].userName = null; // Or handle as error
             }
           }
           return parsedState;
@@ -35,7 +36,7 @@ function getInitialState(): PeerProfilesState {
   }
   // Default initial state
   return {
-    profiles: {},
+    profiles: {}
   };
 }
 
@@ -45,7 +46,7 @@ const peerProfilesStore: Writable<PeerProfilesState> = writable(initialState);
 
 // Subscribe to store changes and update localStorage
 if (typeof window !== 'undefined' && window.localStorage) {
-  peerProfilesStore.subscribe(state => {
+  peerProfilesStore.subscribe((state) => {
     try {
       window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
     } catch (error) {
@@ -58,7 +59,7 @@ if (typeof window !== 'undefined' && window.localStorage) {
 
 // Add or update a peer's profile, keyed by publicKey
 export function updatePeerProfile(publicKey: string, profile: PeerProfile): void {
-  peerProfilesStore.update(state => {
+  peerProfilesStore.update((state) => {
     const newProfiles = { ...state.profiles, [publicKey]: profile };
     return { ...state, profiles: newProfiles };
   });
@@ -66,7 +67,7 @@ export function updatePeerProfile(publicKey: string, profile: PeerProfile): void
 
 // Remove a peer's profile, keyed by publicKey
 export function removePeerProfile(publicKey: string): void {
-  peerProfilesStore.update(state => {
+  peerProfilesStore.update((state) => {
     const newProfiles = { ...state.profiles };
     delete newProfiles[publicKey];
     return { ...state, profiles: newProfiles };

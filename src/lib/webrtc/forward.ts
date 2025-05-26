@@ -1,50 +1,66 @@
 /// <reference path="../../../types/global.d.ts" />
 
-async function sendData(reader: ReadableStreamDefaultReader<Uint8Array>, id: string, forward: RTCDataChannel): Promise<void> {
-  console.log("reader", reader);
+async function sendData(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  id: string,
+  forward: RTCDataChannel
+): Promise<void> {
+  console.log('reader', reader);
   const max_size = 2 * 1024;
   let offset = 0;
   let gvalue: Uint8Array | undefined = undefined; // Allow undefined from reader.read()
   let gdone = false;
   let sentOnBuffer = 0;
 
-  const clearBufferAndCb = async function(): Promise<void> {
+  const clearBufferAndCb = async function (): Promise<void> {
     sentOnBuffer = 0;
     await cb();
   };
 
   // TODO: convert to proper promise
-  const cb = async function(): Promise<void> {
-    forward.removeEventListener("bufferedamountlow", clearBufferAndCb);
-    
+  const cb = async function (): Promise<void> {
+    forward.removeEventListener('bufferedamountlow', clearBufferAndCb);
+
     if (!gvalue) {
       const { done, value } = await reader.read();
       offset = 0;
       gdone = done;
       gvalue = value;
     }
-    console.log("gvalue", gvalue, "offset", offset, "done", gdone);
+    console.log('gvalue', gvalue, 'offset', offset, 'done', gdone);
 
     while (gvalue && offset < gvalue.byteLength) {
-      console.log("sending data", "length", gvalue.byteLength, "offset", offset, "sentOnBuffer", sentOnBuffer);
-      forward.send(JSON.stringify({
-        type: "data",
-        id: id,
-        chunk: Array.from(gvalue.slice(offset, offset + 10 * 1024)),
-      }));
+      console.log(
+        'sending data',
+        'length',
+        gvalue.byteLength,
+        'offset',
+        offset,
+        'sentOnBuffer',
+        sentOnBuffer
+      );
+      forward.send(
+        JSON.stringify({
+          type: 'data',
+          id: id,
+          chunk: Array.from(gvalue.slice(offset, offset + 10 * 1024))
+        })
+      );
       sentOnBuffer += Math.min(gvalue.byteLength, offset + 10 * 1024) - offset;
       offset = Math.min(gvalue.byteLength, offset + 10 * 1024);
       if (sentOnBuffer > max_size) {
-        forward.addEventListener("bufferedamountlow", clearBufferAndCb);
+        forward.addEventListener('bufferedamountlow', clearBufferAndCb);
         return;
       }
     }
     gvalue = undefined; // Assign undefined instead of null
     if (gdone) {
-      forward.send(JSON.stringify({
-        type: "end",
-        id: id,
-      }));
+      forward.send(
+        JSON.stringify({
+          type: 'end',
+          id: id
+        })
+      );
     } else {
       cb();
     }
@@ -98,8 +114,4 @@ function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
 11. service worker sends response to page
 */
 
-export {
-  sendData,
-  concatUint8Arrays,
-  setButton,
-};
+export { sendData, concatUint8Arrays, setButton };

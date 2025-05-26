@@ -6,61 +6,58 @@ import { SelfieSegmentation, type Results } from '@mediapipe/selfie_segmentation
  * @returns A promise that resolves to the processed video stream
  */
 async function backgroundChange(videoSource: HTMLVideoElement): Promise<MediaStream> {
-    const canvasElement = document.createElement('canvas');
-    canvasElement.width = videoSource.videoWidth;
-    canvasElement.height = videoSource.videoHeight;
-    canvasElement.style.transform = 'scaleX(-1)';
+  const canvasElement = document.createElement('canvas');
+  canvasElement.width = videoSource.videoWidth;
+  canvasElement.height = videoSource.videoHeight;
+  canvasElement.style.transform = 'scaleX(-1)';
 
-    const ctx = canvasElement.getContext('2d');
+  const ctx = canvasElement.getContext('2d');
+  if (!ctx) {
+    throw new Error('Could not get canvas context');
+  }
+
+  function onResults(results: Results): void {
     if (!ctx) {
-        throw new Error('Could not get canvas context');
+      throw new Error('Could not get canvas context again');
     }
+    ctx.save();
+    ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    ctx.drawImage(results.segmentationMask, 0, 0, canvasElement.width, canvasElement.height);
 
-    function onResults(results: Results): void {
-        if (!ctx) {
-            throw new Error("Could not get canvas context again");
-        }
-        ctx.save();
-        ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        ctx.drawImage(results.segmentationMask, 0, 0,
-            canvasElement.width, canvasElement.height);
+    // Only overwrite existing pixels.
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillStyle = '#00FF00';
 
-        // Only overwrite existing pixels.
-        ctx.globalCompositeOperation = 'source-in';
-        ctx.fillStyle = '#00FF00';
+    ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
-        ctx.drawImage(
-            results.image, 0, 0, canvasElement.width, canvasElement.height);
+    // Only overwrite missing pixels.
+    ctx.globalCompositeOperation = 'destination-atop';
+    ctx.filter = 'blur(16px)';
+    ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+    ctx.restore();
+  }
 
-        // Only overwrite missing pixels.
-        ctx.globalCompositeOperation = 'destination-atop';
-        ctx.filter = "blur(16px)";
-        ctx.drawImage(
-            results.image, 0, 0, canvasElement.width, canvasElement.height);
-        ctx.restore();
+  const selfieSegmentation = new SelfieSegmentation({
+    locateFile: (file: string) => {
+      return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
     }
+  });
+  selfieSegmentation.setOptions({
+    modelSelection: 1
+  });
+  selfieSegmentation.onResults(onResults);
 
-    const selfieSegmentation = new SelfieSegmentation({
-        locateFile: (file: string) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
-        }
+  return new Promise<MediaStream>((resolve, reject) => {
+    const ddo = async (): Promise<void> => {
+      await selfieSegmentation.send({ image: videoSource });
+      videoSource.requestVideoFrameCallback(ddo);
+    };
+    videoSource.requestVideoFrameCallback(async () => {
+      await ddo();
+      const stream = canvasElement.captureStream();
+      resolve(stream);
     });
-    selfieSegmentation.setOptions({
-        modelSelection: 1,
-    });
-    selfieSegmentation.onResults(onResults);
-
-    return new Promise<MediaStream>((resolve, reject) => {
-        const ddo = async (): Promise<void> => {
-            await selfieSegmentation.send({ image: videoSource });
-            videoSource.requestVideoFrameCallback(ddo);
-        }
-        videoSource.requestVideoFrameCallback(async () => {
-            await ddo();
-            const stream = canvasElement.captureStream();
-            resolve(stream);
-        });
-    });
+  });
 }
 
 // Commented out alternative implementation using TensorFlow Lite

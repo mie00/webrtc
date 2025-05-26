@@ -51,8 +51,8 @@ interface WebRTCClient {
   _transceiver_interval?: number;
   polite?: boolean;
   makingOffer?: boolean;
-  trusted: boolean,
-  trusting: boolean,
+  trusted: boolean;
+  trusting: boolean;
   sentChallengeData?: string; // Added to store the challenge sent to this client
   // When adding new properties to this interface, make sure to:
   // 1. Update the destroyClient function in js/main.ts to clean up the new property
@@ -85,7 +85,7 @@ interface ClientInitOptions {
   offer?: string;
 }
 
-interface Window {                                                                                                                                                                                          
+interface Window {
   app: App & {
     recorder?: number;
     merger?: any;
@@ -99,7 +99,6 @@ interface Window {
   authStore: typeof import('../src/stores/authStore.js').authStore; // Added for global authStore
   // verifyLoginJWT will no longer be global
 }
-
 
 // Assuming you already have `declare global { ... }` for __BROWSER__
 // If not, wrap these in `declare global { ... }`

@@ -1,5 +1,4 @@
 <script module lang="ts">
-  
   // This interface should be kept in sync with CarouselMediaItem in ControlPanel.svelte
   // or ideally defined in a shared types file.
   export interface CarouselMediaItem {
@@ -11,6 +10,7 @@
     cid?: string;
   }
 </script>
+
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
   import type { FileTransfer } from '../lib/fileBridge.js';
@@ -41,7 +41,7 @@
       tick().then(() => {
         const video = mediaElement as HTMLVideoElement;
         video.load(); // Reload the source
-        video.play().catch(e => console.warn("Autoplay prevented for video:", e));
+        video.play().catch((e) => console.warn('Autoplay prevented for video:', e));
       });
     }
   });
@@ -84,14 +84,19 @@
 {#if show && currentItem}
   <div
     class="fixed inset-0 bg-black/75 flex items-center justify-center z-[1000] p-4"
-    onclick={(e) => { if (e.target === e.currentTarget) closeCarousel(); }}
+    onclick={(e) => {
+      if (e.target === e.currentTarget) closeCarousel();
+    }}
     onkeypress={(e) => e.stopPropagation()}
     role="dialog"
     tabindex="0"
     aria-modal="true"
     aria-labelledby="carousel-sender-name"
   >
-    <div class="relative bg-gray-900 p-3 md:p-5 rounded-xl max-w-full max-h-full w-auto h-auto flex flex-col shadow-2xl outline-none" tabindex="-1">
+    <div
+      class="relative bg-gray-900 p-3 md:p-5 rounded-xl max-w-full max-h-full w-auto h-auto flex flex-col shadow-2xl outline-none"
+      tabindex="-1"
+    >
       <!-- Close Button -->
       <button
         onclick={closeCarousel}
@@ -104,15 +109,24 @@
       <!-- Sender Info -->
       <div class="text-center mb-2 md:mb-3">
         <p id="carousel-sender-name" class="text-sm md:text-base text-gray-300">
-          From: <span class="font-semibold text-gray-100" title={currentItem.cid ? `CID: ${currentItem.cid}` : undefined}>{currentItem.sender}</span>
+          From: <span
+            class="font-semibold text-gray-100"
+            title={currentItem.cid ? `CID: ${currentItem.cid}` : undefined}
+            >{currentItem.sender}</span
+          >
           {#if currentItem.transfer?.name}
-            <span class="text-xs text-gray-400 block truncate max-w-xs mx-auto" title={currentItem.transfer.name}>({currentItem.transfer.name})</span>
+            <span
+              class="text-xs text-gray-400 block truncate max-w-xs mx-auto"
+              title={currentItem.transfer.name}>({currentItem.transfer.name})</span
+            >
           {/if}
         </p>
       </div>
 
       <!-- Media Display Area -->
-      <div class="flex-grow flex items-center justify-center overflow-hidden min-h-[200px] md:min-h-[300px]">
+      <div
+        class="flex-grow flex items-center justify-center overflow-hidden min-h-[200px] md:min-h-[300px]"
+      >
         {#if currentItem.transfer && currentItem.transfer.url}
           {@const mediaType = getPlayableMediaType(currentItem.transfer.type)}
           {#if mediaType === 'image'}
@@ -144,7 +158,10 @@
       {#if items.length > 1}
         <div class="flex justify-between items-center mt-3 md:mt-4 pt-2 border-t border-gray-700">
           <button
-            onclick={(e) => { e.stopPropagation(); prevItem(); }}
+            onclick={(e) => {
+              e.stopPropagation();
+              prevItem();
+            }}
             class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
             aria-label="Previous item"
           >
@@ -154,7 +171,10 @@
             {currentIndex + 1} / {items.length}
           </p>
           <button
-            onclick={(e) => { e.stopPropagation(); nextItem(); }}
+            onclick={(e) => {
+              e.stopPropagation();
+              nextItem();
+            }}
             class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
             aria-label="Next item"
           >

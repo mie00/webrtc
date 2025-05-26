@@ -1,5 +1,9 @@
 import { writable, get } from 'svelte/store';
-import { getDirectClient, getAllClientCids, getAllDirectClients } from '../stores/connectionStore.js'; // Adjust path if needed
+import {
+  getDirectClient,
+  getAllClientCids,
+  getAllDirectClients
+} from '../stores/connectionStore.js'; // Adjust path if needed
 
 // File transfer state interface
 export interface FileTransfer {
@@ -33,9 +37,9 @@ function splitArrayBuffer(arrayBuffer: ArrayBuffer, chunkSize: number): ArrayBuf
   let offset = 0;
 
   while (offset < uint8Array.length) {
-      const chunk = uint8Array.slice(offset, offset + chunkSize);
-      chunks.push(chunk.buffer);  // Push the ArrayBuffer of the chunk
-      offset += chunkSize;
+    const chunk = uint8Array.slice(offset, offset + chunkSize);
+    chunks.push(chunk.buffer); // Push the ArrayBuffer of the chunk
+    offset += chunkSize;
   }
 
   return chunks;
@@ -43,12 +47,12 @@ function splitArrayBuffer(arrayBuffer: ArrayBuffer, chunkSize: number): ArrayBuf
 
 // Helper function to parse max-message-size from SDP
 function getMaxMessageSizeFromSdp(sdp: string): number | null {
-    if (!sdp) return null;
-    const match = sdp.match(/a=max-message-size:(\d+)/);
-    if (match && match[1]) {
-        return parseInt(match[1], 10);
-    }
-    return null;
+  if (!sdp) return null;
+  const match = sdp.match(/a=max-message-size:(\d+)/);
+  if (match && match[1]) {
+    return parseInt(match[1], 10);
+  }
+  return null;
 }
 
 // Create the store
@@ -60,7 +64,7 @@ export function getFileState() {
 }
 
 export function addFileTransfer(transfer: FileTransfer): void {
-  fileStore.update(state => {
+  fileStore.update((state) => {
     const transfers = { ...state.transfers };
     transfers[transfer.id] = transfer;
     return { ...state, transfers };
@@ -68,7 +72,7 @@ export function addFileTransfer(transfer: FileTransfer): void {
 }
 
 export function updateFileTransfer(id: string, updates: Partial<FileTransfer>): void {
-  fileStore.update(state => {
+  fileStore.update((state) => {
     if (!state.transfers[id]) return state;
 
     const transfers = { ...state.transfers };
@@ -81,7 +85,7 @@ export function updateFileTransfer(id: string, updates: Partial<FileTransfer>): 
 }
 
 export function removeFileTransfer(id: string): void {
-  fileStore.update(state => {
+  fileStore.update((state) => {
     const transfers = { ...state.transfers };
     delete transfers[id];
     return { ...state, transfers };
@@ -91,13 +95,14 @@ export function removeFileTransfer(id: string): void {
 /**
  * Set up file channel for a client
  */
-export function setupFileChannel(cid: string): void { // app might be needed for global config
+export function setupFileChannel(cid: string): void {
+  // app might be needed for global config
   const client = getDirectClient(cid);
   if (!client || !client.pc) {
-      console.error(`Client or PeerConnection not found for CID ${cid} in setupFileChannel`);
-      return;
+    console.error(`Client or PeerConnection not found for CID ${cid} in setupFileChannel`);
+    return;
   }
-  const dc_file = client.pc.createDataChannel("file", {
+  const dc_file = client.pc.createDataChannel('file', {
     negotiated: true,
     id: 2
   });
@@ -112,7 +117,11 @@ export function setupFileChannel(cid: string): void { // app might be needed for
       // TODO: fix incomplete files in case of relay
       const clients = getAllDirectClients();
       for (const clientId in clients) {
-        if (clientId !== cid && clients[clientId].dc && clients[clientId].dc.readyState === 'open') {
+        if (
+          clientId !== cid &&
+          clients[clientId].dc &&
+          clients[clientId].dc.readyState === 'open'
+        ) {
           try {
             clients[clientId].dc_file?.send(e.data);
           } catch (err) {
@@ -144,7 +153,7 @@ export function setupFileChannel(cid: string): void { // app might be needed for
           progress: fileData.size === 0 ? 100 : 0,
           status: 'receiving',
           timestamp: Date.now(), // Add timestamp on receive
-          senderCid: cid,        // Add sender CID
+          senderCid: cid, // Add sender CID
           senderName: senderName // Add sender Name (or CID fallback)
         });
       }
@@ -157,8 +166,12 @@ export function setupFileChannel(cid: string): void { // app might be needed for
         currentClient.file_stuff.remaining_size -= e.data.byteLength || e.data.size;
 
         // Calculate progress
-        const progress = currentClient.file_stuff.size === 0 ? 1 : ((currentClient.file_stuff.size - currentClient.file_stuff.remaining_size) / currentClient.file_stuff.size);
-        const progressReadable = Math.min(100, Math.round((progress) * 100));
+        const progress =
+          currentClient.file_stuff.size === 0
+            ? 1
+            : (currentClient.file_stuff.size - currentClient.file_stuff.remaining_size) /
+              currentClient.file_stuff.size;
+        const progressReadable = Math.min(100, Math.round(progress * 100));
         // Update store
         updateFileTransfer(currentClient.file_stuff.id, {
           progress: progressReadable,
@@ -167,7 +180,9 @@ export function setupFileChannel(cid: string): void { // app might be needed for
       }
       // Check if file is complete
       if (currentClient.file_stuff.remaining_size === 0) {
-        const blob = new Blob(currentClient.file_stuff.segments, { type: currentClient.file_stuff.type });
+        const blob = new Blob(currentClient.file_stuff.segments, {
+          type: currentClient.file_stuff.type
+        });
         const url = URL.createObjectURL(blob);
 
         // Update store
@@ -187,7 +202,8 @@ export function setupFileChannel(cid: string): void { // app might be needed for
 /**
  * Send a file to all connected clients and wait for all transfers to settle.
  */
-export async function sendFile(file: File): Promise<void> { // Make async
+export async function sendFile(file: File): Promise<void> {
+  // Make async
   const transferId = Math.random().toString(16).slice(2); // Use a more descriptive name
 
   // Create a URL for the sender to view/download their own file
@@ -213,9 +229,11 @@ export async function sendFile(file: File): Promise<void> { // Make async
     const client = getDirectClient(cid);
     // Only attempt to send if a file channel exists and is open for the client
     if (client?.dc_file && client.dc_file.readyState === 'open') {
-        readFilePromises.push(readFile(file, cid, transferId));
+      readFilePromises.push(readFile(file, cid, transferId));
     } else {
-        console.warn(`Skipping file send to client ${cid}: File data channel not available or not open.`);
+      console.warn(
+        `Skipping file send to client ${cid}: File data channel not available or not open.`
+      );
     }
   }
 
@@ -223,15 +241,18 @@ export async function sendFile(file: File): Promise<void> { // Make async
   const results = await Promise.allSettled(readFilePromises);
 
   // Check results to determine final status
-  const failedTransfers = results.filter(result => result.status === 'rejected');
+  const failedTransfers = results.filter((result) => result.status === 'rejected');
 
   if (failedTransfers.length > 0) {
     // If any transfer failed, mark the overall status as error
     console.error(`File transfer ${transferId} failed for some clients:`, failedTransfers);
     const errorMessages = failedTransfers
-        .map(result => (result as PromiseRejectedResult).reason?.message || 'Unknown error')
-        .join(', ');
-    updateFileTransfer(transferId, { status: 'error', error: `Failed for ${failedTransfers.length} client(s): ${errorMessages}` });
+      .map((result) => (result as PromiseRejectedResult).reason?.message || 'Unknown error')
+      .join(', ');
+    updateFileTransfer(transferId, {
+      status: 'error',
+      error: `Failed for ${failedTransfers.length} client(s): ${errorMessages}`
+    });
   } else if (readFilePromises.length > 0) {
     // If all transfers succeeded (and there was at least one attempt), mark as complete
     console.log(`File transfer ${transferId} completed successfully for all clients.`);
@@ -239,7 +260,10 @@ export async function sendFile(file: File): Promise<void> { // Make async
   } else {
     // If no clients had a file channel, mark as error or handle differently?
     console.warn(`File transfer ${transferId}: No clients to send to.`);
-    updateFileTransfer(transferId, { status: 'error', error: 'No connected clients with file channel.' });
+    updateFileTransfer(transferId, {
+      status: 'error',
+      error: 'No connected clients with file channel.'
+    });
   }
 }
 
@@ -251,11 +275,11 @@ function readFileSliceAsArrayBuffer(slice: Blob): Promise<ArrayBuffer> {
       if (event.target?.result) {
         resolve(event.target.result as ArrayBuffer);
       } else {
-        reject(new Error("Failed to read file slice."));
+        reject(new Error('Failed to read file slice.'));
       }
     };
     reader.onerror = (event) => {
-      reject(reader.error || new Error("FileReader error"));
+      reject(reader.error || new Error('FileReader error'));
     };
     reader.readAsArrayBuffer(slice);
   });
@@ -263,15 +287,15 @@ function readFileSliceAsArrayBuffer(slice: Blob): Promise<ArrayBuffer> {
 
 // Helper function to wait for the bufferedamountlow event
 async function waitForBufferDrain(dc: RTCDataChannel): Promise<void> {
-    // Return a promise that resolves when bufferedamountlow fires
-    return new Promise((resolve) => {
-        const listener = () => {
-            dc.removeEventListener("bufferedamountlow", listener);
-            resolve();
-        };
-        // Always add the listener; the calling loop checks the condition
-        dc.addEventListener("bufferedamountlow", listener);
-    });
+  // Return a promise that resolves when bufferedamountlow fires
+  return new Promise((resolve) => {
+    const listener = () => {
+      dc.removeEventListener('bufferedamountlow', listener);
+      resolve();
+    };
+    // Always add the listener; the calling loop checks the condition
+    dc.addEventListener('bufferedamountlow', listener);
+  });
 }
 
 async function readFile(file: File, cid: string, id: string): Promise<void> {
@@ -285,30 +309,34 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
   }
 
   // --- Configuration ---
-  const DEFAULT_SEND_CHUNK_SIZE = 16 * 1024;    // 16KB default
-  const MAX_SEND_CHUNK_SIZE = 1 * 1024 * 1024;      // Cap at 1MB for safety/performance
+  const DEFAULT_SEND_CHUNK_SIZE = 16 * 1024; // 16KB default
+  const MAX_SEND_CHUNK_SIZE = 1 * 1024 * 1024; // Cap at 1MB for safety/performance
   const DEFAULT_READ_CHUNK_SIZE = 1 * 1024 * 1024; // Read 1MB chunks from the file
-  const HIGH_WATER_MARK = 0.125 * 1024 * 1024;    // Pause sending if buffered amount exceeds 1MB (tune as needed)
+  const HIGH_WATER_MARK = 0.125 * 1024 * 1024; // Pause sending if buffered amount exceeds 1MB (tune as needed)
 
   // Determine dynamic SEND_CHUNK_SIZE based on SDP
   let SEND_CHUNK_SIZE = DEFAULT_SEND_CHUNK_SIZE;
   const pc = client?.pc; // Use pc from the retrieved client
   if (pc && pc.localDescription && pc.remoteDescription) {
-      const localMax = getMaxMessageSizeFromSdp(pc.localDescription.sdp);
-      const remoteMax = getMaxMessageSizeFromSdp(pc.remoteDescription.sdp);
+    const localMax = getMaxMessageSizeFromSdp(pc.localDescription.sdp);
+    const remoteMax = getMaxMessageSizeFromSdp(pc.remoteDescription.sdp);
 
-      // Use the minimum of the two, if available, otherwise keep default Infinity
-      const effectiveMax = Math.min(localMax ?? Infinity, remoteMax ?? Infinity);
+    // Use the minimum of the two, if available, otherwise keep default Infinity
+    const effectiveMax = Math.min(localMax ?? Infinity, remoteMax ?? Infinity);
 
-      if (effectiveMax !== Infinity && effectiveMax > 0) {
-          // Use the effective max, but cap it at MAX_SEND_CHUNK_SIZE
-          SEND_CHUNK_SIZE = Math.min(effectiveMax, MAX_SEND_CHUNK_SIZE);
-          console.log(`Using dynamic SEND_CHUNK_SIZE: ${SEND_CHUNK_SIZE} bytes (based on SDP max: ${effectiveMax})`);
-      } else {
-           console.log(`Using default SEND_CHUNK_SIZE: ${SEND_CHUNK_SIZE} bytes (SDP max-message-size not found or invalid)`);
-      }
+    if (effectiveMax !== Infinity && effectiveMax > 0) {
+      // Use the effective max, but cap it at MAX_SEND_CHUNK_SIZE
+      SEND_CHUNK_SIZE = Math.min(effectiveMax, MAX_SEND_CHUNK_SIZE);
+      console.log(
+        `Using dynamic SEND_CHUNK_SIZE: ${SEND_CHUNK_SIZE} bytes (based on SDP max: ${effectiveMax})`
+      );
+    } else {
+      console.log(
+        `Using default SEND_CHUNK_SIZE: ${SEND_CHUNK_SIZE} bytes (SDP max-message-size not found or invalid)`
+      );
+    }
   } else {
-       console.log(`Using default SEND_CHUNK_SIZE: ${SEND_CHUNK_SIZE} bytes (SDP not available)`);
+    console.log(`Using default SEND_CHUNK_SIZE: ${SEND_CHUNK_SIZE} bytes (SDP not available)`);
   }
 
   // Keep READ_CHUNK_SIZE fixed for now
@@ -334,24 +362,23 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
       for (const smallChunk of smallChunks) {
         // Flow control: Wait if buffer is too full *before* sending the next small chunk
         while (dc_file.bufferedAmount > HIGH_WATER_MARK) {
-            dc_file.bufferedAmountLowThreshold = HIGH_WATER_MARK / 2;
-            // console.log(`Pre-send buffer full (${dc_file.bufferedAmount}), waiting...`);
-            await waitForBufferDrain(dc_file);
-            // console.log(`Pre-send buffer drained (${dc_file.bufferedAmount}), proceeding to send...`);
+          dc_file.bufferedAmountLowThreshold = HIGH_WATER_MARK / 2;
+          // console.log(`Pre-send buffer full (${dc_file.bufferedAmount}), waiting...`);
+          await waitForBufferDrain(dc_file);
+          // console.log(`Pre-send buffer drained (${dc_file.bufferedAmount}), proceeding to send...`);
         }
 
         // Send the small chunk
         try {
-            dc_file.send(smallChunk);
-            totalBytesSent += smallChunk.byteLength;
+          dc_file.send(smallChunk);
+          totalBytesSent += smallChunk.byteLength;
         } catch (error) {
-             console.error(`Error sending chunk for file ${file.name} to ${cid}:`, error);
-             const errorMessage = error instanceof Error ? error.message : String(error);
-             updateFileTransfer(id, { status: 'error', error: `Send error: ${errorMessage}` });
-             // Stop the transfer for this client by re-throwing
-             throw error;
+          console.error(`Error sending chunk for file ${file.name} to ${cid}:`, error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          updateFileTransfer(id, { status: 'error', error: `Send error: ${errorMessage}` });
+          // Stop the transfer for this client by re-throwing
+          throw error;
         }
-
 
         // Update progress (more frequently)
         const progress = Math.min(100, Math.round((totalBytesSent / file.size) * 100));
@@ -360,18 +387,18 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
         // Removed legacy progress bar update: updateProgressBar(...)
       }
 
-       // Optional: Yield to the event loop occasionally for very large files/chunks
-       // await new Promise(resolve => setTimeout(resolve, 0));
+      // Optional: Yield to the event loop occasionally for very large files/chunks
+      // await new Promise(resolve => setTimeout(resolve, 0));
     }
 
     // 3. Final progress update and completion status
     // Ensure buffer is reasonably drained before marking as complete
     while (dc_file.bufferedAmount > 0) {
-        // console.log(`Final drain: Buffer has (${dc_file.bufferedAmount}), waiting...`);
-        // Use a low threshold for the final drain
-        dc_file.bufferedAmountLowThreshold = 0;
-        await waitForBufferDrain(dc_file);
-        // console.log(`Final drain: Buffer drained (${dc_file.bufferedAmount}), checking again...`);
+      // console.log(`Final drain: Buffer has (${dc_file.bufferedAmount}), waiting...`);
+      // Use a low threshold for the final drain
+      dc_file.bufferedAmountLowThreshold = 0;
+      await waitForBufferDrain(dc_file);
+      // console.log(`Final drain: Buffer drained (${dc_file.bufferedAmount}), checking again...`);
     }
 
     // Final status update ('complete') is now handled by sendFile after Promise.allSettled
@@ -379,7 +406,6 @@ async function readFile(file: File, cid: string, id: string): Promise<void> {
     // Removed: updateFileTransfer(id, { progress: 100, status: 'complete' });
 
     // Removed legacy DOM update
-
   } catch (error) {
     // Error status update is now handled by sendFile after Promise.allSettled
     console.error(`Error sending file ${file.name} to ${cid}:`, error);

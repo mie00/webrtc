@@ -16,7 +16,7 @@ interface ClientQueryOptions {
   type?: ClientType;
 }
 
-type ClientType = "window" | "worker" | "sharedworker" | "all";
+type ClientType = 'window' | 'worker' | 'sharedworker' | 'all';
 
 interface Client {
   id: string;
@@ -46,10 +46,10 @@ interface ExtendableMessageEvent extends ExtendableEvent {
 
 // Add service worker event map for proper event listener typing
 interface ServiceWorkerGlobalScopeEventMap {
-  'install': ExtendableEvent;
-  'activate': ExtendableEvent;
-  'fetch': FetchEvent;
-  'message': ExtendableMessageEvent;
+  install: ExtendableEvent;
+  activate: ExtendableEvent;
+  fetch: FetchEvent;
+  message: ExtendableMessageEvent;
 }
 
 // Extend ServiceWorkerGlobalScope with addEventListener

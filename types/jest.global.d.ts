@@ -41,15 +41,17 @@ declare namespace NodeJS {
     // Add other standard globals that might be mocked (fetch, alert, etc.)
     fetch: jest.Mock<Promise<Response>>;
     alert: jest.Mock<void>;
-    URL: typeof URL & { // Mock static methods too
-        createObjectURL: jest.Mock<string>;
-        revokeObjectURL: jest.Mock<void>;
-        canParse?: jest.Mock<boolean>; // Optional static methods
-        parse?: jest.Mock<any>;
+    URL: typeof URL & {
+      // Mock static methods too
+      createObjectURL: jest.Mock<string>;
+      revokeObjectURL: jest.Mock<void>;
+      canParse?: jest.Mock<boolean>; // Optional static methods
+      parse?: jest.Mock<any>;
     };
     // Add RTCPeerConnection mock type if used globally
-    RTCPeerConnection: jest.Mock<RTCPeerConnection> & { // Add static methods if needed
-        generateCertificate?: jest.Mock<Promise<RTCCertificate>>;
+    RTCPeerConnection: jest.Mock<RTCPeerConnection> & {
+      // Add static methods if needed
+      generateCertificate?: jest.Mock<Promise<RTCCertificate>>;
     };
     // Add AudioContext mock type
     AudioContext: jest.Mock<AudioContext>;
@@ -60,39 +62,43 @@ declare namespace NodeJS {
     // Add URLSearchParams mock type
     URLSearchParams: jest.Mock<URLSearchParams>;
     // Add crypto mock type
-    crypto: Crypto & { // Add specific methods used in tests
-        getRandomValues: jest.Mock<Uint8Array>;
-        subtle: SubtleCrypto & {
-            digest: jest.Mock<Promise<ArrayBuffer>>;
-        };
+    crypto: Crypto & {
+      // Add specific methods used in tests
+      getRandomValues: jest.Mock<Uint8Array>;
+      subtle: SubtleCrypto & {
+        digest: jest.Mock<Promise<ArrayBuffer>>;
+      };
     };
     // Add navigator mock type
-    navigator: Navigator & { // Add specific properties used in tests
-        clipboard: Clipboard & {
-            writeText: jest.Mock<Promise<void>>;
-        };
-        mediaDevices: MediaDevices & {
-            getUserMedia: jest.Mock<Promise<MediaStream>>;
-            getDisplayMedia: jest.Mock<Promise<MediaStream>>;
-            enumerateDevices: jest.Mock<Promise<MediaDeviceInfo[]>>;
-        };
+    navigator: Navigator & {
+      // Add specific properties used in tests
+      clipboard: Clipboard & {
+        writeText: jest.Mock<Promise<void>>;
+      };
+      mediaDevices: MediaDevices & {
+        getUserMedia: jest.Mock<Promise<MediaStream>>;
+        getDisplayMedia: jest.Mock<Promise<MediaStream>>;
+        enumerateDevices: jest.Mock<Promise<MediaDeviceInfo[]>>;
+      };
     };
     // Add window mock type (can be partial)
-    window: Window & typeof globalThis & { // Add specific properties used in tests
+    window: Window &
+      typeof globalThis & {
+        // Add specific properties used in tests
         localStorage: Storage & {
-            getItem: jest.Mock<string | null>;
-            setItem: jest.Mock<void>;
+          getItem: jest.Mock<string | null>;
+          setItem: jest.Mock<void>;
         };
         // Add other window properties mocked in tests
         VideoStreamMerger?: any; // If VideoStreamMerger is attached to window
-    };
+      };
   }
 }
 
 // Extend Window interface if necessary for window-specific mocks
 // interface Window {
-  //   // Add window specific mocks here if needed
-  // }
+//   // Add window specific mocks here if needed
+// }
 // }
 
 // Export {} to make this file a module. This is necessary for augmentation.

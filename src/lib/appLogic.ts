@@ -1,7 +1,10 @@
 import type { WebRTCApp } from './webrtc/WebRTCApp.js';
 import type { Config } from '../stores/configStore.js';
 import type { getDirectClient as getDirectClientType } from '../stores/connectionStore.js';
-import type { compress as compressType, decompress as decompressType } from './utils/sdpCompress.js';
+import type {
+  compress as compressType,
+  decompress as decompressType
+} from './utils/sdpCompress.js';
 
 export interface AppLogicState {
   showCopyOverlay: boolean;
@@ -22,12 +25,14 @@ export interface AppLogicContext {
   getDirectClient: typeof getDirectClientType;
   compress: typeof compressType;
   decompress: typeof decompressType;
-  
+
   getState: () => AppLogicState;
-  setState: (updater: Partial<AppLogicState> | ((prevState: AppLogicState) => Partial<AppLogicState>)) => void;
-  
+  setState: (
+    updater: Partial<AppLogicState> | ((prevState: AppLogicState) => Partial<AppLogicState>)
+  ) => void;
+
   // Helpers that App.svelte provides
-  appOnId: () => void; 
+  appOnId: () => void;
   broadcastManuallyEnteredAnswer: (offer: string, answer: string) => Promise<void>;
   reportCriticalError?: (type: string, error?: any) => void; // For logic modules to signal fatal errors
 }

@@ -32,13 +32,10 @@ import {
   getDirectClientState
 } from '../../stores/connectionStore.js';
 import { getAllConfig } from '../../stores/configStore.js';
-import { 
-  updatePeerProfile, 
-  removePeerProfile, 
-} from '../../stores/peerProfileStore.js';
-import { 
-  registerNegoHandler, 
-  getNegoHandler, 
+import { updatePeerProfile, removePeerProfile } from '../../stores/peerProfileStore.js';
+import {
+  registerNegoHandler,
+  getNegoHandler,
   getAllCleanups,
   resetAppStateStore
 } from '../../stores/appStateStore.js';
@@ -51,10 +48,7 @@ import { setupForwardChannel } from '../forwardBridge.js';
 import { setupChatChannel } from '../chatBridge.js';
 import { setupFileChannel } from '../fileBridge.js';
 import { setupTranscriptionChannel } from '../media/transcriber.js';
-import { 
-  createSolutionHandler, 
-  createChallengeHandler 
-} from './authHandler.js';
+import { createSolutionHandler, createChallengeHandler } from './authHandler.js';
 import { NegotiationManager, type NegotiationManagerContext } from './negotiationManager.js';
 
 export class WebRTCApp {
@@ -70,7 +64,7 @@ export class WebRTCApp {
         try {
           dc?.send(data);
         } catch (e) {
-          console.log("error in actualSend", data, "to dc", dc, "error", e);
+          console.log('error in actualSend', data, 'to dc', dc, 'error', e);
         }
       },
       getNegoHandler: getNegoHandler,
@@ -82,7 +76,7 @@ export class WebRTCApp {
       setCidKeys: setCidKeys,
       getKeysByCid: getKeysByCid,
       addParticipant: addParticipant,
-      removeParticipant: removeParticipant,
+      removeParticipant: removeParticipant
     };
     this.negotiationManager = new NegotiationManager(this.negotiationContext);
 
@@ -107,43 +101,43 @@ export class WebRTCApp {
       sendNego: this.negotiationManager.sendNegoMessage.bind(this.negotiationManager),
       acceptClient: this.acceptClient.bind(this)
     };
-    registerNegoHandler("solution", createSolutionHandler(solutionHandlerContext));
+    registerNegoHandler('solution', createSolutionHandler(solutionHandlerContext));
 
     const challengeHandlerContext = {
       sendNego: this.negotiationManager.sendNegoMessage.bind(this.negotiationManager)
     };
-    registerNegoHandler("challenge", createChallengeHandler(challengeHandlerContext));
+    registerNegoHandler('challenge', createChallengeHandler(challengeHandlerContext));
   }
 
   public acceptClient(cid: string, client: WebRTCClient): void {
     if (!client.trusted || !client.trusting) return;
 
-    getAllClientCids().forEach(existingCid => {
-        if (existingCid !== cid) {
-            const existingClientPeerObject = getDirectClient(existingCid);
-            const newClientKeys = getKeysByCid(cid);
-            const newUserPublicKey = newClientKeys?.userPublicKey;
+    getAllClientCids().forEach((existingCid) => {
+      if (existingCid !== cid) {
+        const existingClientPeerObject = getDirectClient(existingCid);
+        const newClientKeys = getKeysByCid(cid);
+        const newUserPublicKey = newClientKeys?.userPublicKey;
 
-            if (existingClientPeerObject && newUserPublicKey) {
-                const participantMessage: ParticipantNegoMessage = {
-                    type: "participant",
-                    cid: cid,
-                    publicKey: newUserPublicKey
-                };
-                this.negotiationManager.sendNegoMessage(existingClientPeerObject, participantMessage);
-            }
-
-            const existingClientKeys = getKeysByCid(existingCid);
-            const existingUserPublicKey = existingClientKeys?.userPublicKey;
-            if (existingUserPublicKey) {
-                const participantMessageToNew: ParticipantNegoMessage = {
-                    type: "participant",
-                    cid: existingCid,
-                    publicKey: existingUserPublicKey
-                };
-                this.negotiationManager.sendNegoMessage(client, participantMessageToNew);
-            }
+        if (existingClientPeerObject && newUserPublicKey) {
+          const participantMessage: ParticipantNegoMessage = {
+            type: 'participant',
+            cid: cid,
+            publicKey: newUserPublicKey
+          };
+          this.negotiationManager.sendNegoMessage(existingClientPeerObject, participantMessage);
         }
+
+        const existingClientKeys = getKeysByCid(existingCid);
+        const existingUserPublicKey = existingClientKeys?.userPublicKey;
+        if (existingUserPublicKey) {
+          const participantMessageToNew: ParticipantNegoMessage = {
+            type: 'participant',
+            cid: existingCid,
+            publicKey: existingUserPublicKey
+          };
+          this.negotiationManager.sendNegoMessage(client, participantMessageToNew);
+        }
+      }
     });
 
     setupTrackHandler(cid);
@@ -158,16 +152,18 @@ export class WebRTCApp {
   }
 
   public destroyClient(cid: string): void {
-    getAllClientCids().filter((key) => key !== cid).forEach((key) => {
-      const otherClient = getDirectClient(key);
-      if (otherClient) {
+    getAllClientCids()
+      .filter((key) => key !== cid)
+      .forEach((key) => {
+        const otherClient = getDirectClient(key);
+        if (otherClient) {
           const participantEndMessage: ParticipantEndNegoMessage = {
-            type: 'participant.end', 
-            cid: cid, 
+            type: 'participant.end',
+            cid: cid
           };
           this.negotiationManager.sendNegoMessage(otherClient, participantEndMessage);
-      }
-    });
+        }
+      });
 
     const client = getDirectClient(cid);
     if (client) {
@@ -184,11 +180,11 @@ export class WebRTCApp {
         client.dc.onclose = null;
         client.dc.onmessage = null;
       }
-       if (client.dc_file) {
+      if (client.dc_file) {
         client.dc_file.onclose = null;
         client.dc_file.onmessage = null;
       }
-       if (client.forward) {
+      if (client.forward) {
         client.forward.onclose = null;
         client.forward.onmessage = null;
       }
@@ -226,7 +222,7 @@ export class WebRTCApp {
     for (const cid of cids) {
       const client = getDirectClient(cid);
       if (client) {
-        const hangupMessage: HangupNegoMessage = { type: "hangup" };
+        const hangupMessage: HangupNegoMessage = { type: 'hangup' };
         this.negotiationManager.sendNegoMessage(client, hangupMessage);
       }
       this.destroyClient(cid);
@@ -247,8 +243,8 @@ export class WebRTCApp {
   }
 
   public uuidv4(): string {
-    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
-      (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
+    return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) =>
+      (+c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c / 4)))).toString(16)
     );
   }
 
@@ -256,13 +252,22 @@ export class WebRTCApp {
     const currentConfig = getAllConfig(); // Returns new Config type
     const rtcConfig = {
       iceServers: [
-        ...(currentConfig.rtc.stunServers?.split(',').filter(link => link).map(link => ({ urls: "stun:" + link })) || []),
-        ...(currentConfig.rtc.turnServerV2 && currentConfig.rtc.turnUsername && currentConfig.rtc.turnPassword ? [{
-          urls: "turn:" + currentConfig.rtc.turnServerV2,
-          username: currentConfig.rtc.turnUsername,
-          credential: currentConfig.rtc.turnPassword,
-        }] : [])
-      ],
+        ...(currentConfig.rtc.stunServers
+          ?.split(',')
+          .filter((link) => link)
+          .map((link) => ({ urls: 'stun:' + link })) || []),
+        ...(currentConfig.rtc.turnServerV2 &&
+        currentConfig.rtc.turnUsername &&
+        currentConfig.rtc.turnPassword
+          ? [
+              {
+                urls: 'turn:' + currentConfig.rtc.turnServerV2,
+                username: currentConfig.rtc.turnUsername,
+                credential: currentConfig.rtc.turnPassword
+              }
+            ]
+          : [])
+      ]
     };
 
     const { sid, offer } = options;
@@ -289,7 +294,7 @@ export class WebRTCApp {
     pc.oniceconnectionstatechange = () => {
       if (pc) {
         updateDirectClientState(cid, pc.connectionState, pc.iceConnectionState);
-        if (pc.iceConnectionState === "failed") {
+        if (pc.iceConnectionState === 'failed') {
           pc.restartIce();
         }
         if (pc.connectionState === 'connected' && pc.iceConnectionState === 'connected') {
@@ -298,43 +303,42 @@ export class WebRTCApp {
       }
     };
 
-    const nego_dc = pc.createDataChannel("nego", {
+    const nego_dc = pc.createDataChannel('nego', {
       negotiated: true,
       id: 0
     });
     client.nego_dc = nego_dc;
-    nego_dc.onclose = async e => {
+    nego_dc.onclose = async (e) => {
       console.log(e);
       this.destroyClient(cid);
-    }
+    };
 
     nego_dc.onerror = (error) => {
       console.error('Data channel error:', error, error.error);
       client.pc?.restartIce();
     };
 
-    nego_dc.onmessage = async e => {
+    nego_dc.onmessage = async (e) => {
       this.negotiationManager.handleIncomingNegoMessage(e.data, cid, client);
     };
 
     nego_dc.onopen = () => {
       const challengeData = Math.random().toString();
-      client.sentChallengeData = challengeData; 
-      
+      client.sentChallengeData = challengeData;
+
       const challengeMessage = {
-        type: "challenge",
+        type: 'challenge',
         data: challengeData
-      } as NegoData; 
+      } as NegoData;
       this.negotiationManager.sendNegoMessage(client, challengeMessage);
       console.log(`Challenge sent to ${cid}: ${challengeData}`);
     };
 
-    client._transceiver_interval = window.setInterval(() => {
-    }, 10000);
+    client._transceiver_interval = window.setInterval(() => {}, 10000);
 
     if (offer) {
       await pc.setRemoteDescription({
-        type: "offer",
+        type: 'offer',
         sdp: offer.trim() + '\n'
       });
       let answer = await pc.createAnswer();
@@ -350,15 +354,23 @@ export class WebRTCApp {
         if (pc?.currentLocalDescription && pc?.localDescription) {
           this.logDiff(pc.currentLocalDescription.sdp, pc.localDescription.sdp);
         }
-        if (pc?.localDescription && pc.localDescription.type === "offer" && pc.localDescription.sdp) {
-          const offerMessage: OfferNegoMessage = { type: "offer", sdp: pc.localDescription.sdp };
+        if (
+          pc?.localDescription &&
+          pc.localDescription.type === 'offer' &&
+          pc.localDescription.sdp
+        ) {
+          const offerMessage: OfferNegoMessage = { type: 'offer', sdp: pc.localDescription.sdp };
           this.negotiationManager.sendNegoMessage(client, offerMessage);
-        } else if (pc?.localDescription && pc.localDescription.type === "answer" && pc.localDescription.sdp) {
-          const answerMessage: AnswerNegoMessage = { type: "answer", sdp: pc.localDescription.sdp };
+        } else if (
+          pc?.localDescription &&
+          pc.localDescription.type === 'answer' &&
+          pc.localDescription.sdp
+        ) {
+          const answerMessage: AnswerNegoMessage = { type: 'answer', sdp: pc.localDescription.sdp };
           this.negotiationManager.sendNegoMessage(client, answerMessage);
         }
       } catch (e) {
-        console.log("renegotiation error", e);
+        console.log('renegotiation error', e);
       } finally {
         client.makingOffer = false;
       }
@@ -375,56 +387,69 @@ export class WebRTCApp {
     return cid;
   }
 
-  public async getOffer(cb: (candidate: RTCIceCandidate | null) => Promise<void>, options: {sid: string}): Promise<string> {
-      const cid = await this.initClient(false, options);
-      const client = getDirectClient(cid);
-      if (client?.pc) {
-          client.pc.onicecandidate = async ({ candidate }) => {
-          console.log('Candidate found (offer)', candidate);
-          await cb(candidate);
-        };
+  public async getOffer(
+    cb: (candidate: RTCIceCandidate | null) => Promise<void>,
+    options: { sid: string }
+  ): Promise<string> {
+    const cid = await this.initClient(false, options);
+    const client = getDirectClient(cid);
+    if (client?.pc) {
+      client.pc.onicecandidate = async ({ candidate }) => {
+        console.log('Candidate found (offer)', candidate);
+        await cb(candidate);
+      };
     }
     return cid;
   }
 
-  public async getAnswer(offer: string, cb: (candidate: RTCIceCandidate | null) => Promise<void>, options: {sid: string}): Promise<string> {
-      const cid = await this.initClient(true, {sid: options.sid, offer});
-      const client = getDirectClient(cid);
-      if (client?.pc) {
-        client.pc.onicecandidate = async ({ candidate }) => {
-          console.log('Candidate found (answer)', candidate);
-          await cb(candidate);
-        };
-      }
-      return cid;
+  public async getAnswer(
+    offer: string,
+    cb: (candidate: RTCIceCandidate | null) => Promise<void>,
+    options: { sid: string }
+  ): Promise<string> {
+    const cid = await this.initClient(true, { sid: options.sid, offer });
+    const client = getDirectClient(cid);
+    if (client?.pc) {
+      client.pc.onicecandidate = async ({ candidate }) => {
+        console.log('Candidate found (answer)', candidate);
+        await cb(candidate);
+      };
+    }
+    return cid;
   }
 
   public async sha256(message: string): Promise<string> {
     const msgBuffer = new TextEncoder().encode(message);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
     return hashHex;
   }
 
   public async genEmojis(digest: string): Promise<string> {
     if (!crypto.subtle) {
-      return "❗❗❗❗❗❗❗❗";
+      return '❗❗❗❗❗❗❗❗';
     }
     const msgBuffer = new TextEncoder().encode(digest);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const limit = Math.pow(EMOJIS.length, 4) + Math.pow(EMOJIS.length, 3) + Math.pow(EMOJIS.length, 2) + EMOJIS.length;
+    const limit =
+      Math.pow(EMOJIS.length, 4) +
+      Math.pow(EMOJIS.length, 3) +
+      Math.pow(EMOJIS.length, 2) +
+      EMOJIS.length;
     let val = 0;
     let ind = 0;
     while (val < limit && ind < hashArray.length) {
       val += Math.pow(hashArray[ind], ind + 1);
       ind += 1;
     }
-    return (EMOJIS[val % EMOJIS.length]) +
-      (EMOJIS[Math.floor(val / EMOJIS.length) % EMOJIS.length]) +
-      (EMOJIS[Math.floor(val / EMOJIS.length / EMOJIS.length) % EMOJIS.length]) +
-      (EMOJIS[Math.floor(val / EMOJIS.length / EMOJIS.length / EMOJIS.length) % EMOJIS.length]);
+    return (
+      EMOJIS[val % EMOJIS.length] +
+      EMOJIS[Math.floor(val / EMOJIS.length) % EMOJIS.length] +
+      EMOJIS[Math.floor(val / EMOJIS.length / EMOJIS.length) % EMOJIS.length] +
+      EMOJIS[Math.floor(val / EMOJIS.length / EMOJIS.length / EMOJIS.length) % EMOJIS.length]
+    );
   }
 
   public logDiff(d1: string, d2: string): void {
@@ -439,8 +464,7 @@ export class WebRTCApp {
       const fragment = document.createDocumentFragment();
 
       diff.forEach((part: any) => {
-        const color = part.added ? 'green' :
-          part.removed ? 'red' : 'grey';
+        const color = part.added ? 'green' : part.removed ? 'red' : 'grey';
         span = document.createElement('span');
         span.style.color = color;
         span.appendChild(document.createTextNode(part.value));
@@ -451,49 +475,56 @@ export class WebRTCApp {
   }
 
   private async updateFingerprint(cid: string): Promise<void> {
-      const client = getDirectClient(cid);
-      if (!client || !client.pc) return;
+    const client = getDirectClient(cid);
+    if (!client || !client.pc) return;
 
-      try {
-          const stats = await client.pc.getStats();
-          let transport: RTCTransportStats | null = null;
-          let certificates: Record<string, any> = {};
-          stats.forEach(stat => {
-              if (stat.type === 'transport') {
-                  transport = stat as RTCTransportStats;
-              } else if (stat.type === 'certificate') {
-                  certificates[stat.id] = stat as any;
-              }
-          });
+    try {
+      const stats = await client.pc.getStats();
+      let transport: RTCTransportStats | null = null;
+      let certificates: Record<string, any> = {};
+      stats.forEach((stat) => {
+        if (stat.type === 'transport') {
+          transport = stat as RTCTransportStats;
+        } else if (stat.type === 'certificate') {
+          certificates[stat.id] = stat as any;
+        }
+      });
 
-          if (transport) {
-              const remoteCertId = (transport as any).remoteCertificateId;
-              const localCertId = (transport as any).localCertificateId;
+      if (transport) {
+        const remoteCertId = (transport as any).remoteCertificateId;
+        const localCertId = (transport as any).localCertificateId;
 
-              if (localCertId && remoteCertId && certificates[localCertId] && certificates[remoteCertId]) {
-                  const firstCert = client.polite ? certificates[remoteCertId] : certificates[localCertId];
-                  const secondCert = !client.polite ? certificates[remoteCertId] : certificates[localCertId];
+        if (
+          localCertId &&
+          remoteCertId &&
+          certificates[localCertId] &&
+          certificates[remoteCertId]
+        ) {
+          const firstCert = client.polite ? certificates[remoteCertId] : certificates[localCertId];
+          const secondCert = !client.polite
+            ? certificates[remoteCertId]
+            : certificates[localCertId];
 
-                  if (firstCert?.fingerprint && secondCert?.fingerprint) {
-                      const fingerprints = firstCert.fingerprint + secondCert.fingerprint;
-                      const ejs = await this.genEmojis(fingerprints);
-                      updateDirectClientFingerprint(cid, ejs);
-                      console.log(`Fingerprint for ${cid}: ${ejs}`);
+          if (firstCert?.fingerprint && secondCert?.fingerprint) {
+            const fingerprints = firstCert.fingerprint + secondCert.fingerprint;
+            const ejs = await this.genEmojis(fingerprints);
+            updateDirectClientFingerprint(cid, ejs);
+            console.log(`Fingerprint for ${cid}: ${ejs}`);
 
-                      if (!new URLSearchParams(window.location.search).has('r')) {
-                          history.replaceState('', '', window.location.origin + window.location.pathname);
-                      }
-                  } else {
-                      console.warn(`Missing fingerprint for one or both certificates for client ${cid}`);
-                  }
-              } else {
-                 console.warn(`Missing certificate IDs or certificate stats for client ${cid}`);
-              }
+            if (!new URLSearchParams(window.location.search).has('r')) {
+              history.replaceState('', '', window.location.origin + window.location.pathname);
+            }
           } else {
-             console.warn(`No transport stats found for client ${cid}`);
+            console.warn(`Missing fingerprint for one or both certificates for client ${cid}`);
           }
-      } catch (error) {
-          console.error(`Error getting stats/fingerprint for ${cid}:`, error);
+        } else {
+          console.warn(`Missing certificate IDs or certificate stats for client ${cid}`);
+        }
+      } else {
+        console.warn(`No transport stats found for client ${cid}`);
       }
+    } catch (error) {
+      console.error(`Error getting stats/fingerprint for ${cid}:`, error);
+    }
   }
 }

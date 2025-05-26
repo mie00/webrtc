@@ -1,7 +1,7 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import tailwindcss from '@tailwindcss/vite'
+import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'path';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import * as fs from 'node:fs';
@@ -25,10 +25,15 @@ function copyIndexTo404Plugin() {
           fs.copyFileSync(indexPath, notFoundPath);
           console.log(`[vite-plugin-copy-index-to-404] Copied ${indexPath} to ${notFoundPath}`);
         } else {
-          console.warn(`[vite-plugin-copy-index-to-404] ${indexPath} not found. Skipping copy to 404.html.`);
+          console.warn(
+            `[vite-plugin-copy-index-to-404] ${indexPath} not found. Skipping copy to 404.html.`
+          );
         }
       } catch (error) {
-        console.error(`[vite-plugin-copy-index-to-404] Error copying index.html to 404.html:`, error);
+        console.error(
+          `[vite-plugin-copy-index-to-404] Error copying index.html to 404.html:`,
+          error
+        );
       }
     }
   };
@@ -44,32 +49,31 @@ export default defineConfig({
         {
           src: 'CNAME',
           dest: '.' // copies CNAME to the root of the outDir
-        },
+        }
       ]
-    }),
+    })
   ],
   resolve: {
-    conditions: ['browser'],
+    conditions: ['browser']
   },
   server: {
     host: '127.0.0.1', // Listen only on localhost IP
-    port: 3000,
-
+    port: 3000
   },
   build: {
     outDir: 'docs',
     emptyOutDir: true,
-    sourcemap: false, // Explicitly enable sourcemaps for the build                                                                                                                                          
-    rollupOptions: {                                                                                                                                                                                        
-      input: {                                                                                                                                                                                              
-        // Your main application entry (Vite usually infers this from index.html)                                                                                                                           
+    sourcemap: false, // Explicitly enable sourcemaps for the build
+    rollupOptions: {
+      input: {
+        // Your main application entry (Vite usually infers this from index.html)
         main: resolve(__dirname, 'index.html'),
         // Add service-worker.ts as a separate entry point
-        'service-worker': resolve(__dirname, 'service-worker.ts'),
+        'service-worker': resolve(__dirname, 'service-worker.ts')
       },
       output: {
         // Control the output file names
-        entryFileNames: assetInfo => {
+        entryFileNames: (assetInfo) => {
           // Output service-worker.js directly in the dist root
           if (assetInfo.name === 'service-worker') {
             return 'service-worker.js';
@@ -78,7 +82,7 @@ export default defineConfig({
           return 'assets/[name]-[hash].js';
         },
         chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash][extname]',
+        assetFileNames: 'assets/[name]-[hash][extname]'
       }
     }
   },
@@ -89,7 +93,7 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{js,ts,svelte}'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-    },
+      reporter: ['text', 'json', 'html']
+    }
   }
 });

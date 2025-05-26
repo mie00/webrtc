@@ -61,12 +61,15 @@ export function createSolutionHandler(context: SolutionHandlerContext) {
     }
     // The original challenge sent was a string. data.solution.originalChallenge is 'any'.
     // We need to ensure they match. If originalChallenge could be non-string, stringify consistently.
-    const receivedOriginalChallengeString = typeof data.solution.originalChallenge === 'string'
-      ? data.solution.originalChallenge
-      : JSON.stringify(data.solution.originalChallenge);
+    const receivedOriginalChallengeString =
+      typeof data.solution.originalChallenge === 'string'
+        ? data.solution.originalChallenge
+        : JSON.stringify(data.solution.originalChallenge);
 
     if (sentChallenge !== receivedOriginalChallengeString) {
-      console.error(`Solution from ${cid}: Original challenge mismatch. Expected: "${sentChallenge}", Received: "${receivedOriginalChallengeString}"`);
+      console.error(
+        `Solution from ${cid}: Original challenge mismatch. Expected: "${sentChallenge}", Received: "${receivedOriginalChallengeString}"`
+      );
       return;
     }
 
@@ -74,11 +77,11 @@ export function createSolutionHandler(context: SolutionHandlerContext) {
     try {
       const devicePubKeySpkiBuffer = base64UrlToArrayBuffer(data.solution.pubKey);
       const deviceCryptoKey = await crypto.subtle.importKey(
-        "spki",
+        'spki',
         devicePubKeySpkiBuffer,
-        { name: "ECDSA", namedCurve: "P-384" }, // Matches our key generation
+        { name: 'ECDSA', namedCurve: 'P-384' }, // Matches our key generation
         true,
-        ["verify"]
+        ['verify']
       );
 
       const signatureBuffer = base64ToArrayBuffer(data.solution.signedChallenge);
@@ -86,48 +89,53 @@ export function createSolutionHandler(context: SolutionHandlerContext) {
       const originalChallengeBuffer = new TextEncoder().encode(receivedOriginalChallengeString);
 
       const isSignatureValid = await crypto.subtle.verify(
-        { name: "ECDSA", hash: "SHA-256" }, // Hash used by peer when signing (SHA-256 for P-384 keys)
+        { name: 'ECDSA', hash: 'SHA-256' }, // Hash used by peer when signing (SHA-256 for P-384 keys)
         deviceCryptoKey,
         signatureBuffer,
         originalChallengeBuffer
       );
 
       if (!isSignatureValid) {
-        console.error(`Solution from ${cid}: Device signature verification failed for the challenge.`);
+        console.error(
+          `Solution from ${cid}: Device signature verification failed for the challenge.`
+        );
         return;
       }
-
     } catch (error) {
       console.error(`Solution from ${cid}: Error during device signature verification:`, error);
       return;
     }
-    
+
     // 3. Verify JWT and consistency of public keys
     try {
       const payload = await verifyLoginJWTFromBase64(data.solution.jwt, data.solution.userPubKey);
       // payload.cstm_dat is the device's public key (SPKI B64URL) from the JWT, authenticated by the server.
       // data.solution.pubKey is the device's public key (SPKI B64URL) used to sign the challenge.
       if (data.solution.pubKey !== payload.cstm_dat) {
-        console.error(`Solution from ${cid}: Device public key in solution (${data.solution.pubKey}) does not match device public key in JWT payload (${payload.cstm_dat}).`);
+        console.error(
+          `Solution from ${cid}: Device public key in solution (${data.solution.pubKey}) does not match device public key in JWT payload (${payload.cstm_dat}).`
+        );
         return;
       }
 
       // All checks passed
       client.trusted = true; // We now trust this peer
-      
+
       // Store peer's device public key and user public key in the new cidKeyStore
       setCidKeys(cid, data.solution.pubKey, data.solution.userPubKey);
-      
+
       updatePeerProfile(data.solution.userPubKey, { userName: data.profile.userName });
-      
-      context.sendNego(client, { type: "trusted" } as TrustedNegoMessage); // Cast to ensure type correctness
+
+      context.sendNego(client, { type: 'trusted' } as TrustedNegoMessage); // Cast to ensure type correctness
       context.acceptClient(cid, client);
-      
+
       // Clear the stored challenge to prevent replay
       delete client.sentChallengeData;
-
     } catch (error) {
-      console.error(`Solution from ${cid}: Error during JWT verification or subsequent processing:`, error);
+      console.error(
+        `Solution from ${cid}: Error during JWT verification or subsequent processing:`,
+        error
+      );
       // If JWT verification fails, the client is not trusted.
     }
   };
@@ -142,31 +150,36 @@ export function createChallengeHandler(context: ChallengeHandlerContext) {
     const authState = authStore.getAuthState();
 
     if (!authState || !authState.privateKeyJwk || !authState.jwt || !authState.publicKeyJwk) {
-      console.warn(`Cannot respond to challenge from ${cid}: User not authenticated or keys/JWT missing.`);
+      console.warn(
+        `Cannot respond to challenge from ${cid}: User not authenticated or keys/JWT missing.`
+      );
       return;
     }
 
     const client = getDirectClient(cid);
     if (!client || !client.pc) {
-      console.error("Client not found or PC not available for cid:", cid, "cannot send solution.");
+      console.error('Client not found or PC not available for cid:', cid, 'cannot send solution.');
       return;
     }
 
     try {
       const privateKey = await crypto.subtle.importKey(
-          "jwk",
-          authState.privateKeyJwk,
-          { name: "ECDSA", namedCurve: "P-384" },
-          true,
-          ["sign"]
+        'jwk',
+        authState.privateKeyJwk,
+        { name: 'ECDSA', namedCurve: 'P-384' },
+        true,
+        ['sign']
       );
 
       const originalChallengeContent = data.data; // From ChallengeNegoMessage
-      const challengeString = typeof originalChallengeContent === 'string' ? originalChallengeContent : JSON.stringify(originalChallengeContent);
+      const challengeString =
+        typeof originalChallengeContent === 'string'
+          ? originalChallengeContent
+          : JSON.stringify(originalChallengeContent);
       const challengeBuffer = new TextEncoder().encode(challengeString);
 
       const signatureBuffer = await crypto.subtle.sign(
-        { name: "ECDSA", hash: "SHA-256" },
+        { name: 'ECDSA', hash: 'SHA-256' },
         privateKey,
         challengeBuffer
       );
@@ -175,18 +188,18 @@ export function createChallengeHandler(context: ChallengeHandlerContext) {
       const userPubKeyString = authState.userPubKey; // This is now the base64 URL encoded SPKI string
 
       if (!userPubKeyString) {
-        console.error("Cannot send solution: userPubKey is missing from authState.");
+        console.error('Cannot send solution: userPubKey is missing from authState.');
         return;
       }
 
       const devicePublicKeySpki = await authStore.getDevicePublicKeyAsSpki();
       if (!devicePublicKeySpki) {
-        console.error("Cannot send solution: Failed to get device public key as SPKI.");
+        console.error('Cannot send solution: Failed to get device public key as SPKI.');
         return;
       }
-    
+
       const solutionMessage: SolutionNegoMessage = {
-        type: "solution",
+        type: 'solution',
         solution: {
           signedChallenge: signatureBase64,
           jwt: authState.jwt,
@@ -195,13 +208,12 @@ export function createChallengeHandler(context: ChallengeHandlerContext) {
           originalChallenge: originalChallengeContent
         },
         profile: {
-          userName: localProfile.userName || "unknown",
-        },
+          userName: localProfile.userName || 'unknown'
+        }
       };
       context.sendNego(client, solutionMessage);
-
     } catch (error) {
-      console.error("Error processing challenge and sending solution to", cid, ":", error);
+      console.error('Error processing challenge and sending solution to', cid, ':', error);
     }
   };
 }

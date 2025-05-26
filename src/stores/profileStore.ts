@@ -26,7 +26,7 @@ function getInitialState(): ProfileState {
   }
   return {
     userName: null,
-    isProfileComplete: false, // Initially, profile is not complete
+    isProfileComplete: false // Initially, profile is not complete
   };
 }
 
@@ -36,7 +36,7 @@ export const profileStore: Writable<ProfileState> = writable(initialProfileState
 
 // Subscribe to store changes and update localStorage
 if (typeof window !== 'undefined' && window.localStorage) {
-  profileStore.subscribe(state => {
+  profileStore.subscribe((state) => {
     try {
       window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
     } catch (error) {
@@ -47,10 +47,10 @@ if (typeof window !== 'undefined' && window.localStorage) {
 
 // Function to update the profile and mark it as complete
 export function updateUserProfile(name: string): void {
-  profileStore.update(state => ({
+  profileStore.update((state) => ({
     ...state,
     userName: name,
-    isProfileComplete: true,
+    isProfileComplete: true
   }));
 }
 
@@ -58,7 +58,7 @@ export function updateUserProfile(name: string): void {
 export function resetProfileState(): void {
   const defaultState: ProfileState = {
     userName: null,
-    isProfileComplete: false,
+    isProfileComplete: false
   };
   profileStore.set(defaultState);
   // The subscription above will handle saving this reset state to localStorage

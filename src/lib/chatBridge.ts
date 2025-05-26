@@ -26,7 +26,7 @@ export function getChatState() {
 
 // Add optional cid parameter
 export function addMessage(text: string, sender: string, cid?: string): void {
-  chatStore.update(state => ({
+  chatStore.update((state) => ({
     ...state,
     messages: [
       ...state.messages,
@@ -43,21 +43,21 @@ export function addMessage(text: string, sender: string, cid?: string): void {
 /**
  * Set up chat channel for a client
  */
-export function setupChatChannel(cid: string): void { // app might be needed for global config
+export function setupChatChannel(cid: string): void {
+  // app might be needed for global config
   const client = getDirectClient(cid);
   if (!client || !client.pc) {
-      console.error(`Client or PeerConnection not found for CID ${cid} in setupChatChannel`);
-      return;
+    console.error(`Client or PeerConnection not found for CID ${cid} in setupChatChannel`);
+    return;
   }
-  const dc = client.pc.createDataChannel("chat", {
+  const dc = client.pc.createDataChannel('chat', {
     negotiated: true,
     id: 1
   });
   if (dc) {
     client.dc = dc; // Assign to client object from store
 
-    dc.onopen = (): void => {
-    };
+    dc.onopen = (): void => {};
 
     dc.onmessage = (e: MessageEvent): void => {
       // Try to parse as JSON first (for structured messages)
@@ -68,14 +68,20 @@ export function setupChatChannel(cid: string): void { // app might be needed for
       addMessage(data.message, senderNameToStore, cid);
       const clients = getAllDirectClients();
       for (const clientId in clients) {
-        if (clientId !== cid && clients[clientId].dc && clients[clientId].dc.readyState === 'open') {
+        if (
+          clientId !== cid &&
+          clients[clientId].dc &&
+          clients[clientId].dc.readyState === 'open'
+        ) {
           try {
             // Send structured message including the sender's name from config
-            clients[clientId].dc.send(JSON.stringify({
-              type: 'chat',
-              message: data.message,
-              sender: data.sender
-            }));
+            clients[clientId].dc.send(
+              JSON.stringify({
+                type: 'chat',
+                message: data.message,
+                sender: data.sender
+              })
+            );
           } catch (err) {
             console.error(`Failed to send chat message to ${clientId}:`, err);
           }
@@ -101,11 +107,13 @@ export function sendChatMessage(message: string, sender: string = 'You'): void {
     if (client.dc && client.dc.readyState === 'open') {
       try {
         // Send structured message including the sender's name from config
-        client.dc.send(JSON.stringify({
-          type: 'chat',
-          message,
-          sender // Send the local user's name
-        }));
+        client.dc.send(
+          JSON.stringify({
+            type: 'chat',
+            message,
+            sender // Send the local user's name
+          })
+        );
       } catch (err) {
         console.error(`Failed to send chat message to ${cid}:`, err);
         // Fallback might not be useful if JSON stringify failed

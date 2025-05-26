@@ -32,7 +32,7 @@ export const get = jest.fn((store) => {
   return {
     'config-loader': 'client', // Example default from configStore
     'user-name': 'test-user',
-    'blur-video': 'no',
+    'blur-video': 'no'
     // Add other relevant default keys if needed by tests accessing get(configStore)
   };
 });

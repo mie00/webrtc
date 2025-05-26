@@ -1,8 +1,14 @@
 <script lang="ts">
-  import { forwardStore, setForwardHost, setForwardPeer, toggleForwardHandler, type LogMessage } from '../lib/forwardBridge.js';
+  import {
+    forwardStore,
+    setForwardHost,
+    setForwardPeer,
+    toggleForwardHandler,
+    type LogMessage
+  } from '../lib/forwardBridge.js';
   import DraggableOverlayBase from './DraggableOverlayBase.svelte';
 
-  const show = $derived(!!($forwardStore.allowedHosts.length) || !!$forwardStore.forwardHost);
+  const show = $derived(!!$forwardStore.allowedHosts.length || !!$forwardStore.forwardHost);
 
   async function handleForwardClose() {
     if ($forwardStore.allowedHosts.length) {
@@ -16,9 +22,9 @@
 </script>
 
 {#if show}
-  <DraggableOverlayBase 
-    title="Forwarded Content" 
-    show={show} 
+  <DraggableOverlayBase
+    title="Forwarded Content"
+    {show}
     onClose={handleForwardClose}
     initialPosition={{ x: 100, y: 100 }}
     initialSize={{ width: 400, height: 350 }}
@@ -35,7 +41,9 @@
         </div>
       {/if}
       {#if $forwardStore.logMessages.length > 0}
-        <div class="log-container flex-grow bg-gray-800 p-2 overflow-y-auto text-xs border border-gray-600 rounded min-h-[50px]">
+        <div
+          class="log-container flex-grow bg-gray-800 p-2 overflow-y-auto text-xs border border-gray-600 rounded min-h-[50px]"
+        >
           <h3 class="text-sm font-semibold mb-1 sticky top-0 bg-gray-800 z-10">Requests:</h3>
           {#each $forwardStore.logMessages as log (log.id)}
             <p class="font-mono break-all">
@@ -49,7 +57,8 @@
 {/if}
 
 <style>
-  .iframe-container, .log-container {
-    min-height: 50px; 
+  .iframe-container,
+  .log-container {
+    min-height: 50px;
   }
 </style>

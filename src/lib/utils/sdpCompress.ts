@@ -60,102 +60,106 @@ s=-
 a=candidate:{uint32} 1 udp {uint32} {ip} {uint16} typ host generation 0 network-id {uint8}
 a=candidate:{uint32} 1 udp {uint32} {ip} {uint16} typ srflx raddr {ip} rport {uint16} generation 0 network-id {uint8}
 a=candidate:{uint32} 1 tcp {uint32} {ip} {uint16} typ host tcptype active generation 0 network-id {uint8}
-`.trim().split('\n');
+`
+  .trim()
+  .split('\n');
 
 // Create regex patterns for matching SDP lines
-const regexes: RegExp[] = list.map(x => 
-  new RegExp('^' + x.replace(/\{[^}]+}/g, `(.+)`) + '$')
-);
+const regexes: RegExp[] = list.map((x) => new RegExp('^' + x.replace(/\{[^}]+}/g, `(.+)`) + '$'));
 
 // Extract variable names from the patterns
-const variables: string[][] = list.map(x => 
-  Array.from(x.matchAll(/\{([^}]+)}/g)).map(match => match[1])
+const variables: string[][] = list.map((x) =>
+  Array.from(x.matchAll(/\{([^}]+)}/g)).map((match) => match[1])
 );
 
 // Encoders for different field types
 const encoders: Encoders = {
-  'uint8': (f: number): Uint8Array => new Uint8Array([f]),
-  'uint16': (f: number): Uint8Array => new Uint8Array([Math.floor(f/256), f % 256]),
-  'uint32': (f: number): Uint8Array => new Uint8Array([
-    Math.floor(f/256/256/256), 
-    Math.floor(f/256/256) % 256, 
-    Math.floor(f/256) % 256, 
-    f % 256
-  ]),
-  'uint64': (f: number | string): Uint8Array => {
+  uint8: (f: number): Uint8Array => new Uint8Array([f]),
+  uint16: (f: number): Uint8Array => new Uint8Array([Math.floor(f / 256), f % 256]),
+  uint32: (f: number): Uint8Array =>
+    new Uint8Array([
+      Math.floor(f / 256 / 256 / 256),
+      Math.floor(f / 256 / 256) % 256,
+      Math.floor(f / 256) % 256,
+      f % 256
+    ]),
+  uint64: (f: number | string): Uint8Array => {
     const bigInt = typeof f === 'string' ? BigInt(f) : BigInt(f);
     return new Uint8Array([
-      Number(bigInt >> 56n & 0xffn),
-      Number(bigInt >> 48n & 0xffn),
-      Number(bigInt >> 40n & 0xffn),
-      Number(bigInt >> 32n & 0xffn),
-      Number(bigInt >> 24n & 0xffn),
-      Number(bigInt >> 16n & 0xffn),
-      Number(bigInt >> 8n & 0xffn),
+      Number((bigInt >> 56n) & 0xffn),
+      Number((bigInt >> 48n) & 0xffn),
+      Number((bigInt >> 40n) & 0xffn),
+      Number((bigInt >> 32n) & 0xffn),
+      Number((bigInt >> 24n) & 0xffn),
+      Number((bigInt >> 16n) & 0xffn),
+      Number((bigInt >> 8n) & 0xffn),
       Number(bigInt & 0xffn)
     ]);
   },
-  'ip': (f: string): Uint8Array => {
+  ip: (f: string): Uint8Array => {
     const parts = f.split('.');
     return new Uint8Array([
-      parseInt(parts[0]), 
-      parseInt(parts[1]), 
-      parseInt(parts[2]), 
+      parseInt(parts[0]),
+      parseInt(parts[1]),
+      parseInt(parts[2]),
       parseInt(parts[3])
     ]);
   },
-  'uuid': (f: string): Uint8Array => {
+  uuid: (f: string): Uint8Array => {
     const hexString = f.replace(/-/g, '');
     const matches = hexString.match(/.{1,2}/g);
     if (!matches) return new Uint8Array(0);
-    return new Uint8Array(matches.map(byte => parseInt(byte, 16)));
+    return new Uint8Array(matches.map((byte) => parseInt(byte, 16)));
   },
-  'str': (f: string): Uint8Array => concatTypedArrays(to_array_buffer(f), new Uint8Array([0])),
-  'sha256': (f: string): Uint8Array => {
+  str: (f: string): Uint8Array => concatTypedArrays(to_array_buffer(f), new Uint8Array([0])),
+  sha256: (f: string): Uint8Array => {
     const hexString = f.replace(/:/g, '');
     const matches = hexString.match(/.{1,2}/g);
     if (!matches) return new Uint8Array(0);
-    return new Uint8Array(matches.map(byte => parseInt(byte, 16)));
+    return new Uint8Array(matches.map((byte) => parseInt(byte, 16)));
   }
 };
 
 // Decoders for different field types
 const decoders: Decoders = {
-  'uint8': (f: Uint8Array): number => f[0],
-  'uint16': (f: Uint8Array): number => f[0] * 256 + f[1],
-  'uint32': (f: Uint8Array): number => f[0] * 256 * 256 * 256 + f[1] * 256 * 256 + f[2] * 256 + f[3],
-  'uint64': (f: Uint8Array): string => (
-    (BigInt(f[0]) << 56n) +
-    (BigInt(f[1]) << 48n) +
-    (BigInt(f[2]) << 40n) +
-    (BigInt(f[3]) << 32n) +
-    (BigInt(f[4]) << 24n) +
-    (BigInt(f[5]) << 16n) +
-    (BigInt(f[6]) << 8n) +
-    (BigInt(f[7]))
-  ).toString(),
-  'ip': (f: Uint8Array): string => `${f[0]}.${f[1]}.${f[2]}.${f[3]}`,
-  'uuid': (f: Uint8Array): string => {
-    const hexArray = Array.from(f, byte => byte.toString(16).padStart(2, '0'));
+  uint8: (f: Uint8Array): number => f[0],
+  uint16: (f: Uint8Array): number => f[0] * 256 + f[1],
+  uint32: (f: Uint8Array): number => f[0] * 256 * 256 * 256 + f[1] * 256 * 256 + f[2] * 256 + f[3],
+  uint64: (f: Uint8Array): string =>
+    (
+      (BigInt(f[0]) << 56n) +
+      (BigInt(f[1]) << 48n) +
+      (BigInt(f[2]) << 40n) +
+      (BigInt(f[3]) << 32n) +
+      (BigInt(f[4]) << 24n) +
+      (BigInt(f[5]) << 16n) +
+      (BigInt(f[6]) << 8n) +
+      BigInt(f[7])
+    ).toString(),
+  ip: (f: Uint8Array): string => `${f[0]}.${f[1]}.${f[2]}.${f[3]}`,
+  uuid: (f: Uint8Array): string => {
+    const hexArray = Array.from(f, (byte) => byte.toString(16).padStart(2, '0'));
     const hexString = hexArray.join('').toLowerCase();
     return hexString.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
   },
-  'str': (f: Uint8Array): string => new TextDecoder().decode(f.slice(0, -1)),
-  'sha256': (f: Uint8Array): string => {
-    return Array.from(f, byte => byte.toString(16).padStart(2, '0')).join(':').toUpperCase();
+  str: (f: Uint8Array): string => new TextDecoder().decode(f.slice(0, -1)),
+  sha256: (f: Uint8Array): string => {
+    return Array.from(f, (byte) => byte.toString(16).padStart(2, '0'))
+      .join(':')
+      .toUpperCase();
   }
 };
 
 // Length calculators for different field types
 const lengths: Lengths = {
-  'uint8': (): number => 1,
-  'uint16': (): number => 2,
-  'uint32': (): number => 4,
-  'uint64': (): number => 8,
-  'ip': (): number => 4,
-  'uuid': (): number => 16,
-  'str': (f: Uint8Array): number => f.indexOf(0) + 1,
-  'sha256': (): number => 32
+  uint8: (): number => 1,
+  uint16: (): number => 2,
+  uint32: (): number => 4,
+  uint64: (): number => 8,
+  ip: (): number => 4,
+  uuid: (): number => 16,
+  str: (f: Uint8Array): number => f.indexOf(0) + 1,
+  sha256: (): number => 32
 };
 
 /**
@@ -229,27 +233,21 @@ function lastMatch(arr: any[]): number {
  * @returns A Uint8Array containing the compressed data
  */
 function compress_line(line: string): Uint8Array {
-  const matches = regexes.map(regex => line.match(regex));
+  const matches = regexes.map((regex) => line.match(regex));
   const matchIndex = lastMatch(matches);
-  
+
   if (matchIndex === -1 || !matches[matchIndex]) {
     return new Uint8Array([0]);
   }
-  
+
   const matchResult = matches[matchIndex];
   const matchVars = variables[matchIndex];
-  
+
   // Create pairs of [matched value, field type]
-  const fieldPairs = zip(
-    matchResult.slice(1), 
-    matchVars
-  );
-  
+  const fieldPairs = zip(matchResult.slice(1), matchVars);
+
   // Encode each field and concatenate with the match index
-  return concatTypedArraysMulti(
-    new Uint8Array([matchIndex]), 
-    ...fieldPairs.map(encodeField)
-  );
+  return concatTypedArraysMulti(new Uint8Array([matchIndex]), ...fieldPairs.map(encodeField));
 }
 
 /**
@@ -261,14 +259,14 @@ export function compress(inp: string | null | undefined): string {
   if (!inp || inp.trim() === '') {
     return '';
   }
-  
+
   const sep = inp.indexOf('\r\n') !== -1 ? '\r\n' : '\n';
   const inp_list = inp.trim().split(sep);
   const arr = concatTypedArraysMulti(...inp_list.map(compress_line));
-  
+
   // Convert to base64
   const ret = btoa(String.fromCharCode.apply(null, Array.from(arr)));
-  console.log({'compressed': inp.trim()});
+  console.log({ compressed: inp.trim() });
   return ret;
 }
 
@@ -278,18 +276,18 @@ export function compress(inp: string | null | undefined): string {
  * @returns The decompressed SDP string
  */
 export function decompress(str: string): string {
-  let inp = Uint8Array.from(atob(str), c => c.charCodeAt(0));
+  let inp = Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
   let lines: string[] = [];
-  
+
   while (inp.length) {
     // Get the match index
     const matchIndex = inp[0];
     inp = inp.slice(1);
-    
+
     // Get the variables for this pattern
     const vars = variables[matchIndex];
     let line = list[matchIndex];
-    
+
     // Replace each variable in the pattern
     for (const varType of vars) {
       const len = lengths[varType](inp);
@@ -297,9 +295,9 @@ export function decompress(str: string): string {
       line = line.replace(`{${varType}}`, val.toString());
       inp = inp.slice(len);
     }
-    
+
     lines.push(line);
   }
-  
+
   return lines.join('\r\n');
 }

@@ -4,7 +4,7 @@
   import { getConfigValue } from '../stores/configStore.js';
 
   let currentAuthState: AuthState;
-  authStore.subscribe(value => {
+  authStore.subscribe((value) => {
     currentAuthState = value;
   });
 
@@ -24,7 +24,7 @@
       const loginUrl = `${identityProviderHost}/login?callback=${encodeURIComponent(callbackTarget)}&payload=${encodeURIComponent(devicePublicKeySpki)}`;
       performLoginRedirect(loginUrl);
     } else {
-      console.error("Failed to get device public key as SPKI for login redirect.");
+      console.error('Failed to get device public key as SPKI for login redirect.');
       // Potentially show an error to the user
     }
   }
@@ -34,27 +34,28 @@
       const urlParams = new URLSearchParams(window.location.search);
       const jwt = urlParams.get('jwt');
       const pubkeyJwkString = urlParams.get('pubKey'); // Corrected: 'pubkey' (lowercase k)
-      console.log("AuthHandler /cb params:", JSON.stringify(Array.from(urlParams.entries())))
+      console.log('AuthHandler /cb params:', JSON.stringify(Array.from(urlParams.entries())));
 
       if (jwt && pubkeyJwkString) {
         const success = await authStore.setJwtAndVerifyKey(jwt, pubkeyJwkString);
         if (success) {
-          console.log("AuthHandler: JWT and public key stored successfully.");
+          console.log('AuthHandler: JWT and public key stored successfully.');
         } else {
-          console.error("AuthHandler: Failed to store JWT or verify public key.");
+          console.error('AuthHandler: Failed to store JWT or verify public key.');
         }
       } else {
-        console.error("AuthHandler: Missing jwt or pubkey in callback URL for /cb");
+        console.error('AuthHandler: Missing jwt or pubkey in callback URL for /cb');
       }
-      
+
       // Preserve other query parameters after removing auth-specific ones
       const basePath = window.location.pathname.split('/cb')[0] || '/';
       urlParams.delete('jwt');
-      urlParams.delete('pubKey'); 
+      urlParams.delete('pubKey');
       // The 'payload' param was sent to the login server, not expected back in the /cb URL directly.
       // If it were, it would be urlParams.delete('payload');
       const remainingParams = urlParams.toString();
-      window.location.href = window.location.origin + basePath + (remainingParams ? `?${remainingParams}` : '');
+      window.location.href =
+        window.location.origin + basePath + (remainingParams ? `?${remainingParams}` : '');
       // No return needed here as the page will redirect.
     }
   });
@@ -63,7 +64,9 @@
 {#if currentPath === '/cb'}
   <div>Processing callback...</div>
 {:else if !currentAuthState || !currentAuthState.jwt}
-  <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center z-50">
+  <div
+    class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center z-50"
+  >
     <div class="p-5 border w-96 shadow-lg rounded-md bg-white">
       <div class="text-center">
         <h3 class="text-lg leading-6 font-medium text-gray-900">Authentication Required</h3>
