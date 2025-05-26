@@ -5,7 +5,7 @@
   import ConfigOverlay from './ConfigOverlay.svelte';
 
   let showConfigOverlay = $state(false);
-  let currentAuthState: AuthState;
+  let currentAuthState: AuthState = $state(authStore.getAuthState());
   authStore.subscribe((value) => {
     currentAuthState = value;
   });
@@ -81,7 +81,7 @@
           <button
             id="login-button"
             class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
-            on:click={handleLoginClick}
+            onclick={handleLoginClick}
           >
             Login
           </button>
@@ -89,7 +89,7 @@
         <div class="items-center px-4 py-3">
           <button
             class="px-4 py-2 bg-gray-200 text-gray-700 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
-            on:click={() => authStore.logout()}
+            onclick={() => authStore.logout()}
           >
             (Dev) Logout / Clear Auth
           </button>
@@ -97,7 +97,7 @@
         <div class="items-center px-4 py-3">
           <button
             class="px-4 py-2 bg-yellow-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-300"
-            on:click={() => (showConfigOverlay = true)}
+            onclick={() => (showConfigOverlay = true)}
           >
             Open Configuration
           </button>

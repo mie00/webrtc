@@ -66,7 +66,7 @@
 {#if show}
   <div
     id="config-overlay"
-    class="fixed inset-0 bg-black/75 flex justify-center items-center z-40"
+    class="fixed inset-0 bg-black/75 flex justify-center items-center z-60"
     role="dialog"
     tabindex="0"
     aria-modal="true"
