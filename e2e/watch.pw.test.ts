@@ -66,7 +66,8 @@ test.describe('WebRTC Watch (Share Video File) E2E Test with Playwright (2 Peers
             };
             const support: { [mimeType: string]: boolean } = {};
             const videoElement = document.createElement('video');
-            const mediaSourceSupported = 'MediaSource' in window && (MediaSource as any).isTypeSupported;
+            const mediaSourceSupported =
+              'MediaSource' in window && (MediaSource as any).isTypeSupported;
 
             for (const type in codecsToCheck) {
               for (const mimeType of codecsToCheck[type]) {
