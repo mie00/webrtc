@@ -208,3 +208,60 @@ export async function analyzeAudioInBrowser(options: {
 // --- Browser-Side YCbCr Analysis ---
 // analyzeImageForYuvAveragesInBrowser and its YuvAnalysisResult interface have been removed.
 // The functionality is now covered by analyzeImageBufferForYuvNode in pwNodeMediaProcessingUtils.ts
+
+// --- Browser-Side Codec Support Check ---
+export interface CodecSupport {
+  [mimeType: string]: boolean;
+}
+
+export async function getBrowserCodecSupport(): Promise<CodecSupport> {
+  // This function's body is executed in the browser context.
+  console.log('--- Checking Browser Codec Support ---');
+  const codecsToCheck: { [key: string]: string[] } = {
+    video: [
+      'video/mp4; codecs="avc1.42E01E"', // H.264 Baseline
+      'video/mp4; codecs="avc1.4D401E"', // H.264 Main
+      'video/mp4; codecs="avc1.64001E"', // H.264 High
+      'video/mp4; codecs="hvc1.1.6.L93.B0"', // HEVC/H.265 Main
+      'video/mp4; codecs="hev1.1.6.L93.B0"', // HEVC/H.265 Main (alternative)
+      'video/webm; codecs="vp8"',
+      'video/webm; codecs="vp9"',
+      'video/webm; codecs="av01.0.05M.08"', // AV1
+      'video/ogg; codecs="theora"'
+    ],
+    audio: [
+      'audio/mp4; codecs="mp4a.40.2"', // AAC-LC
+      'audio/mp4; codecs="mp4a.40.5"', // HE-AAC
+      'audio/webm; codecs="opus"',
+      'audio/ogg; codecs="vorbis"',
+      'audio/aac' // Generic AAC
+    ]
+  };
+
+  const support: CodecSupport = {};
+  const videoElement = document.createElement('video'); // For canPlayType
+  const mediaSourceSupported = 'MediaSource' in window && MediaSource.isTypeSupported;
+
+  for (const type in codecsToCheck) {
+    for (const mimeType of codecsToCheck[type]) {
+      let isSupported = false;
+      if (mediaSourceSupported) {
+        try {
+          isSupported = MediaSource.isTypeSupported(mimeType);
+        } catch (e) {
+          // Some browsers might throw for invalid/unknown codecs with MediaSource.isTypeSupported
+          isSupported = false;
+        }
+      }
+      // Fallback or additional check with canPlayType
+      if (!isSupported && videoElement.canPlayType) {
+        const canPlayResult = videoElement.canPlayType(mimeType);
+        isSupported = canPlayResult === 'probably' || canPlayResult === 'maybe';
+      }
+      support[mimeType] = isSupported;
+      console.log(`Codec: ${mimeType}, Supported: ${isSupported}`);
+    }
+  }
+  console.log('--- Browser Codec Support Check Complete ---');
+  return support;
+}
