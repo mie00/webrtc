@@ -14,7 +14,6 @@ export interface AppLogicState {
   showPasteText: boolean;
   currentOfferCid: string | null;
   isDuringInitialServerLoad?: boolean; // Specific to server init path
-  soundNegotiationActive?: boolean;
 }
 
 export interface AppLogicContext {
@@ -41,6 +40,4 @@ export interface AppLogic {
   acceptHandler?(cidFromEvent: string | null, pasteValue: string): Promise<void>; // For client to accept pasted answer
   destroy?(): void; // Optional cleanup method
   setConfig(config: Readonly<Config>): void; // Method to update config
-  handleToggleSoundNegotiation?(): void; // Toggle sound-based negotiation
-  processSoundData?(data: string): Promise<void>; // Process data received via sound
 }
