@@ -173,28 +173,28 @@ export async function generateMovingQrVideoFile(
 export async function combineAudioAndVideo(
   videoInputPath: string,
   audioInputPath: string,
-  outputMp4Path: string
+  outputWebmPath: string
 ): Promise<void> {
-  if (await fileExists(outputMp4Path)) {
-    console.log(`Combined video file ${outputMp4Path} already exists. Skipping generation.`);
+  if (await fileExists(outputWebmPath)) {
+    console.log(`Combined video file ${outputWebmPath} already exists. Skipping generation.`);
     return;
   }
   try {
-    await fs.mkdir(path.dirname(outputMp4Path), { recursive: true });
+    await fs.mkdir(path.dirname(outputWebmPath), { recursive: true });
     // Output WebM with VP9 video and Opus audio for broad browser compatibility.
     // Video: libvpx-vp9, CRF 30 (quality), -b:v 0 (required for CRF), yuv420p (pixel format).
     // Audio: libopus, 128k bitrate.
     // Container: -f webm (force WebM format).
-    const ffmpegCommand = `ffmpeg -y -i "${videoInputPath}" -i "${audioInputPath}" -c:v libvpx-vp9 -crf 30 -b:v 0 -pix_fmt yuv420p -c:a libopus -b:a 128k -f webm -shortest "${outputMp4Path}"`;
+    const ffmpegCommand = `ffmpeg -y -i "${videoInputPath}" -i "${audioInputPath}" -c:v libvpx-vp9 -crf 30 -b:v 0 -pix_fmt yuv420p -c:a libopus -b:a 128k -f webm -shortest "${outputWebmPath}"`;
 
     console.log(
-      `Combining video from "${videoInputPath}" and audio from "${audioInputPath}" into "${outputMp4Path}" (WebM/VP9/Opus)...`
+      `Combining video from "${videoInputPath}" and audio from "${audioInputPath}" into "${outputWebmPath}" (WebM/VP9/Opus)...`
     );
     console.log(`Executing: ${ffmpegCommand}`);
     execSync(ffmpegCommand);
-    console.log(`Combined WebM (VP9/Opus) video created successfully: ${outputMp4Path}`);
+    console.log(`Combined WebM (VP9/Opus) video created successfully: ${outputWebmPath}`);
   } catch (error) {
-    console.error(`Error combining audio and video into ${outputMp4Path} (WebM/VP9/Opus):`, error);
+    console.error(`Error combining audio and video into ${outputWebmPath} (WebM/VP9/Opus):`, error);
     throw error;
   }
 }
