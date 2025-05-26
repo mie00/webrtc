@@ -181,19 +181,20 @@ export async function combineAudioAndVideo(
   }
   try {
     await fs.mkdir(path.dirname(outputMp4Path), { recursive: true });
-    // Always re-encode video to H.264 (libx264) for maximum compatibility in MP4.
-    // yuv420p is a widely compatible pixel format. crf 23 is a good quality/size balance.
-    const videoCodecParams = '-c:v libx264 -pix_fmt yuv420p -crf 23';
-    const ffmpegCommand = `ffmpeg -y -i "${videoInputPath}" -i "${audioInputPath}" ${videoCodecParams} -c:a flac -shortest "${outputMp4Path}"`;
+    // Output WebM with VP9 video and Opus audio for broad browser compatibility.
+    // Video: libvpx-vp9, CRF 30 (quality), -b:v 0 (required for CRF), yuv420p (pixel format).
+    // Audio: libopus, 128k bitrate.
+    // Container: -f webm (force WebM format).
+    const ffmpegCommand = `ffmpeg -y -i "${videoInputPath}" -i "${audioInputPath}" -c:v libvpx-vp9 -crf 30 -b:v 0 -pix_fmt yuv420p -c:a libopus -b:a 128k -f webm -shortest "${outputMp4Path}"`;
 
     console.log(
-      `Combining video from "${videoInputPath}" and audio from "${audioInputPath}" into "${outputMp4Path}"...`
+      `Combining video from "${videoInputPath}" and audio from "${audioInputPath}" into "${outputMp4Path}" (WebM/VP9/Opus)...`
     );
     console.log(`Executing: ${ffmpegCommand}`);
     execSync(ffmpegCommand);
-    console.log(`Combined MP4 video created successfully: ${outputMp4Path}`);
+    console.log(`Combined WebM (VP9/Opus) video created successfully: ${outputMp4Path}`);
   } catch (error) {
-    console.error(`Error combining audio and video into ${outputMp4Path}:`, error);
+    console.error(`Error combining audio and video into ${outputMp4Path} (WebM/VP9/Opus):`, error);
     throw error;
   }
 }
