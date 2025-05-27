@@ -1,6 +1,7 @@
+/// <reference types="vitest/globals" />
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import AuthHandler from './AuthHandler.svelte';
-import { authStore } from '../stores/authStore';
+import { authStore } from '../stores/authStore.js';
 import { tick } from 'svelte';
 import { vi } from 'vitest';
 
@@ -10,7 +11,7 @@ vi.mock('../stores/authStore', async () => {
   return {
     ...actual,
     authStore: {
-      ...actual.authStore,
+      // ...actual.authStore, // Removed to fix spread type error
       getAuthState: vi.fn(() => ({ jwt: null, userPubKey: null })),
       subscribe: vi.fn(() => () => {}), // Mock subscribe to return an unsubscribe function
       getDevicePublicKeyAsSpki: vi.fn(),
@@ -25,7 +26,7 @@ vi.mock('../stores/configStore', async () => {
   const actual = await vi.importActual('../stores/configStore');
 
   const mockConfigStoreInstance = {
-    ...actual.configStore,
+    // ...actual.configStore, // Removed to fix spread type error
     subscribe: vi.fn((callback) => {
       callback({
         general: {

@@ -1,8 +1,9 @@
+/// <reference types="vitest/globals" />
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import ContextMenu from './ContextMenu.svelte';
-import type { MenuItem } from '../types/menu';
+import type { MenuItem } from '../types/menu.js';
 import { tick } from 'svelte';
-import { vi } from 'vitest';
+import { vi, type Mock } from 'vitest';
 
 const mockHide = vi.fn();
 
@@ -35,12 +36,12 @@ const submenuItems: MenuItem[] = [
 describe('ContextMenu.svelte', () => {
   beforeEach(() => {
     mockHide.mockClear();
-    basicItems.forEach((item) => (item.action as vi.Mock).mockClear());
-    (toggleItem.action as vi.Mock).mockClear();
+    basicItems.forEach((item) => (item.action as Mock).mockClear());
+    (toggleItem.action as Mock).mockClear();
     submenuItems.forEach((item) => {
-      if (item.action) (item.action as vi.Mock).mockClear();
+      if (item.action) (item.action as Mock).mockClear();
       if (item.type === 'submenu' && item.children) {
-        item.children.forEach((child) => (child.action as vi.Mock).mockClear());
+        item.children.forEach((child) => (child.action as Mock).mockClear());
       }
     });
     // Reset toggle item checked state
