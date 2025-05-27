@@ -18,7 +18,7 @@ export interface ForwardState {
 }
 
 // Initial state
-const initialState: ForwardState = {
+export const initialState: ForwardState = {
   allowedHosts: [],
   forwardPeer: null,
   forwardHost: null,
