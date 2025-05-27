@@ -34,3 +34,5 @@ yarn-error.log*
 generated-media-pw/
 test-transfer-files/
 tests-out/
+
+coverage/

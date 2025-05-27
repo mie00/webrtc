@@ -4,7 +4,7 @@ import ControlPanel from './ControlPanel.svelte';
 import { writable } from 'svelte/store';
 
 // Import the functions we are mocking to get a reference to the mocked versions
-import { getKeysByCid } from '../stores/cidKeyStore.js'; 
+import { getKeysByCid } from '../stores/cidKeyStore.js';
 import { getPeerProfile } from '../stores/peerProfileStore.js';
 
 // Mock stores and functions (these mocks apply to the imports above too)
@@ -48,7 +48,7 @@ const resetStoreMocks = () => {
   hoistedStores.mockFileStoreInstance.set({ transfers: {} });
   hoistedStores.mockTranscriptionDisplayStoreInstance.set({ segments: [], activeBuffers: {} });
   hoistedStores.mockTranscriberStoreInstance.set({ isTranscribingOverall: false });
-  
+
   // Reset non-store mocks using the imported references
   vi.mocked(getKeysByCid).mockClear().mockReturnValue(null);
   vi.mocked(getPeerProfile).mockClear().mockReturnValue(null);
@@ -74,7 +74,7 @@ describe('ControlPanel.svelte', () => {
 
     // Open panel
     await fireEvent.click(toggleButton);
-    await tick(); 
+    await tick();
     expect(panel).toHaveClass('right-0');
     expect(panel).not.toHaveClass('left-full');
     // Button label changes, so re-query or use a more general selector if needed
@@ -89,7 +89,6 @@ describe('ControlPanel.svelte', () => {
     expect(screen.getByLabelText('Open panel (0 unread)')).toBeInTheDocument();
   });
 
-
   test('updates unread count correctly', async () => {
     const { container } = render(ControlPanel);
     const panel = container.querySelector('#test-control-panel');
@@ -99,9 +98,11 @@ describe('ControlPanel.svelte', () => {
     expect(toggleButton.querySelector('.bg-red-500')).toBeNull(); // No badge
 
     // 1. Add a remote chat message while panel is closed
-    hoistedStores.mockChatStoreInstance.update(s => ({
+    hoistedStores.mockChatStoreInstance.update((s) => ({
       ...s,
-      messages: [{ cid: 'remote-cid-1', sender: 'RemoteUser1', text: 'Hello', timestamp: Date.now() }]
+      messages: [
+        { cid: 'remote-cid-1', sender: 'RemoteUser1', text: 'Hello', timestamp: Date.now() }
+      ]
     }));
     vi.mocked(getKeysByCid).mockReturnValue({ userPublicKey: 'key1' });
     vi.mocked(getPeerProfile).mockReturnValue({ userName: 'RemoteProfileName1' });
@@ -121,7 +122,7 @@ describe('ControlPanel.svelte', () => {
     expect(toggleButton.querySelector('.bg-red-500')).toBeNull(); // Badge gone
 
     // 3. Add another remote message while panel is open
-    hoistedStores.mockChatStoreInstance.update(s => ({
+    hoistedStores.mockChatStoreInstance.update((s) => ({
       ...s,
       messages: [
         ...s.messages,
@@ -139,7 +140,7 @@ describe('ControlPanel.svelte', () => {
       return null;
     });
     await tick();
-    await tick(); 
+    await tick();
     expect(toggleButton.querySelector('.bg-red-500')).toBeNull(); // Still no badge
 
     // 4. Close the panel
@@ -149,7 +150,7 @@ describe('ControlPanel.svelte', () => {
     expect(toggleButton.querySelector('.bg-red-500')).toBeNull();
 
     // 5. Add a third remote message while panel is closed
-    hoistedStores.mockChatStoreInstance.update(s => ({
+    hoistedStores.mockChatStoreInstance.update((s) => ({
       ...s,
       messages: [
         ...s.messages,
@@ -206,7 +207,8 @@ describe('ControlPanel.svelte', () => {
       if (key === 'key-file-sender') return { userName: 'RemoteFileProfileName' };
       return null;
     });
-    await tick(); await tick(); // for combinedFeed and $effect
+    await tick();
+    await tick(); // for combinedFeed and $effect
 
     // Check unread count and badge
     toggleButton = screen.getByLabelText('Open panel (1 unread)');
@@ -228,10 +230,11 @@ describe('ControlPanel.svelte', () => {
       timestamp: Date.now() + 1,
       isRemote: false
     };
-    hoistedStores.mockFileStoreInstance.update(s => ({
+    hoistedStores.mockFileStoreInstance.update((s) => ({
       transfers: { ...s.transfers, file2: localFileTransfer }
     }));
-    await tick(); await tick();
+    await tick();
+    await tick();
 
     // Unread count should not change as local files don't count as unread
     toggleButton = screen.getByLabelText('Open panel (1 unread)');
@@ -251,12 +254,17 @@ describe('ControlPanel.svelte', () => {
     hoistedStores.mockProfileStoreInstance.set({ userName: 'You' }); // Local user
 
     // Case 1: Chat message, getKeysByCid returns null (should use CID as sender)
-    hoistedStores.mockChatStoreInstance.set({ messages: [
-      { cid: 'chat-cid1', sender: 'chat-cid1', text: 'Chat message 1', timestamp: Date.now() }
-    ]});
-    vi.mocked(getKeysByCid).mockImplementation((cid) => (cid === 'chat-cid1' ? null : { userPublicKey: 'some-other-key' }));
+    hoistedStores.mockChatStoreInstance.set({
+      messages: [
+        { cid: 'chat-cid1', sender: 'chat-cid1', text: 'Chat message 1', timestamp: Date.now() }
+      ]
+    });
+    vi.mocked(getKeysByCid).mockImplementation((cid) =>
+      cid === 'chat-cid1' ? null : { userPublicKey: 'some-other-key' }
+    );
     vi.mocked(getPeerProfile).mockReturnValue(null);
-    await tick(); await tick();
+    await tick();
+    await tick();
 
     let chatMsg1Element = screen.getByText('Chat message 1').closest('.flex');
     expect(chatMsg1Element).toBeInTheDocument();
@@ -264,22 +272,40 @@ describe('ControlPanel.svelte', () => {
     expect(senderNameEl).toHaveTextContent('chat-cid1');
 
     // Case 2: Chat message, getKeysByCid returns { no userPublicKey } (should use CID as sender)
-    hoistedStores.mockChatStoreInstance.set({ messages: [
-      { cid: 'chat-cid2', sender: 'chat-cid2', text: 'Chat message 2', timestamp: Date.now() + 1 }
-    ]});
-    vi.mocked(getKeysByCid).mockImplementation((cid) => (cid === 'chat-cid2' ? {} : { userPublicKey: 'some-other-key' }));
-    await tick(); await tick();
-    
+    hoistedStores.mockChatStoreInstance.set({
+      messages: [
+        { cid: 'chat-cid2', sender: 'chat-cid2', text: 'Chat message 2', timestamp: Date.now() + 1 }
+      ]
+    });
+    vi.mocked(getKeysByCid).mockImplementation((cid) =>
+      cid === 'chat-cid2' ? {} : { userPublicKey: 'some-other-key' }
+    );
+    await tick();
+    await tick();
+
     let chatMsg2Element = screen.getByText('Chat message 2').closest('.flex');
     expect(chatMsg2Element).toBeInTheDocument();
     senderNameEl = chatMsg2Element.querySelector('[data-testid="sender-name"]');
     expect(senderNameEl).toHaveTextContent('chat-cid2');
 
     // Case 3: File transfer, getKeysByCid returns null, senderName exists (should use senderName)
-    const remoteFile1: FileTransfer = { id: 'f1', name: 'file1.pdf', type:'', size:0, status:'complete', senderCid: 'file-cid1', senderName: 'OriginalSender1', timestamp: Date.now() + 2, isRemote: true };
+    const remoteFile1: FileTransfer = {
+      id: 'f1',
+      name: 'file1.pdf',
+      type: '',
+      size: 0,
+      status: 'complete',
+      senderCid: 'file-cid1',
+      senderName: 'OriginalSender1',
+      timestamp: Date.now() + 2,
+      isRemote: true
+    };
     hoistedStores.mockFileStoreInstance.set({ transfers: { f1: remoteFile1 } });
-    vi.mocked(getKeysByCid).mockImplementation((cid) => (cid === 'file-cid1' ? null : { userPublicKey: 'some-other-key' }));
-    await tick(); await tick();
+    vi.mocked(getKeysByCid).mockImplementation((cid) =>
+      cid === 'file-cid1' ? null : { userPublicKey: 'some-other-key' }
+    );
+    await tick();
+    await tick();
 
     let file1Element = container.querySelector('[data-filename="file1.pdf"]');
     expect(file1Element).toBeInTheDocument();
@@ -287,21 +313,47 @@ describe('ControlPanel.svelte', () => {
     expect(senderNameEl).toHaveTextContent('OriginalSender1');
 
     // Case 4: File transfer, getKeysByCid returns null, no senderName (should use senderCid)
-    const remoteFile2: FileTransfer = { id: 'f2', name: 'file2.jpg', type:'', size:0, status:'complete', senderCid: 'file-cid2', senderName: null, timestamp: Date.now() + 3, isRemote: true };
+    const remoteFile2: FileTransfer = {
+      id: 'f2',
+      name: 'file2.jpg',
+      type: '',
+      size: 0,
+      status: 'complete',
+      senderCid: 'file-cid2',
+      senderName: null,
+      timestamp: Date.now() + 3,
+      isRemote: true
+    };
     hoistedStores.mockFileStoreInstance.set({ transfers: { f2: remoteFile2 } });
-    vi.mocked(getKeysByCid).mockImplementation((cid) => (cid === 'file-cid2' ? null : { userPublicKey: 'some-other-key' }));
-    await tick(); await tick();
+    vi.mocked(getKeysByCid).mockImplementation((cid) =>
+      cid === 'file-cid2' ? null : { userPublicKey: 'some-other-key' }
+    );
+    await tick();
+    await tick();
 
     let file2Element = container.querySelector('[data-filename="file2.jpg"]');
     expect(file2Element).toBeInTheDocument();
     senderNameEl = file2Element.querySelector('[data-testid="sender-name"]');
     expect(senderNameEl).toHaveTextContent('file-cid2');
-    
+
     // Case 5: File transfer, getKeysByCid returns {}, senderName exists (should use senderName)
-    const remoteFile3: FileTransfer = { id: 'f3', name: 'file3.png', type:'', size:0, status:'complete', senderCid: 'file-cid3', senderName: 'OriginalSender3', timestamp: Date.now() + 4, isRemote: true };
+    const remoteFile3: FileTransfer = {
+      id: 'f3',
+      name: 'file3.png',
+      type: '',
+      size: 0,
+      status: 'complete',
+      senderCid: 'file-cid3',
+      senderName: 'OriginalSender3',
+      timestamp: Date.now() + 4,
+      isRemote: true
+    };
     hoistedStores.mockFileStoreInstance.set({ transfers: { f3: remoteFile3 } });
-    vi.mocked(getKeysByCid).mockImplementation((cid) => (cid === 'file-cid3' ? {} : { userPublicKey: 'some-other-key' }));
-    await tick(); await tick();
+    vi.mocked(getKeysByCid).mockImplementation((cid) =>
+      cid === 'file-cid3' ? {} : { userPublicKey: 'some-other-key' }
+    );
+    await tick();
+    await tick();
 
     let file3Element = container.querySelector('[data-filename="file3.png"]');
     expect(file3Element).toBeInTheDocument();
@@ -309,10 +361,23 @@ describe('ControlPanel.svelte', () => {
     expect(senderNameEl).toHaveTextContent('OriginalSender3');
 
     // Case 6: File transfer, getKeysByCid returns {}, no senderName (should use senderCid)
-    const remoteFile4: FileTransfer = { id: 'f4', name: 'file4.gif', type:'', size:0, status:'complete', senderCid: 'file-cid4', senderName: null, timestamp: Date.now() + 5, isRemote: true };
+    const remoteFile4: FileTransfer = {
+      id: 'f4',
+      name: 'file4.gif',
+      type: '',
+      size: 0,
+      status: 'complete',
+      senderCid: 'file-cid4',
+      senderName: null,
+      timestamp: Date.now() + 5,
+      isRemote: true
+    };
     hoistedStores.mockFileStoreInstance.set({ transfers: { f4: remoteFile4 } });
-    vi.mocked(getKeysByCid).mockImplementation((cid) => (cid === 'file-cid4' ? {} : { userPublicKey: 'some-other-key' }));
-    await tick(); await tick();
+    vi.mocked(getKeysByCid).mockImplementation((cid) =>
+      cid === 'file-cid4' ? {} : { userPublicKey: 'some-other-key' }
+    );
+    await tick();
+    await tick();
 
     let file4Element = container.querySelector('[data-filename="file4.gif"]');
     expect(file4Element).toBeInTheDocument();
@@ -320,26 +385,54 @@ describe('ControlPanel.svelte', () => {
     expect(senderNameEl).toHaveTextContent('file-cid4');
 
     // Case 7: File transfer, getKeysByCid returns null, senderName is empty string (should use senderCid)
-    const remoteFile5: FileTransfer = { id: 'f5', name: 'file5.txt', type:'', size:0, status:'complete', senderCid: 'file-cid5', senderName: '', timestamp: Date.now() + 6, isRemote: true };
+    const remoteFile5: FileTransfer = {
+      id: 'f5',
+      name: 'file5.txt',
+      type: '',
+      size: 0,
+      status: 'complete',
+      senderCid: 'file-cid5',
+      senderName: '',
+      timestamp: Date.now() + 6,
+      isRemote: true
+    };
     hoistedStores.mockFileStoreInstance.set({ transfers: { f5: remoteFile5 } });
-    vi.mocked(getKeysByCid).mockImplementation((cid) => (cid === 'file-cid5' ? null : { userPublicKey: 'some-other-key' }));
-    await tick(); await tick();
+    vi.mocked(getKeysByCid).mockImplementation((cid) =>
+      cid === 'file-cid5' ? null : { userPublicKey: 'some-other-key' }
+    );
+    await tick();
+    await tick();
 
     let file5Element = container.querySelector('[data-filename="file5.txt"]');
     expect(file5Element).toBeInTheDocument();
     senderNameEl = file5Element.querySelector('[data-testid="sender-name"]');
-    expect(senderNameEl).toHaveTextContent('file-cid5'); 
+    expect(senderNameEl).toHaveTextContent('file-cid5');
 
     // Case to hit `if (!senderDisplayName) senderDisplayName = 'Peer';` (line 74 in ControlPanel)
-    // This requires senderCid to be present, getKeysByCid to yield no profile, 
+    // This requires senderCid to be present, getKeysByCid to yield no profile,
     // transfer.senderName to be null/empty, AND transfer.senderCid to ALSO be null/empty for the fallback.
     // This seems like a contradiction if senderCid was initially present to enter the `else` block for remote files.
     // Let's try to force senderName and senderCid to be empty after profile lookup fails.
-    const remoteFile6: FileTransfer = { id: 'f6', name: 'file6.dat', type:'', size:0, status:'complete', senderCid: 'file-cid6', senderName: null, timestamp: Date.now() + 7, isRemote: true };
-    hoistedStores.mockFileStoreInstance.set({ transfers: { f6: { ...remoteFile6, senderName: '', senderCid: '' } } }); // Force empty senderCid for the fallback check
+    const remoteFile6: FileTransfer = {
+      id: 'f6',
+      name: 'file6.dat',
+      type: '',
+      size: 0,
+      status: 'complete',
+      senderCid: 'file-cid6',
+      senderName: null,
+      timestamp: Date.now() + 7,
+      isRemote: true
+    };
+    hoistedStores.mockFileStoreInstance.set({
+      transfers: { f6: { ...remoteFile6, senderName: '', senderCid: '' } }
+    }); // Force empty senderCid for the fallback check
     // This specific mock for f6 will make senderDisplayName empty before the final fallback
-    vi.mocked(getKeysByCid).mockImplementation((cid) => (cid === 'file-cid6' ? null : { userPublicKey: 'some-other-key' }));
-    await tick(); await tick();
+    vi.mocked(getKeysByCid).mockImplementation((cid) =>
+      cid === 'file-cid6' ? null : { userPublicKey: 'some-other-key' }
+    );
+    await tick();
+    await tick();
 
     let file6Element = container.querySelector('[data-filename="file6.dat"]');
     expect(file6Element).toBeInTheDocument();

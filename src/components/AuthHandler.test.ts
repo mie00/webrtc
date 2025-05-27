@@ -15,8 +15,8 @@ vi.mock('../stores/authStore', async () => {
       subscribe: vi.fn(() => () => {}), // Mock subscribe to return an unsubscribe function
       getDevicePublicKeyAsSpki: vi.fn(),
       setJwtAndVerifyKey: vi.fn(),
-      logout: vi.fn(),
-    },
+      logout: vi.fn()
+    }
   };
 });
 
@@ -25,32 +25,32 @@ vi.mock('../stores/configStore', async () => {
   const actual = await vi.importActual('../stores/configStore');
 
   const mockConfigStoreInstance = {
-    ...actual.configStore, 
-    subscribe: vi.fn(callback => {
+    ...actual.configStore,
+    subscribe: vi.fn((callback) => {
       callback({
         general: {
           userName: 'MockUser',
-          identityProviderHost: 'http://localhost:3000',
+          identityProviderHost: 'http://localhost:3000'
         },
         server: {},
-        client: {},
+        client: {}
       });
-      return () => {}; 
+      return () => {};
     }),
     updateConfigValue: vi.fn(),
     getRawConfig: vi.fn(() => ({
       general: { userName: 'MockUser', identityProviderHost: 'http://localhost:3000' },
       server: {},
-      client: {},
+      client: {}
     })),
     loadConfig: vi.fn(),
     resetToDefaults: vi.fn(),
     general: {
-        userName: 'MockUser',
-        identityProviderHost: 'http://localhost:3000',
+      userName: 'MockUser',
+      identityProviderHost: 'http://localhost:3000'
     },
     server: {},
-    client: {},
+    client: {}
   };
 
   return {
@@ -64,7 +64,9 @@ vi.mock('../stores/configStore', async () => {
       }
       return null;
     }),
-    ...Object.fromEntries(Object.entries(actual).filter(([key]) => key !== 'configStore' && key !== 'getConfigValue')),
+    ...Object.fromEntries(
+      Object.entries(actual).filter(([key]) => key !== 'configStore' && key !== 'getConfigValue')
+    )
   };
 });
 
@@ -74,13 +76,13 @@ describe('AuthHandler.svelte', () => {
     vi.clearAllMocks();
     // @ts-ignore
     authStore.getAuthState.mockReturnValue({ jwt: null, userPubKey: null });
-     // @ts-ignore
+    // @ts-ignore
     window.location = {
       ...window.location,
       pathname: '/',
       href: '',
       search: '',
-      origin: 'http://localhost',
+      origin: 'http://localhost'
     } as Location;
   });
 
@@ -129,18 +131,18 @@ describe('AuthHandler.svelte', () => {
 
   describe('Callback handling (/cb path)', () => {
     beforeEach(() => {
-        // @ts-ignore
+      // @ts-ignore
       window.location = {
         ...window.location,
         pathname: '/cb',
         search: '?jwt=test-jwt&pubKey=test-pubkey',
         href: '',
-        origin: 'http://localhost',
+        origin: 'http://localhost'
       } as Location;
     });
 
     test('processes JWT and pubKey from URL params on /cb path', async () => {
-        // @ts-ignore
+      // @ts-ignore
       authStore.setJwtAndVerifyKey.mockResolvedValue(true);
       render(AuthHandler);
       await tick(); // onMount processing
@@ -150,35 +152,39 @@ describe('AuthHandler.svelte', () => {
     });
 
     test('handles missing jwt or pubkey on /cb path', async () => {
-        // @ts-ignore
+      // @ts-ignore
       window.location.search = '?jwt=test-jwt'; // Missing pubKey
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       render(AuthHandler);
       await tick();
       await tick();
       expect(authStore.setJwtAndVerifyKey).not.toHaveBeenCalled();
-      expect(consoleErrorSpy).toHaveBeenCalledWith('AuthHandler: Missing jwt or pubkey in callback URL for /cb');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'AuthHandler: Missing jwt or pubkey in callback URL for /cb'
+      );
       expect(window.location.href).toBe('http://localhost/'); // Still redirects
       consoleErrorSpy.mockRestore();
     });
 
     test('handles failure in setJwtAndVerifyKey on /cb path', async () => {
-        // @ts-ignore
+      // @ts-ignore
       authStore.setJwtAndVerifyKey.mockResolvedValue(false);
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       render(AuthHandler);
       await tick();
       await tick();
       expect(authStore.setJwtAndVerifyKey).toHaveBeenCalledWith('test-jwt', 'test-pubkey');
-      expect(consoleErrorSpy).toHaveBeenCalledWith('AuthHandler: Failed to store JWT or verify public key.');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'AuthHandler: Failed to store JWT or verify public key.'
+      );
       expect(window.location.href).toBe('http://localhost/'); // Still redirects
       consoleErrorSpy.mockRestore();
     });
 
-     test('preserves other query parameters after /cb processing', async () => {
-        // @ts-ignore
+    test('preserves other query parameters after /cb processing', async () => {
+      // @ts-ignore
       window.location.search = '?jwt=test-jwt&pubKey=test-pubkey&other=param';
-        // @ts-ignore
+      // @ts-ignore
       authStore.setJwtAndVerifyKey.mockResolvedValue(true);
       render(AuthHandler);
       await tick();
@@ -196,7 +202,7 @@ describe('AuthHandler.svelte', () => {
     expect(screen.queryByText('Login')).not.toBeInTheDocument();
   });
 
-   test('handleLoginClick shows error if getDevicePublicKeyAsSpki fails', async () => {
+  test('handleLoginClick shows error if getDevicePublicKeyAsSpki fails', async () => {
     // @ts-ignore
     authStore.getDevicePublicKeyAsSpki.mockResolvedValue(null);
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -205,9 +211,10 @@ describe('AuthHandler.svelte', () => {
     await fireEvent.click(loginButton);
     await tick();
     expect(authStore.getDevicePublicKeyAsSpki).toHaveBeenCalled();
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to get device public key as SPKI for login redirect.');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to get device public key as SPKI for login redirect.'
+    );
     expect(window.location.href).toBe(''); // No redirect happens
     consoleErrorSpy.mockRestore();
   });
-
 });

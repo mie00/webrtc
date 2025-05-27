@@ -8,7 +8,7 @@ const mockHide = vi.fn();
 
 const basicItems: MenuItem[] = [
   { id: 'item1', label: 'Item 1', type: 'item', action: vi.fn() },
-  { id: 'item2', label: 'Item 2', type: 'item', action: vi.fn(), disabled: true },
+  { id: 'item2', label: 'Item 2', type: 'item', action: vi.fn(), disabled: true }
 ];
 
 const toggleItem: MenuItem = {
@@ -16,7 +16,7 @@ const toggleItem: MenuItem = {
   label: 'Toggle Me',
   type: 'toggle',
   checked: false,
-  action: vi.fn(),
+  action: vi.fn()
 };
 
 const submenuItems: MenuItem[] = [
@@ -26,40 +26,44 @@ const submenuItems: MenuItem[] = [
     type: 'submenu',
     children: [
       { id: 'subitem1', label: 'Sub Item 1', type: 'item', action: vi.fn() },
-      { id: 'subitem2', label: 'Sub Item 2', type: 'toggle', checked: true, action: vi.fn() },
-    ],
+      { id: 'subitem2', label: 'Sub Item 2', type: 'toggle', checked: true, action: vi.fn() }
+    ]
   },
-  { id: 'item3', label: 'Item 3', type: 'item', action: vi.fn() },
+  { id: 'item3', label: 'Item 3', type: 'item', action: vi.fn() }
 ];
 
 describe('ContextMenu.svelte', () => {
   beforeEach(() => {
     mockHide.mockClear();
-    basicItems.forEach(item => (item.action as vi.Mock).mockClear());
+    basicItems.forEach((item) => (item.action as vi.Mock).mockClear());
     (toggleItem.action as vi.Mock).mockClear();
-    submenuItems.forEach(item => {
+    submenuItems.forEach((item) => {
       if (item.action) (item.action as vi.Mock).mockClear();
       if (item.type === 'submenu' && item.children) {
-        item.children.forEach(child => (child.action as vi.Mock).mockClear());
+        item.children.forEach((child) => (child.action as vi.Mock).mockClear());
       }
     });
     // Reset toggle item checked state
     toggleItem.checked = false;
     if (submenuItems[0].type === 'submenu' && submenuItems[0].children) {
-        const subToggle = submenuItems[0].children[1] as MenuItem & { checked: boolean };
-        subToggle.checked = true; // Reset to initial test state
+      const subToggle = submenuItems[0].children[1] as MenuItem & { checked: boolean };
+      subToggle.checked = true; // Reset to initial test state
     }
   });
 
   test('renders basic menu items', () => {
-    render(ContextMenu, { props: { menuItems: basicItems, hide: mockHide, position: { x: 0, y: 0 } } });
+    render(ContextMenu, {
+      props: { menuItems: basicItems, hide: mockHide, position: { x: 0, y: 0 } }
+    });
     expect(screen.getByText('Item 1')).toBeInTheDocument();
     expect(screen.getByText('Item 2')).toBeInTheDocument();
     expect(screen.getByText('Item 2').closest('button')).toBeDisabled();
   });
 
   test('calls action and hides on item click', async () => {
-    render(ContextMenu, { props: { menuItems: basicItems, hide: mockHide, position: { x: 0, y: 0 } } });
+    render(ContextMenu, {
+      props: { menuItems: basicItems, hide: mockHide, position: { x: 0, y: 0 } }
+    });
     const item1Button = screen.getByText('Item 1');
     await fireEvent.click(item1Button);
     expect(basicItems[0].action).toHaveBeenCalled();
@@ -67,7 +71,9 @@ describe('ContextMenu.svelte', () => {
   });
 
   test('does not call action for disabled item', async () => {
-    render(ContextMenu, { props: { menuItems: basicItems, hide: mockHide, position: { x: 0, y: 0 } } });
+    render(ContextMenu, {
+      props: { menuItems: basicItems, hide: mockHide, position: { x: 0, y: 0 } }
+    });
     const item2Button = screen.getByText('Item 2');
     await fireEvent.click(item2Button);
     expect(basicItems[1].action).not.toHaveBeenCalled();
@@ -75,7 +81,9 @@ describe('ContextMenu.svelte', () => {
   });
 
   test.skip('renders and handles toggle item', async () => {
-    render(ContextMenu, { props: { menuItems: [toggleItem], hide: mockHide, position: { x: 0, y: 0 } } });
+    render(ContextMenu, {
+      props: { menuItems: [toggleItem], hide: mockHide, position: { x: 0, y: 0 } }
+    });
     let toggleButton = screen.getByText('Toggle Me');
     expect(toggleButton).toBeInTheDocument();
     expect(toggleButton.querySelector('span.bg-blue-600')).toBeNull(); // Initially unchecked
@@ -83,8 +91,8 @@ describe('ContextMenu.svelte', () => {
     await fireEvent.click(toggleButton);
     expect(toggleItem.action).toHaveBeenCalled();
     expect(mockHide).not.toHaveBeenCalled();
-    await tick(); 
-    toggleButton = screen.getByText('Toggle Me'); 
+    await tick();
+    toggleButton = screen.getByText('Toggle Me');
     await waitFor(() => {
       expect(toggleButton.querySelector('span.bg-blue-600')).toBeInTheDocument(); // Should be checked
     });
@@ -92,15 +100,17 @@ describe('ContextMenu.svelte', () => {
     // Click again to toggle off
     await fireEvent.click(toggleButton);
     expect(toggleItem.action).toHaveBeenCalledTimes(2);
-    await tick(); 
-    toggleButton = screen.getByText('Toggle Me'); 
+    await tick();
+    toggleButton = screen.getByText('Toggle Me');
     await waitFor(() => {
       expect(toggleButton.querySelector('span.bg-blue-600')).toBeNull(); // Should be unchecked again
     });
   });
 
   test('renders submenu and toggles its visibility', async () => {
-    render(ContextMenu, { props: { menuItems: submenuItems, hide: mockHide, position: { x: 0, y: 0 } } });
+    render(ContextMenu, {
+      props: { menuItems: submenuItems, hide: mockHide, position: { x: 0, y: 0 } }
+    });
     const submenuButton = screen.getByText('Submenu 1');
     expect(submenuButton).toBeInTheDocument();
     expect(screen.queryByText('Sub Item 1')).not.toBeInTheDocument(); // Submenu initially closed
@@ -117,7 +127,9 @@ describe('ContextMenu.svelte', () => {
   });
 
   test('calls action for submenu item and hides main menu', async () => {
-    render(ContextMenu, { props: { menuItems: submenuItems, hide: mockHide, position: { x: 0, y: 0 } } });
+    render(ContextMenu, {
+      props: { menuItems: submenuItems, hide: mockHide, position: { x: 0, y: 0 } }
+    });
     const submenuButton = screen.getByText('Submenu 1');
     await fireEvent.click(submenuButton); // Open submenu
     await tick();
@@ -130,14 +142,16 @@ describe('ContextMenu.svelte', () => {
   });
 
   test.skip('handles toggle item within a submenu', async () => {
-    render(ContextMenu, { props: { menuItems: submenuItems, hide: mockHide, position: { x: 0, y: 0 } } });
+    render(ContextMenu, {
+      props: { menuItems: submenuItems, hide: mockHide, position: { x: 0, y: 0 } }
+    });
     const submenuButton = screen.getByText('Submenu 1');
     await fireEvent.click(submenuButton); // Open submenu
     await tick();
 
     let subToggleItemButton = screen.getByText('Sub Item 2');
     const subToggleItem = (submenuItems[0] as any).children[1]; // This is the prop data
-    
+
     // Check initial visual state based on prop
     await waitFor(() => {
       if (subToggleItem.checked) {
@@ -155,9 +169,11 @@ describe('ContextMenu.svelte', () => {
 
     // Check visual state after click (should be opposite of initial prop state)
     await waitFor(() => {
-      if (subToggleItem.checked) { // Original prop was true, so visually it should now be false (unchecked)
+      if (subToggleItem.checked) {
+        // Original prop was true, so visually it should now be false (unchecked)
         expect(subToggleItemButton.querySelector('span.bg-blue-600')).toBeNull();
-      } else { // Original prop was false, so visually it should now be true (checked)
+      } else {
+        // Original prop was false, so visually it should now be true (checked)
         expect(subToggleItemButton.querySelector('span.bg-blue-600')).toBeInTheDocument();
       }
     });
@@ -165,13 +181,17 @@ describe('ContextMenu.svelte', () => {
 
   test('normalizes string array menuItems', () => {
     const stringItems = ['Option A', 'Option B'];
-    render(ContextMenu, { props: { menuItems: stringItems, hide: mockHide, position: { x: 0, y: 0 } } });
+    render(ContextMenu, {
+      props: { menuItems: stringItems, hide: mockHide, position: { x: 0, y: 0 } }
+    });
     expect(screen.getByText('Option A')).toBeInTheDocument();
     expect(screen.getByText('Option B')).toBeInTheDocument();
   });
 
   test('closes on Escape key press', async () => {
-    render(ContextMenu, { props: { menuItems: basicItems, hide: mockHide, position: { x: 0, y: 0 } } });
+    render(ContextMenu, {
+      props: { menuItems: basicItems, hide: mockHide, position: { x: 0, y: 0 } }
+    });
     const menuElement = screen.getByRole('menu');
     await fireEvent.keyDown(menuElement, { key: 'Escape' });
     expect(mockHide).toHaveBeenCalled();
@@ -182,7 +202,9 @@ describe('ContextMenu.svelte', () => {
     // We rely on the component's internal logic that handleWindowClick calls hide()
     // We can spy on `hide` and ensure it's callable.
     // A more direct test would require a full browser environment or more complex Svelte testing utils.
-    const { component } = render(ContextMenu, { props: { menuItems: basicItems, hide: mockHide, position: { x: 0, y: 0 } } });
+    const { component } = render(ContextMenu, {
+      props: { menuItems: basicItems, hide: mockHide, position: { x: 0, y: 0 } }
+    });
     // Simulate the effect of a window click by directly calling the handler if possible,
     // or by ensuring `hide` is passed correctly.
     // For this component, handleWindowClick is attached to svelte:window
@@ -207,11 +229,13 @@ describe('ContextMenu.svelte', () => {
     // Mock getBoundingClientRect
     const mockMenuElement = {
       getBoundingClientRect: () => ({ right: 600, bottom: 600, width: 200, height: 150 }),
-      style: { left: '', top: '' },
+      style: { left: '', top: '' }
     };
     vi.spyOn(document, 'getElementById').mockReturnValue(mockMenuElement as any);
 
-    render(ContextMenu, { props: { menuItems: basicItems, hide: mockHide, position: { x: 400, y: 400 } } });
+    render(ContextMenu, {
+      props: { menuItems: basicItems, hide: mockHide, position: { x: 400, y: 400 } }
+    });
     await tick(); // onMount runs after the first tick
 
     expect(document.getElementById).toHaveBeenCalledWith('contextMenu');
@@ -223,11 +247,13 @@ describe('ContextMenu.svelte', () => {
     vi.restoreAllMocks(); // Clean up spy
   });
 
-   test('stops propagation for click and keypress on the menu itself', async () => {
+  test('stops propagation for click and keypress on the menu itself', async () => {
     const outerClickHandler = vi.fn();
     const outerKeyPressHandler = vi.fn();
 
-    const { container } = render(ContextMenu, { props: { menuItems: basicItems, hide: mockHide, position: { x: 0, y: 0 } } });
+    const { container } = render(ContextMenu, {
+      props: { menuItems: basicItems, hide: mockHide, position: { x: 0, y: 0 } }
+    });
     const menuElement = screen.getByRole('menu');
 
     // Attach listeners to a parent element to check propagation
@@ -245,5 +271,4 @@ describe('ContextMenu.svelte', () => {
 
     document.body.removeChild(parentDiv);
   });
-
 });
