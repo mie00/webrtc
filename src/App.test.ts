@@ -7,11 +7,15 @@ interface MockAuthStoreState {
   jwt: string | null;
   error: any | null; // Keeping error flexible for now, can be string | Error etc.
   user: { id: string } | null;
+  publicKeyJwk: any | null;
+  privateKeyJwk: any | null;
+  userPubKey: string | null;
 }
 
 interface MockProfileStoreState {
   isProfileComplete: boolean;
   profile: { userName: string } | null;
+  userName: string | null;
 }
 
 const mockAuthStore = writable<MockAuthStoreState>({ jwt: null, error: null, user: null });
