@@ -38,4 +38,9 @@ global.navigator.mediaDevices.getUserMedia = vi.fn(() => Promise.resolve({
     stop: vi.fn(),
   }]),
 }));
+global.navigator.mediaDevices.getDisplayMedia = vi.fn(() => Promise.resolve({
+  getTracks: vi.fn(() => [{
+    stop: vi.fn(),
+  }]),
+}));
 
