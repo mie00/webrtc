@@ -9,11 +9,7 @@ import {
   getLocalStreamsByType
 } from '../stores/streamStore';
 import { getAllConfig, configStore, type Config, type MediaConfig } from '../stores/configStore';
-import {
-  getDirectClient,
-  getAllDirectClients,
-  getAllClientCids
-} from '../stores/connectionStore'; // Adjust path if needed
+import { getDirectClient, getAllDirectClients, getAllClientCids } from '../stores/connectionStore'; // Adjust path if needed
 import { registerNegoHandler, registerCleanup } from '../stores/appStateStore'; // Import store functions
 import type { StreamEndNegoMessage } from '../types/negoMessages'; // Adjusted import path
 import {

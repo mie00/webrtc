@@ -8,11 +8,7 @@
     getLocalStreamsByType,
     type LayoutType
   } from '../stores/streamStore';
-  import {
-    normalizeStreamId,
-    setupLocalFileStream,
-    setAudioCallback
-  } from '../lib/streamBridge';
+  import { normalizeStreamId, setupLocalFileStream, setAudioCallback } from '../lib/streamBridge';
   import {
     forwardStore,
     toggleForwardHandler as actualToggleForwardHandler

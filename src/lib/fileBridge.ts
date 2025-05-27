@@ -1,9 +1,5 @@
 import { writable, get } from 'svelte/store';
-import {
-  getDirectClient,
-  getAllClientCids,
-  getAllDirectClients
-} from '../stores/connectionStore'; // Adjust path if needed
+import { getDirectClient, getAllClientCids, getAllDirectClients } from '../stores/connectionStore'; // Adjust path if needed
 
 // File transfer state interface
 export interface FileTransfer {

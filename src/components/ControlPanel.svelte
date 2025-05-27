@@ -5,10 +5,7 @@
   import { profileStore } from '../stores/profileStore';
   import { chatStore } from '../lib/chatBridge';
   import { fileStore, type FileTransfer } from '../lib/fileBridge';
-  import {
-    transcriptionDisplayStore,
-    type TranscriptionSegment
-  } from '../lib/media/transcriber';
+  import { transcriptionDisplayStore, type TranscriptionSegment } from '../lib/media/transcriber';
   import MediaCarousel, { type CarouselMediaItem } from './MediaCarousel.svelte';
 
   import ParticipantsPanel from './ParticipantsPanel.svelte';
