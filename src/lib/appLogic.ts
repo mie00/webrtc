@@ -1,6 +1,6 @@
 import type { WebRTCApp } from './webrtc/WebRTCApp';
-import type { Config } from '../stores/configStore';
-import type { getDirectClient as getDirectClientType } from '../stores/connectionStore';
+import type { Config } from './stores/configStore';
+import type { getDirectClient as getDirectClientType } from './stores/connectionStore';
 import type { compress as compressType, decompress as decompressType } from './utils/sdpCompress';
 
 export interface AppLogicState {

@@ -35,7 +35,7 @@
     type AudioNodes,
     normalizeStreamId
   } from '../lib/media/stream';
-  import { setStreamMetadata } from '../stores/localFileStreamStore';
+  import { setStreamMetadata } from '../lib/stores/localFileStreamStore';
 
   let audioNodes: AudioNodes | null;
   let audioVisualizationCanvas: HTMLCanvasElement | undefined = $state();

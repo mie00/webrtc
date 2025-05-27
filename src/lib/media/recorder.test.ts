@@ -6,14 +6,14 @@ import {
   calculateFit // Added
 } from './recorder';
 import type { Position } from './streamLayout'; // Assuming Position is exported from streamLayout
-import { getStreamMetadata as mockGetStreamMetadata } from '../../stores/localFileStreamStore';
+import { getStreamMetadata as mockGetStreamMetadata } from '../stores/localFileStreamStore';
 
 // Mock dependencies
 import { get, writable, type Writable } from 'svelte/store'; // Import get, writable, Writable
-// import type { StreamState as ActualStreamState } from '../../stores/streamStore'; // Import actual type for casting
-import { getStreamState as mockGetStreamState } from '../../stores/streamStore'; // Import the mocked function
+// import type { StreamState as ActualStreamState } from '../stores/streamStore'; // Import actual type for casting
+import { getStreamState as mockGetStreamState } from '../stores/streamStore'; // Import the mocked function
 
-vi.mock('../../stores/streamStore', async (importOriginal) => {
+vi.mock('../stores/streamStore', async (importOriginal) => {
   const svelteStore = await import('svelte/store');
   const mockStreamStoreInstanceInternal = svelteStore.writable<any>({
     localStreams: {},
@@ -39,7 +39,7 @@ vi.mock('../../stores/streamStore', async (importOriginal) => {
   };
 });
 
-vi.mock('../../stores/localFileStreamStore', () => ({
+vi.mock('../stores/localFileStreamStore', () => ({
   getStreamMetadata: vi.fn()
 }));
 

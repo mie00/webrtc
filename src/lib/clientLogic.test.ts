@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { ClientLogic } from './clientLogic';
 import type { AppLogicContext, AppLogicState } from './appLogic';
-import type { Config } from '../stores/configStore';
-// REMOVED: import { defaultConfig } from '../stores/configStore';
+import type { Config } from './stores/configStore';
+// REMOVED: import { defaultConfig } from './stores/configStore';
 
 // Mock BroadcastChannel
 const mockBroadcastChannelInstance = {
@@ -55,9 +55,8 @@ describe('ClientLogic', () => {
   beforeEach(async () => {
     // Make beforeEach async
     // Dynamically import defaultConfig to ensure we get the fresh, unmocked version
-    const configStoreModule = await vi.importActual<typeof import('../stores/configStore.js')>(
-      '../stores/configStore.js'
-    );
+    const configStoreModule =
+      await vi.importActual<typeof import('./stores/configStore.js')>('./stores/configStore.js');
     actualDefaultConfig = configStoreModule.defaultConfig;
 
     if (typeof actualDefaultConfig === 'undefined') {

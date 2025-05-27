@@ -4,8 +4,8 @@
   import MainAppRouter from './components/MainAppRouter.svelte';
   import AuthHandler from './components/AuthHandler.svelte';
   import ProfileSetup from './components/ProfileSetup.svelte'; // Import the new component
-  import { authStore, type AuthState } from './stores/authStore';
-  import { profileStore, type ProfileState } from './stores/profileStore'; // Import profile store
+  import { authStore, type AuthState } from './lib/stores/authStore';
+  import { profileStore, type ProfileState } from './lib/stores/profileStore'; // Import profile store
   import { onDestroy } from 'svelte';
 
   const webRTCApp = new WebRTCApp();

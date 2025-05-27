@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { FileTransfer } from '../lib/fileBridge';
+  import type { FileTransfer } from '../lib/stores/fileStore';
   import type { TranscriptionSegment } from '../lib/media/transcriber';
   import type { CarouselMediaItem } from './MediaCarousel.svelte';
 

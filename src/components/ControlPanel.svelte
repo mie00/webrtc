@@ -1,10 +1,10 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { getKeysByCid } from '../stores/cidKeyStore';
-  import { getPeerProfile } from '../stores/peerProfileStore';
-  import { profileStore } from '../stores/profileStore';
-  import { chatStore } from '../lib/chatBridge';
-  import { fileStore, type FileTransfer } from '../lib/fileBridge';
+  import { getKeysByCid } from '../lib/stores/cidKeyStore';
+  import { getPeerProfile } from '../lib/stores/peerProfileStore';
+  import { profileStore } from '../lib/stores/profileStore';
+  import { chatStore } from '../lib/stores/chatStore';
+  import { fileStore, type FileTransfer } from '../lib/stores/fileStore';
   import { transcriptionDisplayStore, type TranscriptionSegment } from '../lib/media/transcriber';
   import MediaCarousel, { type CarouselMediaItem } from './MediaCarousel.svelte';
 

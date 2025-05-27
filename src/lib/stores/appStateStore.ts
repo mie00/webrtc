@@ -1,5 +1,5 @@
 import { writable, get } from 'svelte/store';
-import type { NegoMessageMap, NegoMessageType } from '../types/negoMessages'; // Adjusted import path
+import type { NegoMessageMap, NegoMessageType } from '../../types/negoMessages'; // Adjusted import path
 
 // Define types for handlers and cleanup functions
 export type SpecificNegoHandler<K extends NegoMessageType> = (
