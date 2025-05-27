@@ -18,10 +18,18 @@ interface MockProfileStoreState {
   userName: string | null;
 }
 
-const mockAuthStore = writable<MockAuthStoreState>({ jwt: null, error: null, user: null });
+const mockAuthStore = writable<MockAuthStoreState>({ 
+  jwt: null, 
+  error: null, 
+  user: null,
+  publicKeyJwk: null,
+  privateKeyJwk: null,
+  userPubKey: null
+});
 const mockProfileStore = writable<MockProfileStoreState>({
   isProfileComplete: false,
-  profile: null
+  profile: null,
+  userName: null
 });
 
 // Mock child components to isolate App.svelte logic
@@ -188,7 +196,14 @@ describe('App.svelte', () => {
   });
 
   it('does not render ProfileSetup or MainAppRouter when not authenticated', () => {
-    mockAuthStore.set({ jwt: null, error: null, user: null });
+    mockAuthStore.set({ 
+      jwt: null, 
+      error: null, 
+      user: null,
+      publicKeyJwk: null,
+      privateKeyJwk: null,
+      userPubKey: null
+    });
     render(App);
     expect(screen.queryByText('ProfileSetupMock')).not.toBeInTheDocument();
     expect(screen.queryByText('MainAppRouterMock')).not.toBeInTheDocument();
@@ -199,8 +214,19 @@ describe('App.svelte', () => {
       value: { pathname: '/cb' },
       writable: true
     });
-    mockAuthStore.set({ jwt: 'test-jwt', error: null, user: { id: 'test' } });
-    mockProfileStore.set({ isProfileComplete: true, profile: { userName: 'TestUser' } });
+    mockAuthStore.set({ 
+      jwt: 'test-jwt', 
+      error: null, 
+      user: { id: 'test' },
+      publicKeyJwk: null,
+      privateKeyJwk: null,
+      userPubKey: 'test-key'
+    });
+    mockProfileStore.set({ 
+      isProfileComplete: true, 
+      profile: { userName: 'TestUser' },
+      userName: 'TestUser'
+    });
     render(App);
     expect(screen.queryByText('ProfileSetupMock')).not.toBeInTheDocument();
     expect(screen.queryByText('MainAppRouterMock')).not.toBeInTheDocument();
