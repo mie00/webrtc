@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { MenuItem } from '../types/menu.js';
+  import type { MenuItem } from '../types/menu';
 
   let {
     hangup,

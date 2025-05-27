@@ -13,7 +13,7 @@
 
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
-  import type { FileTransfer } from '../lib/fileBridge.js';
+  import type { FileTransfer } from '../lib/fileBridge';
 
   type Props = {
     items?: CarouselMediaItem[];

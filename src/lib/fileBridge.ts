@@ -3,7 +3,7 @@ import {
   getDirectClient,
   getAllClientCids,
   getAllDirectClients
-} from '../stores/connectionStore.js'; // Adjust path if needed
+} from '../stores/connectionStore'; // Adjust path if needed
 
 // File transfer state interface
 export interface FileTransfer {

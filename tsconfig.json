@@ -11,6 +11,9 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strictNullChecks": true,
+    "allowJs": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext", "WebWorker"],
     "baseUrl": ".",
     "paths": {

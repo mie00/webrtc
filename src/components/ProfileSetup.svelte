@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { profileStore, updateUserProfile } from '../stores/profileStore.js';
+  import { profileStore, updateUserProfile } from '../stores/profileStore';
 
   let userName = '';
 

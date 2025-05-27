@@ -1,6 +1,6 @@
 import { writable, get } from 'svelte/store';
-import { getDirectClient, getAllDirectClients } from '../stores/connectionStore.js'; // Adjust path if needed
-import { registerCleanup } from '../stores/appStateStore.js'; // Import store function
+import { getDirectClient, getAllDirectClients } from '../stores/connectionStore'; // Adjust path if needed
+import { registerCleanup } from '../stores/appStateStore'; // Import store function
 
 // Forward state interface
 export interface LogMessage {
@@ -116,7 +116,7 @@ export function forwardInit(): void {
 }
 
 // Export utility functions from the original forward.ts
-import { sendData, concatUint8Arrays, setButton } from './webrtc/forward.js';
+import { sendData, concatUint8Arrays, setButton } from './webrtc/forward';
 
 export { concatUint8Arrays }; // Export for use in tests or other modules
 

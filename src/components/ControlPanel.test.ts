@@ -10,8 +10,8 @@ import type { CidKeys } from '../stores/cidKeyStore';
 import type { PeerProfile } from '../stores/peerProfileStore';
 
 // Import the functions we are mocking to get a reference to the mocked versions
-import { getKeysByCid } from '../stores/cidKeyStore.js';
-import { getPeerProfile } from '../stores/peerProfileStore.js';
+import { getKeysByCid } from '../stores/cidKeyStore';
+import { getPeerProfile } from '../stores/peerProfileStore';
 
 // Mock stores and functions (these mocks apply to the imports above too)
 vi.mock('../stores/cidKeyStore.js', () => ({

@@ -1,20 +1,20 @@
 <script lang="ts">
   /// <reference path="../../../../types/global.d.ts" />
   import { onMount, onDestroy } from 'svelte';
-  // import { authStore, type AuthState } from '../stores/authStore.js'; // No longer directly needed for UI
+  // import { authStore, type AuthState } from '../stores/authStore'; // No longer directly needed for UI
   import MediaArea from './MediaArea.svelte';
   import ControlPanel from './ControlPanel.svelte';
   import CopyOverlay from './CopyOverlay.svelte';
   import ConfigOverlay from './ConfigOverlay.svelte';
   import ForwardOverlay from './ForwardOverlay.svelte';
-  import { configStore, getAllConfig, type Config } from '../stores/configStore.js';
-  import { connectionStore, getDirectClient } from '../stores/connectionStore.js';
-  import { compress, decompress } from '../lib/utils/sdpCompress.js';
-  import type { WebRTCApp } from '../lib/webrtc/WebRTCApp.js';
+  import { configStore, getAllConfig, type Config } from '../stores/configStore';
+  import { connectionStore, getDirectClient } from '../stores/connectionStore';
+  import { compress, decompress } from '../lib/utils/sdpCompress';
+  import type { WebRTCApp } from '../lib/webrtc/WebRTCApp';
 
-  import type { AppLogic, AppLogicContext, AppLogicState } from '../lib/appLogic.js';
-  import { ClientLogic } from '../lib/clientLogic.js';
-  import { ServerLogic } from '../lib/serverLogic.js';
+  import type { AppLogic, AppLogicContext, AppLogicState } from '../lib/appLogic';
+  import { ClientLogic } from '../lib/clientLogic';
+  import { ServerLogic } from '../lib/serverLogic';
 
   // Props
   export let webRTCApp: WebRTCApp;

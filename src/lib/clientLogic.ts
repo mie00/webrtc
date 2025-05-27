@@ -1,4 +1,4 @@
-import type { AppLogic, AppLogicContext, AppLogicState } from './appLogic.js';
+import type { AppLogic, AppLogicContext, AppLogicState } from './appLogic';
 /// <reference path="../../../types/global.d.ts" />
 // import { connectionStore } from '../stores/connectionStore'; // For direct $connectionStore access if needed
 

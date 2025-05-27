@@ -1,5 +1,5 @@
 import { writable, get } from 'svelte/store';
-import { getDirectClient, getAllDirectClients } from '../stores/connectionStore.js'; // Adjust path if needed
+import { getDirectClient, getAllDirectClients } from '../stores/connectionStore'; // Adjust path if needed
 
 // Chat state interface
 export interface ChatState {

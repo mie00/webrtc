@@ -3,13 +3,13 @@ import type {
   ChallengeNegoMessage,
   NegoData,
   TrustedNegoMessage
-} from '../../types/negoMessages.js';
+} from '../../types/negoMessages';
 // WebRTCClient is globally available from types/global.d.ts
-import { getDirectClient } from '../../stores/connectionStore.js';
-import { setCidKeys } from '../../stores/cidKeyStore.js';
-import { updatePeerProfile } from '../../stores/peerProfileStore.js';
-import { verifyLoginJWTFromBase64, authStore } from '../../stores/authStore.js';
-import { profileStore } from '../../stores/profileStore.js';
+import { getDirectClient } from '../../stores/connectionStore';
+import { setCidKeys } from '../../stores/cidKeyStore';
+import { updatePeerProfile } from '../../stores/peerProfileStore';
+import { verifyLoginJWTFromBase64, authStore } from '../../stores/authStore';
+import { profileStore } from '../../stores/profileStore';
 import { get } from 'svelte/store';
 
 // Helper to convert Base64URL string to ArrayBuffer
