@@ -6,7 +6,7 @@
     type GeneralConfig,
     type RtcConfig,
     type MediaConfig
-  } from '../stores/configStore';
+  } from '../lib/stores/configStore';
   import { onMount } from 'svelte'; // onMount is not strictly needed if using $effect for this
 
   // Props

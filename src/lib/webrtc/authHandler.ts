@@ -5,11 +5,11 @@ import type {
   TrustedNegoMessage
 } from '../../types/negoMessages';
 // WebRTCClient is globally available from types/global.d.ts
-import { getDirectClient } from '../../stores/connectionStore';
-import { setCidKeys } from '../../stores/cidKeyStore';
-import { updatePeerProfile } from '../../stores/peerProfileStore';
-import { verifyLoginJWTFromBase64, authStore } from '../../stores/authStore';
-import { profileStore } from '../../stores/profileStore';
+import { getDirectClient } from '../stores/connectionStore';
+import { setCidKeys } from '../stores/cidKeyStore';
+import { updatePeerProfile } from '../stores/peerProfileStore';
+import { verifyLoginJWTFromBase64, authStore } from '../stores/authStore';
+import { profileStore } from '../stores/profileStore';
 import { get } from 'svelte/store';
 
 // Helper to convert Base64URL string to ArrayBuffer

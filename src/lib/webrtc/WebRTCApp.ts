@@ -1,10 +1,5 @@
 import { EMOJIS } from '../utils/emojis';
-import {
-  setCidKeys,
-  removeCidKeys,
-  resetCidKeyStore,
-  getKeysByCid
-} from '../../stores/cidKeyStore';
+import { setCidKeys, removeCidKeys, resetCidKeyStore, getKeysByCid } from '../stores/cidKeyStore';
 import type {
   NegoData,
   NegoMessageMap,
@@ -31,22 +26,22 @@ import {
   type DirectClientState,
   getDirectClientState
 } from '../../stores/connectionStore';
-import { getAllConfig } from '../../stores/configStore';
-import { updatePeerProfile, removePeerProfile } from '../../stores/peerProfileStore';
+import { getAllConfig } from '../stores/configStore';
+import { updatePeerProfile, removePeerProfile } from '../stores/peerProfileStore';
 import {
   registerNegoHandler,
   getNegoHandler,
   getAllCleanups,
   resetAppStateStore
-} from '../../stores/appStateStore';
+} from '../stores/appStateStore';
 import { diffChars } from 'diff';
-import { streamInit } from '../streamBridge';
-import { forwardInit } from '../forwardBridge';
+import { streamInit } from '../app/streamLifecycle';
+import { forwardInit } from '../app/forwardLifecycle';
 
-import { setupTrackHandler } from '../streamBridge';
-import { setupForwardChannel } from '../forwardBridge';
-import { setupChatChannel } from '../chatBridge';
-import { setupFileChannel } from '../fileBridge';
+import { setupTrackHandler } from './stream/trackHandler';
+import { setupForwardChannel } from './forward/forwardChannel';
+import { setupChatChannel } from './chat/setupChatChannel';
+import { setupFileChannel } from './file/fileTransfer';
 import { setupTranscriptionChannel } from '../media/transcriber';
 import { createSolutionHandler, createChallengeHandler } from './authHandler';
 import { NegotiationManager, type NegotiationManagerContext } from './negotiationManager';

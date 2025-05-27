@@ -10,8 +10,8 @@ import type {
   TrustedNegoMessage,
   BaseNegoMessage
 } from '../../types/negoMessages';
-import type { SpecificNegoHandler } from '../../stores/appStateStore'; // For handler types
-import type { CidKeys } from '../../stores/cidKeyStore';
+import type { SpecificNegoHandler } from '../stores/appStateStore'; // For handler types
+import type { CidKeys } from '../stores/cidKeyStore';
 
 export interface NegotiationManagerContext {
   uuidv4: () => string;

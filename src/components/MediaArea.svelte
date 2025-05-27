@@ -7,12 +7,11 @@
     updateLocalStreamProperties,
     getLocalStreamsByType,
     type LayoutType
-  } from '../stores/streamStore';
-  import { normalizeStreamId, setupLocalFileStream, setAudioCallback } from '../lib/streamBridge';
-  import {
-    forwardStore,
-    toggleForwardHandler as actualToggleForwardHandler
-  } from '../lib/forwardBridge';
+  } from '../lib/stores/streamStore';
+  import { normalizeStreamId, setupStream } from '../lib/media/stream';
+  import { setAudioCallback } from '../lib/media/localStreamManager';
+  import { forwardStore } from '../lib/stores/forwardStore';
+  import { toggleForwardHandler as actualToggleForwardHandler } from '../lib/app/forwardHandler';
   import { recorderStore, toggleRecording } from '../lib/media/recorder';
   import {
     transcriberStore,
@@ -21,9 +20,9 @@
   } from '../lib/media/transcriber';
   import { calculateStreamPositions } from '../lib/media/streamLayout';
   import ContextMenu from './ContextMenu.svelte';
-  import { updateConfig, configStore } from '../stores/configStore';
+  import { updateConfig, configStore } from '../lib/stores/configStore';
   import type { MenuItem } from '../types/menu';
-  import { addLocalFileStream, removeLocalFileStream } from '../stores/localFileStreamStore';
+  import { addLocalFileStream, removeLocalFileStream } from '../lib/stores/localFileStreamStore';
 
   import LayoutControls from './LayoutControls.svelte';
   import StreamDisplayArea from './StreamDisplayArea.svelte';
@@ -342,7 +341,7 @@
     }
     updateStreamConfig({ videoStream });
     addLocalFileStream($streamStore.streamConfig.file!, videoStream);
-    setupLocalFileStream(videoStream);
+    setupStream(videoStream, 'medium', 'detail', false);
     const fileStreams = getLocalStreamsByType('file');
     const fileStreamEntry = Object.entries(fileStreams)[0];
     if (fileStreamEntry) {

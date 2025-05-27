@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { authStore, type AuthState } from '../stores/authStore';
-  import { getConfigValue } from '../stores/configStore';
+  import { authStore, type AuthState } from '../lib/stores/authStore';
+  import { getConfigValue } from '../lib/stores/configStore';
   import ConfigOverlay from './ConfigOverlay.svelte';
 
   let showConfigOverlay = $state(false);

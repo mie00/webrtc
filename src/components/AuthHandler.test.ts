@@ -1,7 +1,7 @@
 /// <reference types="vitest/globals" />
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import AuthHandler from './AuthHandler.svelte';
-import { authStore } from '../stores/authStore.js';
+import { authStore } from '../lib/stores/authStore.js';
 import { tick } from 'svelte';
 import { vi } from 'vitest';
 

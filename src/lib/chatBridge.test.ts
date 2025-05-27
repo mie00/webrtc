@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { get } from 'svelte/store';
-import * as chatBridgeModule from './chatBridge';
+import { chatStore, type ChatState, addMessage, getChatState } from './stores/chatStore';
+import { ChatHistory } from './utils/ChatHistory';
 
 describe('chatBridge', () => {
   beforeEach(() => {
-    chatBridgeModule.chatStore.set({ messages: [] });
+    chatStore.set({ messages: [] });
     vi.useFakeTimers();
   });
 
@@ -13,7 +14,7 @@ describe('chatBridge', () => {
   });
 
   it('chatStore should initialize with an empty messages array', () => {
-    const currentState: chatBridgeModule.ChatState = get(chatBridgeModule.chatStore);
+    const currentState: ChatState = get(chatStore);
     expect(currentState.messages).toEqual([]);
   });
 
@@ -22,8 +23,8 @@ describe('chatBridge', () => {
       const mockTimestamp = 1678886400000; // March 15, 2023 12:00:00 PM UTC
       vi.setSystemTime(new Date(mockTimestamp));
 
-      chatBridgeModule.addMessage('Hello world', 'Alice');
-      const currentState: chatBridgeModule.ChatState = get(chatBridgeModule.chatStore);
+      addMessage('Hello world', 'Alice');
+      const currentState: ChatState = get(chatStore);
 
       expect(currentState.messages.length).toBe(1);
       expect(currentState.messages[0]).toEqual({
@@ -38,8 +39,8 @@ describe('chatBridge', () => {
       const mockTimestamp = 1678886400000; // March 15, 2023 12:00:00 PM UTC
       vi.setSystemTime(new Date(mockTimestamp));
 
-      chatBridgeModule.addMessage('Hi there', 'Bob', 'bob-cid-123');
-      const currentState: chatBridgeModule.ChatState = get(chatBridgeModule.chatStore);
+      addMessage('Hi there', 'Bob', 'bob-cid-123');
+      const currentState: ChatState = get(chatStore);
 
       expect(currentState.messages.length).toBe(1);
       expect(currentState.messages[0]).toEqual({
@@ -55,12 +56,12 @@ describe('chatBridge', () => {
       const mockTimestamp2 = 1678886405000;
 
       vi.setSystemTime(new Date(mockTimestamp1));
-      chatBridgeModule.addMessage('First message', 'Alice');
+      addMessage('First message', 'Alice');
 
       vi.setSystemTime(new Date(mockTimestamp2));
-      chatBridgeModule.addMessage('Second message', 'Bob', 'bob-cid-123');
+      addMessage('Second message', 'Bob', 'bob-cid-123');
 
-      const currentState: chatBridgeModule.ChatState = get(chatBridgeModule.chatStore);
+      const currentState: ChatState = get(chatStore);
       expect(currentState.messages.length).toBe(2);
       expect(currentState.messages[0]).toEqual({
         text: 'First message',
@@ -81,10 +82,10 @@ describe('chatBridge', () => {
     it('should return the current state of the chatStore', () => {
       const mockTimestamp = 1678886400000;
       vi.setSystemTime(new Date(mockTimestamp));
-      chatBridgeModule.addMessage('Test message', 'Tester');
+      addMessage('Test message', 'Tester');
 
-      const stateFromGetter = chatBridgeModule.getChatState();
-      const stateFromStore = get(chatBridgeModule.chatStore);
+      const stateFromGetter = getChatState();
+      const stateFromStore = get(chatStore);
 
       expect(stateFromGetter).toEqual(stateFromStore);
       expect(stateFromGetter.messages.length).toBe(1);
@@ -94,7 +95,7 @@ describe('chatBridge', () => {
 });
 
 describe('ChatBridge class', () => {
-  let chatBridge: chatBridgeModule.ChatBridge;
+  let chatHistory: ChatHistory;
   let mockContext: any;
   let mockPc: any;
   let mockDataChannel: any;
@@ -102,7 +103,7 @@ describe('ChatBridge class', () => {
   let mockAppStateStoreUpdate = vi.fn();
 
   beforeEach(() => {
-    chatBridgeModule.chatStore.set({ messages: [] }); // Reset global store used by ChatBridge
+    chatStore.set({ messages: [] }); // Reset global store used by ChatBridge
     vi.useFakeTimers();
 
     mockConnectionStoreUpdate = vi.fn();
@@ -130,8 +131,8 @@ describe('ChatBridge class', () => {
       ondatachannel: null
     };
 
-    chatBridge = new chatBridgeModule.ChatBridge();
-    // chatBridge.context = mockContext; // Directly set context for simplicity here
+    chatHistory = new ChatHistory();
+    // chatHistory.context = mockContext; // Directly set context for simplicity here
   });
 
   afterEach(() => {
@@ -141,7 +142,7 @@ describe('ChatBridge class', () => {
 
   describe('constructor', () => {
     it('should initialize chat history as an empty array', () => {
-      expect(chatBridge.getChatHistory()).toEqual([]);
+      expect(chatHistory.getChatHistory()).toEqual([]);
     });
   });
 
@@ -150,22 +151,22 @@ describe('ChatBridge class', () => {
   describe('getChatHistory, addMessageToHistory, clearChatHistory', () => {
     it('should manage chat history correctly', () => {
       const timestamp1 = Date.now();
-      chatBridge.addMessageToHistory({ text: 'Hello', sender: 'local', timestamp: timestamp1 });
-      expect(chatBridge.getChatHistory().length).toBe(1);
-      expect(chatBridge.getChatHistory()[0]).toEqual(
+      chatHistory.addMessageToHistory({ text: 'Hello', sender: 'local', timestamp: timestamp1 });
+      expect(chatHistory.getChatHistory().length).toBe(1);
+      expect(chatHistory.getChatHistory()[0]).toEqual(
         expect.objectContaining({ text: 'Hello', sender: 'local', timestamp: timestamp1 })
       );
 
       vi.advanceTimersByTime(1000);
       const timestamp2 = Date.now();
-      chatBridge.addMessageToHistory({
+      chatHistory.addMessageToHistory({
         text: 'World',
         sender: 'remote',
         timestamp: timestamp2,
         cid: 'remote-cid'
       });
-      expect(chatBridge.getChatHistory().length).toBe(2);
-      expect(chatBridge.getChatHistory()[1]).toEqual(
+      expect(chatHistory.getChatHistory().length).toBe(2);
+      expect(chatHistory.getChatHistory()[1]).toEqual(
         expect.objectContaining({
           text: 'World',
           sender: 'remote',
@@ -174,8 +175,8 @@ describe('ChatBridge class', () => {
         })
       );
 
-      chatBridge.clearChatHistory();
-      expect(chatBridge.getChatHistory().length).toBe(0);
+      chatHistory.clearChatHistory();
+      expect(chatHistory.getChatHistory().length).toBe(0);
     });
   });
 });

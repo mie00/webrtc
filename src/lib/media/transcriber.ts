@@ -5,8 +5,8 @@ import {
   type LocalStreamData,
   type RemoteStreamData,
   type StreamState
-} from '../../stores/streamStore';
-import { getDirectClient, getAllDirectClients } from '../../stores/connectionStore'; // Added
+} from '../stores/streamStore';
+import { getDirectClient, getAllDirectClients } from '../stores/connectionStore'; // Added
 
 const WEBSOCKET_URL = 'ws://localhost:8888/asr'; // Ensure this matches your ASR backend
 const TRANSCRIPTION_CHUNK_DURATION_MS = 5000;

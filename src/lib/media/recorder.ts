@@ -6,9 +6,9 @@ import {
 } from 'video-stream-merger';
 import { writable, get } from 'svelte/store';
 import { normalizeStreamId } from './stream';
-import { getStreamState, type StreamState } from '../../stores/streamStore';
+import { getStreamState, type StreamState } from '../stores/streamStore';
 import { calculateStreamLayout, calculateGridPositions, type Position } from './streamLayout';
-import { getStreamMetadata } from '../../stores/localFileStreamStore';
+import { getStreamMetadata } from '../stores/localFileStreamStore';
 
 // Constants
 const FW = 1920;

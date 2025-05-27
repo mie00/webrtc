@@ -4,10 +4,11 @@ import {
   addFileTransfer,
   updateFileTransfer,
   removeFileTransfer,
-  splitArrayBuffer, // Added
-  getMaxMessageSizeFromSdp // Added
-} from './fileBridge';
-import type { FileTransfer, FileState } from './fileBridge';
+  type FileTransfer, // Moved here
+  type FileState // Moved here
+} from './stores/fileStore';
+import { splitArrayBuffer } from './utils/fileUtils';
+import { getMaxMessageSizeFromSdp } from './utils/fileUtils';
 
 // Mocking Svelte store's get for testing purposes if needed, or use actual get
 // Vitest automatically mocks timers when vi.useFakeTimers() is called.

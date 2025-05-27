@@ -10,8 +10,8 @@ import {
   addLogMessage,
   updateLogMessageStatus,
   clearLogMessages,
-  initialState // Assuming initialState is exported or accessible for reset
-} from './forwardBridge';
+  initialState
+} from './stores/forwardStore';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('forwardBridge', () => {

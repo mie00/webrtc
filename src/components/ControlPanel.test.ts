@@ -3,21 +3,21 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import ControlPanel from './ControlPanel.svelte';
 import { writable } from 'svelte/store';
-import type { FileTransfer } from '../lib/fileBridge.js';
-import type { ChatState } from '../lib/chatBridge';
-import type { FileState } from '../lib/fileBridge';
-import type { CidKeys } from '../stores/cidKeyStore';
-import type { PeerProfile } from '../stores/peerProfileStore';
+import type { FileTransfer } from '../lib/stores/fileStore.js';
+import type { ChatState } from '../lib/stores/chatStore';
+import type { FileState } from '../lib/stores/fileStore';
+import type { CidKeys } from '../lib/stores/cidKeyStore';
+import type { PeerProfile } from '../lib/stores/peerProfileStore';
 
 // Import the functions we are mocking to get a reference to the mocked versions
-import { getKeysByCid } from '../stores/cidKeyStore';
-import { getPeerProfile } from '../stores/peerProfileStore';
+import { getKeysByCid } from '../lib/stores/cidKeyStore';
+import { getPeerProfile } from '../lib/stores/peerProfileStore';
 
 // Mock stores and functions (these mocks apply to the imports above too)
-vi.mock('../stores/cidKeyStore.js', () => ({
+vi.mock('../lib/stores/cidKeyStore.js', () => ({
   getKeysByCid: vi.fn()
 }));
-vi.mock('../stores/peerProfileStore.js', () => ({
+vi.mock('../lib/stores/peerProfileStore.js', () => ({
   getPeerProfile: vi.fn()
 }));
 
@@ -33,13 +33,13 @@ const hoistedStores = vi.hoisted(() => {
   };
 });
 
-vi.mock('../stores/profileStore.js', () => ({
+vi.mock('../lib/stores/profileStore.js', () => ({
   profileStore: hoistedStores.mockProfileStoreInstance
 }));
-vi.mock('../lib/chatBridge.js', () => ({
+vi.mock('../lib/stores/chatStore.js', () => ({
   chatStore: hoistedStores.mockChatStoreInstance
 }));
-vi.mock('../lib/fileBridge.js', () => ({
+vi.mock('../lib/stores/fileStore.js', () => ({
   fileStore: hoistedStores.mockFileStoreInstance
 }));
 vi.mock('../lib/media/transcriber.js', () => ({
@@ -135,12 +135,12 @@ describe('ControlPanel.svelte', () => {
         { cid: 'remote-cid-2', sender: 'RemoteUser2', text: 'World', timestamp: Date.now() + 1 }
       ]
     }));
-    vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined => {
+    vi.mocked(getKeysByCid).mockImplementation((cid: string): CidKeys | undefined => {
       if (cid === 'remote-cid-1') return { userPublicKey: 'key1', publicKey: null };
       if (cid === 'remote-cid-2') return { userPublicKey: 'key2', publicKey: null };
       return undefined;
     });
-    vi.mocked(getPeerProfile).mockImplementation((key): PeerProfile | undefined => {
+    vi.mocked(getPeerProfile).mockImplementation((key: string): PeerProfile | undefined => {
       if (key === 'key1') return { userName: 'RemoteProfileName1' };
       if (key === 'key2') return { userName: 'RemoteProfileName2' };
       return undefined;
@@ -163,13 +163,13 @@ describe('ControlPanel.svelte', () => {
         { cid: 'remote-cid-3', sender: 'RemoteUser3', text: 'Again', timestamp: Date.now() + 2 }
       ]
     }));
-    vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined => {
+    vi.mocked(getKeysByCid).mockImplementation((cid: string): CidKeys | undefined => {
       if (cid === 'remote-cid-1') return { userPublicKey: 'key1', publicKey: null };
       if (cid === 'remote-cid-2') return { userPublicKey: 'key2', publicKey: null };
       if (cid === 'remote-cid-3') return { userPublicKey: 'key3', publicKey: null };
       return undefined;
     });
-    vi.mocked(getPeerProfile).mockImplementation((key): PeerProfile | undefined => {
+    vi.mocked(getPeerProfile).mockImplementation((key: string): PeerProfile | undefined => {
       if (key === 'key1') return { userName: 'RemoteProfileName1' };
       if (key === 'key2') return { userName: 'RemoteProfileName2' };
       if (key === 'key3') return { userName: 'RemoteProfileName3' };
@@ -206,12 +206,12 @@ describe('ControlPanel.svelte', () => {
       isLocal: false // Changed from isRemote: true
     };
     hoistedStores.mockFileStoreInstance.set({ transfers: { file1: remoteFileTransfer } });
-    vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined => {
+    vi.mocked(getKeysByCid).mockImplementation((cid: string): CidKeys | undefined => {
       if (cid === 'remote-file-sender-cid')
         return { userPublicKey: 'key-file-sender', publicKey: null };
       return undefined;
     });
-    vi.mocked(getPeerProfile).mockImplementation((key): PeerProfile | undefined => {
+    vi.mocked(getPeerProfile).mockImplementation((key: string): PeerProfile | undefined => {
       if (key === 'key-file-sender') return { userName: 'RemoteFileProfileName' };
       return undefined;
     });
@@ -268,7 +268,7 @@ describe('ControlPanel.svelte', () => {
         { cid: 'chat-cid1', sender: 'chat-cid1', text: 'Chat message 1', timestamp: Date.now() }
       ]
     });
-    vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined =>
+    vi.mocked(getKeysByCid).mockImplementation((cid: string): CidKeys | undefined =>
       cid === 'chat-cid1' ? undefined : { userPublicKey: 'some-other-key', publicKey: null }
     );
     vi.mocked(getPeerProfile).mockReturnValue(undefined);
@@ -286,7 +286,7 @@ describe('ControlPanel.svelte', () => {
         { cid: 'chat-cid2', sender: 'chat-cid2', text: 'Chat message 2', timestamp: Date.now() + 1 }
       ]
     });
-    vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined =>
+    vi.mocked(getKeysByCid).mockImplementation((cid: string): CidKeys | undefined =>
       cid === 'chat-cid2'
         ? { publicKey: null, userPublicKey: null }
         : { userPublicKey: 'some-other-key', publicKey: null }
@@ -313,7 +313,7 @@ describe('ControlPanel.svelte', () => {
       isLocal: false
     };
     hoistedStores.mockFileStoreInstance.set({ transfers: { f1: remoteFile1 } });
-    vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined =>
+    vi.mocked(getKeysByCid).mockImplementation((cid: string): CidKeys | undefined =>
       cid === 'file-cid1' ? undefined : { userPublicKey: 'some-other-key', publicKey: null }
     );
     await tick();
@@ -338,7 +338,7 @@ describe('ControlPanel.svelte', () => {
       isLocal: false // Changed from isRemote: true
     };
     hoistedStores.mockFileStoreInstance.set({ transfers: { f2: remoteFile2 } });
-    vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined =>
+    vi.mocked(getKeysByCid).mockImplementation((cid: string): CidKeys | undefined =>
       cid === 'file-cid2' ? undefined : { userPublicKey: 'some-other-key', publicKey: null }
     );
     await tick();
@@ -363,7 +363,7 @@ describe('ControlPanel.svelte', () => {
       isLocal: false // Changed from isRemote: true
     };
     hoistedStores.mockFileStoreInstance.set({ transfers: { f3: remoteFile3 } });
-    vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined =>
+    vi.mocked(getKeysByCid).mockImplementation((cid: string): CidKeys | undefined =>
       cid === 'file-cid3'
         ? { publicKey: null, userPublicKey: null }
         : { userPublicKey: 'some-other-key', publicKey: null }
@@ -390,7 +390,7 @@ describe('ControlPanel.svelte', () => {
       isLocal: false // Changed from isRemote: true
     };
     hoistedStores.mockFileStoreInstance.set({ transfers: { f4: remoteFile4 } });
-    vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined =>
+    vi.mocked(getKeysByCid).mockImplementation((cid: string): CidKeys | undefined =>
       cid === 'file-cid4'
         ? { publicKey: null, userPublicKey: null }
         : { userPublicKey: 'some-other-key', publicKey: null }
@@ -417,7 +417,7 @@ describe('ControlPanel.svelte', () => {
       isLocal: false // Changed from isRemote: true
     };
     hoistedStores.mockFileStoreInstance.set({ transfers: { f5: remoteFile5 } });
-    vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined =>
+    vi.mocked(getKeysByCid).mockImplementation((cid: string): CidKeys | undefined =>
       cid === 'file-cid5' ? undefined : { userPublicKey: 'some-other-key', publicKey: null }
     );
     await tick();
@@ -449,7 +449,7 @@ describe('ControlPanel.svelte', () => {
       transfers: { f6: { ...remoteFile6, senderName: '', senderCid: '' } }
     }); // Force empty senderCid for the fallback check
     // This specific mock for f6 will make senderDisplayName empty before the final fallback
-    vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined =>
+    vi.mocked(getKeysByCid).mockImplementation((cid: string): CidKeys | undefined =>
       cid === 'file-cid6' ? undefined : { userPublicKey: 'some-other-key', publicKey: null }
     );
     await tick();
