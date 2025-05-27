@@ -31,7 +31,7 @@ interface Lengths {
 const list: string[] = `
 {str}
 v=0
-o={str} {uint64} {uint8} IN IP4 {ip}
+o={str} {uint64} {uint64} IN IP4 {ip}
 s=0
 t=0 0
 a=group:BUNDLE 0
