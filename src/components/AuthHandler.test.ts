@@ -28,7 +28,7 @@ vi.mock('../lib/stores/authStore', async () => {
 
 // Mock configStore
 vi.mock('../lib/stores/configStore', async () => {
-  const actual = await vi.importActual('../stores/configStore');
+  const actual = await vi.importActual('../lib/stores/configStore');
 
   const mockConfigStoreInstance = {
     // ...actual.configStore, // Removed to fix spread type error

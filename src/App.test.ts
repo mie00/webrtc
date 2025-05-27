@@ -125,16 +125,16 @@ vi.mock('./components/ProfileSetup.svelte', () => ({
 
 // Mock stores
 
-vi.mock('./stores/authStore.js', () => ({
+vi.mock('./lib/stores/authStore', () => ({
   authStore: mockAuthStore
 }));
 
-vi.mock('./stores/profileStore.js', () => ({
+vi.mock('./lib/stores/profileStore', () => ({
   profileStore: mockProfileStore
 }));
 
 // Mock WebRTCApp
-vi.mock('./lib/webrtc/WebRTCApp.js', () => ({
+vi.mock('./lib/webrtc/WebRTCApp', () => ({
   WebRTCApp: vi.fn().mockImplementation(() => ({
     // Mock any methods used by App.svelte if necessary
   }))
@@ -146,8 +146,8 @@ describe('App.svelte', () => {
   beforeEach(async () => {
     App = (await import('./App.svelte')).default;
     // Reset store states before each test
-    mockAuthStore.set({ jwt: null, error: null, user: null });
-    mockProfileStore.set({ isProfileComplete: false, profile: null });
+    mockAuthStore.set({ jwt: null, error: null, user: null, publicKeyJwk: null, privateKeyJwk: null, userPubKey: null });
+    mockProfileStore.set({ isProfileComplete: false, profile: null, userName: null });
     // Reset window.location.pathname for consistent testing
     Object.defineProperty(window, 'location', {
       value: { pathname: '/' },
@@ -168,16 +168,16 @@ describe('App.svelte', () => {
   });
 
   it('renders ProfileSetup when authenticated but profile is not complete', async () => {
-    mockAuthStore.set({ jwt: 'test-jwt', error: null, user: { id: 'test' } });
-    mockProfileStore.set({ isProfileComplete: false, profile: null });
+    mockAuthStore.set({ jwt: 'test-jwt', error: null, user: { id: 'test' }, publicKeyJwk: {}, privateKeyJwk: {}, userPubKey: 'test-key' });
+    mockProfileStore.set({ isProfileComplete: false, profile: null, userName: null });
     render(App);
     await tick();
     expect(screen.getByText('ProfileSetupMock')).toBeInTheDocument();
   });
 
   it('renders MainAppRouter when authenticated and profile is complete', async () => {
-    mockAuthStore.set({ jwt: 'test-jwt', error: null, user: { id: 'test' } });
-    mockProfileStore.set({ isProfileComplete: true, profile: { userName: 'TestUser' } });
+    mockAuthStore.set({ jwt: 'test-jwt', error: null, user: { id: 'test' }, publicKeyJwk: {}, privateKeyJwk: {}, userPubKey: 'test-key' });
+    mockProfileStore.set({ isProfileComplete: true, profile: { userName: 'TestUser' }, userName: 'TestUser' });
     render(App);
     await tick();
     expect(screen.getByText('MainAppRouterMock')).toBeInTheDocument();
