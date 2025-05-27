@@ -4,8 +4,8 @@ import { tick } from 'svelte';
 import ControlPanel from './ControlPanel.svelte';
 import { writable } from 'svelte/store';
 import type { FileTransfer } from '../lib/fileBridge.js';
-import type { ChatState } from '../stores/chatStore';
-import type { FileState } from '../stores/fileStore';
+import type { ChatState } from '../lib/chatBridge';
+import type { FileState } from '../lib/fileBridge';
 import type { CidKeys } from '../stores/cidKeyStore';
 import type { PeerProfile } from '../stores/peerProfileStore';
 
@@ -207,7 +207,8 @@ describe('ControlPanel.svelte', () => {
     };
     hoistedStores.mockFileStoreInstance.set({ transfers: { file1: remoteFileTransfer } });
     vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined => {
-      if (cid === 'remote-file-sender-cid') return { userPublicKey: 'key-file-sender', publicKey: null };
+      if (cid === 'remote-file-sender-cid')
+        return { userPublicKey: 'key-file-sender', publicKey: null };
       return undefined;
     });
     vi.mocked(getPeerProfile).mockImplementation((key): PeerProfile | undefined => {
@@ -286,7 +287,9 @@ describe('ControlPanel.svelte', () => {
       ]
     });
     vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined =>
-      cid === 'chat-cid2' ? { publicKey: null, userPublicKey: null } : { userPublicKey: 'some-other-key', publicKey: null }
+      cid === 'chat-cid2'
+        ? { publicKey: null, userPublicKey: null }
+        : { userPublicKey: 'some-other-key', publicKey: null }
     );
     await tick();
     await tick();
@@ -361,7 +364,9 @@ describe('ControlPanel.svelte', () => {
     };
     hoistedStores.mockFileStoreInstance.set({ transfers: { f3: remoteFile3 } });
     vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined =>
-      cid === 'file-cid3' ? { publicKey: null, userPublicKey: null } : { userPublicKey: 'some-other-key', publicKey: null }
+      cid === 'file-cid3'
+        ? { publicKey: null, userPublicKey: null }
+        : { userPublicKey: 'some-other-key', publicKey: null }
     );
     await tick();
     await tick();
@@ -386,7 +391,9 @@ describe('ControlPanel.svelte', () => {
     };
     hoistedStores.mockFileStoreInstance.set({ transfers: { f4: remoteFile4 } });
     vi.mocked(getKeysByCid).mockImplementation((cid): CidKeys | undefined =>
-      cid === 'file-cid4' ? { publicKey: null, userPublicKey: null } : { userPublicKey: 'some-other-key', publicKey: null }
+      cid === 'file-cid4'
+        ? { publicKey: null, userPublicKey: null }
+        : { userPublicKey: 'some-other-key', publicKey: null }
     );
     await tick();
     await tick();

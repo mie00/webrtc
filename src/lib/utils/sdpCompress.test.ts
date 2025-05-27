@@ -7,7 +7,7 @@ describe('sdpCompress', () => {
       'o=- 1234567890 1234567890 IN IP4 127.0.0.1',
       's=-',
       't=0 0',
-      'a=msid-semantic: WMS',
+      'a=msid-semantic: WMS'
     ].join('\r\n');
 
     const compressed = compress(sdp);

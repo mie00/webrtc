@@ -5,7 +5,7 @@ import {
   updateFileTransfer,
   removeFileTransfer,
   splitArrayBuffer, // Added
-  getMaxMessageSizeFromSdp, // Added
+  getMaxMessageSizeFromSdp // Added
 } from './fileBridge';
 import type { FileTransfer, FileState } from './fileBridge';
 
@@ -47,7 +47,8 @@ describe('fileBridge utility functions', () => {
 
   describe('getMaxMessageSizeFromSdp', () => {
     it('should extract max message size from SDP string', () => {
-      const sdp = 'v=0\r\no=- 123 456 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=msid-semantic: WMS\r\na=max-message-size:65536\r\n';
+      const sdp =
+        'v=0\r\no=- 123 456 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=msid-semantic: WMS\r\na=max-message-size:65536\r\n';
       const size = getMaxMessageSizeFromSdp(sdp);
       expect(size).toBe(65536);
     });
@@ -64,7 +65,8 @@ describe('fileBridge utility functions', () => {
     });
 
     it('should handle SDP with other attributes', () => {
-      const sdp = 'a=rtcp-mux\r\na=ice-ufrag:someufrag\r\na=max-message-size:16384\r\na=ice-pwd:somepwd';
+      const sdp =
+        'a=rtcp-mux\r\na=ice-ufrag:someufrag\r\na=max-message-size:16384\r\na=ice-pwd:somepwd';
       const size = getMaxMessageSizeFromSdp(sdp);
       expect(size).toBe(16384);
     });
@@ -85,7 +87,7 @@ describe('fileStore', () => {
     progress: 0,
     status: 'sending',
     timestamp: Date.now(),
-    isLocal: true,
+    isLocal: true
   };
 
   const sampleTransfer2: FileTransfer = {
@@ -97,7 +99,7 @@ describe('fileStore', () => {
     status: 'receiving',
     timestamp: Date.now() + 1000,
     senderCid: 'sender-cid',
-    senderName: 'Sender Name',
+    senderName: 'Sender Name'
   };
 
   it('should have an initial empty state', () => {
@@ -143,7 +145,11 @@ describe('fileStore', () => {
 
     it('should update specific fields without affecting others', () => {
       addFileTransfer(sampleTransfer2);
-      const updates: Partial<FileTransfer> = { status: 'complete', progress: 100, url: 'blob:http://localhost/xyz' };
+      const updates: Partial<FileTransfer> = {
+        status: 'complete',
+        progress: 100,
+        url: 'blob:http://localhost/xyz'
+      };
       updateFileTransfer(sampleTransfer2.id, updates);
       const state = get(fileStore);
       const updatedTransfer = state.transfers[sampleTransfer2.id];

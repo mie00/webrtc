@@ -3,7 +3,7 @@ import {
   startRecording,
   stopRecording,
   toggleRecording,
-  calculateFit, // Added
+  calculateFit // Added
 } from './recorder';
 import type { Position } from './streamLayout'; // Assuming Position is exported from streamLayout
 import { getStreamMetadata as mockGetStreamMetadata } from '../../stores/localFileStreamStore';
@@ -22,25 +22,25 @@ vi.mock('../../stores/streamStore', async (importOriginal) => {
       audio: 'default|Default Audio', // Changed to string
       camera: 'default|Default Camera', // Changed to string
       screen: false, // Kept as boolean
-      speaker: 'default|Default Speaker', // Changed to string
+      speaker: 'default|Default Speaker' // Changed to string
     },
     isSwitchingAudio: false,
     isSwitchingCamera: false,
     isLocalAudioAllowed: true,
-    isLocalVideoAllowed: true,
+    isLocalVideoAllowed: true
   });
   return {
     getStreamState: vi.fn(() => svelteStore.get(mockStreamStoreInstanceInternal)),
     streamStore: mockStreamStoreInstanceInternal,
     getLocalStreamsByType: vi.fn(() => ({})), // Added mock for getLocalStreamsByType, returns empty object
-    addLocalStream: vi.fn(), // Added mock for addLocalStream
+    addLocalStream: vi.fn() // Added mock for addLocalStream
     // Ensure other exports from the original module are handled if necessary
     // For example, if StreamState type is used by other modules in a way that affects runtime.
   };
 });
 
 vi.mock('../../stores/localFileStreamStore', () => ({
-  getStreamMetadata: vi.fn(),
+  getStreamMetadata: vi.fn()
 }));
 
 vi.mock('video-stream-merger', () => {
@@ -50,7 +50,7 @@ vi.mock('video-stream-merger', () => {
     removeStream: vi.fn(),
     start: vi.fn(),
     destroy: vi.fn(),
-    result: new MediaStream(), // Mock the result to be a MediaStream instance
+    result: new MediaStream() // Mock the result to be a MediaStream instance
   }));
   return { VideoStreamMerger };
 });
@@ -60,7 +60,7 @@ global.MediaRecorder = vi.fn().mockImplementation(() => ({
   start: vi.fn(),
   stop: vi.fn(),
   ondataavailable: null,
-  dispatchEvent: vi.fn(),
+  dispatchEvent: vi.fn()
 })) as any;
 global.URL.createObjectURL = vi.fn(() => 'blob:http://localhost/mock-url');
 global.URL.revokeObjectURL = vi.fn();
@@ -71,7 +71,7 @@ document.createElement = vi.fn().mockImplementation((tagName) => {
       download: '',
       click: vi.fn(),
       appendChild: vi.fn(),
-      removeChild: vi.fn(),
+      removeChild: vi.fn()
     };
   }
   return {};
@@ -115,7 +115,7 @@ global.MediaStream = vi.fn().mockImplementation(() => ({
   onactive: null,
   onaddtrack: null,
   oninactive: null,
-  onremovetrack: null,
+  onremovetrack: null
 })) as any;
 
 describe('recorderStore', () => {
@@ -125,7 +125,7 @@ describe('recorderStore', () => {
       merger: null,
       mediaRecorder: null,
       updateInterval: null,
-      lastStreams: [],
+      lastStreams: []
     });
     vi.clearAllMocks(); // Clear mocks before each test
   });
@@ -144,13 +144,16 @@ describe('calculateFit', () => {
   const mockStreamInfo = {
     id: 'stream1',
     key: 'key1',
-    stream: new MediaStream(), // Mocked MediaStream
+    stream: new MediaStream() // Mocked MediaStream
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset settings for the shared mock track instance
-    (mockVideoTrackInstance.getSettings as ReturnType<typeof vi.fn>).mockReturnValue({ width: 1280, height: 720 });
+    (mockVideoTrackInstance.getSettings as ReturnType<typeof vi.fn>).mockReturnValue({
+      width: 1280,
+      height: 720
+    });
     (mockGetStreamMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null); // Default to no specific metadata
   });
 
@@ -165,7 +168,10 @@ describe('calculateFit', () => {
   });
 
   it('should fit taller video to position height and center horizontally', () => {
-    (mockVideoTrackInstance.getSettings as ReturnType<typeof vi.fn>).mockReturnValue({ width: 600, height: 800 }); // Video is 3:4
+    (mockVideoTrackInstance.getSettings as ReturnType<typeof vi.fn>).mockReturnValue({
+      width: 600,
+      height: 800
+    }); // Video is 3:4
     const position: Position = { id: 'stream1', x: 0, y: 0, width: 1600, height: 900 }; // Position is 16:9
     const result = calculateFit(position, mockStreamInfo as any);
     expect(result.height).toBe(900);
@@ -175,7 +181,10 @@ describe('calculateFit', () => {
   });
 
   it('should use stream metadata if available', () => {
-    (mockGetStreamMetadata as ReturnType<typeof vi.fn>).mockReturnValue({ width: 1920, height: 1080 });
+    (mockGetStreamMetadata as ReturnType<typeof vi.fn>).mockReturnValue({
+      width: 1920,
+      height: 1080
+    });
     const position: Position = { id: 'stream1', x: 0, y: 0, width: 800, height: 600 };
     // Video is 16:9 (1920/1080)
     const result = calculateFit(position, mockStreamInfo as any);
@@ -184,7 +193,7 @@ describe('calculateFit', () => {
     expect(mockStreamInfo.stream.getVideoTracks()[0].getSettings).not.toHaveBeenCalled();
   });
 
-   it('should throw error if video track has no settings and no metadata', () => {
+  it('should throw error if video track has no settings and no metadata', () => {
     (mockVideoTrackInstance.getSettings as ReturnType<typeof vi.fn>).mockReturnValue({}); // No width/height
     const position: Position = { id: 'stream1', x: 0, y: 0, width: 800, height: 600 };
     expect(() => calculateFit(position, mockStreamInfo as any)).toThrow('Invalid video dimensions');
@@ -201,29 +210,30 @@ describe('calculateFit', () => {
 // More detailed testing of their effects would require more intricate mocking of VideoStreamMerger behavior
 // and streamStore state.
 describe('Recording functions', () => {
-  beforeEach(async () => { // Make beforeEach async if it contains async operations
+  beforeEach(async () => {
+    // Make beforeEach async if it contains async operations
     recorderStore.set({
       isRecording: false,
       merger: null,
       mediaRecorder: null,
       updateInterval: null,
-      lastStreams: [],
+      lastStreams: []
     });
     vi.clearAllMocks();
     // Mock getStreamState to return some basic stream setup
     (mockGetStreamState as ReturnType<typeof vi.fn>).mockReturnValue({
-      localStreams: { 'local1': { stream: new MediaStream(), sendable: true } },
+      localStreams: { local1: { stream: new MediaStream(), sendable: true } },
       remoteStreams: {},
       streamConfig: {
         audio: 'default|Default Audio', // Changed to string
         camera: 'default|Default Camera', // Changed to string
         screen: false, // Kept as boolean
-        speaker: 'default|Default Speaker', // Changed to string
+        speaker: 'default|Default Speaker' // Changed to string
       },
       isSwitchingAudio: false,
       isSwitchingCamera: false,
       isLocalAudioAllowed: true,
-      isLocalVideoAllowed: true,
+      isLocalVideoAllowed: true
     });
   });
 
