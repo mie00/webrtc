@@ -38,6 +38,7 @@
     if (item.type === 'toggle') {
       // For toggle items, we want to update the checked state
       item.checked = !item.checked;
+      openSubmenus = { ...openSubmenus }; // HACK: Force reactivity for $derived
     }
 
     // Execute the item's action if provided
