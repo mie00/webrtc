@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { MenuItem } from '../types/menu.js';
+  import type { MenuItem } from '../types/menu';
 
   // Props
   let {

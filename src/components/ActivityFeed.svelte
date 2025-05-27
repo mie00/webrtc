@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { FileTransfer } from '../lib/fileBridge.js';
-  import type { TranscriptionSegment } from '../lib/media/transcriber.js';
+  import type { FileTransfer } from '../lib/fileBridge';
+  import type { TranscriptionSegment } from '../lib/media/transcriber';
   import type { CarouselMediaItem } from './MediaCarousel.svelte';
 
   // --- Types for Combined Feed Item (Prop) ---

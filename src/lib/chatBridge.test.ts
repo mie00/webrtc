@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { get } from 'svelte/store';
-import * as chatBridgeModule from './chatBridge.js';
+import * as chatBridgeModule from './chatBridge';
 
 describe('chatBridge', () => {
   beforeEach(() => {

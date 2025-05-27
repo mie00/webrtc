@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { connectionStore } from '../stores/connectionStore.js'; // getDirectClientState, getParticipantState are not directly used in template
-  import { getKeysByCid } from '../stores/cidKeyStore.js';
-  import { getPeerProfile } from '../stores/peerProfileStore.js';
+  import { connectionStore } from '../stores/connectionStore'; // getDirectClientState, getParticipantState are not directly used in template
+  import { getKeysByCid } from '../stores/cidKeyStore';
+  import { getPeerProfile } from '../stores/peerProfileStore';
 </script>
 
 <!-- Participants Panel -->

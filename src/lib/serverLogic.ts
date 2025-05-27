@@ -1,4 +1,4 @@
-import type { AppLogic, AppLogicContext } from './appLogic.js';
+import type { AppLogic, AppLogicContext } from './appLogic';
 import { io, Socket } from 'socket.io-client';
 // RTCIceCandidateInit should be globally available or via WebRTC types.
 

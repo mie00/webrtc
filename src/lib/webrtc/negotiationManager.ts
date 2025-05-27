@@ -9,9 +9,9 @@ import type {
   ParticipantEndNegoMessage,
   TrustedNegoMessage,
   BaseNegoMessage
-} from '../../types/negoMessages.js';
-import type { SpecificNegoHandler } from '../../stores/appStateStore.js'; // For handler types
-import type { CidKeys } from '../../stores/cidKeyStore.js';
+} from '../../types/negoMessages';
+import type { SpecificNegoHandler } from '../../stores/appStateStore'; // For handler types
+import type { CidKeys } from '../../stores/cidKeyStore';
 
 export interface NegotiationManagerContext {
   uuidv4: () => string;

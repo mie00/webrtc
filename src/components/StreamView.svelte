@@ -34,8 +34,8 @@
     drawVisualization,
     type AudioNodes,
     normalizeStreamId
-  } from '../lib/media/stream.js';
-  import { setStreamMetadata } from '../stores/localFileStreamStore.js';
+  } from '../lib/media/stream';
+  import { setStreamMetadata } from '../stores/localFileStreamStore';
 
   let audioNodes: AudioNodes | null;
   let audioVisualizationCanvas: HTMLCanvasElement | undefined = $state();

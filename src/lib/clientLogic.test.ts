@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { ClientLogic } from './clientLogic.js';
-import type { AppLogicContext, AppLogicState } from './appLogic.js';
-import type { Config } from '../stores/configStore.js';
+import { ClientLogic } from './clientLogic';
+import type { AppLogicContext, AppLogicState } from './appLogic';
+import type { Config } from '../stores/configStore';
 // REMOVED: import { defaultConfig } from '../stores/configStore';
 
 // Mock BroadcastChannel

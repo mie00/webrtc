@@ -1,9 +1,9 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { sendChatMessage } from '../lib/chatBridge.js';
-  import { sendFile, type FileTransfer } from '../lib/fileBridge.js'; // type FileTransfer might not be needed if not used directly
-  import { transcriberStore, transcriptionDisplayStore } from '../lib/media/transcriber.js';
-  import { profileStore } from '../stores/profileStore.js';
+  import { sendChatMessage } from '../lib/chatBridge';
+  import { sendFile, type FileTransfer } from '../lib/fileBridge'; // type FileTransfer might not be needed if not used directly
+  import { transcriberStore, transcriptionDisplayStore } from '../lib/media/transcriber';
+  import { profileStore } from '../stores/profileStore';
 
   // --- Types for Staged Files ---
   // Moved from ControlPanel.svelte

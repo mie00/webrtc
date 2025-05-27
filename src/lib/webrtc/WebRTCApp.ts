@@ -1,10 +1,10 @@
-import { EMOJIS } from '../utils/emojis.js';
+import { EMOJIS } from '../utils/emojis';
 import {
   setCidKeys,
   removeCidKeys,
   resetCidKeyStore,
   getKeysByCid
-} from '../../stores/cidKeyStore.js';
+} from '../../stores/cidKeyStore';
 import type {
   NegoData,
   NegoMessageMap,
@@ -16,7 +16,7 @@ import type {
   ParticipantEndNegoMessage,
   HangupNegoMessage,
   BaseNegoMessage
-} from '../../types/negoMessages.js';
+} from '../../types/negoMessages';
 import {
   addDirectClient,
   updateDirectClientState,
@@ -30,26 +30,26 @@ import {
   getAllClientCids,
   type DirectClientState,
   getDirectClientState
-} from '../../stores/connectionStore.js';
-import { getAllConfig } from '../../stores/configStore.js';
-import { updatePeerProfile, removePeerProfile } from '../../stores/peerProfileStore.js';
+} from '../../stores/connectionStore';
+import { getAllConfig } from '../../stores/configStore';
+import { updatePeerProfile, removePeerProfile } from '../../stores/peerProfileStore';
 import {
   registerNegoHandler,
   getNegoHandler,
   getAllCleanups,
   resetAppStateStore
-} from '../../stores/appStateStore.js';
+} from '../../stores/appStateStore';
 import { diffChars } from 'diff';
-import { streamInit } from '../streamBridge.js';
-import { forwardInit } from '../forwardBridge.js';
+import { streamInit } from '../streamBridge';
+import { forwardInit } from '../forwardBridge';
 
-import { setupTrackHandler } from '../streamBridge.js';
-import { setupForwardChannel } from '../forwardBridge.js';
-import { setupChatChannel } from '../chatBridge.js';
-import { setupFileChannel } from '../fileBridge.js';
-import { setupTranscriptionChannel } from '../media/transcriber.js';
-import { createSolutionHandler, createChallengeHandler } from './authHandler.js';
-import { NegotiationManager, type NegotiationManagerContext } from './negotiationManager.js';
+import { setupTrackHandler } from '../streamBridge';
+import { setupForwardChannel } from '../forwardBridge';
+import { setupChatChannel } from '../chatBridge';
+import { setupFileChannel } from '../fileBridge';
+import { setupTranscriptionChannel } from '../media/transcriber';
+import { createSolutionHandler, createChallengeHandler } from './authHandler';
+import { NegotiationManager, type NegotiationManagerContext } from './negotiationManager';
 
 export class WebRTCApp {
   private sids: Record<string, string> = {};

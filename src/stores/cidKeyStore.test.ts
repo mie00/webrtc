@@ -8,7 +8,7 @@ import {
   cidKeyStore, // Import the store itself for direct inspection if needed
   type CidKeys,
   type CidKeyState // Added for typing the store's state
-} from './cidKeyStore.js';
+} from './cidKeyStore';
 import { get } from 'svelte/store';
 
 describe('cidKeyStore', () => {

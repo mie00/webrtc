@@ -1,6 +1,6 @@
 <script lang="ts">
   import StreamView from './StreamView.svelte';
-  import type { ViewableStream } from '../types/viewableStream.js';
+  import type { ViewableStream } from '../types/viewableStream';
 
   let {
     activeStreams,

@@ -7,15 +7,11 @@ import {
   removeRemoteStream,
   updateStreamConfig,
   getLocalStreamsByType
-} from '../stores/streamStore.js';
-import { getAllConfig, configStore, type Config, type MediaConfig } from '../stores/configStore.js';
-import {
-  getDirectClient,
-  getAllDirectClients,
-  getAllClientCids
-} from '../stores/connectionStore.js'; // Adjust path if needed
-import { registerNegoHandler, registerCleanup } from '../stores/appStateStore.js'; // Import store functions
-import type { StreamEndNegoMessage } from '../types/negoMessages.js'; // Adjusted import path
+} from '../stores/streamStore';
+import { getAllConfig, configStore, type Config, type MediaConfig } from '../stores/configStore';
+import { getDirectClient, getAllDirectClients, getAllClientCids } from '../stores/connectionStore'; // Adjust path if needed
+import { registerNegoHandler, registerCleanup } from '../stores/appStateStore'; // Import store functions
+import type { StreamEndNegoMessage } from '../types/negoMessages'; // Adjusted import path
 import {
   type AudioNodes,
   normalizeStreamId,
@@ -23,10 +19,10 @@ import {
   processAudio,
   stopProcessingAudio,
   tearDownStream
-} from './media/stream.js';
+} from './media/stream';
 // Export background utilities
-import { backgroundChange } from './media/background.js';
-import { getLocalFileStreamState } from '..//stores/localFileStreamStore.js';
+import { backgroundChange } from './media/background';
+import { getLocalFileStreamState } from '..//stores/localFileStreamStore';
 
 // Module-level storage for audio processing contexts/nodes
 let audioProcessingContexts: Record<string, AudioNodes | null> = {};
@@ -464,6 +460,6 @@ export const setupLocalFileStream = (stream: MediaStream): void => {
 };
 
 // Export utility functions from the original stream.ts
-export { normalizeStreamId } from './media/stream.js';
+export { normalizeStreamId } from './media/stream';
 
 // REMOVE helper function sendNego

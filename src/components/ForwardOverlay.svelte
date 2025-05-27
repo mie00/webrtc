@@ -5,7 +5,7 @@
     setForwardPeer,
     toggleForwardHandler,
     type LogMessage
-  } from '../lib/forwardBridge.js';
+  } from '../lib/forwardBridge';
   import DraggableOverlayBase from './DraggableOverlayBase.svelte';
 
   const show = $derived(!!$forwardStore.allowedHosts.length || !!$forwardStore.forwardHost);

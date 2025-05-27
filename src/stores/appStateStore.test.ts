@@ -7,8 +7,8 @@ import {
   resetAppStateStore,
   type SpecificNegoHandler,
   type CleanupFunc
-} from './appStateStore.js';
-import type { NegoMessageType, NegoMessageMap } from '../types/negoMessages.js';
+} from './appStateStore';
+import type { NegoMessageType, NegoMessageMap } from '../types/negoMessages';
 
 describe('appStateStore', () => {
   beforeEach(() => {

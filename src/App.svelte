@@ -1,11 +1,11 @@
 <script lang="ts">
   /// <reference path="../../../types/global.d.ts" />
-  import { WebRTCApp } from './lib/webrtc/WebRTCApp.js';
+  import { WebRTCApp } from './lib/webrtc/WebRTCApp';
   import MainAppRouter from './components/MainAppRouter.svelte';
   import AuthHandler from './components/AuthHandler.svelte';
   import ProfileSetup from './components/ProfileSetup.svelte'; // Import the new component
-  import { authStore, type AuthState } from './stores/authStore.js';
-  import { profileStore, type ProfileState } from './stores/profileStore.js'; // Import profile store
+  import { authStore, type AuthState } from './stores/authStore';
+  import { profileStore, type ProfileState } from './stores/profileStore'; // Import profile store
   import { onDestroy } from 'svelte';
 
   const webRTCApp = new WebRTCApp();

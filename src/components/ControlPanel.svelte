@@ -1,14 +1,11 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { getKeysByCid } from '../stores/cidKeyStore.js';
-  import { getPeerProfile } from '../stores/peerProfileStore.js';
-  import { profileStore } from '../stores/profileStore.js';
-  import { chatStore } from '../lib/chatBridge.js';
-  import { fileStore, type FileTransfer } from '../lib/fileBridge.js';
-  import {
-    transcriptionDisplayStore,
-    type TranscriptionSegment
-  } from '../lib/media/transcriber.js';
+  import { getKeysByCid } from '../stores/cidKeyStore';
+  import { getPeerProfile } from '../stores/peerProfileStore';
+  import { profileStore } from '../stores/profileStore';
+  import { chatStore } from '../lib/chatBridge';
+  import { fileStore, type FileTransfer } from '../lib/fileBridge';
+  import { transcriptionDisplayStore, type TranscriptionSegment } from '../lib/media/transcriber';
   import MediaCarousel, { type CarouselMediaItem } from './MediaCarousel.svelte';
 
   import ParticipantsPanel from './ParticipantsPanel.svelte';

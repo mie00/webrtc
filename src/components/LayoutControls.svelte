@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { LayoutType } from '../stores/streamStore.js';
+  import type { LayoutType } from '../stores/streamStore';
 
   let {
     currentLayout,
