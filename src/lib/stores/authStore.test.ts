@@ -49,7 +49,7 @@ const mockCrypto = {
 Object.defineProperty(window, 'crypto', { value: mockCrypto });
 
 // Type alias for AuthState structure using dynamic import type
-type AuthState = import('./authStore.js').AuthState;
+type AuthState = import('./authStore').AuthState;
 
 // Define the type for the authStore object
 interface AuthStoreType extends Pick<Writable<AuthState>, 'subscribe'> {
@@ -60,6 +60,24 @@ interface AuthStoreType extends Pick<Writable<AuthState>, 'subscribe'> {
   getPrivateKey: () => Promise<CryptoKey | null>;
   getAuthState: () => AuthState;
 }
+
+// Create a mock version of the authStore for tests
+const createMockAuthStore = () => {
+  return {
+    subscribe: vi.fn(() => () => {}),
+    ensureKeyPair: vi.fn().mockResolvedValue(null),
+    getDevicePublicKeyAsSpki: vi.fn().mockResolvedValue(null),
+    setJwtAndVerifyKey: vi.fn().mockResolvedValue(true),
+    logout: vi.fn(),
+    getPrivateKey: vi.fn().mockResolvedValue(null),
+    getAuthState: vi.fn().mockReturnValue({
+      publicKeyJwk: null,
+      privateKeyJwk: null,
+      userPubKey: null,
+      jwt: null
+    })
+  };
+};
 
 // Helper to reset the authStore to its initial state by re-creating it or calling a reset method
 // Since authStore is created immediately, we need to manipulate its internal state or mock its creation for full reset.
@@ -90,10 +108,17 @@ describe('authStore', () => {
     localStorageMock.clear();
     vi.clearAllMocks(); // Clears mock call history, etc.
 
-    // Dynamically import authStore AFTER localStorage is mocked
-    // This ensures authStore picks up the mocked localStorage during its initialization
-    const authStoreModule = await import('./authStore.js');
+    // We have two options:
+    // 1. Use the real authStore with mocked localStorage (current approach)
+    // 2. Use a completely mocked authStore (useful for component tests)
+    
+    // For these tests, we'll use the real authStore with mocked localStorage
+    const authStoreModule = await import('./authStore');
     authStore = authStoreModule.authStore as AuthStoreType;
+    
+    // For component tests that need to mock authStore methods:
+    // Uncomment this line and comment out the above import
+    // authStore = createMockAuthStore();
 
     // Reset crypto mocks to default behavior or specific test behavior if needed
     // For example, to make generateKey resolve with mock keys:

@@ -1,28 +1,33 @@
 /// <reference types="vitest/globals" />
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import AuthHandler from './AuthHandler.svelte';
-import { authStore } from '../lib/stores/authStore.js';
+import { authStore } from '../lib/stores/authStore';
 import { tick } from 'svelte';
 import { vi } from 'vitest';
 
-// Mock a part of the authStore
-vi.mock('../stores/authStore', async () => {
-  const actual = await vi.importActual('../stores/authStore');
+// Mock the authStore
+vi.mock('../lib/stores/authStore', async () => {
+  const actual = await vi.importActual('../lib/stores/authStore');
+  
+  // Create a mock version of authStore with all methods as jest functions
+  const mockAuthStore = {
+    subscribe: vi.fn(() => () => {}), // Mock subscribe to return an unsubscribe function
+    getAuthState: vi.fn(() => ({ jwt: null, userPubKey: null })),
+    getDevicePublicKeyAsSpki: vi.fn(),
+    setJwtAndVerifyKey: vi.fn(),
+    logout: vi.fn(),
+    ensureKeyPair: vi.fn(),
+    getPrivateKey: vi.fn()
+  };
+  
   return {
     ...actual,
-    authStore: {
-      // ...actual.authStore, // Removed to fix spread type error
-      getAuthState: vi.fn(() => ({ jwt: null, userPubKey: null })),
-      subscribe: vi.fn(() => () => {}), // Mock subscribe to return an unsubscribe function
-      getDevicePublicKeyAsSpki: vi.fn(),
-      setJwtAndVerifyKey: vi.fn(),
-      logout: vi.fn()
-    }
+    authStore: mockAuthStore
   };
 });
 
 // Mock configStore
-vi.mock('../stores/configStore', async () => {
+vi.mock('../lib/stores/configStore', async () => {
   const actual = await vi.importActual('../stores/configStore');
 
   const mockConfigStoreInstance = {
