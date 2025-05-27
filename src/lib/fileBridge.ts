@@ -28,7 +28,7 @@ const initialState: FileState = {
 
 // Removed updateProgressBar function
 
-function splitArrayBuffer(arrayBuffer: ArrayBuffer, chunkSize: number): ArrayBuffer[] {
+export function splitArrayBuffer(arrayBuffer: ArrayBuffer, chunkSize: number): ArrayBuffer[] {
   const uint8Array = new Uint8Array(arrayBuffer);
   const chunks: ArrayBuffer[] = [];
   let offset = 0;
@@ -43,7 +43,7 @@ function splitArrayBuffer(arrayBuffer: ArrayBuffer, chunkSize: number): ArrayBuf
 }
 
 // Helper function to parse max-message-size from SDP
-function getMaxMessageSizeFromSdp(sdp: string): number | null {
+export function getMaxMessageSizeFromSdp(sdp: string): number | null {
   if (!sdp) return null;
   const match = sdp.match(/a=max-message-size:(\d+)/);
   if (match && match[1]) {

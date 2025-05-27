@@ -152,7 +152,7 @@ async function setupStreams(merger: VideoStreamMerger): Promise<void> {
 
 type FitResult = { dx: number; dy: number; width: number; height: number };
 
-function calculateFit(position: Position, streamInfo: StreamInfo): FitResult {
+export function calculateFit(position: Position, streamInfo: StreamInfo): FitResult {
   // Calculate the aspect ratio of the video track in the stream
   let videoAspectRatio: number;
   const streamMetadata = getStreamMetadata(streamInfo.id);
