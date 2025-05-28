@@ -180,6 +180,7 @@ export class ClientLogic implements AppLogic {
           displayUrlParams.set('offer', compressed);
           // Potentially add offerCid to URL for BroadcastChannel matching, though it makes URL longer
           // displayUrlParams.set('offerCid', newCidForOffer);
+          const config = getAllConfig();
           const newUrlForOverlay =
             (config.general.configHost || window.location.origin) +
             window.location.pathname +
