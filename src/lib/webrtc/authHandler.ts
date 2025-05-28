@@ -9,7 +9,7 @@ import { getDirectClient } from '../stores/connectionStore';
 import { setCidKeys } from '../stores/cidKeyStore';
 import { updatePeerProfile } from '../stores/peerProfileStore';
 import { verifyLoginJWTFromBase64, authStore } from '../stores/authStore';
-import { profileStore } from '../stores/profileStore';
+import { configStore } from '../stores/configStore';
 import { get } from 'svelte/store';
 
 // Helper to convert Base64URL string to ArrayBuffer
@@ -184,7 +184,7 @@ export function createChallengeHandler(context: ChallengeHandlerContext) {
         challengeBuffer
       );
       const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
-      const localProfile = get(profileStore);
+      const currentConfig = get(configStore);
       const userPubKeyString = authState.userPubKey; // This is now the base64 URL encoded SPKI string
 
       if (!userPubKeyString) {
@@ -208,7 +208,7 @@ export function createChallengeHandler(context: ChallengeHandlerContext) {
           originalChallenge: originalChallengeContent
         },
         profile: {
-          userName: localProfile.userName || 'unknown'
+          userName: currentConfig.profile.userName || 'unknown'
         }
       };
       context.sendNego(client, solutionMessage);

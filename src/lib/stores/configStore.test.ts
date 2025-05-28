@@ -39,10 +39,12 @@ Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 const defaultConfig = {
   general: {
     configLoader: 'server',
-    userName: '',
     configHost: '',
     identityProviderHost: 'https://xauth.mie00.com',
     coordinatorUrl: 'ws://127.0.0.1:5001'
+  },
+  profile: {
+    userName: ''
   },
   rtc: {
     stunServers: 'dealer.mie00.com:3478',
@@ -119,8 +121,11 @@ describe('configStore', () => {
       general: {
         ...defaultConfig.general,
         configLoader: 'client',
-        userName: 'LoadedUserFromStorage',
         coordinatorUrl: 'ws://loaded.coord.com'
+      },
+      profile: {
+        ...defaultConfig.profile,
+        userName: 'LoadedUserFromStorage'
       },
       rtc: {
         ...defaultConfig.rtc,
@@ -147,7 +152,7 @@ describe('configStore', () => {
 
     // Verify that the loaded config matches what was saved in localStorage for all groups
     expect(loadedConfig.general.configLoader).toBe('client');
-    expect(loadedConfig.general.userName).toBe('LoadedUserFromStorage');
+    expect(loadedConfig.profile.userName).toBe('LoadedUserFromStorage');
     expect(loadedConfig.general.coordinatorUrl).toBe('ws://loaded.coord.com');
 
     expect(loadedConfig.rtc.stunServers).toBe('stun:new.stun.com, stun:another.stun.com');
@@ -164,10 +169,10 @@ describe('configStore', () => {
   });
 
   it('should update a specific config value', () => {
-    updateConfig('general', 'userName', 'NewUser');
+    updateConfig('profile', 'userName', 'NewUser');
     const currentConfig = get(configStore);
-    expect(currentConfig.general.userName).toBe('NewUser');
-    expect(JSON.parse(localStorageMock.getItem(CONFIG_STORAGE_KEY)!).general.userName).toBe(
+    expect(currentConfig.profile.userName).toBe('NewUser');
+    expect(JSON.parse(localStorageMock.getItem(CONFIG_STORAGE_KEY)!).profile.userName).toBe(
       'NewUser'
     );
   });
@@ -179,9 +184,9 @@ describe('configStore', () => {
   });
 
   it('should reset config to default values', () => {
-    updateConfig('general', 'userName', 'TemporaryUser');
+    updateConfig('profile', 'userName', 'TemporaryUser');
     updateConfig('media', 'blurVideo', 'yes');
-    expect(get(configStore).general.userName).toBe('TemporaryUser');
+    expect(get(configStore).profile.userName).toBe('TemporaryUser');
 
     resetConfig();
     const currentConfig = get(configStore);
@@ -196,9 +201,9 @@ describe('configStore', () => {
   });
 
   it('should get all config values using getAllConfig', () => {
-    updateConfig('general', 'userName', 'AnotherUser');
+    updateConfig('profile', 'userName', 'AnotherUser');
     const allConf = getAllConfig();
-    expect(allConf.general.userName).toBe('AnotherUser');
+    expect(allConf.profile.userName).toBe('AnotherUser');
     expect(allConf.rtc.stunServers).toBe(defaultConfig.rtc.stunServers);
   });
 

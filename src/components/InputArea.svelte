@@ -4,7 +4,7 @@
   import { sendFile } from '../lib/webrtc/file/fileTransfer';
   import type { FileTransfer } from '../lib/stores/fileStore';
   import { transcriberStore, transcriptionDisplayStore } from '../lib/media/transcriber';
-  import { profileStore } from '../lib/stores/profileStore';
+  import { configStore } from '../lib/stores/configStore';
 
   // --- Types for Staged Files ---
   // Moved from ControlPanel.svelte
@@ -94,7 +94,7 @@
 
     try {
       if (message.trim()) {
-        const senderName = $profileStore.userName || 'You';
+        const senderName = $configStore.profile.userName || 'You';
         await sendChatMessage(message.trim(), senderName);
         message = '';
         successfullySentSomething = true;

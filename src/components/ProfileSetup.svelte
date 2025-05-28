@@ -20,7 +20,7 @@
 <div class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
   <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
     <h1 class="text-2xl font-bold mb-6 text-center text-gray-700">Set Up Your Profile</h1>
-    <form on:submit|preventDefault={handleSubmit}>
+    <form onsubmit={handleSubmit}>
       <div class="mb-4">
         <label for="userName" class="block text-sm font-medium text-gray-600 mb-1">Name</label>
         <input

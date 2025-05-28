@@ -5,7 +5,7 @@
   import AuthHandler from './components/AuthHandler.svelte';
   import ProfileSetup from './components/ProfileSetup.svelte'; // Import the new component
   import { authStore, type AuthState } from './lib/stores/authStore';
-  import { profileStore, type ProfileState } from './lib/stores/profileStore'; // Import profile store
+  import { configStore } from './lib/stores/configStore'; // Import config store
   import { onDestroy } from 'svelte';
 
   const webRTCApp = new WebRTCApp();
@@ -13,11 +13,6 @@
   let currentAuthState: AuthState;
   const unsubscribeAuth = authStore.subscribe((value) => {
     currentAuthState = value;
-  });
-
-  let currentProfileState: ProfileState;
-  const unsubscribeProfile = profileStore.subscribe((value) => {
-    currentProfileState = value;
   });
 
   // This simple path check works for initial load.
@@ -28,16 +23,13 @@
     if (unsubscribeAuth) {
       unsubscribeAuth();
     }
-    if (unsubscribeProfile) {
-      unsubscribeProfile();
-    }
   });
 </script>
 
 <AuthHandler />
 
 {#if currentAuthState && currentAuthState.jwt && currentPath !== '/cb'}
-  {#if currentProfileState && currentProfileState.isProfileComplete}
+  {#if $configStore.profile.userName && $configStore.profile.userName.trim() !== ''}
     <MainAppRouter {webRTCApp} />
   {:else}
     <ProfileSetup />

@@ -2,7 +2,7 @@
   import { tick } from 'svelte';
   import { getKeysByCid } from '../lib/stores/cidKeyStore';
   import { getPeerProfile } from '../lib/stores/peerProfileStore';
-  import { profileStore } from '../lib/stores/profileStore';
+  import { configStore } from '../lib/stores/configStore';
   import { chatStore } from '../lib/stores/chatStore';
   import { fileStore, type FileTransfer } from '../lib/stores/fileStore';
   import { transcriptionDisplayStore, type TranscriptionSegment } from '../lib/media/transcriber';
@@ -29,7 +29,7 @@
   let carouselStartIndex = $state(0);
 
   // Get local user name directly from the config store
-  const localUserName = $derived($profileStore.userName || 'You');
+  const localUserName = $derived($configStore.profile.userName || 'You');
 
   // --- Create Combined Feed ---
   // This logic remains in ControlPanel as it's used by unreadCount logic here
