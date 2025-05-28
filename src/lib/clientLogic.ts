@@ -19,6 +19,7 @@ export class ClientLogic implements AppLogic {
       getDirectClient
     } = this.context;
     console.log('client logic initialize');
+    console.trace();
 
     if (!urlParams.get('offer') && !urlParams.get('answer')) {
       setState({ currentOfferCid: null });
@@ -125,10 +126,6 @@ export class ClientLogic implements AppLogic {
         // setState({ currentOfferCid: answererCid }); // This might be confusing; currentOfferCid is for *outgoing* offers.
       }
     }
-  }
-
-  setConfig(config: Readonly<AppLogicContext['config']>): void {
-    this.context.config = config;
   }
 
   async prepareOfferForClientModeDisplay(): Promise<{

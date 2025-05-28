@@ -44,7 +44,6 @@
   // });
 
   let appLogicInstance: AppLogic | null = null;
-  let configUnsubscribe: (() => void) | null = null;
 
   const setState = (
     updater: Partial<AppLogicState> | ((prevState: AppLogicState) => Partial<AppLogicState>)
@@ -170,20 +169,11 @@
     }
 
     await appLogicInstance.initialize(urlParams);
-
-    configUnsubscribe = configStore.subscribe((newConfig) => {
-      if (appLogicInstance && appLogicInstance.setConfig) {
-        appLogicInstance.setConfig(newConfig);
-      }
-    });
   });
 
   onDestroy(() => {
     if (appLogicInstance && appLogicInstance.destroy) {
       appLogicInstance.destroy();
-    }
-    if (configUnsubscribe) {
-      configUnsubscribe();
     }
   });
 
@@ -223,9 +213,6 @@
     console.log('Handling reset, re-initializing logic module.');
     const urlParams = new URLSearchParams(window.location.search);
     if (appLogicInstance) {
-      if (appLogicInstance.setConfig) {
-        appLogicInstance.setConfig($configStore);
-      }
       try {
         await appLogicInstance.initialize(urlParams);
       } catch (err) {
