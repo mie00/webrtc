@@ -16,11 +16,11 @@ const mockGetAllConfig = vi.fn();
 const mockCompress = vi.fn((sdp: string | null | undefined) => (sdp ? `compressed-${sdp}` : ''));
 const mockDecompress = vi.fn((text: string) => text.replace(/^compressed-/, ''));
 
-vi.mock('../stores/connectionStore.js', () => ({
+vi.mock('./stores/connectionStore.js', () => ({ // Adjusted path assuming connectionStore.js is a sibling in stores
   getDirectClient: mockGetDirectClient
 }));
 
-vi.mock('../stores/configStore.js', async () => {
+vi.mock('./stores/configStore.js', async () => { // Adjusted path
   const actualConfigStore =
     await vi.importActual<typeof import('./stores/configStore.js')>('./stores/configStore.js');
   return {
@@ -30,7 +30,8 @@ vi.mock('../stores/configStore.js', async () => {
   };
 });
 
-vi.mock('../utils/sdpCompress.js', () => ({
+// Corrected mock path for sdpCompress relative to ClientLogic.ts
+vi.mock('./utils/sdpCompress.js', () => ({
   compress: mockCompress,
   decompress: mockDecompress
 }));
@@ -81,8 +82,11 @@ describe('ClientLogic', () => {
     mockCompress.mockImplementation((sdp: string | null | undefined) =>
       sdp ? `compressed-${sdp}` : ''
     );
-    mockDecompress.mockImplementation((text: string) => text.replace(/^compressed-/, ''));
+    mockDecompress.mockImplementation((text: string) => text.replace(/^compressed-/, '')); // Ensure it's synchronous for tests expecting that
     mockGetDirectClient.mockClear(); // Clear any previous mock state if necessary
+
+    // Spy on appLogicModuleStore.update
+    vi.spyOn(appLogicModuleStore, 'update');
 
     mockContext = {
       webRTCApp: mockWebRTCApp as any,
@@ -150,7 +154,13 @@ describe('ClientLogic', () => {
     mockGetDirectClient.mockReset();
     mockGetAllConfig.mockReset();
     mockCompress.mockReset();
-    mockDecompress.mockReset();
+    mockDecompress.mockReset(); // Reset to initial mock implementation if needed
+
+    // Restore spy on appLogicModuleStore.update if vi.restoreAllMocks() doesn't cover it for some reason
+    // (though it generally should)
+    if ((appLogicModuleStore.update as any).mockRestore) {
+      (appLogicModuleStore.update as any).mockRestore();
+    }
   });
 
   describe('constructor', () => {
@@ -164,12 +174,15 @@ describe('ClientLogic', () => {
       (vi.mocked(window).location as any).search = '';
 
       const mockCid = 'mock-offer-cid';
-      let iceCallback: ((candidate: any) => Promise<void>) | null = null;
+      let iceCallback: ((candidate: any, cid: string) => Promise<void>) | null = null;
 
-      (mockContext.webRTCApp.getOffer as any).mockImplementation(async (cb: any, options: any) => {
-        iceCallback = cb; // Capture the ICE callback
-        return mockCid; // Resolve with a mock CID
-      });
+      (mockContext.webRTCApp.getOffer as any).mockImplementation(
+        async (cb: (candidate: any, cid: string) => Promise<void>, options: any) => {
+          // Simulate WebRTCApp passing the CID to the callback
+          iceCallback = (candidate) => cb(candidate, mockCid);
+          return mockCid; // Resolve with a mock CID
+        }
+      );
 
       const mockClientPc = {
         localDescription: { sdp: 'mockOfferSdp' }
@@ -217,11 +230,12 @@ describe('ClientLogic', () => {
       mockDecompress.mockResolvedValue(offerSdp);
 
       const mockAnswererCid = 'mock-answerer-cid';
-      let answerIceCallback: ((candidate: any) => Promise<void>) | null = null;
+      let answerIceCallback: ((candidate: any, cid: string) => Promise<void>) | null = null;
       (mockContext.webRTCApp.getAnswer as any).mockImplementation(
-        async (offer: string, cb: (candidate: any) => Promise<void>, options: any) => {
+        async (offer: string, cb: (candidate: any, cid: string) => Promise<void>, options: any) => {
           expect(offer).toBe(offerSdp);
-          answerIceCallback = cb;
+          // Simulate WebRTCApp passing the CID to the callback
+          answerIceCallback = (candidate) => cb(candidate, mockAnswererCid);
           return mockAnswererCid;
         }
       );
@@ -306,11 +320,13 @@ describe('ClientLogic', () => {
       (vi.mocked(window).location as any).search = ''; // Ensure window.location.search is also empty for prepareOffer...
 
       const mockCid = 'mock-offer-cid-for-qr';
-      let iceCallback: ((candidate: any) => Promise<void>) | null = null;
-      (mockContext.webRTCApp.getOffer as any).mockImplementation(async (cb: any, options: any) => {
-        iceCallback = cb;
-        return mockCid;
-      });
+      let iceCallback: ((candidate: any, cid: string) => Promise<void>) | null = null;
+      (mockContext.webRTCApp.getOffer as any).mockImplementation(
+        async (cb: (candidate: any, cid: string) => Promise<void>, options: any) => {
+          iceCallback = (candidate) => cb(candidate, mockCid);
+          return mockCid;
+        }
+      );
       const mockClientPc = { localDescription: { sdp: 'mockOfferSdpForQr' } };
       const mockClient = { pc: mockClientPc };
       mockGetDirectClient.mockReturnValue(mockClient as any);

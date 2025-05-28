@@ -98,12 +98,16 @@ export class ClientLogic implements AppLogic {
         let answererCid: string;
         answererCid = await webRTCApp.getAnswer(
           offer,
-          async (candidate: RTCIceCandidateInit | null) => {
+          async (candidate: RTCIceCandidateInit | null, iceCallbackCid?: string) => { // Expect cid from callback
             if (Date.now() - now > 10 * 1000) {
               return;
             }
-            if (!answererCid) return; // Ensure answererCid is set
-            const client = getDirectClient(answererCid); // Using imported getDirectClient
+            const currentCid = iceCallbackCid || answererCid; // Prefer cid from callback
+            if (!currentCid) {
+              console.warn('ClientLogic: getAnswer ICE callback - CID not available.');
+              return;
+            }
+            const client = getDirectClient(currentCid); // Using imported getDirectClient
             const sdp = client?.pc?.localDescription?.sdp;
             if (sdp) {
               const compressedAnswer = await compress(sdp); // Using imported compress
@@ -171,12 +175,16 @@ export class ClientLogic implements AppLogic {
     let compressedOfferForReturn: string | null = null;
 
     newCidForOffer = await webRTCApp.getOffer(
-      async (candidate: RTCIceCandidateInit | null) => {
+      async (candidate: RTCIceCandidateInit | null, iceCallbackCid?: string) => { // Expect cid from callback
         if (Date.now() - now > 10 * 1000) {
           return;
         }
-        if (!newCidForOffer) return;
-        const client = getDirectClient(newCidForOffer); // Using imported getDirectClient
+        const currentCid = iceCallbackCid || newCidForOffer; // Prefer cid from callback
+        if (!currentCid) {
+          console.warn('ClientLogic: getOffer ICE callback - CID not available.');
+          return;
+        }
+        const client = getDirectClient(currentCid); // Using imported getDirectClient
         const sdp = client?.pc?.localDescription?.sdp;
         if (sdp) {
           const compressed = await compress(sdp); // Using imported compress
