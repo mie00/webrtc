@@ -244,6 +244,7 @@ export class WebRTCApp {
   }
 
   public async initClient(polite: boolean, options: ClientInitOptions): Promise<string> {
+    console.log("entered init client", options);
     const currentConfig = getAllConfig(); // Returns new Config type
     const rtcConfig = {
       iceServers: [
@@ -279,6 +280,7 @@ export class WebRTCApp {
     addDirectClient(cid, client);
 
     pc.onconnectionstatechange = () => {
+      console.log("onconnectionstatechange", options);
       if (pc) {
         updateDirectClientState(cid, pc.connectionState, pc.iceConnectionState);
         if (pc.connectionState === 'connected' && pc.iceConnectionState === 'connected') {
@@ -287,6 +289,7 @@ export class WebRTCApp {
       }
     };
     pc.oniceconnectionstatechange = () => {
+      console.log("oniceconnectionstatechange", options);
       if (pc) {
         updateDirectClientState(cid, pc.connectionState, pc.iceConnectionState);
         if (pc.iceConnectionState === 'failed') {
@@ -386,6 +389,7 @@ export class WebRTCApp {
     cb: (candidate: RTCIceCandidate | null) => Promise<void>,
     options: { sid: string }
   ): Promise<string> {
+    console.log("WebRTCApp::getOffer", options);
     const cid = await this.initClient(false, options);
     const client = getDirectClient(cid);
     if (client?.pc) {
