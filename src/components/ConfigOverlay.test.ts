@@ -1,6 +1,7 @@
-import { render, fireEvent, screen, tick } from '@testing-library/svelte';
+import { render, fireEvent, screen } from '@testing-library/svelte';
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi } from 'vitest';
+import { tick } from 'svelte';
 import ConfigOverlay from './ConfigOverlay.svelte';
 
 // Mock the configStore as it's used internally by the component
