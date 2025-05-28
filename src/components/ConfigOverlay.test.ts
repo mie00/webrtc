@@ -1,4 +1,4 @@
-import { render, fireEvent, screen } from '@testing-library/svelte';
+import { render, fireEvent, screen, tick } from '@testing-library/svelte';
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi } from 'vitest';
 import ConfigOverlay from './ConfigOverlay.svelte';
@@ -79,6 +79,7 @@ describe('ConfigOverlay.svelte', () => {
     // Switch to Profile tab
     const profileTabButton = screen.getByText('Profile');
     await fireEvent.click(profileTabButton);
+    await tick(); // Allow Svelte to update the DOM
     expect(screen.getByText('Profile Settings')).toBeInTheDocument();
     // Check if username input is rendered (it's associated with the label "Username")
     expect(screen.getByLabelText('Username')).toBeInTheDocument();
