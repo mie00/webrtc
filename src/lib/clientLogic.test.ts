@@ -322,9 +322,9 @@ describe('ClientLogic', () => {
         await (iceCallback as any)(null);
       }
       // Check that appLogicModuleStore was updated to set initialOverlayShown: false
-      const updateCallsTyped: [(state: AppLogicState) => AppLogicState][] = (
-        appLogicModuleStore.update as Mock
-      ).mock.calls;
+      const updateCallsTyped = (appLogicModuleStore.update as Mock).mock.calls as [
+        ((state: AppLogicState) => AppLogicState)
+      ][];
       const initialStateStub: AppLogicState = {
         showCopyOverlay: false,
         initialOverlayShown: true, // Crucial for testing the transition to false
@@ -376,9 +376,9 @@ describe('ClientLogic', () => {
 
       await clientLogic.handleOpenQrRequest(urlParams);
 
-      const updateCallsTyped: [(state: AppLogicState) => AppLogicState][] = (
-        appLogicModuleStore.update as Mock
-      ).mock.calls;
+      const updateCallsTyped = (appLogicModuleStore.update as Mock).mock.calls as [
+        ((state: AppLogicState) => AppLogicState)
+      ][];
       const initialStateStub: AppLogicState = {
         showCopyOverlay: false,
         initialOverlayShown: true, // Crucial for testing the transition to false
@@ -434,9 +434,9 @@ describe('ClientLogic', () => {
 
       await clientLogic.handleOpenQrRequest(urlParams);
 
-      const updateCallsTyped: [(state: AppLogicState) => AppLogicState][] = (
-        appLogicModuleStore.update as Mock
-      ).mock.calls;
+      const updateCallsTyped = (appLogicModuleStore.update as Mock).mock.calls as [
+        ((state: AppLogicState) => AppLogicState)
+      ][];
       const initialStateStub: AppLogicState = {
         showCopyOverlay: false,
         initialOverlayShown: true, // Crucial for testing the transition to false
