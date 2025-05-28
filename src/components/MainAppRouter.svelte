@@ -1,7 +1,7 @@
 <script lang="ts">
   /// <reference path="../../../../types/global.d.ts" />
-  import { onMount, onDestroy, get } from 'svelte';
-  import { writable, type Writable } from 'svelte/store';
+  import { onMount, onDestroy } from 'svelte';
+  import { writable, type Writable, get } from 'svelte/store';
   // import { authStore, type AuthState } from '../lib/stores/authStore'; // No longer directly needed for UI
   import MediaArea from './MediaArea.svelte';
   import ControlPanel from './ControlPanel.svelte';
