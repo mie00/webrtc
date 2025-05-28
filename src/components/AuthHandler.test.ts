@@ -5,26 +5,29 @@ import { authStore } from '../lib/stores/authStore';
 import { tick } from 'svelte';
 import { vi } from 'vitest';
 
-// Mock the authStore
-vi.mock('../lib/stores/authStore', async () => {
-  const actual = await vi.importActual('../lib/stores/authStore');
+// Mock the authStore and its getJwtPayload function
+vi.mock('../lib/stores/authStore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/stores/authStore')>();
 
-  // Create a mock version of authStore with all methods as jest functions
-  const mockAuthStore = {
-    subscribe: vi.fn(() => () => {}), // Mock subscribe to return an unsubscribe function
-    getAuthState: vi.fn(() => ({ jwt: null, userPubKey: null })),
-    getDevicePublicKeyAsSpki: vi.fn(),
-    setJwtAndVerifyKey: vi.fn(),
+  const mockAuthStoreInstance = {
+    subscribe: vi.fn(() => () => {}),
+    getAuthState: vi.fn(() => ({ jwt: null, userPubKey: null, publicKeyJwk: null, privateKeyJwk: null })),
+    getDevicePublicKeyAsSpki: vi.fn().mockResolvedValue('test-spki-key'),
+    setJwtAndVerifyKey: vi.fn().mockResolvedValue(true),
     logout: vi.fn(),
-    ensureKeyPair: vi.fn(),
-    getPrivateKey: vi.fn()
+    ensureKeyPair: vi.fn().mockResolvedValue({/* mock JsonWebKey */}),
+    getPrivateKey: vi.fn().mockResolvedValue({/* mock CryptoKey */})
   };
 
   return {
-    ...actual,
-    authStore: mockAuthStore
+    ...actual, // Includes actual exported functions like verifyLoginJWT, etc.
+    authStore: mockAuthStoreInstance, // The store instance is mocked
+    getJwtPayload: vi.fn(), // Mock the exported getJwtPayload function
   };
 });
+
+// Import after mocks are set up
+import { getJwtPayload, authStore } from '../lib/stores/authStore';
 
 // Mock configStore
 vi.mock('../lib/stores/configStore', async () => {
@@ -222,5 +225,206 @@ describe('AuthHandler.svelte', () => {
     );
     expect(window.location.href).toBe(''); // No redirect happens
     consoleErrorSpy.mockRestore();
+  });
+});
+
+describe('AuthHandler.svelte - Auto Logout on JWT Expiry', () => {
+  let mockAuthStateFromStore: ReturnType<typeof authStore.getAuthState>;
+  // This callback will be captured from the authStore.subscribe mock
+  let capturedSubscribeCallback: (state: any) => void;
+
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(Date, 'now'); // Spy on Date.now() to control current time
+
+    // Reset all mocks before each test
+    vi.clearAllMocks();
+
+
+    // Setup default mock return values
+    mockAuthStateFromStore = { jwt: null, userPubKey: null, publicKeyJwk: null, privateKeyJwk: null };
+    // @ts-ignore
+    authStore.getAuthState.mockReturnValue(mockAuthStateFromStore);
+
+    // @ts-ignore
+    authStore.subscribe.mockImplementation((cb) => {
+      capturedSubscribeCallback = cb;
+      // Simulate initial call to subscribe with current state from getAuthState
+      cb(authStore.getAuthState());
+      return () => {}; // Return a mock unsubscribe function
+    });
+
+    // @ts-ignore
+    (getJwtPayload as vi.Mock).mockReturnValue(null); // Default mock for getJwtPayload
+  });
+
+  afterEach(() => {
+    vi.runOnlyPendingTimers(); // Ensure all pending timers are executed
+    vi.useRealTimers(); // Restore real timers
+  });
+
+  // Helper to simulate auth state changes, triggering the subscribe callback
+  const simulateAuthStateChange = (newState: Partial<ReturnType<typeof authStore.getAuthState>>) => {
+    mockAuthStateFromStore = { ...mockAuthStateFromStore, ...newState };
+    // @ts-ignore
+    authStore.getAuthState.mockReturnValue(mockAuthStateFromStore); // Update what getAuthState returns
+    if (capturedSubscribeCallback) {
+      capturedSubscribeCallback(mockAuthStateFromStore); // Trigger the subscription
+    }
+  };
+
+  test('should logout immediately if JWT is already expired on load', async () => {
+    const currentTime = 1678886400000; // A fixed point in time: 2023-03-15T12:00:00.000Z
+    const expiredExp = Math.floor(currentTime / 1000) - 3600; // 1 hour ago from currentTime
+    // @ts-ignore
+    Date.now.mockReturnValue(currentTime);
+    // @ts-ignore
+    (getJwtPayload as vi.Mock).mockReturnValue({ exp: expiredExp });
+
+    simulateAuthStateChange({ jwt: 'expired.jwt.token' });
+    render(AuthHandler);
+    await tick(); // Allow reactive statements and onMount to process
+
+    // @ts-ignore
+    expect(getJwtPayload).toHaveBeenCalledWith('expired.jwt.token');
+    expect(authStore.logout).toHaveBeenCalled();
+  });
+
+  test('should schedule logout if JWT is valid, then logout when timer fires', async () => {
+    const currentTime = 1678886400000; // 2023-03-15T12:00:00.000Z
+    const expiresInSeconds = 3600; // Expires in 1 hour
+    const futureExp = Math.floor(currentTime / 1000) + expiresInSeconds;
+    // @ts-ignore
+    Date.now.mockReturnValue(currentTime);
+    // @ts-ignore
+    (getJwtPayload as vi.Mock).mockReturnValue({ exp: futureExp });
+
+    simulateAuthStateChange({ jwt: 'valid.jwt.token' });
+    render(AuthHandler);
+    await tick();
+
+    // @ts-ignore
+    expect(getJwtPayload).toHaveBeenCalledWith('valid.jwt.token');
+    expect(authStore.logout).not.toHaveBeenCalled();
+    expect(setTimeout).toHaveBeenCalledTimes(1);
+    // @ts-ignore
+    expect(setTimeout).toHaveBeenLastCalledWith(expect.any(Function), expiresInSeconds * 1000);
+
+    // Advance time to just before expiry
+    vi.advanceTimersByTime(expiresInSeconds * 1000 - 1);
+    expect(authStore.logout).not.toHaveBeenCalled();
+
+    // Advance time past expiry
+    vi.advanceTimersByTime(1);
+    expect(authStore.logout).toHaveBeenCalled();
+  });
+
+  test('should clear existing timer and set a new one if JWT changes', async () => {
+    const currentTime = 1678886400000;
+    const firstExpInSeconds = 3600;
+    const secondExpInSeconds = 7200;
+    // @ts-ignore
+    Date.now.mockReturnValue(currentTime);
+
+    // @ts-ignore
+    (getJwtPayload as vi.Mock).mockReturnValueOnce({ exp: Math.floor(currentTime / 1000) + firstExpInSeconds });
+    simulateAuthStateChange({ jwt: 'first.valid.jwt.token' });
+    render(AuthHandler); // Render once
+    await tick();
+
+    expect(setTimeout).toHaveBeenCalledTimes(1);
+    // @ts-ignore
+    expect(setTimeout).toHaveBeenLastCalledWith(expect.any(Function), firstExpInSeconds * 1000);
+
+    // Change JWT
+    // @ts-ignore
+    (getJwtPayload as vi.Mock).mockReturnValueOnce({ exp: Math.floor(currentTime / 1000) + secondExpInSeconds });
+    simulateAuthStateChange({ jwt: 'second.valid.jwt.token' }); // This triggers the $: reactive block
+    await tick();
+
+    expect(clearTimeout).toHaveBeenCalledTimes(1); // Old timer cleared
+    expect(setTimeout).toHaveBeenCalledTimes(2);   // New timer set
+    // @ts-ignore
+    expect(setTimeout).toHaveBeenLastCalledWith(expect.any(Function), secondExpInSeconds * 1000);
+  });
+
+  test('should clear timer on manual logout (JWT becomes null)', async () => {
+    const currentTime = Date.now(); // Use a dynamic current time for simplicity here
+    const futureExp = Math.floor(currentTime / 1000) + 3600;
+    // @ts-ignore
+    Date.now.mockReturnValue(currentTime);
+    // @ts-ignore
+    (getJwtPayload as vi.Mock).mockReturnValue({ exp: futureExp });
+
+    simulateAuthStateChange({ jwt: 'valid.jwt.token' });
+    render(AuthHandler);
+    await tick();
+
+    expect(setTimeout).toHaveBeenCalledTimes(1);
+
+    // Simulate manual logout by setting JWT to null
+    simulateAuthStateChange({ jwt: null });
+    await tick();
+
+    expect(clearTimeout).toHaveBeenCalledTimes(1);
+  });
+
+  test('should clear timer on component unmount', async () => {
+    const currentTime = Date.now();
+    const futureExp = Math.floor(currentTime / 1000) + 3600;
+    // @ts-ignore
+    Date.now.mockReturnValue(currentTime);
+    // @ts-ignore
+    (getJwtPayload as vi.Mock).mockReturnValue({ exp: futureExp });
+
+    simulateAuthStateChange({ jwt: 'valid.jwt.token' });
+    const { unmount } = render(AuthHandler);
+    await tick();
+
+    expect(setTimeout).toHaveBeenCalledTimes(1);
+
+    unmount(); // This triggers onDestroy
+    expect(clearTimeout).toHaveBeenCalledTimes(1);
+  });
+
+  test('should not schedule logout if JWT is null initially', async () => {
+    simulateAuthStateChange({ jwt: null }); // Ensure JWT is null
+    render(AuthHandler);
+    await tick();
+
+    // @ts-ignore
+    expect(getJwtPayload).not.toHaveBeenCalled();
+    expect(setTimeout).not.toHaveBeenCalled();
+  });
+
+  test('should not schedule logout if JWT payload cannot be decoded or exp is missing', async () => {
+    // Scenario 1: getJwtPayload returns null (cannot decode)
+    // @ts-ignore
+    (getJwtPayload as vi.Mock).mockReturnValue(null);
+    simulateAuthStateChange({ jwt: 'unparsable.jwt.token' });
+    render(AuthHandler); // Render or ensure update if already rendered
+    await tick();
+
+    // @ts-ignore
+    expect(getJwtPayload).toHaveBeenCalledWith('unparsable.jwt.token');
+    expect(setTimeout).not.toHaveBeenCalled();
+    vi.clearAllMocks(); // Clear mocks for the next scenario part
+
+
+    // Scenario 2: getJwtPayload returns payload but exp is missing or not a number
+    // @ts-ignore
+    authStore.getAuthState.mockReturnValue({ jwt: 'jwt.without.exp', userPubKey: null, publicKeyJwk: null, privateKeyJwk: null });
+    // @ts-ignore
+    (getJwtPayload as vi.Mock).mockReturnValue({ some_claim: 'value' }); // No 'exp' or 'exp' is not a number
+    simulateAuthStateChange({ jwt: 'jwt.without.exp' }); // Trigger update
+    // If component already rendered, ensure reactive update is processed
+    // If not, render(AuthHandler) would be here.
+    // Assuming the state change triggers the reactive logic.
+    await tick();
+
+    // @ts-ignore
+    expect(getJwtPayload).toHaveBeenCalledWith('jwt.without.exp');
+    expect(setTimeout).not.toHaveBeenCalled();
   });
 });

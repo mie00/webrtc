@@ -262,3 +262,77 @@ describe('authStore', () => {
   // More tests to come for setJwtAndVerifyKey, getPrivateKey, getDevicePublicKeyAsSpki, and JWT functions
   // These will require more detailed mocking of crypto.subtle.verify and JWT structures.
 });
+
+describe('getJwtPayload', () => {
+  let getJwtPayloadFunc: typeof import('./authStore').getJwtPayload;
+  // Helper to create base64url encoded strings for JWT parts
+  const toBase64Url = (obj: object) => {
+    const str = JSON.stringify(obj);
+    return btoa(str)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  };
+  const textToBase64Url = (text: string) => {
+    return btoa(text)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  };
+
+
+  beforeEach(async () => {
+    // Re-import to get the actual function for testing
+    const authStoreModule = await import('./authStore');
+    getJwtPayloadFunc = authStoreModule.getJwtPayload;
+  });
+
+  it('should return null for an invalid JWT structure (not three parts)', () => {
+    const invalidJwt = 'invalid.jwt';
+    expect(getJwtPayloadFunc(invalidJwt)).toBeNull();
+  });
+
+  it('should return null for a JWT with non-base64url payload', () => {
+    const jwtWithInvalidPayload = 'header.not-a-base64url-payload.signature';
+    // This might pass base64 decoding if characters are coincidentally valid,
+    // but JSON.parse will likely fail. TextDecoder might also error.
+    // The key is that it should handle errors gracefully.
+    expect(getJwtPayloadFunc(jwtWithInvalidPayload)).toBeNull();
+  });
+
+  it('should correctly decode a valid JWT payload', () => {
+    const header = toBase64Url({ alg: 'ES384', typ: 'JWT' });
+    const payloadData = {
+      sub: 'test-user',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+      cstm_dat: 'custom_data_here'
+    };
+    const payload = toBase64Url(payloadData);
+    const signature = textToBase64Url('somesignature'); // Signature content doesn't matter for payload decoding
+    const validJwt = `${header}.${payload}.${signature}`;
+
+    const decoded = getJwtPayloadFunc(validJwt);
+    expect(decoded).toEqual(payloadData);
+  });
+
+  it('should return null if decoded payload is not valid JSON', () => {
+    const header = toBase64Url({ alg: 'ES384', typ: 'JWT' });
+    // "this is not json" when base64url encoded
+    const nonJsonPayload = textToBase64Url('this is not json');
+    const signature = textToBase64Url('somesignature');
+    const jwtWithNonJsonPayload = `${header}.${nonJsonPayload}.${signature}`;
+
+    expect(getJwtPayloadFunc(jwtWithNonJsonPayload)).toBeNull();
+  });
+
+  it('should handle JWTs with empty signature part (though unusual)', () => {
+    const header = toBase64Url({ alg: 'ES384', typ: 'JWT' });
+    const payloadData = { sub: 'test', exp: Math.floor(Date.now() / 1000) + 3600, iat: 123, cstm_dat: 'data' };
+    const payload = toBase64Url(payloadData);
+    const jwtWithEmptySignature = `${header}.${payload}.`; // Empty signature part
+
+    const decoded = getJwtPayloadFunc(jwtWithEmptySignature);
+    expect(decoded).toEqual(payloadData);
+  });
+});

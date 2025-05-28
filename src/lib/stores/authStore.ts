@@ -143,6 +143,23 @@ export async function verifyLoginJWT(
   }
 }
 
+// Helper function to decode JWT payload without full verification, primarily for 'exp' claim.
+export function getJwtPayload(token: string): LoginTokenPayload | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.error('Invalid JWT structure for payload decoding.');
+      return null;
+    }
+    // Uses base64UrlToArrayBuffer which is already defined in this file.
+    const payloadString = new TextDecoder().decode(base64UrlToArrayBuffer(parts[1]));
+    return JSON.parse(payloadString) as LoginTokenPayload;
+  } catch (error) {
+    console.error('Error decoding JWT payload:', error);
+    return null;
+  }
+}
+
 export interface AuthState {
   publicKeyJwk: JsonWebKey | null; // Device's public key
   privateKeyJwk: JsonWebKey | null; // Device's private key

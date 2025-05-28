@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { authStore, type AuthState } from '../lib/stores/authStore';
+  import { onMount, onDestroy } from 'svelte'; // Added onDestroy
+  import { authStore, type AuthState, getJwtPayload } from '../lib/stores/authStore'; // Added getJwtPayload
   import { getConfigValue } from '../lib/stores/configStore';
   import ConfigOverlay from './ConfigOverlay.svelte';
 
@@ -11,6 +11,7 @@
   });
 
   let currentPath = window.location.pathname;
+  let expiryTimerId: number | null = null; // Timer ID for JWT expiration
 
   const performLoginRedirect = (url: string) => {
     window.location.href = url;
@@ -30,6 +31,45 @@
       // Potentially show an error to the user
     }
   }
+
+  }
+
+  function clearExpiryTimer() {
+    if (expiryTimerId !== null) {
+      clearTimeout(expiryTimerId);
+      expiryTimerId = null;
+    }
+  }
+
+  function scheduleLogoutOnExpiry(jwt: string | null) {
+    clearExpiryTimer(); // Clear any existing timer
+
+    if (jwt) {
+      const payload = getJwtPayload(jwt);
+      if (payload && typeof payload.exp === 'number') {
+        const expirationTimeMs = payload.exp * 1000;
+        const currentTimeMs = Date.now();
+
+        if (expirationTimeMs <= currentTimeMs) {
+          console.log('JWT already expired upon check. Logging out.');
+          authStore.logout();
+        } else {
+          const msUntilExpiry = expirationTimeMs - currentTimeMs;
+          console.log(`JWT valid. Scheduling auto-logout in ${msUntilExpiry / 1000} seconds.`);
+          expiryTimerId = window.setTimeout(() => {
+            console.log('JWT expired as scheduled. Logging out automatically.');
+            authStore.logout();
+          }, msUntilExpiry);
+        }
+      } else {
+        console.warn('Could not parse JWT or find a valid exp claim to schedule auto-logout.');
+      }
+    }
+  }
+
+  // Reactive statement to handle JWT changes and initial load.
+  // This will run when currentAuthState.jwt changes.
+  $: scheduleLogoutOnExpiry(currentAuthState.jwt);
 
   onMount(async () => {
     if (currentPath === '/cb') {
@@ -60,6 +100,11 @@
         window.location.origin + basePath + (remainingParams ? `?${remainingParams}` : '');
       // No return needed here as the page will redirect.
     }
+    // Initial JWT check is handled by the reactive statement $: scheduleLogoutOnExpiry(...)
+  });
+
+  onDestroy(() => {
+    clearExpiryTimer(); // Clean up timer when component is destroyed
   });
 </script>
 
