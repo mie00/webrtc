@@ -10,11 +10,20 @@ import {
   type AppLogicState
 } from './stores/appLogicStore';
 
-// Mocks for direct imports in ClientLogic.ts
-const mockGetDirectClient = vi.fn();
-const mockGetAllConfig = vi.fn();
-const mockCompress = vi.fn((sdp: string | null | undefined) => (sdp ? `compressed-${sdp}` : ''));
-const mockDecompress = vi.fn((text: string) => text.replace(/^compressed-/, ''));
+// Use vi.hoisted to define mocks ensuring they are initialized before vi.mock factories
+const {
+  mockGetDirectClient,
+  mockGetAllConfig,
+  mockCompress,
+  mockDecompress
+} = vi.hoisted(() => {
+  return {
+    mockGetDirectClient: vi.fn(),
+    mockGetAllConfig: vi.fn(),
+    mockCompress: vi.fn((sdp: string | null | undefined) => (sdp ? `compressed-${sdp}` : '')),
+    mockDecompress: vi.fn((text: string) => text.replace(/^compressed-/, ''))
+  };
+});
 
 vi.mock('./stores/connectionStore.js', () => ({
   // Adjusted path assuming connectionStore.js is a sibling in stores
