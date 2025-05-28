@@ -322,14 +322,26 @@ describe('ClientLogic', () => {
         await (iceCallback as any)(null);
       }
       // Check that appLogicModuleStore was updated to set initialOverlayShown: false
-      const updateCalls = (appLogicModuleStore.update as Mock).mock.calls;
-      const initialOverlayUpdate = updateCalls.find(
-        (call: [(state: AppLogicState) => Partial<AppLogicState>]) => {
-          // Apply the updater to a minimal state to check its effect
-          const updatedPart = call[0]({} as AppLogicState);
-          return updatedPart.initialOverlayShown === false;
-        }
-      );
+      const updateCallsTyped: ([(updater: (state: AppLogicState) => AppLogicState)])[] = (
+        appLogicModuleStore.update as Mock
+      ).mock.calls;
+      const initialStateStub: AppLogicState = {
+        showCopyOverlay: false,
+        initialOverlayShown: true, // Crucial for testing the transition to false
+        copyText: '',
+        qrCodeUrl: '',
+        showAcceptButton: false,
+        showJoinButton: false,
+        showCopyButton: true,
+        showPasteText: false,
+        currentOfferCid: null,
+        isDuringInitialServerLoad: false
+      };
+      const initialOverlayUpdate = updateCallsTyped.find((call) => {
+        const updater = call[0];
+        const updatedState = updater(initialStateStub);
+        return updatedState.initialOverlayShown === false;
+      });
       expect(initialOverlayUpdate).toBeDefined();
 
       expect(mockContext.webRTCApp.getOffer).toHaveBeenCalledTimes(1);
@@ -364,13 +376,26 @@ describe('ClientLogic', () => {
 
       await clientLogic.handleOpenQrRequest(urlParams);
 
-      const updateCalls = (appLogicModuleStore.update as Mock).mock.calls;
-      const initialOverlayUpdate = updateCalls.find(
-        (call: [(state: AppLogicState) => Partial<AppLogicState>]) => {
-          const updatedPart = call[0]({} as AppLogicState);
-          return updatedPart.initialOverlayShown === false;
-        }
-      );
+      const updateCallsTyped: ([(updater: (state: AppLogicState) => AppLogicState)])[] = (
+        appLogicModuleStore.update as Mock
+      ).mock.calls;
+      const initialStateStub: AppLogicState = {
+        showCopyOverlay: false,
+        initialOverlayShown: true, // Crucial for testing the transition to false
+        copyText: '',
+        qrCodeUrl: '',
+        showAcceptButton: false,
+        showJoinButton: false,
+        showCopyButton: true,
+        showPasteText: false,
+        currentOfferCid: null,
+        isDuringInitialServerLoad: false
+      };
+      const initialOverlayUpdate = updateCallsTyped.find((call) => {
+        const updater = call[0];
+        const updatedState = updater(initialStateStub);
+        return updatedState.initialOverlayShown === false;
+      });
       expect(initialOverlayUpdate).toBeDefined();
 
       expect(mockContext.appOnId).toHaveBeenCalledTimes(1);
@@ -409,13 +434,26 @@ describe('ClientLogic', () => {
 
       await clientLogic.handleOpenQrRequest(urlParams);
 
-      const updateCalls = (appLogicModuleStore.update as Mock).mock.calls;
-      const initialOverlayUpdate = updateCalls.find(
-        (call: [(state: AppLogicState) => Partial<AppLogicState>]) => {
-          const updatedPart = call[0]({} as AppLogicState);
-          return updatedPart.initialOverlayShown === false;
-        }
-      );
+      const updateCallsTyped: ([(updater: (state: AppLogicState) => AppLogicState)])[] = (
+        appLogicModuleStore.update as Mock
+      ).mock.calls;
+      const initialStateStub: AppLogicState = {
+        showCopyOverlay: false,
+        initialOverlayShown: true, // Crucial for testing the transition to false
+        copyText: '',
+        qrCodeUrl: '',
+        showAcceptButton: false,
+        showJoinButton: false,
+        showCopyButton: true,
+        showPasteText: false,
+        currentOfferCid: null,
+        isDuringInitialServerLoad: false
+      };
+      const initialOverlayUpdate = updateCallsTyped.find((call) => {
+        const updater = call[0];
+        const updatedState = updater(initialStateStub);
+        return updatedState.initialOverlayShown === false;
+      });
       expect(initialOverlayUpdate).toBeDefined();
       expect(mockContext.appOnId).toHaveBeenCalledTimes(1);
 
