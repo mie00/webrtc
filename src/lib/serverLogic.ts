@@ -1,5 +1,7 @@
 import type { AppLogic, AppLogicContext } from './appLogic';
 import { io, Socket } from 'socket.io-client';
+import { getDirectClient } from '../stores/connectionStore';
+import { getAllConfig } from '../stores/configStore';
 // RTCIceCandidateInit should be globally available or via WebRTC types.
 
 export class ServerLogic implements AppLogic {
@@ -9,12 +11,12 @@ export class ServerLogic implements AppLogic {
   constructor(context: AppLogicContext) {
     this.context = context;
     // Use coordinator URL from config
-    const coordinatorUrl = this.context.config.general.coordinatorUrl || 'ws://127.0.0.1:5001'; // Fallback for safety
+    const coordinatorUrl = getAllConfig().general.coordinatorUrl || 'ws://127.0.0.1:5001'; // Fallback for safety
     this.socket = io(coordinatorUrl, { autoConnect: false });
   }
 
   private setupSocketHandlers(): void {
-    const { webRTCApp, setState, appOnId, getDirectClient, getState } = this.context;
+    const { webRTCApp, setState, appOnId, getState } = this.context; // Removed getDirectClient
 
     this.socket.on('init', async (id: string) => {
       console.log('server logic: init', id);
@@ -23,7 +25,7 @@ export class ServerLogic implements AppLogic {
       history.replaceState(null, '', '?' + urlParams.toString());
       appOnId();
 
-      if (this.context.config.general.configLoader === 'server') {
+      if (getAllConfig().general.configLoader === 'server') {
         setState((current) => ({
           ...current,
           showCopyButton: true,
@@ -204,9 +206,7 @@ export class ServerLogic implements AppLogic {
     }
   }
 
-  setConfig(config: Readonly<AppLogicContext['config']>): void {
-    this.context.config = config;
-  }
+  // Removed setConfig method
 
   destroy(): void {
     if (this.socket) {

@@ -99,10 +99,7 @@
 
       const newContext: AppLogicContext = {
         webRTCApp,
-        config: $configStore,
-        getDirectClient: getDirectClient,
-        compress,
-        decompress,
+        // config, getDirectClient, compress, decompress removed
         setState,
         getState,
         appOnId,
@@ -152,10 +149,7 @@
 
     const context: AppLogicContext = {
       webRTCApp,
-      config: $configStore,
-      getDirectClient: getDirectClient,
-      compress,
-      decompress,
+      // config, getDirectClient, compress, decompress removed
       setState,
       getState,
       appOnId,

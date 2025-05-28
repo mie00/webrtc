@@ -2,6 +2,7 @@ import type { AppLogic, AppLogicContext, AppLogicState } from './appLogic';
 /// <reference path="../../../types/global.d.ts" />
 import { getDirectClient } from './stores/connectionStore';
 import { getAllConfig } from './stores/configStore';
+import { compress, decompress } from './utils/sdpCompress';
 
 export class ClientLogic implements AppLogic {
   private context: AppLogicContext;
@@ -11,14 +12,8 @@ export class ClientLogic implements AppLogic {
   }
 
   async initialize(urlParams: URLSearchParams): Promise<void> {
-    const {
-      webRTCApp,
-      decompress,
-      setState,
-      broadcastManuallyEnteredAnswer,
-      config,
-      getDirectClient
-    } = this.context;
+    const { webRTCApp, setState, broadcastManuallyEnteredAnswer } = this.context;
+    // decompress, config, getDirectClient are now imported directly
     console.log('client logic initialize');
     console.trace();
 
@@ -41,8 +36,8 @@ export class ClientLogic implements AppLogic {
               return;
             }
 
-            const answer = await decompress(data.answer.trim());
-            const client = getDirectClient(offerCid); // Use offerCid from when the offer was made
+            const answer = await decompress(data.answer.trim()); // Using imported decompress
+            const client = getDirectClient(offerCid); // Using imported getDirectClient
             if (client?.pc) {
               try {
                 await client.pc.setRemoteDescription({ type: 'answer', sdp: answer.trim() + '\n' });
@@ -83,7 +78,7 @@ export class ClientLogic implements AppLogic {
       const now = Date.now();
       const offerParam = urlParams.get('offer');
       if (offerParam) {
-        const offer = await decompress(offerParam);
+        const offer = await decompress(offerParam); // Using imported decompress
         setState((currentVal) => ({
           ...currentVal,
           showCopyOverlay: true,
@@ -101,14 +96,15 @@ export class ClientLogic implements AppLogic {
               return;
             }
             if (!answererCid) return; // Ensure answererCid is set
-            const client = getDirectClient(answererCid);
+            const client = getDirectClient(answererCid); // Using imported getDirectClient
             const sdp = client?.pc?.localDescription?.sdp;
             if (sdp) {
-              const compressedAnswer = await this.context.compress(sdp);
+              const compressedAnswer = await compress(sdp); // Using imported compress
               const answerUrlParams = new URLSearchParams(window.location.search); // Preserves original offer
               answerUrlParams.set('answer', compressedAnswer);
+              const currentConfig = getAllConfig(); // Using imported getAllConfig
               const newUrl =
-                (config.general.configHost || window.location.origin) +
+                (currentConfig.general.configHost || window.location.origin) +
                 window.location.pathname +
                 '?' +
                 answerUrlParams.toString();
@@ -133,10 +129,11 @@ export class ClientLogic implements AppLogic {
     offerCid: string | null;
     newCompressedOffer: string | null;
   }> {
-    const { webRTCApp, getState, setState, getDirectClient, compress, config } = this.context;
+    const { webRTCApp, getState, setState } = this.context;
+    // getDirectClient, compress, config (via getAllConfig) are now imported directly
     const { currentOfferCid: existingOfferCid } = getState(); // Renamed to avoid conflict
 
-    const currentOfferClient = existingOfferCid ? getDirectClient(existingOfferCid) : null;
+    const currentOfferClient = existingOfferCid ? getDirectClient(existingOfferCid) : null; // Using imported getDirectClient
     if (existingOfferCid && currentOfferClient?.pc?.connectionState === 'new') {
       // 'new' implies offer made, no answer yet
       setState((currentVal) => ({
@@ -172,18 +169,18 @@ export class ClientLogic implements AppLogic {
           return;
         }
         if (!newCidForOffer) return;
-        const client = getDirectClient(newCidForOffer);
+        const client = getDirectClient(newCidForOffer); // Using imported getDirectClient
         const sdp = client?.pc?.localDescription?.sdp;
         if (sdp) {
-          const compressed = await compress(sdp);
+          const compressed = await compress(sdp); // Using imported compress
           compressedOfferForReturn = compressed;
           const displayUrlParams = new URLSearchParams();
           displayUrlParams.set('offer', compressed);
           // Potentially add offerCid to URL for BroadcastChannel matching, though it makes URL longer
           // displayUrlParams.set('offerCid', newCidForOffer);
-          const config = getAllConfig();
+          const currentConfig = getAllConfig(); // Using imported getAllConfig
           const newUrlForOverlay =
-            (config.general.configHost || window.location.origin) +
+            (currentConfig.general.configHost || window.location.origin) +
             window.location.pathname +
             '?' +
             displayUrlParams.toString();
@@ -233,7 +230,8 @@ export class ClientLogic implements AppLogic {
   }
 
   async acceptHandler(cidFromEvent: string | null, pasteValue: string): Promise<void> {
-    const { decompress, getDirectClient, setState, getState } = this.context;
+    const { setState, getState } = this.context;
+    // decompress, getDirectClient are now imported directly
     const targetCid = cidFromEvent || getState().currentOfferCid; // Use event CID or fallback to current app offer CID
     if (!pasteValue || !targetCid) {
       console.warn('Accept handler: Paste value or CID is missing.', { pasteValue, targetCid });
@@ -241,8 +239,8 @@ export class ClientLogic implements AppLogic {
     }
 
     try {
-      const answer = await decompress(pasteValue.trim());
-      const client = getDirectClient(targetCid);
+      const answer = await decompress(pasteValue.trim()); // Using imported decompress
+      const client = getDirectClient(targetCid); // Using imported getDirectClient
       if (client?.pc) {
         await client.pc.setRemoteDescription({ type: 'answer', sdp: answer.trim() + '\n' });
         console.log('Successfully set remote description from pasted answer for CID:', targetCid);

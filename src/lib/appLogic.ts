@@ -1,7 +1,5 @@
 import type { WebRTCApp } from './webrtc/WebRTCApp';
-import type { Config } from './stores/configStore';
-import type { getDirectClient as getDirectClientType } from './stores/connectionStore';
-import type { compress as compressType, decompress as decompressType } from './utils/sdpCompress';
+// Removed Config, getDirectClientType, compressType, decompressType imports
 
 export interface AppLogicState {
   showCopyOverlay: boolean;
@@ -18,10 +16,7 @@ export interface AppLogicState {
 
 export interface AppLogicContext {
   webRTCApp: WebRTCApp;
-  config: Readonly<Config>;
-  getDirectClient: typeof getDirectClientType;
-  compress: typeof compressType;
-  decompress: typeof decompressType;
+  // Removed config, getDirectClient, compress, decompress
 
   getState: () => AppLogicState;
   setState: (
