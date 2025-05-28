@@ -67,7 +67,9 @@
 
   // Reactive statement to handle JWT changes and initial load.
   // This will run when currentAuthState.jwt changes.
-  $: scheduleLogoutOnExpiry(currentAuthState.jwt);
+  $effect(() => {
+    scheduleLogoutOnExpiry(currentAuthState.jwt);
+  });
 
   onMount(async () => {
     if (currentPath === '/cb') {
