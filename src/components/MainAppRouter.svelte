@@ -8,7 +8,7 @@
   import ConfigOverlay from './ConfigOverlay.svelte';
   import ForwardOverlay from './ForwardOverlay.svelte';
   import { configStore, getAllConfig, type Config } from '../lib/stores/configStore';
-  import { connectionStore } from '../lib/stores/connectionStore';
+  import { connectionStore, getDirectClient } from '../lib/stores/connectionStore';
   import { compress, decompress } from '../lib/utils/sdpCompress';
   import type { WebRTCApp } from '../lib/webrtc/WebRTCApp';
 
@@ -99,6 +99,8 @@
 
       const newContext: AppLogicContext = {
         webRTCApp,
+        config: $configStore,
+        getDirectClient: getDirectClient,
         compress,
         decompress,
         setState,
@@ -151,7 +153,7 @@
     const context: AppLogicContext = {
       webRTCApp,
       config: $configStore,
-      getDirectClient,
+      getDirectClient: getDirectClient,
       compress,
       decompress,
       setState,
