@@ -83,13 +83,14 @@ describe('ConfigOverlay.svelte', () => {
     await tick(); // Allow Svelte to process the tab change
     await tick(); // Add a second tick to ensure reactive updates fully propagate to DOM
     expect(screen.getByText('Profile Settings')).toBeInTheDocument();
-    // Check if username input is rendered (it's associated with the label "Username")
-    const usernameInput = screen.getByLabelText('Username') as HTMLInputElement;
-    expect(usernameInput).toBeInTheDocument();
 
-    // Wait for the input's value to be updated, as this can be asynchronous
-    // especially with Svelte 5 reactivity and conditional rendering in JSDOM.
+    // Wait for the username input to appear and its value to be correctly set.
+    // Re-querying getByLabelText inside waitFor ensures we are checking the most up-to-date element.
     await waitFor(() => {
+      const usernameInput = screen.getByLabelText('Username') as HTMLInputElement;
+      // First, ensure the input element itself is in the document within the waitFor retry.
+      expect(usernameInput).toBeInTheDocument();
+      // Then, check its value.
       expect(usernameInput.value).toBe('TestUser');
     });
     // Check the value property directly, as getByDisplayValue might have issues with
