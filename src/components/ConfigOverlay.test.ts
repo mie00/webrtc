@@ -83,8 +83,13 @@ describe('ConfigOverlay.svelte', () => {
     await tick(); // Allow Svelte to update the DOM
     expect(screen.getByText('Profile Settings')).toBeInTheDocument();
     // Check if username input is rendered (it's associated with the label "Username")
-    expect(screen.getByLabelText('Username')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('TestUser')).toBeInTheDocument();
+    const usernameInput = screen.getByLabelText('Username') as HTMLInputElement;
+    expect(usernameInput).toBeInTheDocument();
+    // Check the value property directly, as getByDisplayValue might have issues with
+    // reactive updates in some JSDOM/Svelte 5 scenarios after a tab switch.
+    expect(usernameInput.value).toBe('TestUser');
+    // If the above passes, the original assertion might also pass, but this is more direct.
+    // expect(screen.getByDisplayValue('TestUser')).toBeInTheDocument();
 
     // Click Save & Close
     const saveButton = screen.getByText('Save & Close');
