@@ -1,4 +1,4 @@
-import { render, fireEvent, screen } from '@testing-library/svelte';
+import { render, fireEvent, screen, waitFor } from '@testing-library/svelte';
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi } from 'vitest';
 import { tick } from 'svelte';
@@ -86,9 +86,14 @@ describe('ConfigOverlay.svelte', () => {
     // Check if username input is rendered (it's associated with the label "Username")
     const usernameInput = screen.getByLabelText('Username') as HTMLInputElement;
     expect(usernameInput).toBeInTheDocument();
+
+    // Wait for the input's value to be updated, as this can be asynchronous
+    // especially with Svelte 5 reactivity and conditional rendering in JSDOM.
+    await waitFor(() => {
+      expect(usernameInput.value).toBe('TestUser');
+    });
     // Check the value property directly, as getByDisplayValue might have issues with
     // reactive updates in some JSDOM/Svelte 5 scenarios after a tab switch.
-    expect(usernameInput.value).toBe('TestUser');
     // If the above passes, the original assertion might also pass, but this is more direct.
     // expect(screen.getByDisplayValue('TestUser')).toBeInTheDocument();
 
