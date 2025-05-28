@@ -1,11 +1,16 @@
 <script lang="ts">
-  import { profileStore, updateUserProfile } from '../lib/stores/profileStore';
+  import { updateConfig } from '../lib/stores/configStore';
+  import { configStore } from '../lib/stores/configStore'; // To read initial value if needed or for reactivity
 
-  let userName = '';
+  let userName = $state($configStore.profile.userName || ''); // Initialize with current config or empty
 
   function handleSubmit() {
     if (userName.trim()) {
-      updateUserProfile(userName.trim());
+      updateConfig('profile', 'userName', userName.trim());
+      // Optionally, navigate away or emit an event indicating profile is set
+      // For example, if this component is meant to be a one-time setup:
+      // import { appStateStore } from '../lib/stores/appStateStore'; // Hypothetical
+      // appStateStore.update(s => ({ ...s, profileSetupComplete: true }));
     } else {
       alert('Please enter your name.');
     }
@@ -34,5 +39,7 @@
         Save Profile
       </button>
     </form>
+    <!-- Example of how to react to config changes if needed -->
+    <!-- <p>Current configured name: {$configStore.profile.userName}</p> -->
   </div>
 </div>

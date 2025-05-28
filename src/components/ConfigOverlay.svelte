@@ -5,7 +5,8 @@
     type Config,
     type GeneralConfig,
     type RtcConfig,
-    type MediaConfig
+    type MediaConfig,
+    type ProfileConfig
   } from '../lib/stores/configStore';
   import { onMount } from 'svelte'; // onMount is not strictly needed if using $effect for this
 
@@ -100,6 +101,13 @@
         >
           Media
         </button>
+        <button
+          onclick={() => (currentTab = 'profile')}
+          class:bg-gray-200={currentTab === 'profile'}
+          class="block w-full text-left p-2 hover:bg-gray-100 rounded-md"
+        >
+          Profile
+        </button>
       </div>
 
       <!-- Content on the right -->
@@ -118,18 +126,6 @@
                 <option value="server">Server</option>
                 <option value="client">Client</option>
               </select>
-            </div>
-
-            <div class="flex flex-col space-y-1">
-              <label for="user-name" class="text-sm font-medium">Username</label>
-              <input
-                id="user-name"
-                type="text"
-                placeholder="Username"
-                class="w-full border border-gray-300 px-3 py-2 rounded-md"
-                value={$configStore.general.userName}
-                oninput={(e) => handleInputChange(e, 'general', 'userName')}
-              />
             </div>
 
             <div class="flex flex-col space-y-1">
@@ -269,6 +265,21 @@
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
+            </div>
+          {/if}
+
+          {#if currentTab === 'profile'}
+            <h2 class="text-xl font-semibold mb-3">Profile Settings</h2>
+            <div class="flex flex-col space-y-1">
+              <label for="user-name" class="text-sm font-medium">Username</label>
+              <input
+                id="user-name"
+                type="text"
+                placeholder="Username"
+                class="w-full border border-gray-300 px-3 py-2 rounded-md"
+                value={$configStore.profile.userName}
+                oninput={(e) => handleInputChange(e, 'profile', 'userName')}
+              />
             </div>
           {/if}
         </div>

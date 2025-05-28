@@ -14,10 +14,12 @@ vi.mock('../stores/configStore.ts', async () => {
   const mockConfigData = {
     general: {
       configLoader: 'client' as 'client' | 'server',
-      userName: 'TestUser',
       configHost: '',
       identityProviderHost: '',
       coordinatorUrl: ''
+    },
+    profile: {
+      userName: 'TestUser'
     },
     rtc: {
       stunServers: 'stun:stun.l.google.com:19302',
@@ -73,6 +75,14 @@ describe('ConfigOverlay.svelte', () => {
     await fireEvent.click(mediaTabButton);
     expect(screen.getByText('Media Settings')).toBeInTheDocument();
     expect(navigator.mediaDevices.enumerateDevices).toHaveBeenCalled();
+
+    // Switch to Profile tab
+    const profileTabButton = screen.getByText('Profile');
+    await fireEvent.click(profileTabButton);
+    expect(screen.getByText('Profile Settings')).toBeInTheDocument();
+    // Check if username input is rendered (it's associated with the label "Username")
+    expect(screen.getByLabelText('Username')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('TestUser')).toBeInTheDocument();
 
     // Click Save & Close
     const saveButton = screen.getByText('Save & Close');
