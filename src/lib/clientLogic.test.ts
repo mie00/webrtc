@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach, type Mock } from 'vitest';
 import { ClientLogic } from './clientLogic';
 import type { AppLogicContext } from './appLogic';
 import type { Config } from './stores/configStore';
@@ -323,9 +323,11 @@ describe('ClientLogic', () => {
       }
       // Check that appLogicModuleStore was updated to set initialOverlayShown: false
       const updateCalls = (appLogicModuleStore.update as Mock).mock.calls;
-      const initialOverlayUpdate = updateCalls.find(
-        (call) => get(call[0]({}))?.initialOverlayShown === false
-      );
+      const initialOverlayUpdate = updateCalls.find((call: [(state: AppLogicState) => Partial<AppLogicState>]) => {
+        // Apply the updater to a minimal state to check its effect
+        const updatedPart = call[0]({} as AppLogicState);
+        return updatedPart.initialOverlayShown === false;
+      });
       expect(initialOverlayUpdate).toBeDefined();
 
       expect(mockContext.webRTCApp.getOffer).toHaveBeenCalledTimes(1);
@@ -361,9 +363,10 @@ describe('ClientLogic', () => {
       await clientLogic.handleOpenQrRequest(urlParams);
 
       const updateCalls = (appLogicModuleStore.update as Mock).mock.calls;
-      const initialOverlayUpdate = updateCalls.find(
-        (call) => get(call[0]({}))?.initialOverlayShown === false
-      );
+      const initialOverlayUpdate = updateCalls.find((call: [(state: AppLogicState) => Partial<AppLogicState>]) => {
+        const updatedPart = call[0]({} as AppLogicState);
+        return updatedPart.initialOverlayShown === false;
+      });
       expect(initialOverlayUpdate).toBeDefined();
 
       expect(mockContext.appOnId).toHaveBeenCalledTimes(1);
@@ -403,9 +406,10 @@ describe('ClientLogic', () => {
       await clientLogic.handleOpenQrRequest(urlParams);
 
       const updateCalls = (appLogicModuleStore.update as Mock).mock.calls;
-      const initialOverlayUpdate = updateCalls.find(
-        (call) => get(call[0]({}))?.initialOverlayShown === false
-      );
+      const initialOverlayUpdate = updateCalls.find((call: [(state: AppLogicState) => Partial<AppLogicState>]) => {
+        const updatedPart = call[0]({} as AppLogicState);
+        return updatedPart.initialOverlayShown === false;
+      });
       expect(initialOverlayUpdate).toBeDefined();
       expect(mockContext.appOnId).toHaveBeenCalledTimes(1);
 
