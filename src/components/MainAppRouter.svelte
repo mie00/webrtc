@@ -1,7 +1,6 @@
 <script lang="ts">
   /// <reference path="../../../../types/global.d.ts" />
-  import { onMount, onDestroy } from 'svelte';
-  import { writable, type Writable, get } from 'svelte/store';
+  import { onMount, onDestroy, get } from 'svelte/store';
   // import { authStore, type AuthState } from '../lib/stores/authStore'; // No longer directly needed for UI
   import MediaArea from './MediaArea.svelte';
   import ControlPanel from './ControlPanel.svelte';
@@ -9,30 +8,19 @@
   import ConfigOverlay from './ConfigOverlay.svelte';
   import ForwardOverlay from './ForwardOverlay.svelte';
   import { configStore, getAllConfig, type Config } from '../lib/stores/configStore';
-  import { connectionStore, getDirectClient } from '../lib/stores/connectionStore';
-  import { compress, decompress } from '../lib/utils/sdpCompress';
+  import { connectionStore } from '../lib/stores/connectionStore'; // getDirectClient not used here
+  // import { compress, decompress } from '../lib/utils/sdpCompress'; // Not used directly here
   import type { WebRTCApp } from '../lib/webrtc/WebRTCApp';
+  import { appLogicModuleStore, type AppLogicState } from '../lib/stores/appLogicStore'; // Import the store
 
-  import type { AppLogic, AppLogicContext, AppLogicState } from '../lib/appLogic';
+  import type { AppLogic, AppLogicContext } from '../lib/appLogic';
   import { ClientLogic } from '../lib/clientLogic';
   import { ServerLogic } from '../lib/serverLogic';
 
   // Props
   export let webRTCApp: WebRTCApp;
 
-  // State managed by this component, accessible/modifiable by logic modules via context
-  const appLogicModuleStore: Writable<AppLogicState> = writable({
-    showCopyOverlay: false,
-    initialOverlayShown: false,
-    copyText: '',
-    qrCodeUrl: '',
-    showAcceptButton: false,
-    showJoinButton: false,
-    showCopyButton: true,
-    showPasteText: false,
-    currentOfferCid: null,
-    isDuringInitialServerLoad: false
-  });
+  // appLogicModuleStore is now imported
 
   // Other component specific state
   let showConfigOverlay = false;
@@ -90,7 +78,7 @@
       const newContext: AppLogicContext = {
         webRTCApp,
         // config, getDirectClient, compress, decompress removed
-        appStateStore: appLogicModuleStore,
+        // appStateStore removed from context
         appOnId,
         broadcastManuallyEnteredAnswer,
         reportCriticalError
@@ -139,7 +127,7 @@
     const context: AppLogicContext = {
       webRTCApp,
       // config, getDirectClient, compress, decompress removed
-      appStateStore: appLogicModuleStore,
+      // appStateStore removed from context
       appOnId,
       broadcastManuallyEnteredAnswer,
       reportCriticalError

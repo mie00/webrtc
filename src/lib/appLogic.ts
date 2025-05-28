@@ -1,26 +1,11 @@
 import type { WebRTCApp } from './webrtc/WebRTCApp';
 // Removed Config, getDirectClientType, compressType, decompressType imports
-
-export interface AppLogicState {
-  showCopyOverlay: boolean;
-  initialOverlayShown: boolean;
-  copyText: string;
-  qrCodeUrl: string;
-  showAcceptButton: boolean;
-  showJoinButton: boolean;
-  showCopyButton: boolean;
-  showPasteText: boolean;
-  currentOfferCid: string | null;
-  isDuringInitialServerLoad?: boolean; // Specific to server init path
-}
-
-import type { Writable } from 'svelte/store';
+// AppLogicState is now in appLogicStore.ts
 
 export interface AppLogicContext {
   webRTCApp: WebRTCApp;
   // Removed config, getDirectClient, compress, decompress
-
-  appStateStore: Writable<AppLogicState>;
+  // Removed appStateStore, it will be imported directly by logic modules
 
   // Helpers that App.svelte provides
   appOnId: () => void;

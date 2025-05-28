@@ -4,6 +4,7 @@ import { getDirectClient } from './stores/connectionStore';
 import { get } from 'svelte/store';
 import { getAllConfig } from './stores/configStore';
 import { compress, decompress } from './utils/sdpCompress';
+import { appLogicModuleStore, type AppLogicState } from './stores/appLogicStore'; // Import the store
 
 export class ClientLogic implements AppLogic {
   private context: AppLogicContext;
@@ -13,15 +14,15 @@ export class ClientLogic implements AppLogic {
   }
 
   async initialize(urlParams: URLSearchParams): Promise<void> {
-    const { webRTCApp, appStateStore, broadcastManuallyEnteredAnswer } = this.context;
+    const { webRTCApp, broadcastManuallyEnteredAnswer } = this.context; // Removed appStateStore
     // decompress, config, getDirectClient are now imported directly
     console.log('client logic initialize');
     console.trace();
 
     if (!urlParams.get('offer') && !urlParams.get('answer')) {
-      appStateStore.update((s) => ({ ...s, currentOfferCid: null }));
+      appLogicModuleStore.update((s) => ({ ...s, currentOfferCid: null }));
       const { offerCid } = await this.prepareOfferForClientModeDisplay();
-      appStateStore.update((currentVal) => ({ ...currentVal, initialOverlayShown: true }));
+      appLogicModuleStore.update((currentVal) => ({ ...currentVal, initialOverlayShown: true }));
       if (offerCid) {
         const bc = new BroadcastChannel('manual_rtc');
         bc.onmessage = async (event) => {
@@ -30,7 +31,7 @@ export class ClientLogic implements AppLogic {
             console.log('Received matching answer via broadcast channel for offer:', data.offer);
             // Ensure the offer matches the one this client instance is holding, if applicable
             // This check might need refinement based on how offerCid is managed across tabs for the *same* offer
-            const currentContextOfferCid = get(appStateStore).currentOfferCid;
+            const currentContextOfferCid = get(appLogicModuleStore).currentOfferCid;
             if (data.offerCid && currentContextOfferCid !== data.offerCid) {
               console.warn('Broadcast answer is for a different offer CID. Ignoring.');
               // bc.close(); // Close if we are sure this channel is only for one offer
@@ -44,7 +45,7 @@ export class ClientLogic implements AppLogic {
                 await client.pc.setRemoteDescription({ type: 'answer', sdp: answer.trim() + '\n' });
                 console.log('Successfully set remote description from broadcast answer.');
                 bc.close();
-                appStateStore.update((s) => ({
+                appLogicModuleStore.update((s) => ({
                   ...s,
                   showCopyOverlay: false,
                   initialOverlayShown: false
@@ -70,7 +71,7 @@ export class ClientLogic implements AppLogic {
         // For now, it broadcasts offer and answer strings.
         await broadcastManuallyEnteredAnswer(offerParamForAnswer, answerParam);
       }
-      appStateStore.update((s) => ({
+      appLogicModuleStore.update((s) => ({
         ...s,
         showCopyOverlay: true,
         initialOverlayShown: true,
@@ -85,7 +86,7 @@ export class ClientLogic implements AppLogic {
       const offerParam = urlParams.get('offer');
       if (offerParam) {
         const offer = await decompress(offerParam); // Using imported decompress
-        appStateStore.update((currentVal) => ({
+        appLogicModuleStore.update((currentVal) => ({
           ...currentVal,
           showCopyOverlay: true,
           initialOverlayShown: true,
@@ -115,7 +116,7 @@ export class ClientLogic implements AppLogic {
                 '?' +
                 answerUrlParams.toString();
 
-              appStateStore.update((currentVal) => ({
+              appLogicModuleStore.update((currentVal) => ({
                 ...currentVal,
                 qrCodeUrl: newUrl,
                 copyText: compressedAnswer
@@ -126,7 +127,7 @@ export class ClientLogic implements AppLogic {
           { sid: '' }
         );
         // Store this CID if needed, though it's for an incoming offer handling
-        // appStateStore.update(s => ({ ...s, currentOfferCid: answererCid })); // This might be confusing; currentOfferCid is for *outgoing* offers.
+        // appLogicModuleStore.update(s => ({ ...s, currentOfferCid: answererCid })); // This might be confusing; currentOfferCid is for *outgoing* offers.
       }
     }
   }
@@ -135,14 +136,14 @@ export class ClientLogic implements AppLogic {
     offerCid: string | null;
     newCompressedOffer: string | null;
   }> {
-    const { webRTCApp, appStateStore } = this.context;
+    const { webRTCApp } = this.context; // Removed appStateStore
     // getDirectClient, compress, config (via getAllConfig) are now imported directly
-    const { currentOfferCid: existingOfferCid } = get(appStateStore); // Renamed to avoid conflict
+    const { currentOfferCid: existingOfferCid } = get(appLogicModuleStore); // Renamed to avoid conflict
 
     const currentOfferClient = existingOfferCid ? getDirectClient(existingOfferCid) : null; // Using imported getDirectClient
     if (existingOfferCid && currentOfferClient?.pc?.connectionState === 'new') {
       // 'new' implies offer made, no answer yet
-      appStateStore.update((currentVal) => ({
+      appLogicModuleStore.update((currentVal) => ({
         ...currentVal,
         showCopyOverlay: true,
         showAcceptButton: true,
@@ -155,7 +156,7 @@ export class ClientLogic implements AppLogic {
     }
 
     const now = Date.now();
-    appStateStore.update((currentVal) => ({
+    appLogicModuleStore.update((currentVal) => ({
       ...currentVal,
       showAcceptButton: true,
       showPasteText: true,
@@ -191,7 +192,7 @@ export class ClientLogic implements AppLogic {
             '?' +
             displayUrlParams.toString();
 
-          appStateStore.update((currentVal) => ({
+          appLogicModuleStore.update((currentVal) => ({
             ...currentVal,
             qrCodeUrl: newUrlForOverlay,
             copyText: newUrlForOverlay
@@ -202,15 +203,15 @@ export class ClientLogic implements AppLogic {
       { sid: '' }
     );
 
-    appStateStore.update((s) => ({ ...s, currentOfferCid: newCidForOffer }));
+    appLogicModuleStore.update((s) => ({ ...s, currentOfferCid: newCidForOffer }));
     return { offerCid: newCidForOffer, newCompressedOffer: compressedOfferForReturn };
   }
 
   async handleOpenQrRequest(urlParams: URLSearchParams): Promise<void> {
-    const { appStateStore, appOnId } = this.context;
-    const { copyText: currentCopyText } = get(appStateStore); // Get current copyText
+    const { appOnId } = this.context; // Removed appStateStore
+    const { copyText: currentCopyText } = get(appLogicModuleStore); // Get current copyText
 
-    appStateStore.update((s) => ({ ...s, initialOverlayShown: false })); // QR requests are manual, not initial
+    appLogicModuleStore.update((s) => ({ ...s, initialOverlayShown: false })); // QR requests are manual, not initial
 
     const offerInUrl = urlParams.get('offer');
     const answerInUrl = urlParams.get('answer');
@@ -221,7 +222,7 @@ export class ClientLogic implements AppLogic {
     } else {
       // Offer or answer (or both) is in URL. Display current URL.
       appOnId(); // This sets showCopyOverlay, copyText, qrCodeUrl based on current URL.
-      appStateStore.update((currentVal) => ({
+      appLogicModuleStore.update((currentVal) => ({
         ...currentVal,
         showCopyButton: true, // Default to show copy button for the URL
         showAcceptButton: false, // Not accepting an answer via QR click
@@ -230,15 +231,15 @@ export class ClientLogic implements AppLogic {
       }));
       // Special case: if the URL indicates "Call started on another tab"
       if (currentCopyText && currentCopyText.startsWith('Call started on another tab')) {
-        appStateStore.update((s) => ({ ...s, showCopyButton: false }));
+        appLogicModuleStore.update((s) => ({ ...s, showCopyButton: false }));
       }
     }
   }
 
   async acceptHandler(cidFromEvent: string | null, pasteValue: string): Promise<void> {
-    const { appStateStore } = this.context;
+    // Removed appStateStore from context
     // decompress, getDirectClient are now imported directly
-    const targetCid = cidFromEvent || get(appStateStore).currentOfferCid; // Use event CID or fallback to current app offer CID
+    const targetCid = cidFromEvent || get(appLogicModuleStore).currentOfferCid; // Use event CID or fallback to current app offer CID
     if (!pasteValue || !targetCid) {
       console.warn('Accept handler: Paste value or CID is missing.', { pasteValue, targetCid });
       return;
@@ -250,7 +251,7 @@ export class ClientLogic implements AppLogic {
       if (client?.pc) {
         await client.pc.setRemoteDescription({ type: 'answer', sdp: answer.trim() + '\n' });
         console.log('Successfully set remote description from pasted answer for CID:', targetCid);
-        appStateStore.update((s) => ({
+        appLogicModuleStore.update((s) => ({
           ...s,
           showCopyOverlay: false,
           initialOverlayShown: false
