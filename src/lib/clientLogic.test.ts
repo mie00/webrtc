@@ -386,7 +386,7 @@ describe('ClientLogic', () => {
       // Simulate currentCopyText *before* appOnId runs for this specific call context
       // The `get(appLogicModuleStore)` in handleOpenQrRequest happens before `appOnId()`
       appLogicModuleStore.set({
-        ...(get(appLogicModuleStore)), // Keep other default state parts
+        ...get(appLogicModuleStore), // Keep other default state parts
         copyText: 'Call started on another tab, please close this one'
       });
 
