@@ -159,12 +159,14 @@ vi.mock('./lib/stores/configStore', async () => {
   return {
     configStore: mockConfigStoreInstance,
     updateConfig: vi.fn((group, key, value) => {
-      mockConfigStoreInstance.update((cfg: Config) => { // Added Config type for cfg
+      mockConfigStoreInstance.update((cfg: Config) => {
+        // Added Config type for cfg
         const newGroup = { ...cfg[group], [key]: value };
         return { ...cfg, [group]: newGroup };
       });
     }),
-    isServerMode: derived( // Uses top-level derived
+    isServerMode: derived(
+      // Uses top-level derived
       mockConfigStoreInstance,
       ($config: Config) => $config.general.configLoader === 'server' // Added Config type for $config
     ),
@@ -252,7 +254,8 @@ describe('App.svelte', () => {
       userPubKey: 'test-key'
     });
     // Set userName in the mocked configStore
-    mockConfigStoreInstance.update((cfg: Config) => ({ // Added Config type for cfg
+    mockConfigStoreInstance.update((cfg: Config) => ({
+      // Added Config type for cfg
       ...cfg,
       profile: { ...cfg.profile, userName: 'TestUserProfile' }
     }));
@@ -289,7 +292,8 @@ describe('App.svelte', () => {
       userPubKey: 'test-key'
     });
     // Set userName in the mocked configStore, though it won't matter for this test path
-    mockConfigStoreInstance.update((cfg: Config) => ({ // Added Config type for cfg
+    mockConfigStoreInstance.update((cfg: Config) => ({
+      // Added Config type for cfg
       ...cfg,
       profile: { ...cfg.profile, userName: 'TestUserProfile' }
     }));
