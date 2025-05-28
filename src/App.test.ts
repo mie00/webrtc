@@ -1,7 +1,7 @@
 import { render, screen, cleanup } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { writable } from 'svelte/store';
+import { writable, type Writable, derived } from 'svelte/store';
 
 interface MockAuthStoreState {
   jwt: string | null;
@@ -142,7 +142,7 @@ vi.mock('./lib/stores/authStore', () => ({
 
 // Mock configStore
 vi.mock('./lib/stores/configStore', async () => {
-  const { writable, derived } = await vi.importActual('svelte/store');
+  // Note: 'writable' and 'derived' are now imported at the top level of the test file.
   const initialMockConfig: Config = {
     general: {
       configLoader: 'client',
@@ -155,18 +155,18 @@ vi.mock('./lib/stores/configStore', async () => {
     media: { blurVideo: 'no', audioDevice: 'default', videoDevice: 'default' }
   };
   // Create the actual store instance that will be used by the App
-  mockConfigStoreInstance = writable(initialMockConfig);
+  mockConfigStoreInstance = writable(initialMockConfig); // Uses top-level writable
   return {
     configStore: mockConfigStoreInstance,
     updateConfig: vi.fn((group, key, value) => {
-      mockConfigStoreInstance.update((cfg) => {
+      mockConfigStoreInstance.update((cfg: Config) => { // Added Config type for cfg
         const newGroup = { ...cfg[group], [key]: value };
         return { ...cfg, [group]: newGroup };
       });
     }),
-    isServerMode: derived(
+    isServerMode: derived( // Uses top-level derived
       mockConfigStoreInstance,
-      ($config) => $config.general.configLoader === 'server'
+      ($config: Config) => $config.general.configLoader === 'server' // Added Config type for $config
     ),
     defaultConfig: initialMockConfig
   };
@@ -252,7 +252,7 @@ describe('App.svelte', () => {
       userPubKey: 'test-key'
     });
     // Set userName in the mocked configStore
-    mockConfigStoreInstance.update((cfg) => ({
+    mockConfigStoreInstance.update((cfg: Config) => ({ // Added Config type for cfg
       ...cfg,
       profile: { ...cfg.profile, userName: 'TestUserProfile' }
     }));
@@ -289,7 +289,7 @@ describe('App.svelte', () => {
       userPubKey: 'test-key'
     });
     // Set userName in the mocked configStore, though it won't matter for this test path
-    mockConfigStoreInstance.update((cfg) => ({
+    mockConfigStoreInstance.update((cfg: Config) => ({ // Added Config type for cfg
       ...cfg,
       profile: { ...cfg.profile, userName: 'TestUserProfile' }
     }));
