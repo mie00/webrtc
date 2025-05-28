@@ -11,12 +11,7 @@ import {
 } from './stores/appLogicStore';
 
 // Use vi.hoisted to define mocks ensuring they are initialized before vi.mock factories
-const {
-  mockGetDirectClient,
-  mockGetAllConfig,
-  mockCompress,
-  mockDecompress
-} = vi.hoisted(() => {
+const { mockGetDirectClient, mockGetAllConfig, mockCompress, mockDecompress } = vi.hoisted(() => {
   return {
     mockGetDirectClient: vi.fn(),
     mockGetAllConfig: vi.fn(),
