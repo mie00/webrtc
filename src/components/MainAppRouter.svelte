@@ -1,6 +1,7 @@
 <script lang="ts">
   /// <reference path="../../../../types/global.d.ts" />
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, get } from 'svelte';
+  import { writable, type Writable } from 'svelte/store';
   // import { authStore, type AuthState } from '../lib/stores/authStore'; // No longer directly needed for UI
   import MediaArea from './MediaArea.svelte';
   import ControlPanel from './ControlPanel.svelte';
@@ -20,7 +21,7 @@
   export let webRTCApp: WebRTCApp;
 
   // State managed by this component, accessible/modifiable by logic modules via context
-  let appLogicModuleState: AppLogicState = {
+  const appLogicModuleStore: Writable<AppLogicState> = writable({
     showCopyOverlay: false,
     initialOverlayShown: false,
     copyText: '',
@@ -31,12 +32,12 @@
     showPasteText: false,
     currentOfferCid: null,
     isDuringInitialServerLoad: false
-  };
+  });
 
   // Other component specific state
   let showConfigOverlay = false;
   // currentPath is still used by onMount logic for parameter parsing, but not for /cb routing
-  let currentPath = window.location.pathname;
+  let currentPath = window.location.pathname; // This seems fine as it's only used in onMount before logic init
   // let currentAuthState: AuthState; // No longer needed for UI logic here
 
   // authStore.subscribe(value => { // No longer needed for UI logic here
@@ -45,19 +46,7 @@
 
   let appLogicInstance: AppLogic | null = null;
 
-  const setState = (
-    updater: Partial<AppLogicState> | ((prevState: AppLogicState) => Partial<AppLogicState>)
-  ) => {
-    if (typeof updater === 'function') {
-      appLogicModuleState = { ...appLogicModuleState, ...updater(appLogicModuleState) };
-    } else {
-      appLogicModuleState = { ...appLogicModuleState, ...updater };
-    }
-  };
-
-  const getState = (): AppLogicState => {
-    return appLogicModuleState;
-  };
+  // setState and getState are removed, logic modules will use the store directly.
 
   const appOnId = () => {
     const config = getAllConfig();
@@ -65,16 +54,17 @@
       (config.general.configHost || window.location.origin) +
       window.location.pathname +
       window.location.search;
-    setState({
+    appLogicModuleStore.update((s) => ({
+      ...s,
       showCopyOverlay: true,
       copyText: newUrl,
       qrCodeUrl: newUrl
-    });
+    }));
   };
 
   const broadcastManuallyEnteredAnswer = async (offer: string, answer: string) => {
     const bc = new BroadcastChannel('manual_rtc');
-    const offerCid = appLogicModuleState.currentOfferCid;
+    const offerCid = get(appLogicModuleStore).currentOfferCid;
     await bc.postMessage({ offer, answer, offerCid });
     bc.close();
   };
@@ -100,8 +90,7 @@
       const newContext: AppLogicContext = {
         webRTCApp,
         // config, getDirectClient, compress, decompress removed
-        setState,
-        getState,
+        appStateStore: appLogicModuleStore,
         appOnId,
         broadcastManuallyEnteredAnswer,
         reportCriticalError
@@ -150,8 +139,7 @@
     const context: AppLogicContext = {
       webRTCApp,
       // config, getDirectClient, compress, decompress removed
-      setState,
-      getState,
+      appStateStore: appLogicModuleStore,
       appOnId,
       broadcastManuallyEnteredAnswer,
       reportCriticalError
@@ -196,11 +184,12 @@
 
   async function handleHangup() {
     webRTCApp.destroy();
-    setState({
+    appLogicModuleStore.update((s) => ({
+      ...s,
       showCopyOverlay: false,
       initialOverlayShown: false,
       currentOfferCid: null
-    });
+    }));
   }
 
   async function handleReset() {
@@ -229,7 +218,7 @@
 
   // Reactive statement to hide copy overlay
   $: {
-    if (appLogicModuleState.showCopyOverlay && appLogicModuleState.initialOverlayShown) {
+    if ($appLogicModuleStore.showCopyOverlay && $appLogicModuleStore.initialOverlayShown) {
       const clients = Object.values($connectionStore.directClients);
       const isAnyClientConnected = clients.some(
         (client) => client && client.state === 'connected' && client.iceState === 'connected'
@@ -237,7 +226,11 @@
 
       if (isAnyClientConnected) {
         console.log('A client connected while initial overlay was visible, hiding copy overlay.');
-        setState({ showCopyOverlay: false, initialOverlayShown: false });
+        appLogicModuleStore.update((s) => ({
+          ...s,
+          showCopyOverlay: false,
+          initialOverlayShown: false
+        }));
       }
     }
   }
@@ -254,15 +247,15 @@
 </main>
 
 <CopyOverlay
-  show={appLogicModuleState.showCopyOverlay}
-  copyText={appLogicModuleState.copyText}
-  qrCodeUrl={appLogicModuleState.qrCodeUrl}
-  cid={appLogicModuleState.currentOfferCid}
-  showAcceptButton={appLogicModuleState.showAcceptButton}
-  showJoinButton={appLogicModuleState.showJoinButton}
-  showCopyButton={appLogicModuleState.showCopyButton}
-  showPasteText={appLogicModuleState.showPasteText}
-  close={() => setState({ showCopyOverlay: false })}
+  show={$appLogicModuleStore.showCopyOverlay}
+  copyText={$appLogicModuleStore.copyText}
+  qrCodeUrl={$appLogicModuleStore.qrCodeUrl}
+  cid={$appLogicModuleStore.currentOfferCid}
+  showAcceptButton={$appLogicModuleStore.showAcceptButton}
+  showJoinButton={$appLogicModuleStore.showJoinButton}
+  showCopyButton={$appLogicModuleStore.showCopyButton}
+  showPasteText={$appLogicModuleStore.showPasteText}
+  close={() => appLogicModuleStore.update((s) => ({ ...s, showCopyOverlay: false }))}
   openConfig={toggleConfigOverlay}
   reset={handleReset}
   accept={(e) => {

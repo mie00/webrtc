@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach, type Mock } from 'vitest';
 import { ClientLogic } from './clientLogic';
 import type { AppLogicContext, AppLogicState } from './appLogic';
 import type { Config } from './stores/configStore';
+import { writable, get, type Writable } from 'svelte/store';
 
 // Mocks for direct imports in ClientLogic.ts
 const mockGetDirectClient = vi.fn();
@@ -50,7 +51,7 @@ const getDefaultAppLogicState = (): AppLogicState => ({
 });
 
 // Mock AppLogicContext
-let mockAppLogicState: AppLogicState;
+let mockAppLogicStore: Writable<AppLogicState>;
 
 const mockWebRTCApp = {
   getOffer: vi.fn(),
@@ -59,15 +60,7 @@ const mockWebRTCApp = {
 };
 
 // Define mockContext with placeholders for properties that will be reset in beforeEach
-const mockContext: AppLogicContext = {
-  webRTCApp: mockWebRTCApp as any,
-  // config, getDirectClient, compress, decompress are removed as they are directly imported and mocked
-  getState: vi.fn(), // Will be set in beforeEach
-  setState: vi.fn(), // Will be set in beforeEach
-  appOnId: vi.fn(),
-  broadcastManuallyEnteredAnswer: vi.fn(),
-  reportCriticalError: vi.fn()
-};
+let mockContext: AppLogicContext; // To be initialized in beforeEach
 
 describe('ClientLogic', () => {
   let clientLogic: ClientLogic;
@@ -87,7 +80,7 @@ describe('ClientLogic', () => {
       );
     }
 
-    mockAppLogicState = getDefaultAppLogicState();
+    mockAppLogicStore = writable(getDefaultAppLogicState());
 
     // Setup mocks for imported functions
     mockGetAllConfig.mockReturnValue(JSON.parse(JSON.stringify(actualDefaultConfig))); // Deep copy
@@ -97,17 +90,13 @@ describe('ClientLogic', () => {
     mockDecompress.mockImplementation((text: string) => text.replace(/^compressed-/, ''));
     mockGetDirectClient.mockClear(); // Clear any previous mock state if necessary
 
-    mockContext.getState = vi.fn(() => mockAppLogicState);
-    mockContext.setState = vi.fn((updater) => {
-      const oldState = { ...mockAppLogicState };
-      let newStatePart;
-      if (typeof updater === 'function') {
-        newStatePart = updater(oldState);
-      } else {
-        newStatePart = updater;
-      }
-      mockAppLogicState = { ...oldState, ...newStatePart };
-    });
+    mockContext = {
+      webRTCApp: mockWebRTCApp as any,
+      appStateStore: mockAppLogicStore,
+      appOnId: vi.fn(),
+      broadcastManuallyEnteredAnswer: vi.fn(),
+      reportCriticalError: vi.fn()
+    };
 
     // Mock global objects
     vi.stubGlobal('BroadcastChannel', MockBroadcastChannel);
@@ -216,12 +205,13 @@ describe('ClientLogic', () => {
       // This is called from prepareOfferForClientModeDisplay's ICE callback
       expect(vi.mocked(history.replaceState)).toHaveBeenCalledWith(null, '', expectedQrCodeContent);
 
-      // Check key aspects of the final state (held in mockAppLogicState by our mock setState implementation)
-      expect(mockAppLogicState.currentOfferCid).toBe(mockCid);
-      expect(mockAppLogicState.qrCodeUrl).toBe(expectedQrCodeContent);
-      expect(mockAppLogicState.copyText).toBe(expectedQrCodeContent);
-      expect(mockAppLogicState.showCopyOverlay).toBe(true);
-      expect(mockAppLogicState.initialOverlayShown).toBe(true);
+      // Check key aspects of the final state (held in mockAppLogicStore by our mock setState implementation)
+      const finalState = get(mockAppLogicStore);
+      expect(finalState.currentOfferCid).toBe(mockCid);
+      expect(finalState.qrCodeUrl).toBe(expectedQrCodeContent);
+      expect(finalState.copyText).toBe(expectedQrCodeContent);
+      expect(finalState.showCopyOverlay).toBe(true);
+      expect(finalState.initialOverlayShown).toBe(true);
     });
 
     it('should process an offer from URL params and generate an answer', async () => {
@@ -274,13 +264,14 @@ describe('ClientLogic', () => {
       expect(vi.mocked(history.replaceState)).toHaveBeenCalledWith('', '', expectedAnswerUrl);
 
       // Check final state properties set during this flow
-      expect(mockAppLogicState.qrCodeUrl).toBe(expectedAnswerUrl);
-      expect(mockAppLogicState.copyText).toBe(compressedAnswerSdp);
-      expect(mockAppLogicState.showCopyOverlay).toBe(true);
-      expect(mockAppLogicState.initialOverlayShown).toBe(true);
-      expect(mockAppLogicState.showAcceptButton).toBe(false);
-      expect(mockAppLogicState.showPasteText).toBe(false);
-      expect(mockAppLogicState.showCopyButton).toBe(true);
+      const finalState = get(mockAppLogicStore);
+      expect(finalState.qrCodeUrl).toBe(expectedAnswerUrl);
+      expect(finalState.copyText).toBe(compressedAnswerSdp);
+      expect(finalState.showCopyOverlay).toBe(true);
+      expect(finalState.initialOverlayShown).toBe(true);
+      expect(finalState.showAcceptButton).toBe(false);
+      expect(finalState.showPasteText).toBe(false);
+      expect(finalState.showCopyButton).toBe(true);
 
       // Check the history.replaceState call (should be only one in this path from initialize)
       const historyCalls = vi.mocked(history.replaceState).mock.calls;
@@ -301,13 +292,14 @@ describe('ClientLogic', () => {
         answerParam
       );
 
-      expect(mockAppLogicState.showCopyOverlay).toBe(true);
-      expect(mockAppLogicState.initialOverlayShown).toBe(true);
-      expect(mockAppLogicState.copyText).toBe('Call started on another tab, please close this one');
-      expect(mockAppLogicState.showCopyButton).toBe(false);
-      expect(mockAppLogicState.showAcceptButton).toBe(false);
-      expect(mockAppLogicState.showPasteText).toBe(false);
-      expect(mockAppLogicState.showJoinButton).toBe(false);
+      const finalState = get(mockAppLogicStore);
+      expect(finalState.showCopyOverlay).toBe(true);
+      expect(finalState.initialOverlayShown).toBe(true);
+      expect(finalState.copyText).toBe('Call started on another tab, please close this one');
+      expect(finalState.showCopyButton).toBe(false);
+      expect(finalState.showAcceptButton).toBe(false);
+      expect(finalState.showPasteText).toBe(false);
+      expect(finalState.showJoinButton).toBe(false);
 
       // In this specific path of initialize, history.replaceState is NOT called.
       expect(vi.mocked(history.replaceState)).not.toHaveBeenCalled();
@@ -335,8 +327,11 @@ describe('ClientLogic', () => {
       if (iceCallback) {
         await (iceCallback as any)(null);
       }
+      const setStateInitialUpdate = (mockContext.appStateStore.update as Mock).mock.calls.find(
+        (call) => JSON.stringify(call[0]({})) === JSON.stringify({ initialOverlayShown: false })
+      );
+      expect(setStateInitialUpdate).toBeDefined();
 
-      expect(mockContext.setState).toHaveBeenCalledWith({ initialOverlayShown: false });
       expect(mockContext.webRTCApp.getOffer).toHaveBeenCalledTimes(1);
       expect(mockCompress).toHaveBeenCalledWith('mockOfferSdpForQr');
 
@@ -346,9 +341,10 @@ describe('ClientLogic', () => {
       const expectedQrCodeContent = `${expectedOrigin}${expectedPathname}?offer=${expectedCompressedSdp}`;
 
       expect(vi.mocked(history.replaceState)).toHaveBeenCalledWith(null, '', expectedQrCodeContent);
-      expect(mockAppLogicState.qrCodeUrl).toBe(expectedQrCodeContent);
-      expect(mockAppLogicState.copyText).toBe(expectedQrCodeContent);
-      expect(mockAppLogicState.showCopyOverlay).toBe(true);
+      const finalState = get(mockAppLogicStore);
+      expect(finalState.qrCodeUrl).toBe(expectedQrCodeContent);
+      expect(finalState.copyText).toBe(expectedQrCodeContent);
+      expect(finalState.showCopyOverlay).toBe(true);
     });
 
     it('should call appOnId and set UI for displaying existing URL if params are present', async () => {
@@ -356,28 +352,34 @@ describe('ClientLogic', () => {
       (vi.mocked(window).location as any).search = '?offer=someoffer';
 
       (mockContext.appOnId as any).mockImplementation(() => {
-        mockContext.setState({
+        mockAppLogicStore.update((s) => ({
+          ...s,
           qrCodeUrl: 'http://localhost/testpath?offer=someoffer',
           copyText: 'http://localhost/testpath?offer=someoffer',
           showCopyOverlay: true
-        });
+        }));
       });
 
-      mockAppLogicState.copyText = 'initial copy text'; // Before appOnId is called
+      mockAppLogicStore.update((s) => ({ ...s, copyText: 'initial copy text' })); // Before appOnId is called
 
       await clientLogic.handleOpenQrRequest(urlParams);
 
-      expect(mockContext.setState).toHaveBeenCalledWith({ initialOverlayShown: false });
+      const setStateInitialUpdate = (mockContext.appStateStore.update as Mock).mock.calls.find(
+        (call) => JSON.stringify(call[0]({})) === JSON.stringify({ initialOverlayShown: false })
+      );
+      expect(setStateInitialUpdate).toBeDefined();
+
       expect(mockContext.appOnId).toHaveBeenCalledTimes(1);
 
-      expect(mockAppLogicState.showCopyButton).toBe(true);
-      expect(mockAppLogicState.showAcceptButton).toBe(false);
-      expect(mockAppLogicState.showPasteText).toBe(false);
-      expect(mockAppLogicState.showJoinButton).toBe(false);
+      const finalState = get(mockAppLogicStore);
+      expect(finalState.showCopyButton).toBe(true);
+      expect(finalState.showAcceptButton).toBe(false);
+      expect(finalState.showPasteText).toBe(false);
+      expect(finalState.showJoinButton).toBe(false);
 
-      expect(mockAppLogicState.qrCodeUrl).toBe('http://localhost/testpath?offer=someoffer');
-      expect(mockAppLogicState.copyText).toBe('http://localhost/testpath?offer=someoffer');
-      expect(mockAppLogicState.showCopyOverlay).toBe(true);
+      expect(finalState.qrCodeUrl).toBe('http://localhost/testpath?offer=someoffer');
+      expect(finalState.copyText).toBe('http://localhost/testpath?offer=someoffer'); // Updated by appOnId
+      expect(finalState.showCopyOverlay).toBe(true);
     });
 
     it('should hide copy button if currentCopyText indicates call started on another tab', async () => {
@@ -385,27 +387,35 @@ describe('ClientLogic', () => {
       (vi.mocked(window).location as any).search = '?answer=someanswer';
 
       // Simulate currentCopyText *before* appOnId runs for this specific call context
-      // The `getState()` in handleOpenQrRequest happens before `appOnId()`
-      mockAppLogicState.copyText = 'Call started on another tab, please close this one';
+      // The `get(appStateStore)` in handleOpenQrRequest happens before `appOnId()`
+      mockAppLogicStore.set({
+        ...getDefaultAppLogicState(),
+        copyText: 'Call started on another tab, please close this one'
+      });
 
       (mockContext.appOnId as any).mockImplementation(() => {
         // appOnId might change copyText, but the check in handleOpenQrRequest uses the *old* one
-        mockContext.setState({
+        mockAppLogicStore.update((s) => ({
+          ...s,
           qrCodeUrl: 'http://localhost/testpath?answer=someanswer',
           copyText: 'http://localhost/testpath?answer=someanswer', // Potentially updated by appOnId
           showCopyOverlay: true
-        });
+        }));
       });
 
       await clientLogic.handleOpenQrRequest(urlParams);
 
-      expect(mockContext.setState).toHaveBeenCalledWith({ initialOverlayShown: false });
+      const setStateInitialUpdate = (mockContext.appStateStore.update as Mock).mock.calls.find(
+        (call) => JSON.stringify(call[0]({})) === JSON.stringify({ initialOverlayShown: false })
+      );
+      expect(setStateInitialUpdate).toBeDefined();
       expect(mockContext.appOnId).toHaveBeenCalledTimes(1);
 
-      expect(mockAppLogicState.showCopyButton).toBe(false);
-      expect(mockAppLogicState.showAcceptButton).toBe(false);
-      expect(mockAppLogicState.showPasteText).toBe(false);
-      expect(mockAppLogicState.showJoinButton).toBe(false);
+      const finalState = get(mockAppLogicStore);
+      expect(finalState.showCopyButton).toBe(false);
+      expect(finalState.showAcceptButton).toBe(false);
+      expect(finalState.showPasteText).toBe(false);
+      expect(finalState.showJoinButton).toBe(false);
     });
   });
 
@@ -420,7 +430,7 @@ describe('ClientLogic', () => {
       const mockClient = { pc: { setRemoteDescription: mockSetRemoteDescription } };
       mockGetDirectClient.mockReturnValue(mockClient as any);
       // To ensure targetCid is resolved from cidFromEvent
-      mockAppLogicState.currentOfferCid = null;
+      mockAppLogicStore.update((s) => ({ ...s, currentOfferCid: null }));
 
       await clientLogic.acceptHandler(cid, pastedAnswer);
 
@@ -430,15 +440,14 @@ describe('ClientLogic', () => {
         type: 'answer',
         sdp: decompressedAnswer + '\n'
       });
-      expect(mockContext.setState).toHaveBeenCalledWith({
-        showCopyOverlay: false,
-        initialOverlayShown: false
-      });
+      const finalState = get(mockAppLogicStore);
+      expect(finalState.showCopyOverlay).toBe(false);
+      expect(finalState.initialOverlayShown).toBe(false);
     });
 
     it('should use currentOfferCid from state if cidFromEvent is null', async () => {
       const stateCid = 'state-offer-cid';
-      mockAppLogicState.currentOfferCid = stateCid;
+      mockAppLogicStore.update((s) => ({ ...s, currentOfferCid: stateCid }));
       const pastedAnswer = 'pastedSdp';
       const decompressedAnswer = 'decompressedSdp';
 
@@ -454,19 +463,19 @@ describe('ClientLogic', () => {
         type: 'answer',
         sdp: decompressedAnswer + '\n'
       });
-      expect(mockContext.setState).toHaveBeenCalledWith({
-        showCopyOverlay: false,
-        initialOverlayShown: false
-      });
+      const finalState = get(mockAppLogicStore);
+      expect(finalState.showCopyOverlay).toBe(false);
+      expect(finalState.initialOverlayShown).toBe(false);
     });
 
     it('should do nothing if pasteValue is empty', async () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn');
+      const initialStoreValue = get(mockAppLogicStore);
       await clientLogic.acceptHandler('some-cid', '');
 
       expect(mockDecompress).not.toHaveBeenCalled();
       expect(mockGetDirectClient).not.toHaveBeenCalled();
-      expect(mockContext.setState).not.toHaveBeenCalled();
+      expect(get(mockAppLogicStore)).toEqual(initialStoreValue); // State should not change
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         'Accept handler: Paste value or CID is missing.',
         { pasteValue: '', targetCid: 'some-cid' }
@@ -475,14 +484,15 @@ describe('ClientLogic', () => {
     });
 
     it('should do nothing if targetCid is missing', async () => {
-      mockAppLogicState.currentOfferCid = null;
+      mockAppLogicStore.update((s) => ({ ...s, currentOfferCid: null }));
       const consoleWarnSpy = vi.spyOn(console, 'warn');
+      const initialStoreValue = get(mockAppLogicStore);
 
       await clientLogic.acceptHandler(null, 'some-answer');
 
       expect(mockDecompress).not.toHaveBeenCalled();
       expect(mockGetDirectClient).not.toHaveBeenCalled();
-      expect(mockContext.setState).not.toHaveBeenCalled();
+      expect(get(mockAppLogicStore)).toEqual(initialStoreValue); // State should not change
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         'Accept handler: Paste value or CID is missing.',
         { pasteValue: 'some-answer', targetCid: null }
@@ -496,12 +506,13 @@ describe('ClientLogic', () => {
       mockDecompress.mockResolvedValue('decompressedAnswer');
       mockGetDirectClient.mockReturnValue(null);
       const consoleWarnSpy = vi.spyOn(console, 'warn');
+      const initialStoreValue = get(mockAppLogicStore);
 
       await clientLogic.acceptHandler(cid, pastedAnswer);
 
       expect(mockDecompress).toHaveBeenCalledWith('pastedAnswer');
       expect(mockGetDirectClient).toHaveBeenCalledWith(cid);
-      expect(mockContext.setState).not.toHaveBeenCalled();
+      expect(get(mockAppLogicStore)).toEqual(initialStoreValue); // State should not change
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         'Client or PeerConnection not found for CID:',
         cid,
@@ -516,12 +527,13 @@ describe('ClientLogic', () => {
       mockDecompress.mockResolvedValue('decompressedAnswer');
       mockGetDirectClient.mockReturnValue({ pc: null } as any);
       const consoleWarnSpy = vi.spyOn(console, 'warn');
+      const initialStoreValue = get(mockAppLogicStore);
 
       await clientLogic.acceptHandler(cid, pastedAnswer);
 
       expect(mockDecompress).toHaveBeenCalledWith('pastedAnswer');
       expect(mockGetDirectClient).toHaveBeenCalledWith(cid);
-      expect(mockContext.setState).not.toHaveBeenCalled();
+      expect(get(mockAppLogicStore)).toEqual(initialStoreValue); // State should not change
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         'Client or PeerConnection not found for CID:',
         cid,
@@ -536,12 +548,13 @@ describe('ClientLogic', () => {
       const decompressError = new Error('Decompression failed');
       mockDecompress.mockRejectedValue(decompressError);
       const consoleErrorSpy = vi.spyOn(console, 'error');
+      const initialStoreValue = get(mockAppLogicStore);
 
       await clientLogic.acceptHandler(cid, pastedAnswer);
 
       expect(mockDecompress).toHaveBeenCalledWith('pastedAnswer');
       expect(mockGetDirectClient).not.toHaveBeenCalled();
-      expect(mockContext.setState).not.toHaveBeenCalled();
+      expect(get(mockAppLogicStore)).toEqual(initialStoreValue); // State should not change
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Error processing pasted answer for CID:',
         cid,
@@ -561,13 +574,14 @@ describe('ClientLogic', () => {
       const mockClient = { pc: { setRemoteDescription: mockSetRemoteDescription } };
       mockGetDirectClient.mockReturnValue(mockClient as any);
       const consoleErrorSpy = vi.spyOn(console, 'error');
+      const initialStoreValue = get(mockAppLogicStore);
 
       await clientLogic.acceptHandler(cid, pastedAnswer);
 
       expect(mockDecompress).toHaveBeenCalledWith('pastedAnswer');
       expect(mockGetDirectClient).toHaveBeenCalledWith(cid);
       expect(mockSetRemoteDescription).toHaveBeenCalled();
-      expect(mockContext.setState).not.toHaveBeenCalled();
+      expect(get(mockAppLogicStore)).toEqual(initialStoreValue); // State should not change
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Error processing pasted answer for CID:',
         cid,

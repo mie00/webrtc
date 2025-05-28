@@ -1,7 +1,8 @@
-import type { AppLogic, AppLogicContext } from './appLogic';
+import type { AppLogic, AppLogicContext, AppLogicState } from './appLogic';
 import { io, Socket } from 'socket.io-client';
 import { getDirectClient } from '../stores/connectionStore';
 import { getAllConfig } from './stores/configStore'; // Corrected path
+import { get } from 'svelte/store';
 // RTCIceCandidateInit should be globally available or via WebRTC types.
 
 export class ServerLogic implements AppLogic {
@@ -16,7 +17,7 @@ export class ServerLogic implements AppLogic {
   }
 
   private setupSocketHandlers(): void {
-    const { webRTCApp, setState, appOnId, getState } = this.context; // Removed getDirectClient
+    const { webRTCApp, appStateStore, appOnId } = this.context; // Removed getDirectClient
 
     this.socket.on('init', async (id: string) => {
       console.log('server logic: init', id);
@@ -26,7 +27,7 @@ export class ServerLogic implements AppLogic {
       appOnId();
 
       if (getAllConfig().general.configLoader === 'server') {
-        setState((current) => ({
+        appStateStore.update((current) => ({
           ...current,
           showCopyButton: true,
           showAcceptButton: false,
@@ -34,12 +35,13 @@ export class ServerLogic implements AppLogic {
         }));
       }
 
-      const appLogicModuleState = getState();
+      const appLogicModuleState = get(appStateStore);
       if (appLogicModuleState.isDuringInitialServerLoad) {
-        setState({
+        appStateStore.update((s) => ({
+          ...s,
           initialOverlayShown: true,
           isDuringInitialServerLoad: false
-        });
+        }));
       }
     });
 
@@ -132,7 +134,7 @@ export class ServerLogic implements AppLogic {
   }
 
   async initialize(urlParams: URLSearchParams): Promise<void> {
-    const { setState, appOnId } = this.context;
+    const { appStateStore, appOnId } = this.context;
     console.log('server logic initialize');
 
     this.setupSocketHandlers();
@@ -142,7 +144,7 @@ export class ServerLogic implements AppLogic {
 
     if (!urlParams.has('r')) {
       // No room ID in URL, server needs to initialize one
-      setState((currentVal) => ({
+      appStateStore.update((currentVal) => ({
         ...currentVal,
         showCopyButton: true, // To copy the room link once available
         showAcceptButton: false,
@@ -156,7 +158,7 @@ export class ServerLogic implements AppLogic {
     } else {
       // Room ID already in URL
       appOnId(); // Sets showCopyOverlay, copyText, qrCodeUrl based on current URL with 'r'
-      setState((currentVal) => ({
+      appStateStore.update((currentVal) => ({
         ...currentVal,
         initialOverlayShown: true, // This is an initial load with an existing room
         showCopyButton: false, // Do not show copy for existing room URL
@@ -167,14 +169,14 @@ export class ServerLogic implements AppLogic {
   }
 
   async handleOpenQrRequest(urlParams: URLSearchParams): Promise<void> {
-    const { setState, appOnId } = this.context;
-    setState({ initialOverlayShown: false }); // QR requests are manual actions
+    const { appStateStore, appOnId } = this.context;
+    appStateStore.update((s) => ({ ...s, initialOverlayShown: false })); // QR requests are manual actions
 
     if (!urlParams.has('r')) {
       // Server mode, no room ID yet. Show current state (likely no room ID in URL yet)
       // and request/ensure room ID.
       appOnId(); // This will show the overlay with the current URL (no 'r' or placeholder).
-      setState((currentVal) => ({
+      appStateStore.update((currentVal) => ({
         ...currentVal,
         showJoinButton: false, // No room to join yet
         showCopyButton: true,
@@ -187,7 +189,7 @@ export class ServerLogic implements AppLogic {
     } else {
       // Server mode, room ID exists.
       appOnId(); // Sets showCopyOverlay, copyText, qrCodeUrl.
-      setState((currentVal) => ({
+      appStateStore.update((currentVal) => ({
         ...currentVal,
         showJoinButton: true, // Room exists, can join
         showCopyButton: false, // Can copy room link
@@ -198,11 +200,11 @@ export class ServerLogic implements AppLogic {
   }
 
   handleJoin(id: string): void {
-    // const { setState } = this.context; // setState not used here
+    // const { appStateStore } = this.context; // appStateStore not used here for updates
     if (id) {
       this.socket.emit('subscribe', id);
       // Optionally hide overlay after clicking join, or let socket events handle it
-      // this.context.setState({ showCopyOverlay: false });
+      // this.context.appStateStore.update(s => ({ ...s, showCopyOverlay: false }));
     }
   }
 

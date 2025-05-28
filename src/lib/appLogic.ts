@@ -14,14 +14,13 @@ export interface AppLogicState {
   isDuringInitialServerLoad?: boolean; // Specific to server init path
 }
 
+import type { Writable } from 'svelte/store';
+
 export interface AppLogicContext {
   webRTCApp: WebRTCApp;
   // Removed config, getDirectClient, compress, decompress
 
-  getState: () => AppLogicState;
-  setState: (
-    updater: Partial<AppLogicState> | ((prevState: AppLogicState) => Partial<AppLogicState>)
-  ) => void;
+  appStateStore: Writable<AppLogicState>;
 
   // Helpers that App.svelte provides
   appOnId: () => void;
