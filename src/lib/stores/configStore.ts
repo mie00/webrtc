@@ -3,10 +3,13 @@ import { writable, derived, get } from 'svelte/store';
 // Define types for configuration groups
 export interface GeneralConfig {
   configLoader: 'server' | 'client';
-  userName: string;
   configHost: string;
   identityProviderHost: string;
   coordinatorUrl: string;
+}
+
+export interface ProfileConfig {
+  userName: string;
 }
 
 export interface RtcConfig {
@@ -25,6 +28,7 @@ export interface MediaConfig {
 // Define the main Config interface
 export interface Config {
   general: GeneralConfig;
+  profile: ProfileConfig;
   rtc: RtcConfig;
   media: MediaConfig;
 }
@@ -33,10 +37,12 @@ export interface Config {
 export const defaultConfig: Config = {
   general: {
     configLoader: 'server',
-    userName: '',
     configHost: '',
     identityProviderHost: 'https://xauth.mie00.com',
     coordinatorUrl: 'ws://127.0.0.1:5001'
+  },
+  profile: {
+    userName: ''
   },
   rtc: {
     stunServers: 'dealer.mie00.com:3478',
@@ -62,15 +68,18 @@ function loadInitialConfig(): Config {
         savedConfig &&
         typeof savedConfig === 'object' &&
         'general' in savedConfig &&
+        'profile' in savedConfig && // Ensure profile key exists
         'rtc' in savedConfig &&
         'media' in savedConfig &&
         typeof savedConfig.general === 'object' &&
+        typeof savedConfig.profile === 'object' && // Ensure profile is an object
         typeof savedConfig.rtc === 'object' &&
         typeof savedConfig.media === 'object'
       ) {
         // Deep merge with defaultConfig to ensure all keys are present and defaults are applied for missing ones
         return {
           general: { ...defaultConfig.general, ...savedConfig.general },
+          profile: { ...defaultConfig.profile, ...(savedConfig.profile || {}) },
           rtc: { ...defaultConfig.rtc, ...savedConfig.rtc },
           media: { ...defaultConfig.media, ...savedConfig.media }
         };
