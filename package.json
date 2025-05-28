@@ -12,7 +12,7 @@
     "test:e2e": "playwright test --grep-invert @slow",
     "test:e2e:ci": "playwright test --grep-invert @noci",
     "test:e2e:full": "playwright test",
-    "test:unit": "vitest",
+    "test:unit": "vitest run",
     "test:unit:ui": "vitest --ui",
     "coverage": "vitest run --coverage --dir . --root src",
     "test": "npm run test:unit",

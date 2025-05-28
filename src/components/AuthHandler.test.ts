@@ -8,7 +8,7 @@ import { vi } from 'vitest';
 // Mock the authStore
 vi.mock('../lib/stores/authStore', async () => {
   const actual = await vi.importActual('../lib/stores/authStore');
-  
+
   // Create a mock version of authStore with all methods as jest functions
   const mockAuthStore = {
     subscribe: vi.fn(() => () => {}), // Mock subscribe to return an unsubscribe function
@@ -19,7 +19,7 @@ vi.mock('../lib/stores/authStore', async () => {
     ensureKeyPair: vi.fn(),
     getPrivateKey: vi.fn()
   };
-  
+
   return {
     ...actual,
     authStore: mockAuthStore

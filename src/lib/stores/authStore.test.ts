@@ -111,11 +111,11 @@ describe('authStore', () => {
     // We have two options:
     // 1. Use the real authStore with mocked localStorage (current approach)
     // 2. Use a completely mocked authStore (useful for component tests)
-    
+
     // For these tests, we'll use the real authStore with mocked localStorage
     const authStoreModule = await import('./authStore');
     authStore = authStoreModule.authStore as AuthStoreType;
-    
+
     // For component tests that need to mock authStore methods:
     // Uncomment this line and comment out the above import
     // authStore = createMockAuthStore();
