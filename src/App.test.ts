@@ -158,13 +158,18 @@ vi.mock('./lib/stores/configStore', async () => {
   mockConfigStoreInstance = writable(initialMockConfig); // Uses top-level writable
   return {
     configStore: mockConfigStoreInstance,
-    updateConfig: vi.fn((group, key, value) => {
-      mockConfigStoreInstance.update((cfg: Config) => {
-        // Added Config type for cfg
-        const newGroup = { ...cfg[group], [key]: value };
-        return { ...cfg, [group]: newGroup };
-      });
-    }),
+    updateConfig: vi.fn(
+      <G extends keyof Config, K extends keyof Config[G]>(
+        group: G,
+        key: K,
+        value: Config[G][K]
+      ) => {
+        mockConfigStoreInstance.update((cfg: Config) => {
+          const newGroup = { ...cfg[group], [key]: value };
+          return { ...cfg, [group]: newGroup };
+        });
+      }
+    ),
     isServerMode: derived(
       // Uses top-level derived
       mockConfigStoreInstance,
