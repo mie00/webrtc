@@ -323,7 +323,7 @@ describe('ClientLogic', () => {
       }
       // Check that appLogicModuleStore was updated to set initialOverlayShown: false
       const updateCallsTyped = (appLogicModuleStore.update as Mock).mock.calls as [
-        ((state: AppLogicState) => AppLogicState)
+        (state: AppLogicState) => AppLogicState
       ][];
       const initialStateStub: AppLogicState = {
         showCopyOverlay: false,
@@ -377,7 +377,7 @@ describe('ClientLogic', () => {
       await clientLogic.handleOpenQrRequest(urlParams);
 
       const updateCallsTyped = (appLogicModuleStore.update as Mock).mock.calls as [
-        ((state: AppLogicState) => AppLogicState)
+        (state: AppLogicState) => AppLogicState
       ][];
       const initialStateStub: AppLogicState = {
         showCopyOverlay: false,
@@ -435,7 +435,7 @@ describe('ClientLogic', () => {
       await clientLogic.handleOpenQrRequest(urlParams);
 
       const updateCallsTyped = (appLogicModuleStore.update as Mock).mock.calls as [
-        ((state: AppLogicState) => AppLogicState)
+        (state: AppLogicState) => AppLogicState
       ][];
       const initialStateStub: AppLogicState = {
         showCopyOverlay: false,
