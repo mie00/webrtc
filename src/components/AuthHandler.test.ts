@@ -245,6 +245,8 @@ describe('AuthHandler.svelte - Auto Logout on JWT Expiry', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.spyOn(Date, 'now'); // Spy on Date.now() to control current time
+    vi.spyOn(window, 'setTimeout');
+    vi.spyOn(window, 'clearTimeout');
 
     // Reset all mocks before each test
     vi.clearAllMocks();
@@ -274,6 +276,7 @@ describe('AuthHandler.svelte - Auto Logout on JWT Expiry', () => {
   afterEach(() => {
     vi.runOnlyPendingTimers(); // Ensure all pending timers are executed
     vi.useRealTimers(); // Restore real timers
+    vi.restoreAllMocks(); // Restore spies including setTimeout and clearTimeout
   });
 
   // Helper to simulate auth state changes, triggering the subscribe callback
