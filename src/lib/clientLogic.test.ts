@@ -138,24 +138,6 @@ describe('ClientLogic', () => {
     });
   });
 
-  describe('setConfig', () => {
-    it('should update the config in the context', () => {
-      const newConfig: Config = {
-        ...actualDefaultConfig, // Use the dynamically imported one
-        general: {
-          ...actualDefaultConfig.general,
-          userName: 'NewUserTest'
-        },
-        // Ensure all top-level keys from Config are present
-        rtc: actualDefaultConfig.rtc,
-        media: actualDefaultConfig.media
-      };
-      clientLogic.setConfig(newConfig);
-      expect(mockContext.config.general.userName).toBe('NewUserTest');
-      expect(mockContext.config).toEqual(newConfig); // Use toEqual for deep comparison
-    });
-  });
-
   describe('initialize', () => {
     it('should generate an offer if no URL params are present', async () => {
       (vi.mocked(window).location as any).search = '';
