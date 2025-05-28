@@ -80,7 +80,8 @@ describe('ConfigOverlay.svelte', () => {
     // Switch to Profile tab
     const profileTabButton = screen.getByText('Profile');
     await fireEvent.click(profileTabButton);
-    await tick(); // Allow Svelte to update the DOM
+    await tick(); // Allow Svelte to process the tab change
+    await tick(); // Add a second tick to ensure reactive updates fully propagate to DOM
     expect(screen.getByText('Profile Settings')).toBeInTheDocument();
     // Check if username input is rendered (it's associated with the label "Username")
     const usernameInput = screen.getByLabelText('Username') as HTMLInputElement;

@@ -15,7 +15,7 @@ interface MockAuthStoreState {
 interface MockProfileStoreState {
   isProfileComplete: boolean;
   profile: { userName: string } | null;
-  userName: string | null;
+  userName: string | null; // This was part of MockProfileStoreState, now part of Config's profile
 }
 
 const mockAuthStore = writable<MockAuthStoreState>({
@@ -26,11 +26,10 @@ const mockAuthStore = writable<MockAuthStoreState>({
   privateKeyJwk: null,
   userPubKey: null
 });
-const mockProfileStore = writable<MockProfileStoreState>({
-  isProfileComplete: false,
-  profile: null,
-  userName: null
-});
+
+// Define Config type for the mockConfigStoreInstance
+type Config = import('./lib/stores/configStore').Config;
+let mockConfigStoreInstance: Writable<Config>;
 
 // Mock child components to isolate App.svelte logic
 vi.mock('./components/AuthHandler.svelte', () => ({
@@ -141,9 +140,29 @@ vi.mock('./lib/stores/authStore', () => ({
   authStore: mockAuthStore
 }));
 
-vi.mock('./lib/stores/profileStore', () => ({
-  profileStore: mockProfileStore
-}));
+// Mock configStore
+vi.mock('./lib/stores/configStore', async () => {
+  const { writable, derived } = await vi.importActual('svelte/store');
+  const initialMockConfig: Config = {
+    general: { configLoader: 'client', coordinatorUrl: 'ws://test.com', configHost: '', identityProviderHost: '' },
+    profile: { userName: '' }, // Default to empty userName
+    rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
+    media: { blurVideo: 'no', audioDevice: 'default', videoDevice: 'default' }
+  };
+  // Create the actual store instance that will be used by the App
+  mockConfigStoreInstance = writable(initialMockConfig);
+  return {
+    configStore: mockConfigStoreInstance,
+    updateConfig: vi.fn((group, key, value) => {
+      mockConfigStoreInstance.update(cfg => {
+        const newGroup = { ...cfg[group], [key]: value };
+        return { ...cfg, [group]: newGroup };
+      });
+    }),
+    isServerMode: derived(mockConfigStoreInstance, $config => $config.general.configLoader === 'server'),
+    defaultConfig: initialMockConfig
+  };
+});
 
 // Mock WebRTCApp
 vi.mock('./lib/webrtc/WebRTCApp', () => ({
@@ -166,7 +185,15 @@ describe('App.svelte', () => {
       privateKeyJwk: null,
       userPubKey: null
     });
-    mockProfileStore.set({ isProfileComplete: false, profile: null, userName: null });
+    // Reset configStore to a known default for each test
+    if (mockConfigStoreInstance) { // Ensure it's initialized by the mock factory
+      mockConfigStoreInstance.set({
+        general: { configLoader: 'client', coordinatorUrl: 'ws://test.com', configHost: '', identityProviderHost: '' },
+        profile: { userName: '' }, // userName is empty by default
+        rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
+        media: { blurVideo: 'no', audioDevice: 'default', videoDevice: 'default' }
+      });
+    }
     // Reset window.location.pathname for consistent testing
     Object.defineProperty(window, 'location', {
       value: { pathname: '/' },
@@ -195,7 +222,7 @@ describe('App.svelte', () => {
       privateKeyJwk: {},
       userPubKey: 'test-key'
     });
-    mockProfileStore.set({ isProfileComplete: false, profile: null, userName: null });
+    // configStore.profile.userName is already empty from beforeEach, so ProfileSetup should render
     render(App);
     await tick();
     expect(screen.getByText('ProfileSetupMock')).toBeInTheDocument();
@@ -210,11 +237,8 @@ describe('App.svelte', () => {
       privateKeyJwk: {},
       userPubKey: 'test-key'
     });
-    mockProfileStore.set({
-      isProfileComplete: true,
-      profile: { userName: 'TestUser' },
-      userName: 'TestUser'
-    });
+    // Set userName in the mocked configStore
+    mockConfigStoreInstance.update(cfg => ({ ...cfg, profile: { ...cfg.profile, userName: 'TestUserProfile' } }));
     render(App);
     await tick();
     expect(screen.getByText('MainAppRouterMock')).toBeInTheDocument();
@@ -247,11 +271,8 @@ describe('App.svelte', () => {
       privateKeyJwk: null,
       userPubKey: 'test-key'
     });
-    mockProfileStore.set({
-      isProfileComplete: true,
-      profile: { userName: 'TestUser' },
-      userName: 'TestUser'
-    });
+    // Set userName in the mocked configStore, though it won't matter for this test path
+    mockConfigStoreInstance.update(cfg => ({ ...cfg, profile: { ...cfg.profile, userName: 'TestUserProfile' } }));
     render(App);
     expect(screen.queryByText('ProfileSetupMock')).not.toBeInTheDocument();
     expect(screen.queryByText('MainAppRouterMock')).not.toBeInTheDocument();
