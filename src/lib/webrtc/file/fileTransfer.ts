@@ -75,7 +75,7 @@ export function setupFileChannel(cid: string): void {
           updateFileTransfer(transferId, {
             progress: 100,
             status: 'complete',
-            url: undefined
+            url: URL.createObjectURL(new Blob([], { type: metadata.type }))
           });
           currentClient.file_stuff = undefined; // Reset
         }
