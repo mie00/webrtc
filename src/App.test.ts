@@ -144,7 +144,12 @@ vi.mock('./lib/stores/authStore', () => ({
 vi.mock('./lib/stores/configStore', async () => {
   const { writable, derived } = await vi.importActual('svelte/store');
   const initialMockConfig: Config = {
-    general: { configLoader: 'client', coordinatorUrl: 'ws://test.com', configHost: '', identityProviderHost: '' },
+    general: {
+      configLoader: 'client',
+      coordinatorUrl: 'ws://test.com',
+      configHost: '',
+      identityProviderHost: ''
+    },
     profile: { userName: '' }, // Default to empty userName
     rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
     media: { blurVideo: 'no', audioDevice: 'default', videoDevice: 'default' }
@@ -154,12 +159,15 @@ vi.mock('./lib/stores/configStore', async () => {
   return {
     configStore: mockConfigStoreInstance,
     updateConfig: vi.fn((group, key, value) => {
-      mockConfigStoreInstance.update(cfg => {
+      mockConfigStoreInstance.update((cfg) => {
         const newGroup = { ...cfg[group], [key]: value };
         return { ...cfg, [group]: newGroup };
       });
     }),
-    isServerMode: derived(mockConfigStoreInstance, $config => $config.general.configLoader === 'server'),
+    isServerMode: derived(
+      mockConfigStoreInstance,
+      ($config) => $config.general.configLoader === 'server'
+    ),
     defaultConfig: initialMockConfig
   };
 });
@@ -186,9 +194,15 @@ describe('App.svelte', () => {
       userPubKey: null
     });
     // Reset configStore to a known default for each test
-    if (mockConfigStoreInstance) { // Ensure it's initialized by the mock factory
+    if (mockConfigStoreInstance) {
+      // Ensure it's initialized by the mock factory
       mockConfigStoreInstance.set({
-        general: { configLoader: 'client', coordinatorUrl: 'ws://test.com', configHost: '', identityProviderHost: '' },
+        general: {
+          configLoader: 'client',
+          coordinatorUrl: 'ws://test.com',
+          configHost: '',
+          identityProviderHost: ''
+        },
         profile: { userName: '' }, // userName is empty by default
         rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
         media: { blurVideo: 'no', audioDevice: 'default', videoDevice: 'default' }
@@ -238,7 +252,10 @@ describe('App.svelte', () => {
       userPubKey: 'test-key'
     });
     // Set userName in the mocked configStore
-    mockConfigStoreInstance.update(cfg => ({ ...cfg, profile: { ...cfg.profile, userName: 'TestUserProfile' } }));
+    mockConfigStoreInstance.update((cfg) => ({
+      ...cfg,
+      profile: { ...cfg.profile, userName: 'TestUserProfile' }
+    }));
     render(App);
     await tick();
     expect(screen.getByText('MainAppRouterMock')).toBeInTheDocument();
@@ -272,7 +289,10 @@ describe('App.svelte', () => {
       userPubKey: 'test-key'
     });
     // Set userName in the mocked configStore, though it won't matter for this test path
-    mockConfigStoreInstance.update(cfg => ({ ...cfg, profile: { ...cfg.profile, userName: 'TestUserProfile' } }));
+    mockConfigStoreInstance.update((cfg) => ({
+      ...cfg,
+      profile: { ...cfg.profile, userName: 'TestUserProfile' }
+    }));
     render(App);
     expect(screen.queryByText('ProfileSetupMock')).not.toBeInTheDocument();
     expect(screen.queryByText('MainAppRouterMock')).not.toBeInTheDocument();
