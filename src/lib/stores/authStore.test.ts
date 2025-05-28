@@ -268,18 +268,11 @@ describe('getJwtPayload', () => {
   // Helper to create base64url encoded strings for JWT parts
   const toBase64Url = (obj: object) => {
     const str = JSON.stringify(obj);
-    return btoa(str)
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
+    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   };
   const textToBase64Url = (text: string) => {
-    return btoa(text)
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
+    return btoa(text).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   };
-
 
   beforeEach(async () => {
     // Re-import to get the actual function for testing
@@ -328,7 +321,12 @@ describe('getJwtPayload', () => {
 
   it('should handle JWTs with empty signature part (though unusual)', () => {
     const header = toBase64Url({ alg: 'ES384', typ: 'JWT' });
-    const payloadData = { sub: 'test', exp: Math.floor(Date.now() / 1000) + 3600, iat: 123, cstm_dat: 'data' };
+    const payloadData = {
+      sub: 'test',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: 123,
+      cstm_dat: 'data'
+    };
     const payload = toBase64Url(payloadData);
     const jwtWithEmptySignature = `${header}.${payload}.`; // Empty signature part
 
