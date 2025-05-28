@@ -322,7 +322,7 @@ describe('ClientLogic', () => {
         await (iceCallback as any)(null);
       }
       // Check that appLogicModuleStore was updated to set initialOverlayShown: false
-      const updateCallsTyped: ([(updater: (state: AppLogicState) => AppLogicState)])[] = (
+      const updateCallsTyped: [ (updater: (state: AppLogicState) => AppLogicState) ][] = (
         appLogicModuleStore.update as Mock
       ).mock.calls;
       const initialStateStub: AppLogicState = {
@@ -376,7 +376,7 @@ describe('ClientLogic', () => {
 
       await clientLogic.handleOpenQrRequest(urlParams);
 
-      const updateCallsTyped: ([(updater: (state: AppLogicState) => AppLogicState)])[] = (
+      const updateCallsTyped: [ (updater: (state: AppLogicState) => AppLogicState) ][] = (
         appLogicModuleStore.update as Mock
       ).mock.calls;
       const initialStateStub: AppLogicState = {
@@ -434,7 +434,7 @@ describe('ClientLogic', () => {
 
       await clientLogic.handleOpenQrRequest(urlParams);
 
-      const updateCallsTyped: ([(updater: (state: AppLogicState) => AppLogicState)])[] = (
+      const updateCallsTyped: [ (updater: (state: AppLogicState) => AppLogicState) ][] = (
         appLogicModuleStore.update as Mock
       ).mock.calls;
       const initialStateStub: AppLogicState = {
