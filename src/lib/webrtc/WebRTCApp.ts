@@ -25,7 +25,7 @@ import {
   getAllClientCids,
   type DirectClientState,
   getDirectClientState
-} from '../../stores/connectionStore';
+} from '../stores/connectionStore';
 import { getAllConfig } from '../stores/configStore';
 import { updatePeerProfile, removePeerProfile } from '../stores/peerProfileStore';
 import {
@@ -107,7 +107,7 @@ export class WebRTCApp {
   public acceptClient(cid: string, client: WebRTCClient): void {
     if (!client.trusted || !client.trusting) return;
 
-    getAllClientCids().forEach((existingCid) => {
+    getAllClientCids().forEach((existingCid: string) => {
       if (existingCid !== cid) {
         const existingClientPeerObject = getDirectClient(existingCid);
         const newClientKeys = getKeysByCid(cid);
@@ -148,8 +148,8 @@ export class WebRTCApp {
 
   public destroyClient(cid: string): void {
     getAllClientCids()
-      .filter((key) => key !== cid)
-      .forEach((key) => {
+      .filter((key: string) => key !== cid)
+      .forEach((key: string) => {
         const otherClient = getDirectClient(key);
         if (otherClient) {
           const participantEndMessage: ParticipantEndNegoMessage = {
@@ -393,7 +393,7 @@ export class WebRTCApp {
     const cid = await this.initClient(false, options);
     const client = getDirectClient(cid);
     if (client?.pc) {
-      client.pc.onicecandidate = async ({ candidate }) => {
+      client.pc.onicecandidate = async ({ candidate }: { candidate: RTCIceCandidate | null }) => {
         console.log('Candidate found (offer)', candidate);
         await cb(candidate);
       };
@@ -409,7 +409,7 @@ export class WebRTCApp {
     const cid = await this.initClient(true, { sid: options.sid, offer });
     const client = getDirectClient(cid);
     if (client?.pc) {
-      client.pc.onicecandidate = async ({ candidate }) => {
+      client.pc.onicecandidate = async ({ candidate }: { candidate: RTCIceCandidate | null }) => {
         console.log('Candidate found (answer)', candidate);
         await cb(candidate);
       };
@@ -481,7 +481,7 @@ export class WebRTCApp {
       const stats = await client.pc.getStats();
       let transport: RTCTransportStats | null = null;
       let certificates: Record<string, any> = {};
-      stats.forEach((stat) => {
+      stats.forEach((stat: any) => {
         if (stat.type === 'transport') {
           transport = stat as RTCTransportStats;
         } else if (stat.type === 'certificate') {
