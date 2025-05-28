@@ -1,7 +1,7 @@
 import type { AppLogic, AppLogicContext } from './appLogic';
 import { io, Socket } from 'socket.io-client';
 import { getDirectClient } from '../stores/connectionStore';
-import { getAllConfig } from '../stores/configStore'; // Removed .js extension
+import { getAllConfig } from './stores/configStore'; // Corrected path
 // RTCIceCandidateInit should be globally available or via WebRTC types.
 
 export class ServerLogic implements AppLogic {
