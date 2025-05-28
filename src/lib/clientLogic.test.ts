@@ -16,11 +16,13 @@ const mockGetAllConfig = vi.fn();
 const mockCompress = vi.fn((sdp: string | null | undefined) => (sdp ? `compressed-${sdp}` : ''));
 const mockDecompress = vi.fn((text: string) => text.replace(/^compressed-/, ''));
 
-vi.mock('./stores/connectionStore.js', () => ({ // Adjusted path assuming connectionStore.js is a sibling in stores
+vi.mock('./stores/connectionStore.js', () => ({
+  // Adjusted path assuming connectionStore.js is a sibling in stores
   getDirectClient: mockGetDirectClient
 }));
 
-vi.mock('./stores/configStore.js', async () => { // Adjusted path
+vi.mock('./stores/configStore.js', async () => {
+  // Adjusted path
   const actualConfigStore =
     await vi.importActual<typeof import('./stores/configStore.js')>('./stores/configStore.js');
   return {

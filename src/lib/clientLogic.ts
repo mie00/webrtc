@@ -98,7 +98,8 @@ export class ClientLogic implements AppLogic {
         let answererCid: string;
         answererCid = await webRTCApp.getAnswer(
           offer,
-          async (candidate: RTCIceCandidateInit | null, iceCallbackCid?: string) => { // Expect cid from callback
+          async (candidate: RTCIceCandidateInit | null, iceCallbackCid?: string) => {
+            // Expect cid from callback
             if (Date.now() - now > 10 * 1000) {
               return;
             }
@@ -175,7 +176,8 @@ export class ClientLogic implements AppLogic {
     let compressedOfferForReturn: string | null = null;
 
     newCidForOffer = await webRTCApp.getOffer(
-      async (candidate: RTCIceCandidateInit | null, iceCallbackCid?: string) => { // Expect cid from callback
+      async (candidate: RTCIceCandidateInit | null, iceCallbackCid?: string) => {
+        // Expect cid from callback
         if (Date.now() - now > 10 * 1000) {
           return;
         }
