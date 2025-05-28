@@ -32,8 +32,6 @@
     }
   }
 
-  }
-
   function clearExpiryTimer() {
     if (expiryTimerId !== null) {
       clearTimeout(expiryTimerId);
