@@ -120,7 +120,6 @@ interface Window {
 // Assuming you already have `declare global { ... }` for __BROWSER__
 // If not, wrap these in `declare global { ... }`
 declare global {
-
   // From jest-puppeteer (ensure this is declared somewhere, often handled by preset types)
   var __BROWSER__: import('puppeteer').Browser;
 

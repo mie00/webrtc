@@ -1,4 +1,3 @@
-
 async function sendData(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   id: string,
