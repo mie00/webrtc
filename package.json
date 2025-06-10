@@ -2,7 +2,7 @@
   "name": "webrtc-project",
   "version": "1.0.0",
   "description": "WebRTC-based project with TypeScript migration preparation",
-  "main": "electron-main.js",
+  "main": "electron-main.cjs",
   "type": "module",
   "scripts": {
     "build": "vite build",
@@ -91,7 +91,7 @@
           "**/*"
         ]
       },
-      "electron-main.js",
+      "electron-main.cjs",
       "!node_modules/**/*"
     ],
     "win": {
