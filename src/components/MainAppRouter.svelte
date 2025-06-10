@@ -11,6 +11,7 @@
   import { configStore, getAllConfig, type Config } from '../lib/stores/configStore';
   import { connectionStore } from '../lib/stores/connectionStore'; // getDirectClient not used here
   // import { compress, decompress } from '../lib/utils/sdpCompress'; // Not used directly here
+  import DownloadAppOverlay from './DownloadAppOverlay.svelte';
   import type { WebRTCApp } from '../lib/webrtc/WebRTCApp';
   import { appLogicModuleStore, type AppLogicState } from '../lib/stores/appLogicStore'; // Import the store
 
@@ -27,6 +28,7 @@
   let showConfigOverlay = false;
   // currentPath is still used by onMount logic for parameter parsing, but not for /cb routing
   let currentPath = window.location.pathname; // This seems fine as it's only used in onMount before logic init
+  let showDownloadAppOverlay = true; // Controls rendering of DownloadAppOverlay
   // let currentAuthState: AuthState; // No longer needed for UI logic here
 
   // authStore.subscribe(value => { // No longer needed for UI logic here
@@ -34,6 +36,12 @@
   // });
 
   let appLogicInstance: AppLogic | null = null;
+
+  function handleCloseDownloadOverlay() {
+    showDownloadAppOverlay = false;
+    // To make dismissal persistent across sessions, you could use localStorage:
+    // localStorage.setItem('downloadOverlayDismissed_v1', 'true');
+  }
 
   // setState and getState are removed, logic modules will use the store directly.
 
@@ -105,6 +113,11 @@
   // performLoginRedirect and handleLoginClick moved to AuthHandler.svelte
 
   onMount(async () => {
+    // If using localStorage for persistent dismissal, check it here:
+    // if (localStorage.getItem('downloadOverlayDismissed_v1') === 'true') {
+    //   showDownloadAppOverlay = false;
+    // }
+
     const urlParams = new URLSearchParams(window.location.search);
 
     // The /cb path is handled by AuthHandler.svelte and App.svelte ensures
@@ -268,6 +281,10 @@
   onclose={() => (showConfigOverlay = false)}
   onconfigUpdated={handleReset}
 />
+
+{#if showDownloadAppOverlay}
+  <DownloadAppOverlay onClose={handleCloseDownloadOverlay} />
+{/if}
 
 <ForwardOverlay />
 
