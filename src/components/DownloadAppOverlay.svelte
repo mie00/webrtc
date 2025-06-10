@@ -1,4 +1,5 @@
 <script lang="ts">
+  /// <reference path="../../types/global.d.ts" />
   import { onMount } from 'svelte';
 
   export let onClose: () => void; // Parent function to call to hide this overlay

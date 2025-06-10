@@ -1,5 +1,5 @@
 <script lang="ts">
-  /// <reference path="../../../types/global.d.ts" />
+  /// <reference path="../types/global.d.ts" />
   import { WebRTCApp } from './lib/webrtc/WebRTCApp';
   import MainAppRouter from './components/MainAppRouter.svelte';
   import AuthHandler from './components/AuthHandler.svelte';
