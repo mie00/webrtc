@@ -2,11 +2,13 @@
   "name": "webrtc-project",
   "version": "1.0.0",
   "description": "WebRTC-based project with TypeScript migration preparation",
-  "main": "index.js",
+  "main": "electron-main.js",
   "type": "module",
   "scripts": {
     "build": "vite build",
     "dev": "vite dev",
+    "electron:dev": "concurrently \"npm run dev\" \"electron .\"",
+    "electron:build": "npm run build && electron-builder",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test:e2e": "playwright test --grep-invert @slow",
@@ -72,5 +74,32 @@
   },
   "dependencies": {
     "tesseract.js": "^6.0.1"
+  },
+  "build": {
+    "appId": "com.webrtcproject.app",
+    "productName": "WebRTC Project App",
+    "directories": {
+      "output": "build_dir/app"
+    },
+    "files": [
+      {
+        "from": "docs",
+        "to": ".",
+        "filter": [
+          "**/*"
+        ]
+      },
+      "electron-main.js",
+      "!node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   }
 }
