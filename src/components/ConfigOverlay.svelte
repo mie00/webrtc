@@ -3,10 +3,6 @@
     configStore,
     updateConfig,
     type Config,
-    type GeneralConfig,
-    type RtcConfig,
-    type MediaConfig,
-    type ProfileConfig
   } from '../lib/stores/configStore';
   import { onMount } from 'svelte'; // onMount is not strictly needed if using $effect for this
 
