@@ -36,3 +36,4 @@ test-transfer-files/
 tests-out/
 
 coverage/
+build_dir/

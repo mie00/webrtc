@@ -1,9 +1,5 @@
 <script lang="ts">
-  import {
-    configStore,
-    updateConfig,
-    type Config,
-  } from '../lib/stores/configStore';
+  import { configStore, updateConfig, type Config } from '../lib/stores/configStore';
   import { onMount } from 'svelte'; // onMount is not strictly needed if using $effect for this
 
   // Props
