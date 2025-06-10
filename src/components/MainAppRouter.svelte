@@ -1,5 +1,4 @@
 <script lang="ts">
-  /// <reference path="../../types/global.d.ts" />
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   // import { authStore, type AuthState } from '../lib/stores/authStore'; // No longer directly needed for UI

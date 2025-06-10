@@ -1,4 +1,3 @@
-/// <reference path="../../../types/global.d.ts" />
 
 async function sendData(
   reader: ReadableStreamDefaultReader<Uint8Array>,

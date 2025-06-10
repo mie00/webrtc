@@ -1,5 +1,4 @@
 import type { AppLogic, AppLogicContext } from './appLogic';
-/// <reference path="../../../types/global.d.ts" />
 import { getDirectClient } from './stores/connectionStore';
 import { get } from 'svelte/store';
 import { getAllConfig } from './stores/configStore';

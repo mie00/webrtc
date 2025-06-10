@@ -1,5 +1,4 @@
 // Import types from global.d.ts
-/// <reference path="../../../types/global.d.ts" />
 
 import { getAllDirectClients } from '../stores/connectionStore';
 // Use type assertion to handle vendor prefixes

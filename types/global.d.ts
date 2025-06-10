@@ -98,6 +98,10 @@ interface ClientInitOptions {
   offer?: string;
 }
 
+interface Navigator {
+  readonly userAgentData?: NavigatorUAData;
+}
+
 interface Window {
   app: App & {
     recorder?: number;
@@ -116,9 +120,6 @@ interface Window {
 // Assuming you already have `declare global { ... }` for __BROWSER__
 // If not, wrap these in `declare global { ... }`
 declare global {
-  interface Navigator {
-    readonly userAgentData?: NavigatorUAData;
-  }
 
   // From jest-puppeteer (ensure this is declared somewhere, often handled by preset types)
   var __BROWSER__: import('puppeteer').Browser;

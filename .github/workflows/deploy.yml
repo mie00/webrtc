@@ -29,7 +29,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libgtk-3-dev libnss3-dev libxtst-dev libxss1 libasound2 xvfb \
+            libgtk-3-dev libnss3-dev libxtst-dev libxss1 libasound2t64 xvfb \
             libsecret-1-dev libgbm-dev libopenh264-7
 
       # - name: Install system dependencies
