@@ -24,6 +24,14 @@ jobs:
           node-version: '22' # Specify your project's Node.js version (e.g., 18, 20)
           cache: 'npm' # Use 'yarn' if you use Yarn
 
+      - name: Install electron-builder Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-3-dev libnss3-dev libxtst-dev libxss1 libasound2 xvfb \
+            libsecret-1-dev libgbm-dev libopenh264-7
+
       # - name: Install system dependencies
       #   run: |
       #     sudo apt-get update
@@ -47,8 +55,23 @@ jobs:
       # - name: Run Playwright E2E tests
       #   run: npm run test:e2e:ci
 
-      - name: Build project
-        run: npm run build # This command should trigger your Vite build
+      - name: Build website and Electron apps
+        run: npm run electron:build -- --linux --mac --win # Builds Vite site (to docs) and Electron apps (to build_dir/app)
+
+      - name: Prepare downloads directory for Pages artifact
+        run: |
+          SOURCE_DIR="build_dir/app"
+          DEST_DIR="docs/downloads"
+          mkdir -p "${DEST_DIR}"
+          echo "Copying Electron artifacts from ${SOURCE_DIR} to ${DEST_DIR}..."
+          # Copy specific file types. Using find is more robust to naming variations.
+          find "${SOURCE_DIR}" -maxdepth 1 -name '*.exe' -exec cp {} "${DEST_DIR}/" \;
+          find "${SOURCE_DIR}" -maxdepth 1 -name '*.dmg' -exec cp {} "${DEST_DIR}/" \;
+          find "${SOURCE_DIR}" -maxdepth 1 -name '*.AppImage' -exec cp {} "${DEST_DIR}/" \;
+          # Add .zip for mac if it's a common output (electron-builder sometimes creates a .zip for mac)
+          find "${SOURCE_DIR}" -maxdepth 1 -name '*-mac*.zip' -exec cp {} "${DEST_DIR}/" \;
+          echo "Listing contents of ${DEST_DIR}:"
+          ls -lR "${DEST_DIR}"
 
       - name: Upload artifact
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
