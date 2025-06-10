@@ -62,119 +62,93 @@
   }
 </script>
 
-<div
-  class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="download-app-title"
->
-  <div class="bg-white p-6 sm:p-8 rounded-lg shadow-xl max-w-md w-full">
-    <div class="flex justify-between items-center mb-4">
-      <h2 id="download-app-title" class="text-xl font-semibold text-gray-800">
-        Get the Desktop App
-      </h2>
-      <button
-        on:click={handleDismiss}
-        class="text-gray-500 hover:text-gray-700 text-3xl leading-none"
-        aria-label="Close download dialog">&times;</button
-      >
-    </div>
-    <p class="mb-6 text-gray-700">
+<div class="fixed top-0 left-0 right-0 bg-indigo-600 text-white p-3 shadow-lg z-50">
+  <div class="container mx-auto flex items-center justify-between gap-x-4 gap-y-2 flex-wrap">
+    <p class="text-sm flex-grow min-w-[200px]">
       For the best experience and more features, download our desktop application.
     </p>
 
-    <div class="flex items-stretch mb-2">
+    <div class="flex items-center gap-2 flex-shrink-0">
       {#if detectedOS !== 'Unknown'}
         <a
           href={getDownloadLink(detectedOS)}
           download
-          class="flex-grow bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-l-md text-center transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+          class="bg-green-500 hover:bg-green-600 text-white font-semibold py-1.5 px-3 rounded text-xs sm:text-sm transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
         >
-          Download for {osIcons[detectedOS]}
-          {detectedOS}
+          {osIcons[detectedOS]} Download for {detectedOS}
         </a>
         <button
           on:click={() => (showOSSelection = !showOSSelection)}
-          class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-3 rounded-r-md border-l border-blue-500 transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+          class="bg-indigo-500 hover:bg-indigo-400 text-white font-semibold py-1.5 px-2 rounded text-xs sm:text-sm transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-opacity-75"
           aria-label="Select other operating systems"
           aria-expanded={showOSSelection}
+          title="Show other OS options"
         >
-          <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"
+          <svg
+            class="w-4 h-4 fill-current"
+            viewBox="0 0 20 20"
+            xmlns="http://www.w3.org/2000/svg"
             ><path
+              fill-rule="evenodd"
               d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
               clip-rule="evenodd"
-              fill-rule="evenodd"
             ></path></svg
           >
         </button>
       {:else}
-        <button
-          disabled
-          class="flex-grow bg-gray-400 text-white font-bold py-3 px-4 rounded-l-md text-center cursor-not-allowed"
+        <span
+          class="bg-gray-500 text-white font-semibold py-1.5 px-3 rounded text-xs sm:text-sm cursor-not-allowed"
         >
-          Download for {osIcons.Unknown} OS Not Detected
-        </button>
-        <button
-          disabled
-          class="bg-gray-400 text-white font-bold py-3 px-3 rounded-r-md border-l border-gray-300 cursor-not-allowed"
-          aria-label="Select other operating systems"
-        >
-          <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"
-            ><path
-              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-              clip-rule="evenodd"
-              fill-rule="evenodd"
-            ></path></svg
-          >
-        </button>
+          {osIcons.Unknown} OS Not Detected
+        </span>
       {/if}
+      <button
+        on:click={handleDismiss}
+        class="text-indigo-200 hover:text-white text-2xl sm:text-3xl leading-none p-1 -mr-1 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-opacity-75"
+        aria-label="Dismiss download message">&times;</button
+      >
     </div>
-
-    {#if showOSSelection && detectedOS !== 'Unknown'}
-      <div class="mt-4 border-t pt-4">
-        <p class="text-sm text-gray-600 mb-2">Or download for another platform:</p>
-        <ul class="space-y-2">
-          {#if detectedOS !== 'Windows'}
-            <li>
-              <a
-                href={downloadLinks.Windows}
-                download
-                class="text-blue-600 hover:text-blue-700 hover:underline"
-                >{osIcons.Windows} Windows</a
-              >
-            </li>
-          {/if}
-          {#if detectedOS !== 'macOS'}
-            <li>
-              <a
-                href={downloadLinks.macOS}
-                download
-                class="text-blue-600 hover:text-blue-700 hover:underline"
-                >{osIcons.macOS} macOS (.dmg)</a
-              >
-            </li>
-            <!-- If you also provide a .zip for macOS, uncomment below -->
-            <!-- <li><a href={downloadLinks.macOSZip} download class="text-blue-600 hover:text-blue-700 hover:underline">{osIcons.macOS} macOS (.zip)</a></li> -->
-          {/if}
-          {#if detectedOS !== 'Linux'}
-            <li>
-              <a
-                href={downloadLinks.Linux}
-                download
-                class="text-blue-600 hover:text-blue-700 hover:underline"
-                >{osIcons.Linux} Linux (.AppImage)</a
-              >
-            </li>
-          {/if}
-        </ul>
-      </div>
-    {/if}
-
-    <button
-      on:click={handleDismiss}
-      class="mt-6 w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50"
-    >
-      Maybe Later
-    </button>
   </div>
+
+  {#if showOSSelection && detectedOS !== 'Unknown'}
+    <div
+      class="container mx-auto mt-2 p-3 bg-indigo-700 rounded-b-md shadow-lg border-t border-indigo-500"
+    >
+      <p class="text-xs text-indigo-200 mb-2">Or download for another platform:</p>
+      <ul class="flex flex-wrap gap-x-4 gap-y-1.5">
+        {#if detectedOS !== 'Windows'}
+          <li>
+            <a
+              href={downloadLinks.Windows}
+              download
+              class="text-sm text-indigo-100 hover:text-white hover:underline focus:outline-none focus:ring-1 focus:ring-white rounded px-0.5 py-0.5"
+              >{osIcons.Windows} Windows</a
+            >
+          </li>
+        {/if}
+        {#if detectedOS !== 'macOS'}
+          <li>
+            <a
+              href={downloadLinks.macOS}
+              download
+              class="text-sm text-indigo-100 hover:text-white hover:underline focus:outline-none focus:ring-1 focus:ring-white rounded px-0.5 py-0.5"
+              >{osIcons.macOS} macOS (.dmg)</a
+            >
+          </li>
+          <!-- If you also provide a .zip for macOS, uncomment below -->
+          <!-- <li><a href={downloadLinks.macOSZip} download class="text-sm text-indigo-100 hover:text-white hover:underline">{osIcons.macOS} macOS (.zip)</a></li> -->
+        {/if}
+        {#if detectedOS !== 'Linux'}
+          <li>
+            <a
+              href={downloadLinks.Linux}
+              download
+              class="text-sm text-indigo-100 hover:text-white hover:underline focus:outline-none focus:ring-1 focus:ring-white rounded px-0.5 py-0.5"
+              >{osIcons.Linux} Linux (.AppImage)</a
+            >
+          </li>
+        {/if}
+      </ul>
+    </div>
+  {/if}
 </div>
