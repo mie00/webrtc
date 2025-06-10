@@ -10,6 +10,19 @@ declare class SelfieSegmentation {
   send(data: { image: HTMLVideoElement }): Promise<void>;
 }
 
+// User-Agent Client Hints API
+interface UADataBrand {
+  readonly brand: string;
+  readonly version: string;
+}
+
+interface NavigatorUAData {
+  readonly brands: ReadonlyArray<UADataBrand>;
+  readonly mobile: boolean;
+  readonly platform: string;
+  getHighEntropyValues(hints: string[]): Promise<Record<string, any>>;
+}
+
 // Socket.io client types
 declare const io: (url: string, options?: any) => any;
 
@@ -103,6 +116,10 @@ interface Window {
 // Assuming you already have `declare global { ... }` for __BROWSER__
 // If not, wrap these in `declare global { ... }`
 declare global {
+  interface Navigator {
+    readonly userAgentData?: NavigatorUAData;
+  }
+
   // From jest-puppeteer (ensure this is declared somewhere, often handled by preset types)
   var __BROWSER__: import('puppeteer').Browser;
 

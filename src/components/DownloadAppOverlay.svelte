@@ -31,7 +31,7 @@
     // Check if running in Electron
     if (window.navigator.userAgentData?.brands) {
       isElectron = window.navigator.userAgentData.brands.some(
-        (brand) => brand.brand === 'Electron'
+        (brand: UADataBrand) => brand.brand === 'Electron'
       );
     } else {
       isElectron = navigator.userAgent.toLowerCase().includes('electron/');
@@ -84,31 +84,53 @@
     </p>
 
     <div class="flex items-stretch mb-2">
-      <a
-        href={getDownloadLink(detectedOS)}
-        download
-        class="flex-grow bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-l-md text-center transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-      >
-        Download for {osIcons[detectedOS]}
-        {detectedOS}
-      </a>
-      <button
-        on:click={() => (showOSSelection = !showOSSelection)}
-        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-3 rounded-r-md border-l border-blue-500 transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-        aria-label="Select other operating systems"
-        aria-expanded={showOSSelection}
-      >
-        <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"
-          ><path
-            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-            clip-rule="evenodd"
-            fill-rule="evenodd"
-          ></path></svg
+      {#if detectedOS !== 'Unknown'}
+        <a
+          href={getDownloadLink(detectedOS)}
+          download
+          class="flex-grow bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-l-md text-center transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
         >
-      </button>
+          Download for {osIcons[detectedOS]}
+          {detectedOS}
+        </a>
+        <button
+          on:click={() => (showOSSelection = !showOSSelection)}
+          class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-3 rounded-r-md border-l border-blue-500 transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+          aria-label="Select other operating systems"
+          aria-expanded={showOSSelection}
+        >
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"
+            ><path
+              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+              clip-rule="evenodd"
+              fill-rule="evenodd"
+            ></path></svg
+          >
+        </button>
+      {:else}
+        <button
+          disabled
+          class="flex-grow bg-gray-400 text-white font-bold py-3 px-4 rounded-l-md text-center cursor-not-allowed"
+        >
+          Download for {osIcons.Unknown} OS Not Detected
+        </button>
+        <button
+          disabled
+          class="bg-gray-400 text-white font-bold py-3 px-3 rounded-r-md border-l border-gray-300 cursor-not-allowed"
+          aria-label="Select other operating systems"
+        >
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"
+            ><path
+              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+              clip-rule="evenodd"
+              fill-rule="evenodd"
+            ></path></svg
+          >
+        </button>
+      {/if}
     </div>
 
-    {#if showOSSelection}
+    {#if showOSSelection && detectedOS !== 'Unknown'}
       <div class="mt-4 border-t pt-4">
         <p class="text-sm text-gray-600 mb-2">Or download for another platform:</p>
         <ul class="space-y-2">
