@@ -17,7 +17,7 @@ function createWindow() {
     }
   });
 
-  const viteDevServerUrl = 'http://localhost:3000'; // As per your vite.config.js
+  const viteDevServerUrl = 'http://127.0.0.1:3000'; // As per your vite.config.js
 
   if (app.isPackaged) {
     // In production, load the index.html from the root of the app package.
