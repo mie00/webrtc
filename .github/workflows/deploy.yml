@@ -12,7 +12,7 @@ permissions:
   id-token: write
 
 jobs:
-  build:
+  build_and_test_linux:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -21,24 +21,18 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22' # Specify your project's Node.js version (e.g., 18, 20)
-          cache: 'npm' # Use 'yarn' if you use Yarn
+          node-version: '22'
+          cache: 'npm'
 
       - name: Install electron-builder Linux dependencies
-        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libgtk-3-dev libnss3-dev libxtst-dev libxss1 libasound2t64 xvfb \
             libsecret-1-dev libgbm-dev libopenh264-7
 
-      # - name: Install system dependencies
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y ffmpeg qrencode imagemagick
-
       - name: Install dependencies
-        run: npm ci # Use 'yarn install --frozen-lockfile' if you use Yarn
+        run: npm ci
 
       - name: Run lint
         run: npm run lint
@@ -50,43 +44,135 @@ jobs:
         run: npm run test
 
       # - name: Install Playwright browsers
-      #   run: npx playwright install --with-deps # --with-deps installs system dependencies for browsers
+      #   run: npx playwright install --with-deps
 
       # - name: Run Playwright E2E tests
       #   run: npm run test:e2e:ci
 
-      - name: Build website and Electron apps
-        run: |
-          if [[ "$RUNNER_OS" == "macOS" ]]; then
-            npm run electron:build -- --linux --mac --win
-          else
-            npm run electron:build -- --linux --win
-          fi
+      - name: Build Vite site and Linux Electron app
+        run: npm run electron:build -- --linux
+
+      - name: Upload Linux App
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-app
+          path: build_dir/app/*.AppImage
+          if-no-files-found: error
+
+      - name: Upload Vite site (docs folder)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vite-site
+          path: docs
+          if-no-files-found: error
+
+  build_macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build macOS Electron app
+        run: npm run electron:build -- --mac
+
+      - name: Upload macOS App
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-app
+          path: build_dir/app/*.dmg
+          if-no-files-found: error
+          # electron-builder might also produce -mac.zip for universal builds or specific targets
+          # path: |
+          #   build_dir/app/*.dmg
+          #   build_dir/app/*-mac.zip 
+
+  build_windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows Electron app
+        run: npm run electron:build -- --win
+
+      - name: Upload Windows App
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-app
+          path: build_dir/app/*.exe # Or potentially build_dir/app/*.msi, build_dir/app/* Setup *.exe
+          if-no-files-found: error
+
+  assemble_artifacts_for_pages:
+    runs-on: ubuntu-latest
+    needs: [build_and_test_linux, build_macos, build_windows]
+    steps:
+      - name: Checkout repository (for docs structure if needed, though vite-site artifact provides it)
+        uses: actions/checkout@v4 # Only needed if you have other static files in docs not from Vite
+
+      - name: Download Vite site artifact (docs folder)
+        uses: actions/download-artifact@v4
+        with:
+          name: vite-site
+          path: docs # This will place the contents of the artifact into the 'docs' directory
+
+      - name: Download Linux app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-app
+          path: temp_downloads/linux
+
+      - name: Download macOS app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-app
+          path: temp_downloads/macos
+
+      - name: Download Windows app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-app
+          path: temp_downloads/windows
 
       - name: Prepare downloads directory for Pages artifact
         run: |
-          SOURCE_DIR="build_dir/app"
           DEST_DIR="docs/downloads"
           mkdir -p "${DEST_DIR}"
-          echo "Copying Electron artifacts from ${SOURCE_DIR} to ${DEST_DIR}..."
-          # Copy specific file types. Using find is more robust to naming variations.
-          find "${SOURCE_DIR}" -maxdepth 1 -name '*.exe' -exec cp {} "${DEST_DIR}/" \;
-          find "${SOURCE_DIR}" -maxdepth 1 -name '*.dmg' -exec cp {} "${DEST_DIR}/" \;
-          find "${SOURCE_DIR}" -maxdepth 1 -name '*.AppImage' -exec cp {} "${DEST_DIR}/" \;
-          # Add .zip for mac if it's a common output (electron-builder sometimes creates a .zip for mac)
-          find "${SOURCE_DIR}" -maxdepth 1 -name '*-mac*.zip' -exec cp {} "${DEST_DIR}/" \;
+          echo "Copying Electron artifacts to ${DEST_DIR}..."
+          find temp_downloads/linux -maxdepth 1 -name '*.AppImage' -exec cp {} "${DEST_DIR}/" \;
+          find temp_downloads/macos -maxdepth 1 -name '*.dmg' -exec cp {} "${DEST_DIR}/" \;
+          # find temp_downloads/macos -maxdepth 1 -name '*-mac.zip' -exec cp {} "${DEST_DIR}/" \; # If you also build zips for mac
+          find temp_downloads/windows -maxdepth 1 -name '*.exe' -exec cp {} "${DEST_DIR}/" \;
           echo "Listing contents of ${DEST_DIR}:"
           ls -lR "${DEST_DIR}"
+          echo "Listing contents of docs directory:"
+          ls -lR docs
 
-      - name: Upload artifact
+      - name: Upload Pages artifact
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
         with:
-          # Path to the directory to upload (Vite builds to 'docs' as per your vite.config.js)
           path: ./docs
 
   deploy:
-    needs: build
+    needs: assemble_artifacts_for_pages
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
