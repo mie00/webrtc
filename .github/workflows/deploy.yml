@@ -50,7 +50,7 @@ jobs:
       #   run: npm run test:e2e:ci
 
       - name: Build Vite site and Linux Electron app
-        run: npm run electron:build -- --linux --publish never
+        run: npm run electron:build -- --linux
 
       - name: Upload Linux App
         uses: actions/upload-artifact@v4
@@ -82,7 +82,7 @@ jobs:
         run: npm ci
 
       - name: Build macOS Electron app
-        run: npm run electron:build -- --mac --publish never
+        run: npm run electron:build -- --mac
 
       - name: Upload macOS App
         uses: actions/upload-artifact@v4
@@ -93,7 +93,7 @@ jobs:
           # electron-builder might also produce -mac.zip for universal builds or specific targets
           # path: |
           #   build_dir/app/*.dmg
-          #   build_dir/app/*-mac.zip 
+          #   build_dir/app/*-mac.zip
 
   build_windows:
     runs-on: windows-latest
@@ -111,7 +111,7 @@ jobs:
         run: npm ci
 
       - name: Build Windows Electron app
-        run: npm run electron:build -- --win --publish never
+        run: npm run electron:build -- --win
 
       - name: Upload Windows App
         uses: actions/upload-artifact@v4
