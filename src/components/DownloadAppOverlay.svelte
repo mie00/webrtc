@@ -13,7 +13,7 @@
 
   const downloadLinks = {
     Windows: `/downloads/${appName} Setup ${appVersion}.exe`,
-    macOS: `/downloads/${appName}-${appVersion}.dmg`,
+    macOS: `/downloads/${appName}-${appVersion}-arm64.dmg`,
     Linux: `/downloads/${appName}-${appVersion}.AppImage`
     // electron-builder might also produce a .zip for mac:
     // macOSZip: `/downloads/${appName}-mac-${appVersion}.zip`,
