@@ -5,7 +5,7 @@ import { tick } from 'svelte';
 import ConfigOverlay from './ConfigOverlay.svelte';
 
 // Mock the configStore as it's used internally by the component
-vi.mock('../stores/configStore.ts', async () => {
+vi.mock('../lib/stores/configStore.ts', async () => {
   // Added async here
   const {
     writable: actualWritable
