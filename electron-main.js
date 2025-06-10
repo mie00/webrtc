@@ -12,9 +12,9 @@ function createWindow() {
     height: 768,
     webPreferences: {
       nodeIntegration: false, // Disable Node.js integration in renderer process for security
-      contextIsolation: true, // Enable context isolation for security
+      contextIsolation: true // Enable context isolation for security
       // preload: path.join(__dirname, 'preload.js'), // Optional: if you need a preload script
-    },
+    }
   });
 
   const viteDevServerUrl = 'http://localhost:3000'; // As per your vite.config.js
