@@ -22,7 +22,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+          cache: 'pnpm' # Changed from npm to pnpm
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest # Or specify a pnpm version
 
       - name: Install electron-builder Linux dependencies
         run: |
@@ -32,25 +37,25 @@ jobs:
             libsecret-1-dev libgbm-dev libopenh264-7
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install
 
       - name: Run lint
-        run: npm run lint
+        run: pnpm lint
 
       - name: Run Svelte check
-        run: npm run check
+        run: pnpm check
 
       - name: Run tests
-        run: npm run test
+        run: pnpm test
 
       # - name: Install Playwright browsers
-      #   run: npx playwright install --with-deps
+      #   run: pnpm exec playwright install --with-deps
 
       # - name: Run Playwright E2E tests
-      #   run: npm run test:e2e:ci
+      #   run: pnpm test:e2e:ci
 
       - name: Build Linux Electron app
-        run: npm run electron:build -- --linux
+        run: pnpm electron:build -- --linux
 
       - name: Upload Linux App
         uses: actions/upload-artifact@v4
@@ -80,13 +85,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+          cache: 'pnpm' # Changed from npm to pnpm
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest # Or specify a pnpm version
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install
 
       - name: Build macOS Electron app
-        run: npm run electron:build -- --mac
+        run: pnpm electron:build -- --mac
 
       - name: Upload macOS App
         uses: actions/upload-artifact@v4
@@ -110,13 +120,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+          cache: 'pnpm' # Changed from npm to pnpm
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest # Or specify a pnpm version
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install
 
       - name: Build Windows Electron app
-        run: npm run electron:build -- --win
+        run: pnpm electron:build -- --win
 
       - name: Upload Windows App
         uses: actions/upload-artifact@v4
