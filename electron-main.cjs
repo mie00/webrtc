@@ -20,10 +20,8 @@ function createWindow() {
   const viteDevServerUrl = 'http://127.0.0.1:3000'; // As per your vite.config.js
 
   if (app.isPackaged) {
-    // In production, load the index.html from the root of the app package.
-    // Vite's build output from 'docs/' will be copied to the app package root.
-    const indexPath = path.join(__dirname, 'index.html');
-    mainWindow.loadFile(indexPath);
+    // In production, load the remote URL.
+    mainWindow.loadURL('https://webrtc.mie00.com');
   } else {
     // In development, load from the Vite dev server
     mainWindow.loadURL(viteDevServerUrl);

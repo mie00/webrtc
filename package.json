@@ -84,13 +84,6 @@
       "output": "build_dir/app"
     },
     "files": [
-      {
-        "from": "docs",
-        "to": ".",
-        "filter": [
-          "**/*"
-        ]
-      },
       "electron-main.cjs",
       "package.json",
       "!node_modules/**/*"
