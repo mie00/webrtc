@@ -50,7 +50,6 @@
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
     "diff": "^7.0.0",
-    "dmg-license": "^1.0.11",
     "electron": "^36.4.0",
     "electron-builder": "^26.0.12",
     "fluent-ffmpeg": "^2.1.3",

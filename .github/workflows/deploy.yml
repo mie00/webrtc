@@ -56,7 +56,12 @@ jobs:
       #   run: npm run test:e2e:ci
 
       - name: Build website and Electron apps
-        run: npm run electron:build -- --linux --mac --win # Builds Vite site (to docs) and Electron apps (to build_dir/app)
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            npm run electron:build -- --linux --mac --win
+          else
+            npm run electron:build -- --linux --win
+          fi
 
       - name: Prepare downloads directory for Pages artifact
         run: |
