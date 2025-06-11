@@ -163,21 +163,23 @@ export class BrowserRecorder implements IRecorder {
           return;
         }
         const { dx, dy, width, height } = calculateFit(position, streamInfo);
-        merger.addStream(streamInfo.key, streamInfo.stream, {
+        const videoOptions: AddStreamOptions = {
           x: position.x + dx,
           y: position.y + dy,
           width,
           height,
           mute: false,
           index: 0 // Adjust index for layering if needed
-        } as AddStreamOptions);
+        };
+        merger.addStream(streamInfo.key, streamInfo.stream, videoOptions);
       }
     });
 
     // Add new audio-only streams
     currentAudioStreams.forEach((streamInfo) => {
       if (!oldStreamKeys.has(streamInfo.key)) {
-        merger.addStream(streamInfo.key, streamInfo.stream, { mute: false } as AddStreamOptions);
+        const audioOptions: AddStreamOptions = { mute: false };
+        merger.addStream(streamInfo.key, streamInfo.stream, audioOptions);
       }
     });
     this.internalState.lastStreamKeys = newStreamKeys;
