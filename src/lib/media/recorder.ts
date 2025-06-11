@@ -15,10 +15,16 @@ const FW = 1920;
 const FH = 1080;
 interface RecorderState {
   isRecording: boolean;
-  merger: any | null;
-  mediaRecorder: MediaRecorder | null;
+  merger: VideoStreamMerger | null;
+  mediaRecorder: MediaRecorder | null; // Used for non-Electron recording
   updateInterval: number | null;
-  lastStreams: string[];
+  lastStreams: string[]; // Used for non-Electron stream management
+  // Electron-specific state
+  isElectron: boolean;
+  electronRecorders: Record<
+    string,
+    { recorder: MediaRecorder; fileIdentifier: string; firstChunkSent: boolean }
+  >;
 }
 
 // Create a Svelte store for recorder state
@@ -27,10 +33,13 @@ export const recorderStore = writable<RecorderState>({
   merger: null,
   mediaRecorder: null,
   updateInterval: null,
-  lastStreams: []
+  lastStreams: [],
+  // @ts-ignore // electronRecorderAPI is injected by preload script
+  isElectron: typeof window !== 'undefined' && !!window.electronRecorderAPI,
+  electronRecorders: {}
 });
 
-interface StreamInfo {
+interface StreamInfo { // Used for merger layout
   id: string;
   key: string;
   stream: MediaStream;
@@ -186,96 +195,214 @@ export function calculateFit(position: Position, streamInfo: StreamInfo): FitRes
   return { dx, dy, width, height };
 }
 
-// Start recording
-export async function startRecording(): Promise<void> {
-  // Create a new merger
-  const merger = new VideoStreamMerger();
-  merger.setOutputSize(FW, FH);
+// --- Electron Specific Recording Logic ---
 
-  // Set up initial streams
-  await setupStreams(merger);
+// @ts-ignore
+const electronAPI = typeof window !== 'undefined' ? window.electronRecorderAPI : undefined;
 
-  // Start the merger
-  merger.start();
+async function updateElectronStreamRecorders(): Promise<void> {
+  if (!get(recorderStore).isRecording || !electronAPI) return;
 
-  // Set up media recorder
-  const options = window.isFirefox
-    ? { mimeType: 'video/webm' }
-    : { mimeType: 'video/webm; codecs=vp9' };
-  const mediaRecorder = new MediaRecorder(merger.result!, options);
+  const streamState = getStreamState();
+  const currentRecorders = get(recorderStore).electronRecorders;
+  const activeStreamKeys = new Set<string>();
 
-  // Handle data available event
-  mediaRecorder.ondataavailable = async (ev: BlobEvent) => {
-    if (ev.data.size > 0) {
-      // Create a link element for downloading
-      const anchor = document.createElement('a');
-      anchor.href = window.URL.createObjectURL(ev.data);
-      anchor.download = 'mie-webrtc-video.mp4';
+  const processStream = async (
+    streamKey: string,
+    stream: MediaStream,
+    cid: string,
+    type: 'local' | 'remote'
+  ) => {
+    activeStreamKeys.add(streamKey);
+    if (!currentRecorders[streamKey] && stream.active) {
+      const timestamp = Date.now();
+      // Sanitize streamKey for use in filename (remove special chars, limit length)
+      const sanitizedStreamKey = streamKey.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 50);
+      const fileIdentifier = `rec-${cid}-${type}-${sanitizedStreamKey}-${timestamp}`;
 
-      // Append the anchor to the body and programmatically click it to trigger download
-      document.body.appendChild(anchor);
-      anchor.click();
+      const options = window.isFirefox
+        ? { mimeType: 'video/webm' }
+        : { mimeType: 'video/webm; codecs=vp9' }; // Or h264 if preferred and available
+      const recorder = new MediaRecorder(stream, options);
 
-      // Clean up
-      setTimeout(() => {
-        document.body.removeChild(anchor);
-        window.URL.revokeObjectURL(anchor.href);
-      }, 100);
+      const recorderWrapper = {
+        recorder,
+        fileIdentifier,
+        firstChunkSent: false
+      };
+
+      recorder.ondataavailable = async (event: BlobEvent) => {
+        if (event.data.size > 0 && electronAPI) {
+          try {
+            const buffer = await event.data.arrayBuffer();
+            await electronAPI.writeChunk(recorderWrapper.fileIdentifier, buffer);
+            if (!recorderWrapper.firstChunkSent) {
+              recorderWrapper.firstChunkSent = true; // Mark after first successful write
+            }
+          } catch (err) {
+            console.error('Error sending chunk to Electron main:', err);
+            // Optionally stop this specific recorder on error
+            // recorder.stop();
+          }
+        }
+      };
+
+      recorder.onstop = async () => {
+        if (electronAPI && recorderWrapper.firstChunkSent) { // Only finalize if data was sent
+          await electronAPI.finalizeFile(recorderWrapper.fileIdentifier);
+        }
+        // Clean up this recorder from the store
+        recorderStore.update((s) => {
+          const newRecorders = { ...s.electronRecorders };
+          delete newRecorders[streamKey];
+          return { ...s, electronRecorders: newRecorders };
+        });
+      };
+      
+      recorder.onerror = (event) => {
+        console.error('MediaRecorder error for stream', streamKey, event);
+      };
+
+      recorder.start(1000); // Timeslice: 1s chunks
+      recorderStore.update((s) => ({
+        ...s,
+        electronRecorders: { ...s.electronRecorders, [streamKey]: recorderWrapper }
+      }));
+      console.log(`Started Electron recording for stream: ${streamKey}, file: ${fileIdentifier}.webm`);
     }
   };
 
-  // Start recording
-  mediaRecorder.start();
+  // Process local streams
+  for (const [key, data] of Object.entries(streamState.localStreams)) {
+    if (data.stream && data.sendable) {
+      // Using "localuser" as CID placeholder for local streams.
+      // This should be replaced with actual local user CID if available.
+      await processStream(`local-${key}`, data.stream, 'localuser', 'local');
+    }
+  }
 
-  // Set up interval to update streams
-  const updateInterval = window.setInterval(() => setupStreams(merger), 1000);
+  // Process remote streams
+  for (const peerData of Object.values(streamState.remoteStreams)) {
+    for (const [key, stream] of Object.entries(peerData.streams)) {
+      await processStream(`remote-${peerData.peerId}-${key}`, stream, peerData.peerId, 'remote');
+    }
+  }
 
-  // Update store
-  recorderStore.update((state) => ({
-    ...state,
-    isRecording: true,
-    merger,
-    mediaRecorder,
-    updateInterval
-  }));
+  // Stop recorders for streams that are no longer active or present
+  for (const [streamKey, recorderWrapper] of Object.entries(currentRecorders)) {
+    if (!activeStreamKeys.has(streamKey)) {
+      console.log(`Stopping Electron recording for obsolete stream: ${streamKey}`);
+      recorderWrapper.recorder.stop(); // onstop will handle finalization and cleanup
+    }
+  }
 }
 
-// Stop recording
-export function stopRecording(): void {
+async function startElectronRecording(): Promise<void> {
+  if (!electronAPI) {
+    console.error('Electron API not available for recording.');
+    return;
+  }
+  recorderStore.update((s) => ({
+    ...s,
+    isRecording: true,
+    electronRecorders: {}, // Clear any previous recorders
+    updateInterval: window.setInterval(updateElectronStreamRecorders, 2000) // Check for new/removed streams
+  }));
+  await updateElectronStreamRecorders(); // Initial check
+  console.log('Electron recording started.');
+}
+
+function stopElectronRecording(): void {
   const state = get(recorderStore);
-
-  // Stop media recorder
-  if (state.mediaRecorder) {
-    state.mediaRecorder.stop();
-  }
-
-  // Destroy merger
-  if (state.merger) {
-    state.merger.destroy();
-  }
-
-  // Clear interval
   if (state.updateInterval) {
     clearInterval(state.updateInterval);
   }
-
-  // Update store
-  recorderStore.update((state) => ({
-    ...state,
+  Object.values(state.electronRecorders).forEach(({ recorder }) => {
+    if (recorder.state === 'recording') {
+      recorder.stop(); // onstop handles finalization
+    }
+  });
+  recorderStore.update((s) => ({
+    ...s,
     isRecording: false,
-    merger: null,
-    mediaRecorder: null,
-    updateInterval: null,
-    lastStreams: []
+    electronRecorders: {},
+    updateInterval: null
   }));
+  console.log('Electron recording stopped.');
 }
 
-// Toggle recording
+// --- Generic Recording Control ---
+
+export async function startRecording(): Promise<void> {
+  const state = get(recorderStore);
+  if (state.isElectron) {
+    await startElectronRecording();
+  } else {
+    // Non-Electron: Use VideoStreamMerger
+    const merger = new VideoStreamMerger();
+    merger.setOutputSize(FW, FH);
+    await setupStreams(merger); // Existing setupStreams for merger
+    merger.start();
+
+    const options = window.isFirefox
+      ? { mimeType: 'video/webm' }
+      : { mimeType: 'video/webm; codecs=vp9' };
+    const mediaRecorder = new MediaRecorder(merger.result!, options);
+
+    mediaRecorder.ondataavailable = async (ev: BlobEvent) => {
+      if (ev.data.size > 0) {
+        const anchor = document.createElement('a');
+        anchor.href = window.URL.createObjectURL(ev.data);
+        anchor.download = 'mie-webrtc-video.mp4';
+        document.body.appendChild(anchor);
+        anchor.click();
+        setTimeout(() => {
+          document.body.removeChild(anchor);
+          window.URL.revokeObjectURL(anchor.href);
+        }, 100);
+      }
+    };
+    mediaRecorder.start();
+    const updateInterval = window.setInterval(() => setupStreams(merger), 1000);
+    recorderStore.update((s) => ({
+      ...s,
+      isRecording: true,
+      merger,
+      mediaRecorder,
+      updateInterval
+    }));
+  }
+}
+
+export function stopRecording(): void {
+  const state = get(recorderStore);
+  if (state.isElectron) {
+    stopElectronRecording();
+  } else {
+    // Non-Electron: Stop merger and its recorder
+    if (state.mediaRecorder) state.mediaRecorder.stop();
+    if (state.merger) state.merger.destroy();
+    if (state.updateInterval) clearInterval(state.updateInterval);
+    recorderStore.update((s) => ({
+      ...s,
+      isRecording: false,
+      merger: null,
+      mediaRecorder: null,
+      updateInterval: null,
+      lastStreams: []
+    }));
+  }
+}
+
 export function toggleRecording(): void {
   const state = get(recorderStore);
   if (state.isRecording) {
     stopRecording();
   } else {
-    startRecording();
+    startRecording().catch(error => {
+      console.error("Failed to start recording:", error);
+      // Optionally reset recording state if start fails
+      recorderStore.update(s => ({...s, isRecording: false}));
+    });
   }
 }
