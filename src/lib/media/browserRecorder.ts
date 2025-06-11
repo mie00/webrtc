@@ -1,7 +1,4 @@
-import {
-  VideoStreamMerger,
-  type AddStreamOptions
-} from 'video-stream-merger';
+import { VideoStreamMerger, type AddStreamOptions } from 'video-stream-merger';
 import { getStreamState } from '../stores/streamStore';
 import { normalizeStreamId } from './stream';
 import { calculateGridPositions, type Position } from './streamLayout';
@@ -63,7 +60,10 @@ export class BrowserRecorder implements IRecorder {
 
   stop(): void {
     console.log('Browser recording stopped via BrowserRecorder.');
-    if (this.internalState.mediaRecorder && this.internalState.mediaRecorder.state === 'recording') {
+    if (
+      this.internalState.mediaRecorder &&
+      this.internalState.mediaRecorder.state === 'recording'
+    ) {
       this.internalState.mediaRecorder.stop();
     }
     if (this.internalState.merger) {
@@ -90,7 +90,7 @@ export class BrowserRecorder implements IRecorder {
     }
     const streamMetadata = getStreamMetadata(normalizeStreamId(stream.id || ''));
     if (streamMetadata?.width && streamMetadata?.height) {
-        return streamMetadata.width / streamMetadata.height;
+      return streamMetadata.width / streamMetadata.height;
     }
     return 16 / 9; // Default aspect ratio
   }
@@ -106,7 +106,11 @@ export class BrowserRecorder implements IRecorder {
     // Collect local streams
     Object.entries(streamState.localStreams).forEach(([key, data]) => {
       if (data.stream && data.sendable) {
-        const streamInfo: StreamInfo = { id: normalizeStreamId(data.stream.id || key), key: `local-${key}`, stream: data.stream };
+        const streamInfo: StreamInfo = {
+          id: normalizeStreamId(data.stream.id || key),
+          key: `local-${key}`,
+          stream: data.stream
+        };
         if (data.stream.getVideoTracks().length > 0) currentVideoStreams.push(streamInfo);
         else if (data.stream.getAudioTracks().length > 0) currentAudioStreams.push(streamInfo);
       }
@@ -116,17 +120,23 @@ export class BrowserRecorder implements IRecorder {
     Object.values(streamState.remoteStreams).forEach((peerData) => {
       Object.entries(peerData.streams).forEach(([streamId, stream]) => {
         const key = `remote-${peerData.peerId}-${streamId}`;
-        const streamInfo: StreamInfo = { id: normalizeStreamId(stream.id || streamId), key, stream };
+        const streamInfo: StreamInfo = {
+          id: normalizeStreamId(stream.id || streamId),
+          key,
+          stream
+        };
         if (stream.getVideoTracks().length > 0) currentVideoStreams.push(streamInfo);
         else if (stream.getAudioTracks().length > 0) currentAudioStreams.push(streamInfo);
       });
     });
 
-    const newStreamKeys = new Set([...currentVideoStreams, ...currentAudioStreams].map(s => s.key));
+    const newStreamKeys = new Set(
+      [...currentVideoStreams, ...currentAudioStreams].map((s) => s.key)
+    );
     const oldStreamKeys = this.internalState.lastStreamKeys;
 
     // Remove streams no longer present
-    oldStreamKeys.forEach(key => {
+    oldStreamKeys.forEach((key) => {
       if (!newStreamKeys.has(key)) {
         try {
           merger.removeStream(key);
@@ -137,26 +147,35 @@ export class BrowserRecorder implements IRecorder {
     });
 
     // Add new video streams
-    const streamInfoForLayout = currentVideoStreams.map(s => ({ id: s.id, aspectRatio: this.getAspectRatio(s.stream) }));
+    const streamInfoForLayout = currentVideoStreams.map((s) => ({
+      id: s.id,
+      aspectRatio: this.getAspectRatio(s.stream)
+    }));
     const positions = calculateGridPositions(RECORDER_FW, RECORDER_FH, streamInfoForLayout);
 
-    currentVideoStreams.forEach(streamInfo => {
+    currentVideoStreams.forEach((streamInfo) => {
       if (!oldStreamKeys.has(streamInfo.key)) {
-        const position = positions.find(p => p.id === streamInfo.id);
+        const position = positions.find((p) => p.id === streamInfo.id);
         if (!position) {
-          console.warn(`No position found for video stream ${streamInfo.key} (id ${streamInfo.id})`);
+          console.warn(
+            `No position found for video stream ${streamInfo.key} (id ${streamInfo.id})`
+          );
           return;
         }
         const { dx, dy, width, height } = calculateFit(position, streamInfo);
         merger.addStream(streamInfo.key, streamInfo.stream, {
-          x: position.x + dx, y: position.y + dy, width, height,
-          mute: false, index: 0 // Adjust index for layering if needed
+          x: position.x + dx,
+          y: position.y + dy,
+          width,
+          height,
+          mute: false,
+          index: 0 // Adjust index for layering if needed
         } as AddStreamOptions);
       }
     });
 
     // Add new audio-only streams
-    currentAudioStreams.forEach(streamInfo => {
+    currentAudioStreams.forEach((streamInfo) => {
       if (!oldStreamKeys.has(streamInfo.key)) {
         merger.addStream(streamInfo.key, streamInfo.stream, { mute: false } as AddStreamOptions);
       }
