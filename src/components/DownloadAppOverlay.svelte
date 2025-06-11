@@ -3,10 +3,9 @@
 
   export let onClose: () => void; // Parent function to call to hide this overlay
 
-  // IMPORTANT: Replace 'YOUR_USERNAME/YOUR_REPONAME' with your actual GitHub repository path.
   // For example, if your repo is https://github.com/my-org/my-cool-app,
   // then githubRepoPath should be 'my-org/my-cool-app'.
-  const githubRepoPath = 'YOUR_USERNAME/YOUR_REPONAME';
+  const githubRepoPath = 'mie00/webrtc';
   const releasesPageUrl = `https://github.com/${githubRepoPath}/releases`;
 
   // Values from package.json (can be kept for display if desired, appName is used)
