@@ -51,60 +51,80 @@ app.on('activate', function () {
 });
 
 // Electron recording IPC handlers
-const activeFileStreams = new Map();
+const activeFileStreams = new Map(); // Stores { handle, filePath, pendingWrites, finalizeRequested }
+
+async function closeAndRemoveStream(fileIdentifier) {
+  const streamData = activeFileStreams.get(fileIdentifier);
+  if (streamData) {
+    try {
+      await streamData.handle.close();
+      console.log(`Successfully closed and finalized recording: ${streamData.filePath}`);
+    } catch (closeError) {
+      console.error(
+        `Error closing file handle for ${fileIdentifier} (${streamData.filePath}) during finalization:`,
+        closeError
+      );
+    }
+    activeFileStreams.delete(fileIdentifier);
+  }
+}
 
 ipcMain.handle('electron-recorder:write-chunk', async (event, fileIdentifier, chunkBuffer) => {
+  let streamData = activeFileStreams.get(fileIdentifier);
+
   try {
-    const recordingsPath = app.getPath('videos');
-    await fs.mkdir(recordingsPath, { recursive: true }); // Ensure directory exists
-    const filePath = path.join(recordingsPath, `${fileIdentifier}.webm`);
-
-    if (!activeFileStreams.has(fileIdentifier)) {
-      // First chunk, open file for appending
-      const fileHandle = await fs.open(filePath, 'a');
-      activeFileStreams.set(fileIdentifier, fileHandle);
+    if (!streamData) {
+      const recordingsPath = app.getPath('videos');
+      await fs.mkdir(recordingsPath, { recursive: true }); // Ensure directory exists
+      const filePath = path.join(recordingsPath, `${fileIdentifier}.webm`);
+      const handle = await fs.open(filePath, 'a');
+      streamData = { handle, filePath, pendingWrites: 0, finalizeRequested: false };
+      activeFileStreams.set(fileIdentifier, streamData);
     }
 
-    const fileHandle = activeFileStreams.get(fileIdentifier);
-    if (fileHandle) {
-      await fileHandle.appendFile(Buffer.from(chunkBuffer));
-    } else {
-      console.error(`File handle not found for ${fileIdentifier}`);
-      return false;
-    }
+    streamData.pendingWrites++;
+    await streamData.handle.appendFile(Buffer.from(chunkBuffer));
     return true;
   } catch (error) {
-    console.error(`Error writing chunk for ${fileIdentifier}:`, error);
-    // Attempt to close the handle if it exists on error
-    if (activeFileStreams.has(fileIdentifier)) {
-      try {
-        await activeFileStreams.get(fileIdentifier).close();
-      } catch (closeError) {
-        console.error(`Error closing file handle for ${fileIdentifier} after write error:`, closeError);
-      }
-      activeFileStreams.delete(fileIdentifier);
-    }
+    console.error(
+      `Error processing chunk for ${fileIdentifier}${streamData ? ' (' + streamData.filePath + ')' : ''}:`,
+      error
+    );
     return false;
+  } finally {
+    if (streamData) {
+      streamData.pendingWrites--;
+      if (streamData.pendingWrites < 0) {
+        // This should ideally not happen with correct logic
+        console.warn(`Pending writes for ${fileIdentifier} went negative.`);
+        streamData.pendingWrites = 0;
+      }
+      if (streamData.pendingWrites === 0 && streamData.finalizeRequested) {
+        await closeAndRemoveStream(fileIdentifier);
+      }
+    }
   }
 });
 
 ipcMain.handle('electron-recorder:finalize-file', async (event, fileIdentifier) => {
-  try {
-    if (activeFileStreams.has(fileIdentifier)) {
-      const fileHandle = activeFileStreams.get(fileIdentifier);
-      await fileHandle.close();
-      activeFileStreams.delete(fileIdentifier);
-      console.log(`Finalized recording: ${fileIdentifier}.webm`);
-      return true;
-    }
-    console.warn(`No active file stream to finalize for ${fileIdentifier}`);
-    return false;
-  } catch (error) {
-    console.error(`Error finalizing file ${fileIdentifier}:`, error);
-    // Ensure it's removed from map even if close fails
-    if (activeFileStreams.has(fileIdentifier)) {
-      activeFileStreams.delete(fileIdentifier);
-    }
-    return false;
+  const streamData = activeFileStreams.get(fileIdentifier);
+
+  if (!streamData) {
+    console.warn(
+      `Finalize request for unknown or already finalized file: ${fileIdentifier}. This might happen if no data was ever sent.`
+    );
+    return false; // Or true, as it's effectively "finalized" by not existing
+  }
+
+  streamData.finalizeRequested = true;
+
+  if (streamData.pendingWrites === 0) {
+    await closeAndRemoveStream(fileIdentifier);
+    return true;
+  } else {
+    console.log(
+      `File finalize requested for ${fileIdentifier} (${streamData.filePath}), but ${streamData.pendingWrites} write(s) are pending. Will finalize when writes complete.`
+    );
+    return true; // Optimistically true, as it will be finalized eventually
   }
 });
