@@ -39,7 +39,8 @@ export const recorderStore = writable<RecorderState>({
   electronRecorders: {}
 });
 
-interface StreamInfo { // Used for merger layout
+interface StreamInfo {
+  // Used for merger layout
   id: string;
   key: string;
   stream: MediaStream;
@@ -248,7 +249,8 @@ async function updateElectronStreamRecorders(): Promise<void> {
       };
 
       recorder.onstop = async () => {
-        if (electronAPI && recorderWrapper.firstChunkSent) { // Only finalize if data was sent
+        if (electronAPI && recorderWrapper.firstChunkSent) {
+          // Only finalize if data was sent
           await electronAPI.finalizeFile(recorderWrapper.fileIdentifier);
         }
         // Clean up this recorder from the store
@@ -258,7 +260,7 @@ async function updateElectronStreamRecorders(): Promise<void> {
           return { ...s, electronRecorders: newRecorders };
         });
       };
-      
+
       recorder.onerror = (event) => {
         console.error('MediaRecorder error for stream', streamKey, event);
       };
@@ -268,7 +270,9 @@ async function updateElectronStreamRecorders(): Promise<void> {
         ...s,
         electronRecorders: { ...s.electronRecorders, [streamKey]: recorderWrapper }
       }));
-      console.log(`Started Electron recording for stream: ${streamKey}, file: ${fileIdentifier}.webm`);
+      console.log(
+        `Started Electron recording for stream: ${streamKey}, file: ${fileIdentifier}.webm`
+      );
     }
   };
 
@@ -399,10 +403,10 @@ export function toggleRecording(): void {
   if (state.isRecording) {
     stopRecording();
   } else {
-    startRecording().catch(error => {
-      console.error("Failed to start recording:", error);
+    startRecording().catch((error) => {
+      console.error('Failed to start recording:', error);
       // Optionally reset recording state if start fails
-      recorderStore.update(s => ({...s, isRecording: false}));
+      recorderStore.update((s) => ({ ...s, isRecording: false }));
     });
   }
 }
