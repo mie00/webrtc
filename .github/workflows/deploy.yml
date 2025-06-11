@@ -12,7 +12,7 @@ on:
 
 permissions:
   contents: read # Sufficient for checkout and artifact upload
-  pages: write    # For GitHub Pages deployment
+  pages: write # For GitHub Pages deployment
   id-token: write # For GitHub Pages deployment
 
 jobs:
