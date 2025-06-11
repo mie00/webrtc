@@ -52,35 +52,32 @@ vi.mock('./recorderTypes', async () => {
 
 // Mock dependencies for recorder.ts and its imports (like calculateFit)
 vi.mock('../stores/streamStore', async () => {
-  const svelteStore = await import('svelte/store');
-  const mockStreamStoreInstanceInternal = svelteStore.writable<any>({
+  const actualSvelteStore = await vi.importActual('svelte/store');
+  const mockStreamStoreData = {
     localStreams: {},
     remoteStreams: {},
-    streamConfig: {
-      audio: 'default|Default Audio', // Changed to string
-      camera: 'default|Default Camera', // Changed to string
-      screen: false, // Kept as boolean
-      speaker: 'default|Default Speaker' // Changed to string
-    },
-    isSwitchingAudio: false,
-    isSwitchingCamera: false,
-    isLocalAudioAllowed: true,
-    isLocalVideoAllowed: true
-  });
+    // Ensure this structure matches what BrowserRecorder expects if it uses streamConfig
+    streamConfig: { audio: null, camera: null, screen: false, file: null, videoStream: null },
+    activeView: { layout: 'grid' }
+    // Add other fields as expected by consumers like BrowserRecorder
+  };
+  const mockStreamStoreInstanceInternal = actualSvelteStore.writable(mockStreamStoreData);
   return {
-    getStreamState: vi.fn(() => svelteStore.get(mockStreamStoreInstanceInternal)),
+    getStreamState: vi.fn(() => actualSvelteStore.get(mockStreamStoreInstanceInternal)),
     streamStore: mockStreamStoreInstanceInternal,
-    getLocalStreamsByType: vi.fn(() => ({})), // Added mock for getLocalStreamsByType, returns empty object
-    addLocalStream: vi.fn() // Added mock for addLocalStream
-    // Ensure other exports from the original module are handled if necessary
-    // For example, if StreamState type is used by other modules in a way that affects runtime.
+    // Mock other exports if they are used by the recorder module directly
+    normalizeStreamId: vi.fn(id => id || 'normalized-id'), // if recorder uses this
+    getLocalStreamsByType: vi.fn(() => ({})),
+    addLocalStream: vi.fn()
   };
 });
 
 vi.mock('../stores/localFileStreamStore', () => ({
-  getStreamMetadata: vi.fn()
+  getStreamMetadata: vi.fn().mockReturnValue(null) // Default mock for getStreamMetadata
 }));
 
+// video-stream-merger mock is not strictly needed here anymore if BrowserRecorder is fully mocked,
+// but keeping it doesn't harm if other parts of tests might rely on its presence.
 vi.mock('video-stream-merger', () => {
   const VideoStreamMerger = vi.fn().mockImplementation(() => ({
     setOutputSize: vi.fn(),
@@ -88,12 +85,14 @@ vi.mock('video-stream-merger', () => {
     removeStream: vi.fn(),
     start: vi.fn(),
     destroy: vi.fn(),
-    result: new MediaStream() // Mock the result to be a MediaStream instance
+    result: new MediaStream()
   }));
   return { VideoStreamMerger };
 });
 
-// Mock MediaRecorder and related browser APIs
+
+// Mock browser APIs that might be used by calculateFit or its dependencies
+// These mocks are simplified.
 global.MediaRecorder = vi.fn().mockImplementation(() => ({
   start: vi.fn(),
   stop: vi.fn(),
@@ -104,226 +103,229 @@ global.URL.createObjectURL = vi.fn(() => 'blob:http://localhost/mock-url');
 global.URL.revokeObjectURL = vi.fn();
 document.createElement = vi.fn().mockImplementation((tagName) => {
   if (tagName === 'a') {
-    return {
-      href: '',
-      download: '',
-      click: vi.fn(),
-      appendChild: vi.fn(),
-      removeChild: vi.fn()
-    };
+    return { href: '', download: '', click: vi.fn(), appendChild: vi.fn(), removeChild: vi.fn() };
   }
   return {};
 });
 document.body.appendChild = vi.fn();
 document.body.removeChild = vi.fn();
 
-// Mock MediaStream and MediaStreamTrack
-class MockMediaStreamTrack {
-  kind = 'video';
-  // Initialize getSettings as a Vitest mock function directly in the class
-  getSettings = vi.fn(() => ({ width: 640, height: 480, aspectRatio: 640 / 480 }));
-  stop = vi.fn();
-  applyConstraints = vi.fn();
-  clone = vi.fn(() => this);
-  getCapabilities = vi.fn(() => ({}));
-  getConstraints = vi.fn(() => ({}));
-  getDisplayMedia = vi.fn();
-  getTrackById = vi.fn();
-  label = 'mock-track';
-  enabled = true;
-  id = 'mock-track-id';
-  muted = false;
-  onended = null;
-  onmute = null;
-  onunmute = null;
-  readyState = 'live';
-}
+// Mock MediaStream and MediaStreamTrack for calculateFit and potentially BrowserRecorder if not fully mocked
+// @ts-ignore
+global.MediaStreamTrack = vi.fn().mockImplementation(() => ({
+    kind: 'video',
+    getSettings: vi.fn().mockReturnValue({ width: 640, height: 480 }), // Default settings
+    stop: vi.fn(),
+    label: 'mock-track',
+    enabled: true,
+    id: 'mock-track-id',
+    muted: false,
+    readyState: 'live'
+}));
 
-const mockVideoTrackInstance = new MockMediaStreamTrack(); // Create a single instance
+const mockVideoTrackInstance = new (global.MediaStreamTrack as any)();
 
 global.MediaStream = vi.fn().mockImplementation(() => ({
   active: true,
   id: 'mock-stream-id',
   getTracks: vi.fn(() => [mockVideoTrackInstance]),
-  getVideoTracks: vi.fn(() => [mockVideoTrackInstance]), // Consistently return the same instance
+  getVideoTracks: vi.fn(() => [mockVideoTrackInstance]),
   getAudioTracks: vi.fn(() => []),
   addTrack: vi.fn(),
   removeTrack: vi.fn(),
-  clone: vi.fn(() => new global.MediaStream()),
-  onactive: null,
-  onaddtrack: null,
-  oninactive: null,
-  onremovetrack: null
+  clone: vi.fn(() => new (global.MediaStream as any)())
 })) as any;
 
 describe('recorderStore', () => {
   beforeEach(() => {
     recorderStore.set({
-      isRecording: false,
-      merger: null,
-      mediaRecorder: null,
-      updateInterval: null,
-      lastStreams: [],
-      isElectron: false, // Added
-      electronRecorders: {} // Added
+      isRecording: false
+      // error: null // If using an error field in RecorderState
     });
-    vi.clearAllMocks(); // Clear mocks before each test
+    vi.clearAllMocks();
   });
 
   it('should have correct initial state', () => {
     const state = get(recorderStore);
     expect(state.isRecording).toBe(false);
-    expect(state.merger).toBeNull();
-    expect(state.mediaRecorder).toBeNull();
-    expect(state.updateInterval).toBeNull();
-    expect(state.lastStreams).toEqual([]);
+    // expect(state.error).toBeNull(); // If using an error field
   });
 });
 
+import type { StreamInfo } from './recorderTypes'; // For calculateFit test
+
 describe('calculateFit', () => {
-  const mockStreamInfo = {
-    id: 'stream1',
-    key: 'key1',
-    stream: new MediaStream() // Mocked MediaStream
-  };
+  let mockStream: MediaStream;
+  let mockVideoTrack: MediaStreamTrack; // Use the global mock type
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset settings for the shared mock track instance
-    (mockVideoTrackInstance.getSettings as ReturnType<typeof vi.fn>).mockReturnValue({
-      width: 1280,
-      height: 720
-    });
-    (mockGetStreamMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null); // Default to no specific metadata
+    // Reset or re-initialize mocks for each test
+    // @ts-ignore
+    mockVideoTrack = new global.MediaStreamTrack();
+    (mockVideoTrack.getSettings as ReturnType<typeof vi.fn>).mockReturnValue({ width: 1280, height: 720 }); // Default for tests
+
+    // @ts-ignore
+    mockStream = new global.MediaStream();
+    (mockStream.getVideoTracks as ReturnType<typeof vi.fn>).mockReturnValue([mockVideoTrack]);
+    (mockStream.getAudioTracks as ReturnType<typeof vi.fn>).mockReturnValue([]);
+    (mockStream.getTracks as ReturnType<typeof vi.fn>).mockReturnValue([mockVideoTrack]);
+
+    (mockGetStreamMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null); // Default to no metadata
+  });
+
+  // Define mockStreamInfo inside describe or pass mockStream to it
+  const getMockStreamInfo = (streamInstance: MediaStream): StreamInfo => ({
+    id: 'normalized-stream1', // Should be normalized ID
+    key: 'key1',
+    stream: streamInstance
   });
 
   it('should fit wider video to position width and center vertically', () => {
-    const position: Position = { id: 'stream1', x: 0, y: 0, width: 800, height: 600 }; // Position is 4:3
-    // Video is 16:9 (1280/720)
-    const result = calculateFit(position, mockStreamInfo as any);
+    const position: Position = { id: 'stream1', x: 0, y: 0, width: 800, height: 600 }; // 4:3
+    const currentStreamInfo = getMockStreamInfo(mockStream); // Video is 16:9 (1280/720)
+    const result = calculateFit(position, currentStreamInfo);
     expect(result.width).toBe(800);
-    expect(result.height).toBeCloseTo(800 / (1280 / 720)); // 800 / 1.777... = 450
+    expect(result.height).toBeCloseTo(800 / (1280 / 720)); // 450
     expect(result.dx).toBe(0);
-    expect(result.dy).toBeCloseTo((600 - 450) / 2); // (600 - 450) / 2 = 75
+    expect(result.dy).toBeCloseTo((600 - 450) / 2); // 75
   });
 
   it('should fit taller video to position height and center horizontally', () => {
-    (mockVideoTrackInstance.getSettings as ReturnType<typeof vi.fn>).mockReturnValue({
-      width: 600,
-      height: 800
-    }); // Video is 3:4
+    (mockVideoTrack.getSettings as ReturnType<typeof vi.fn>).mockReturnValue({ width: 600, height: 800 }); // Video is 3:4
     const position: Position = { id: 'stream1', x: 0, y: 0, width: 1600, height: 900 }; // Position is 16:9
-    const result = calculateFit(position, mockStreamInfo as any);
+    const currentStreamInfo = getMockStreamInfo(mockStream);
+    const result = calculateFit(position, currentStreamInfo);
     expect(result.height).toBe(900);
-    expect(result.width).toBeCloseTo(900 * (600 / 800)); // 900 * 0.75 = 675
+    expect(result.width).toBeCloseTo(900 * (600 / 800)); // 675
     expect(result.dy).toBe(0);
-    expect(result.dx).toBeCloseTo((1600 - 675) / 2); // (1600 - 675) / 2 = 462.5
+    expect(result.dx).toBeCloseTo((1600 - 675) / 2); // 462.5
   });
 
   it('should use stream metadata if available', () => {
-    (mockGetStreamMetadata as ReturnType<typeof vi.fn>).mockReturnValue({
-      width: 1920,
-      height: 1080
-    });
-    const position: Position = { id: 'stream1', x: 0, y: 0, width: 800, height: 600 };
-    // Video is 16:9 (1920/1080)
-    const result = calculateFit(position, mockStreamInfo as any);
+    (mockGetStreamMetadata as ReturnType<typeof vi.fn>).mockReturnValue({ width: 1920, height: 1080 }); // 16:9 from metadata
+    const position: Position = { id: 'stream1', x: 0, y: 0, width: 800, height: 600 }; // 4:3
+    const currentStreamInfo = getMockStreamInfo(mockStream);
+    const result = calculateFit(position, currentStreamInfo);
     expect(result.width).toBe(800);
     expect(result.height).toBeCloseTo(800 / (1920 / 1080)); // 450
-    expect(mockStreamInfo.stream.getVideoTracks()[0].getSettings).not.toHaveBeenCalled();
+    expect(mockVideoTrack.getSettings).not.toHaveBeenCalled();
   });
 
-  it('should throw error if video track has no settings and no metadata', () => {
-    (mockVideoTrackInstance.getSettings as ReturnType<typeof vi.fn>).mockReturnValue({}); // No width/height
+  it('should use fallback aspect ratio (16:9) if video track has invalid dimensions (e.g. undefined width/height) and no metadata', () => {
+    (mockVideoTrack.getSettings as ReturnType<typeof vi.fn>).mockReturnValue({ width: undefined, height: undefined });
     const position: Position = { id: 'stream1', x: 0, y: 0, width: 800, height: 600 };
-    expect(() => calculateFit(position, mockStreamInfo as any)).toThrow('Invalid video dimensions');
+    const currentStreamInfo = getMockStreamInfo(mockStream);
+    const result = calculateFit(position, currentStreamInfo);
+    expect(result.width).toBe(800); // Assuming it fits to width
+    expect(result.height).toBeCloseTo(800 / (16 / 9)); // Based on 16/9 fallback
   });
 
-  it('should throw error if no video track found and no metadata', () => {
-    (mockStreamInfo.stream.getVideoTracks as ReturnType<typeof vi.fn>).mockReturnValueOnce([]); // No video tracks
+  it('should use fallback aspect ratio (16:9) if no video track found and no metadata', () => {
+    (mockStream.getVideoTracks as ReturnType<typeof vi.fn>).mockReturnValueOnce([]);
     const position: Position = { id: 'stream1', x: 0, y: 0, width: 800, height: 600 };
-    expect(() => calculateFit(position, mockStreamInfo as any)).toThrow('No video track found');
+    const currentStreamInfo = getMockStreamInfo(mockStream);
+    const result = calculateFit(position, currentStreamInfo);
+    expect(result.width).toBe(800);
+    expect(result.height).toBeCloseTo(800 / (16/9));
   });
 });
 
-// Basic tests for start/stop/toggle to ensure they run and update store
-// More detailed testing of their effects would require more intricate mocking of VideoStreamMerger behavior
-// and streamStore state.
-describe('Recording functions', () => {
-  beforeEach(async () => {
-    // Make beforeEach async if it contains async operations
-    recorderStore.set({
-      isRecording: false,
-      merger: null,
-      mediaRecorder: null,
-      updateInterval: null,
-      lastStreams: [],
-      isElectron: false, // Added
-      electronRecorders: {} // Added
-    });
-    vi.clearAllMocks();
-    // Mock getStreamState to return some basic stream setup
-    (mockGetStreamState as ReturnType<typeof vi.fn>).mockReturnValue({
-      localStreams: { local1: { stream: new MediaStream(), sendable: true } },
-      remoteStreams: {},
-      streamConfig: {
-        audio: 'default|Default Audio', // Changed to string
-        camera: 'default|Default Camera', // Changed to string
-        screen: false, // Kept as boolean
-        speaker: 'default|Default Speaker' // Changed to string
-      },
-      isSwitchingAudio: false,
-      isSwitchingCamera: false,
-      isLocalAudioAllowed: true,
-      isLocalVideoAllowed: true
-    });
+// Test the main recording functions (facade)
+// These tests will verify that the correct recorder implementation (mocked) is called.
+describe('Recording functions (Facade)', () => {
+  // Helper to get the *mocked* instance of the active recorder
+  const getActiveRecorderMockInstance = () => {
+    // Need to require them here to get the mocked constructors after vi.mock has run
+    const { BrowserRecorder: BRMock } = vi.mocked(require('./browserRecorder'));
+    const { ElectronRecorder: ERMock } = vi.mocked(require('./electronRecorder'));
+    const { electronAPI: currentElectronAPI } = vi.mocked(require('./recorderTypes'));
+
+    if (currentElectronAPI) {
+      // Access the last created instance from the mock constructor
+      return ERMock.mock.instances[ERMock.mock.instances.length -1];
+    }
+    return BRMock.mock.instances[BRMock.mock.instances.length-1];
+  };
+
+
+  beforeEach(() => {
+    recorderStore.set({ isRecording: false });
+    vi.clearAllMocks(); // Clears call counts etc. for mocks
+
+    // Ensure mocks for constructors are reset and can create new instances for each test
+    // This is important if the activeRecorder is instantiated at the module level in recorder.ts
+    const { BrowserRecorder: BRMock } = vi.mocked(require('./browserRecorder'));
+    const { ElectronRecorder: ERMock } = vi.mocked(require('./electronRecorder'));
+    BRMock.mockClear(); // Clears instances and calls for the constructor mock itself
+    ERMock.mockClear();
+    // Re-initialize mocks for start/stop on new instances if constructor is called again
+    // This ensures that each test gets a fresh mock instance if the module was re-evaluated
+    // or if the constructor is called multiple times across tests.
+     BRMock.mockImplementation(() => ({ start: vi.fn().mockResolvedValue(undefined), stop: vi.fn() }));
+     ERMock.mockImplementation(() => ({ start: vi.fn().mockResolvedValue(undefined), stop: vi.fn() }));
   });
 
   describe('startRecording', () => {
-    it('should set isRecording to true and store merger/recorder instances', async () => {
+    it('should call activeRecorder.start() and update store', async () => {
       await startRecording();
-      const state = get(recorderStore);
-      expect(state.isRecording).toBe(true);
-      expect(state.merger).not.toBeNull();
-      expect(state.mediaRecorder).not.toBeNull();
-      expect(state.updateInterval).not.toBeNull();
-      expect(global.MediaRecorder).toHaveBeenCalled();
-      // @ts-ignore
-      expect(state.merger.start).toHaveBeenCalled();
-      // @ts-ignore
-      expect(state.mediaRecorder.start).toHaveBeenCalled();
+      const activeMock = getActiveRecorderMockInstance();
+      expect(activeMock.start).toHaveBeenCalledTimes(1);
+      expect(get(recorderStore).isRecording).toBe(true);
+    });
+
+    it('should not call activeRecorder.start() if already recording', async () => {
+      recorderStore.set({ isRecording: true });
+      await startRecording();
+      const activeMock = getActiveRecorderMockInstance();
+      expect(activeMock.start).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors from activeRecorder.start() and update store', async () => {
+      const activeMock = getActiveRecorderMockInstance();
+      activeMock.start.mockRejectedValueOnce(new Error('Start failed'));
+      
+      await expect(startRecording()).rejects.toThrow('Start failed');
+      expect(get(recorderStore).isRecording).toBe(false);
+      // If using an error field in RecorderState:
+      // expect(get(recorderStore).error).toBe('Start failed');
     });
   });
 
   describe('stopRecording', () => {
-    it('should set isRecording to false and clear instances', async () => {
-      // Start recording first to populate the store
-      await startRecording();
-      const initialMerger = get(recorderStore).merger;
-      const initialRecorder = get(recorderStore).mediaRecorder;
-
+    it('should call activeRecorder.stop() and update store if recording', () => {
+      recorderStore.set({ isRecording: true });
       stopRecording();
-      const state = get(recorderStore);
-      expect(state.isRecording).toBe(false);
-      expect(state.merger).toBeNull();
-      expect(state.mediaRecorder).toBeNull();
-      expect(state.updateInterval).toBeNull();
-      // @ts-ignore
-      expect(initialMerger?.destroy).toHaveBeenCalled();
-      // @ts-ignore
-      expect(initialRecorder?.stop).toHaveBeenCalled();
+      const activeMock = getActiveRecorderMockInstance();
+      expect(activeMock.stop).toHaveBeenCalledTimes(1);
+      expect(get(recorderStore).isRecording).toBe(false);
+    });
+
+    it('should not call activeRecorder.stop() if not recording', () => {
+      stopRecording(); // isRecording is false by default
+      const activeMock = getActiveRecorderMockInstance();
+      expect(activeMock.stop).not.toHaveBeenCalled();
     });
   });
 
   describe('toggleRecording', () => {
-    it('should call startRecording if not recording', async () => {
+    it('should call startRecording (and thus activeRecorder.start) if not recording', async () => {
       await toggleRecording();
+      const activeMock = getActiveRecorderMockInstance();
+      expect(activeMock.start).toHaveBeenCalledTimes(1);
       expect(get(recorderStore).isRecording).toBe(true);
     });
 
-    it('should call stopRecording if already recording', async () => {
-      await startRecording(); // Start first
-      await toggleRecording(); // Then toggle to stop
+    it('should call stopRecording (and thus activeRecorder.stop) if already recording', async () => {
+      recorderStore.set({ isRecording: true });
+      // Mock start on the instance so it doesn't interfere if toggle calls it before checking state
+      const activeMock = getActiveRecorderMockInstance();
+      // Ensure the instance has a mock start if it's a new one from the constructor mock
+      if (!activeMock.start) activeMock.start = vi.fn().mockResolvedValue(undefined);
+      else activeMock.start.mockResolvedValueOnce(undefined); 
+      
+      toggleRecording();
+      expect(activeMock.stop).toHaveBeenCalledTimes(1);
       expect(get(recorderStore).isRecording).toBe(false);
     });
   });
