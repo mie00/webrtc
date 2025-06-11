@@ -158,7 +158,7 @@ export class BrowserRecorder implements IRecorder {
     // Add new audio-only streams
     currentAudioStreams.forEach(streamInfo => {
       if (!oldStreamKeys.has(streamInfo.key)) {
-        merger.addStream(streamInfo.key, streamInfo.stream, { muted: false } as AddStreamOptions);
+        merger.addStream(streamInfo.key, streamInfo.stream, { mute: false } as AddStreamOptions);
       }
     });
     this.internalState.lastStreamKeys = newStreamKeys;

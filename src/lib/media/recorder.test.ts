@@ -51,7 +51,7 @@ vi.mock('./recorderTypes', async () => {
 
 // Mock dependencies for recorder.ts and its imports (like calculateFit)
 vi.mock('../stores/streamStore', async () => {
-  const actualSvelteStore = await vi.importActual('svelte/store');
+  const actualSvelteStore = (await vi.importActual('svelte/store')) as typeof import('svelte/store');
   const mockStreamStoreData = {
     localStreams: {},
     remoteStreams: {},
