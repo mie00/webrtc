@@ -1,19 +1,26 @@
-name: Deploy to GitHub Pages
+name: CI, Deploy Site, and Release Apps
 
 on:
   push:
     branches:
-      - main # Or your primary branch, e.g., master
-  pull_request: {} # Run on all pull requests
+      - main
+    tags:
+      - 'v*.*.*' # Triggers app builds
+  pull_request:
+    branches:
+      - main # Triggers CI checks
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: read # Sufficient for checkout and artifact upload
+  pages: write    # For GitHub Pages deployment
+  id-token: write # For GitHub Pages deployment
 
 jobs:
-  build_and_test_linux:
+  ci_checks_and_site_build:
+    name: CI Checks & Vite Site Build
     runs-on: ubuntu-latest
+    # Run on PRs to main, or direct pushes to main
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,20 +28,13 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: latest # Or specify a pnpm version
+          version: latest
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'pnpm' # Changed from npm to pnpm
-
-      - name: Install electron-builder Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libgtk-3-dev libnss3-dev libxtst-dev libxss1 libasound2t64 xvfb \
-            libsecret-1-dev libgbm-dev libopenh264-7
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install
@@ -54,151 +54,98 @@ jobs:
       # - name: Run Playwright E2E tests
       #   run: pnpm test:e2e:ci
 
-      - name: Build Linux Electron app
-        run: pnpm electron:build -- --linux
-
-      - name: Upload Linux App
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-app
-          path: build_dir/app/*.AppImage
-          if-no-files-found: error
-
       - name: Build Vite site
-        run: npm run build
+        run: npm run build # Assuming this builds to 'docs' or 'dist'
 
-      - name: Upload Vite site (docs folder)
+      - name: Upload Vite site artifact
         uses: actions/upload-artifact@v4
         with:
           name: vite-site
-          path: docs
+          path: docs # Adjust if your build output is different (e.g., dist)
           if-no-files-found: error
 
-  build_macos:
-    runs-on: macos-latest
-    needs: build_windows # Run after Windows build
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest # Or specify a pnpm version
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'pnpm' # Changed from npm to pnpm
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Build macOS Electron app
-        run: pnpm electron:build -- --mac
-
-      - name: Upload macOS App
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-app
-          path: build_dir/app/*.dmg
-          if-no-files-found: error
-          # electron-builder might also produce -mac.zip for universal builds or specific targets
-          # path: |
-          #   build_dir/app/*.dmg
-          #   build_dir/app/*-mac.zip
-
-  build_windows:
-    runs-on: windows-latest
-    needs: build_and_test_linux # Run after Linux build and tests
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest # Or specify a pnpm version
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'pnpm' # Changed from npm to pnpm
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Build Windows Electron app
-        run: pnpm electron:build -- --win
-
-      - name: Upload Windows App
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-app
-          path: build_dir/app/*.exe # Or potentially build_dir/app/*.msi, build_dir/app/* Setup *.exe
-          if-no-files-found: error
-
-  assemble_artifacts_for_pages:
+  deploy_site_to_pages:
+    name: Deploy Site to GitHub Pages
     runs-on: ubuntu-latest
-    needs: build_macos # Run after all platform builds are complete
-    steps:
-      - name: Checkout repository (for docs structure if needed, though vite-site artifact provides it)
-        uses: actions/checkout@v4 # Only needed if you have other static files in docs not from Vite
-
-      - name: Download Vite site artifact (docs folder)
-        uses: actions/download-artifact@v4
-        with:
-          name: vite-site
-          path: docs # This will place the contents of the artifact into the 'docs' directory
-
-      - name: Download Linux app artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-app
-          path: temp_downloads/linux
-
-      - name: Download macOS app artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-app
-          path: temp_downloads/macos
-
-      - name: Download Windows app artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-app
-          path: temp_downloads/windows
-
-      - name: Prepare downloads directory for Pages artifact
-        run: |
-          DEST_DIR="docs/downloads"
-          mkdir -p "${DEST_DIR}"
-          echo "Copying Electron artifacts to ${DEST_DIR}..."
-          find temp_downloads/linux -maxdepth 1 -name '*.AppImage' -exec cp {} "${DEST_DIR}/" \;
-          find temp_downloads/macos -maxdepth 1 -name '*.dmg' -exec cp {} "${DEST_DIR}/" \;
-          # find temp_downloads/macos -maxdepth 1 -name '*-mac.zip' -exec cp {} "${DEST_DIR}/" \; # If you also build zips for mac
-          find temp_downloads/windows -maxdepth 1 -name '*.exe' -exec cp {} "${DEST_DIR}/" \;
-          echo "Listing contents of ${DEST_DIR}:"
-          ls -lR "${DEST_DIR}"
-          echo "Listing contents of docs directory:"
-          ls -lR docs
-
-      - name: Upload Pages artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./docs
-
-  deploy:
-    needs: assemble_artifacts_for_pages
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    needs: ci_checks_and_site_build # Ensure build and tests pass before deploying
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' # Only deploy on merge/push to main
+    permissions: # Job-specific permissions
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Download Vite site artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: vite-site
+          path: ./docs # Download to a 'docs' directory
+
+      - name: Upload Pages artifact for deployment
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  build_electron_apps:
+    name: Build Electron App (${{ matrix.os_name }})
+    runs-on: ${{ matrix.os }}
+    if: startsWith(github.ref, 'refs/tags/v') # Only run on new tags like v1.0.0
+    strategy:
+      fail-fast: false # Allow other OS builds to continue if one fails
+      matrix:
+        include:
+          - os: ubuntu-latest
+            os_name: Linux
+            build_target: linux
+            artifact_name: linux-app
+            artifact_path: build_dir/app/*.AppImage
+          - os: macos-latest
+            os_name: macOS
+            build_target: mac
+            artifact_name: macos-app
+            artifact_path: build_dir/app/*.dmg
+          - os: windows-latest
+            os_name: Windows
+            build_target: win
+            artifact_name: windows-app
+            artifact_path: build_dir/app/* Setup *.exe # Catches 'AppName Setup X.Y.Z.exe'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install Linux dependencies (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-3-dev libnss3-dev libxtst-dev libxss1 libasound2t64 xvfb \
+            libsecret-1-dev libgbm-dev libopenh264-7
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build Electron app for ${{ matrix.os_name }}
+        run: pnpm electron:build -- --${{ matrix.build_target }}
+
+      - name: Upload ${{ matrix.os_name }} App
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_path }}
+          if-no-files-found: error
