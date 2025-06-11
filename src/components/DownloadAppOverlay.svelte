@@ -64,7 +64,7 @@
 
 <div class="fixed top-0 left-0 right-0 bg-indigo-600 text-white p-3 shadow-lg z-50">
   <div class="container mx-auto flex items-center justify-between gap-x-4 gap-y-2 flex-wrap">
-    <p class="text-sm flex-grow min-w-[200px]">
+    <p class="text-sm hidden sm:block flex-grow min-w-[200px]">
       For the best experience and more features, download our desktop application.
     </p>
 
