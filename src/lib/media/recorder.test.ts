@@ -1,19 +1,57 @@
+import { get } from 'svelte/store';
 import {
   recorderStore,
   startRecording,
   stopRecording,
   toggleRecording,
-  calculateFit // Added
+  calculateFit
 } from './recorder';
-import type { Position } from './streamLayout'; // Assuming Position is exported from streamLayout
+import type { Position } from './streamLayout';
 import { getStreamMetadata as mockGetStreamMetadata } from '../stores/localFileStreamStore';
+// getStreamState is used by recorder implementations, so its mock setup is still relevant if testing those deeply.
+// For facade testing, it's less critical unless calculateFit or other utils depend on it here.
+import { getStreamState as mockGetStreamStateOriginal } from '../stores/streamStore';
 
-// Mock dependencies
-import { get, writable, type Writable } from 'svelte/store'; // Import get, writable, Writable
-// import type { StreamState as ActualStreamState } from '../stores/streamStore'; // Import actual type for casting
-import { getStreamState as mockGetStreamState } from '../stores/streamStore'; // Import the mocked function
+// Mock the recorder implementations themselves
+// Need to ensure these mocks are established before recorder.ts is imported and instantiates one.
+// This is often done by putting mocks in a __mocks__ directory or ensuring vi.mock is at the top.
+vi.mock('./browserRecorder', () => {
+  // console.log('Mocking BrowserRecorder');
+  const BrowserRecorderMock = vi.fn().mockImplementation(() => ({
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn()
+  }));
+  return { BrowserRecorder: BrowserRecorderMock };
+});
 
-vi.mock('../stores/streamStore', async (importOriginal) => {
+vi.mock('./electronRecorder', () => {
+  // console.log('Mocking ElectronRecorder');
+  const ElectronRecorderMock = vi.fn().mockImplementation(() => ({
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn()
+  }));
+  return {
+    ElectronRecorder: ElectronRecorderMock,
+    electronRecorderSingletonWrapper: { recorderStore: null } // Mock the wrapper
+  };
+});
+
+// Mock electronAPI from recorderTypes to control which recorder is chosen
+// We need to control this *before* recorder.ts is evaluated.
+// This is tricky. A common pattern is to have a separate setup file for tests or use dynamic imports.
+// For now, we assume tests run in a Node-like (non-Electron) environment by default for electronAPI.
+// To test Electron path, you'd need to set up the mock for electronAPI differently.
+vi.mock('./recorderTypes', async () => {
+  const actual = await vi.importActual('./recorderTypes');
+  return {
+    ...actual,
+    electronAPI: undefined // Default to browser for tests unless overridden
+  };
+});
+
+
+// Mock dependencies for recorder.ts and its imports (like calculateFit)
+vi.mock('../stores/streamStore', async () => {
   const svelteStore = await import('svelte/store');
   const mockStreamStoreInstanceInternal = svelteStore.writable<any>({
     localStreams: {},
