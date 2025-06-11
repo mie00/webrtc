@@ -125,7 +125,9 @@ describe('recorderStore', () => {
       merger: null,
       mediaRecorder: null,
       updateInterval: null,
-      lastStreams: []
+      lastStreams: [],
+      isElectron: false, // Added
+      electronRecorders: {} // Added
     });
     vi.clearAllMocks(); // Clear mocks before each test
   });
@@ -217,7 +219,9 @@ describe('Recording functions', () => {
       merger: null,
       mediaRecorder: null,
       updateInterval: null,
-      lastStreams: []
+      lastStreams: [],
+      isElectron: false, // Added
+      electronRecorders: {} // Added
     });
     vi.clearAllMocks();
     // Mock getStreamState to return some basic stream setup
