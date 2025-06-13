@@ -1,4 +1,5 @@
 import { writable, get } from 'svelte/store';
+import { connectionStore } from './connectionStore'; // Import connectionStore
 
 // Stream configuration interface
 export interface StreamConfig {
@@ -109,13 +110,69 @@ export function updateLocalStreamProperties(
   properties: Partial<LocalStreamData>
 ): void {
   streamStore.update((state) => {
-    if (!state.localStreams[id]) return state;
+    if (!state.localStreams[id]) {
+      console.warn(`[streamStore] updateLocalStreamProperties: Stream with id ${id} not found.`);
+      return state;
+    }
 
-    const localStreams = { ...state.localStreams };
-    localStreams[id] = {
-      ...localStreams[id],
+    const oldStreamData = state.localStreams[id];
+    const newStreamData = {
+      ...oldStreamData,
       ...properties
     };
+
+    // Check if 'sendable' property has changed and there's a stream to manage
+    if (
+      'sendable' in properties &&
+      oldStreamData.sendable !== newStreamData.sendable &&
+      newStreamData.stream
+    ) {
+      const trackStream = newStreamData.stream;
+      const webRTCApp = (window as any).webRTCAppInstance;
+
+      if (!webRTCApp || !webRTCApp.negotiationManager) {
+        console.warn(
+          '[streamStore] WebRTCApp instance or negotiationManager not found on window. Skipping track management for peers.'
+        );
+      } else {
+        const { directClients } = get(connectionStore);
+        for (const cid in directClients) {
+          const client = directClients[cid];
+          if (client && client.pc) {
+            const pc = client.pc;
+            try {
+              if (newStreamData.sendable) {
+                // Add tracks
+                trackStream.getTracks().forEach((track) => {
+                  if (!pc.getSenders().find((sender) => sender.track === track)) {
+                    pc.addTrack(track, trackStream);
+                  }
+                });
+                console.log(`[streamStore] Added tracks from stream ${id} to peer ${cid}`);
+              } else {
+                // Remove tracks
+                pc.getSenders().forEach((sender) => {
+                  if (sender.track && trackStream.getTracks().includes(sender.track)) {
+                    pc.removeTrack(sender);
+                  }
+                });
+                console.log(`[streamStore] Removed tracks from stream ${id} for peer ${cid}`);
+              }
+              // Trigger renegotiation
+              webRTCApp.negotiationManager.startOrRestartNego(cid, client.polite ?? false);
+            } catch (error) {
+              console.error(
+                `[streamStore] Error managing tracks for stream ${id} with peer ${cid}:`,
+                error
+              );
+            }
+          }
+        }
+      }
+    }
+
+    const localStreams = { ...state.localStreams };
+    localStreams[id] = newStreamData;
     return { ...state, localStreams };
   });
 }
