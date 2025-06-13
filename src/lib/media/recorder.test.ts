@@ -285,11 +285,11 @@ describe('Recording functions (Facade)', () => {
     BRMock.mockImplementation(() => ({
       start: vi.fn().mockResolvedValue(undefined),
       stop: vi.fn()
-    }));
+    } as unknown as import('./browserRecorder').BrowserRecorder));
     ERMock.mockImplementation(() => ({
       start: vi.fn().mockResolvedValue(undefined),
       stop: vi.fn()
-    }));
+    } as unknown as import('./electronRecorder').ElectronRecorder));
   });
 
   describe('startRecording', () => {
@@ -309,7 +309,7 @@ describe('Recording functions (Facade)', () => {
 
     it('should handle errors from activeRecorder.start() and update store', async () => {
       const activeMock = await getActiveRecorderMockInstance();
-      activeMock.start.mockRejectedValueOnce(new Error('Start failed'));
+      (activeMock.start as vi.Mock).mockRejectedValueOnce(new Error('Start failed'));
 
       await expect(startRecording()).rejects.toThrow('Start failed');
       expect(get(recorderStore).isRecording).toBe(false);
@@ -347,8 +347,9 @@ describe('Recording functions (Facade)', () => {
       // Mock start on the instance so it doesn't interfere if toggle calls it before checking state
       const activeMock = await getActiveRecorderMockInstance();
       // Ensure the instance has a mock start if it's a new one from the constructor mock
-      if (!activeMock.start) activeMock.start = vi.fn().mockResolvedValue(undefined);
-      else activeMock.start.mockResolvedValueOnce(undefined);
+      // The start method should always exist on activeMock as per our mock setup.
+      // We cast it to vi.Mock to use mockResolvedValueOnce.
+      (activeMock.start as vi.Mock).mockResolvedValueOnce(undefined);
 
       toggleRecording();
       expect(activeMock.stop).toHaveBeenCalledTimes(1);
