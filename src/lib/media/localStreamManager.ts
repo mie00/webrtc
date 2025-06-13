@@ -5,7 +5,8 @@ import {
   addLocalStream,
   removeLocalStream,
   updateStreamConfig,
-  getLocalStreamsByType
+  getLocalStreamsByType,
+  updateLocalStreamProperties
 } from '../stores/streamStore';
 import { getAllConfig, configStore, type Config, type MediaConfig } from '../stores/configStore';
 import { getLocalFileStreamState } from '../stores/localFileStreamStore';
