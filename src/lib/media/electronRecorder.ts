@@ -4,7 +4,10 @@ import type { IRecorder, RecorderState } from './recorderTypes'; // Ensure Recor
 import { electronAPI } from './recorderTypes';
 
 interface ElectronRecorderInternalState {
-  recorders: Record<string, { recorder: MediaRecorder; fileIdentifier: string; firstChunkSent: boolean }>;
+  recorders: Record<
+    string,
+    { recorder: MediaRecorder; fileIdentifier: string; firstChunkSent: boolean }
+  >;
   updateIntervalId: number | null;
 }
 
@@ -25,10 +28,7 @@ export class ElectronRecorder implements IRecorder {
     console.log('Electron recording started via ElectronRecorder.');
     this.internalState.recorders = {}; // Clear any previous recorders
     await this.updateStreams(); // Initial update
-    this.internalState.updateIntervalId = window.setInterval(
-      () => this.updateStreams(),
-      2000
-    );
+    this.internalState.updateIntervalId = window.setInterval(() => this.updateStreams(), 2000);
   }
 
   stop(): void {
@@ -49,14 +49,19 @@ export class ElectronRecorder implements IRecorder {
 
   private async updateStreams(): Promise<void> {
     // If stop has been called and cleared the interval, don't proceed.
-    if (!this.internalState.updateIntervalId && Object.keys(this.internalState.recorders).length === 0) {
-        // Check if global recording state is also false, via the singleton wrapper if necessary.
-        // This is a safeguard. The primary control is that start() sets the interval, stop() clears it.
-        if (electronRecorderSingletonWrapper.recorderStore && !get(electronRecorderSingletonWrapper.recorderStore).isRecording) {
-            return;
-        }
+    if (
+      !this.internalState.updateIntervalId &&
+      Object.keys(this.internalState.recorders).length === 0
+    ) {
+      // Check if global recording state is also false, via the singleton wrapper if necessary.
+      // This is a safeguard. The primary control is that start() sets the interval, stop() clears it.
+      if (
+        electronRecorderSingletonWrapper.recorderStore &&
+        !get(electronRecorderSingletonWrapper.recorderStore).isRecording
+      ) {
+        return;
+      }
     }
-
 
     const streamState = getStreamState();
     const activeStreamKeys = new Set<string>();
@@ -106,7 +111,7 @@ export class ElectronRecorder implements IRecorder {
           // Ensure not to modify the object while iterating if issues arise, e.g. by collecting keys to delete
           delete this.internalState.recorders[streamKey];
         };
-        
+
         recorder.onerror = (event) => {
           console.error('MediaRecorder error for stream', streamKey, fileIdentifier, event);
         };
@@ -151,5 +156,5 @@ export class ElectronRecorder implements IRecorder {
 export const electronRecorderSingletonWrapper: {
   recorderStore: import('svelte/store').Writable<RecorderState> | null;
 } = {
-    recorderStore: null
+  recorderStore: null
 };

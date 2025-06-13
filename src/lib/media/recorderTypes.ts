@@ -1,5 +1,8 @@
 // @ts-ignore (electronRecorderAPI is injected by preload script in Electron environments)
-export const electronAPI = typeof window !== 'undefined' && window.electronRecorderAPI ? window.electronRecorderAPI : undefined;
+export const electronAPI =
+  typeof window !== 'undefined' && window.electronRecorderAPI
+    ? window.electronRecorderAPI
+    : undefined;
 
 export interface IRecorder {
   start(): Promise<void>;
