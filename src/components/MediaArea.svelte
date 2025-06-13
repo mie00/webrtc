@@ -120,7 +120,7 @@
     Object.values(groupedStreams).forEach(({ streams }) => {
       const hasVideoStreams = streams.some(
         (s) =>
-          (s.type === 'camera' || s.type === 'screen' || s.type === 'file') &&
+          (s.type === 'camera' || s.type === 'blurred' || s.type === 'screen' || s.type === 'file') &&
           ((s.stream && s.stream.getVideoTracks().length > 0) || s.type === 'file')
       );
 

@@ -30,7 +30,7 @@
         useSlot={!!stream.src}
         type={!stream.stream || stream.stream.getVideoTracks().length > 0 ? 'video' : 'audio'}
         muted={stream.isLocal && stream.type !== 'file'}
-        mirrored={stream.isLocal && stream.type === 'camera'}
+        mirrored={stream.isLocal && (stream.type === 'camera' || stream.type === 'blurred')}
         peerId={stream.peerId}
         focus={onFocusStream}
         audioStream={stream.audioStream || undefined}
