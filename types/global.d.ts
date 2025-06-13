@@ -115,6 +115,7 @@ interface Window {
   isFirefox?: boolean;
   authStore: typeof import('../src/stores/authStore.js').authStore; // Added for global authStore
   // verifyLoginJWT will no longer be global
+  electronRecorderAPI?: any; // Added for Electron recorder
 }
 
 // Assuming you already have `declare global { ... }` for __BROWSER__
