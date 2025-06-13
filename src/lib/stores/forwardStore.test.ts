@@ -14,7 +14,8 @@ import {
 } from './forwardStore'; // Adjusted import path
 import { describe, it, expect, beforeEach } from 'vitest';
 
-describe('forwardStore', () => { // Changed describe to reflect the store being tested
+describe('forwardStore', () => {
+  // Changed describe to reflect the store being tested
   beforeEach(() => {
     // Reset the store to its initial state before each test
     forwardStore.set({ ...initialState, inflight: {}, logMessages: [] }); // Deep copy for safety
