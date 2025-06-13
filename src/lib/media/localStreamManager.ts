@@ -55,44 +55,43 @@ configStore.subscribe(async (newConfig) => {
           // setting up the new device with the correct blur. Do nothing here.
         } else {
           // videoDevice did NOT change, only blurVideo (or other non-device media settings).
-          // Apply blur change to the existing camera stream if a camera is configured.
-          const currentCameraDeviceId = newConfig.media.videoDevice; // Current configured device
-          if (currentCameraDeviceId) {
-            // Check for null or undefined
-            // Teardown existing camera streams
-            const existingCameraStreams = getLocalStreamsByType('camera');
-            for (const [streamId, streamData] of Object.entries(existingCameraStreams)) {
+          // videoDevice did NOT change, only blurVideo.
+          // Apply blur change to existing camera stream setup.
+          if (newConfig.media.blurVideo === 'yes') {
+            // Blur turned ON
+            const existingCameraStreamsData = getLocalStreamsByType('camera');
+            for (const [originalStreamId, streamData] of Object.entries(existingCameraStreamsData)) {
+              if (streamData.stream) {
+                // TODO: When streamStore.ts is provided, call:
+                // updateLocalStreamProperties(originalStreamId, { viewable: false, sendable: false });
+                console.warn(`[localStreamManager] Marking stream ${originalStreamId} as non-viewable/sendable (requires updateLocalStreamProperties for full effect)`);
+
+                const videoElem = document.createElement('video');
+                videoElem.autoplay = true;
+                videoElem.muted = true;
+                videoElem.srcObject = streamData.stream;
+                await new Promise<void>((resolve) => {
+                  videoElem.onloadedmetadata = () => videoElem.play().then(() => resolve());
+                });
+                const blurredVersion = await backgroundChange(videoElem);
+                setupStream(blurredVersion, 'low', 'motion', true);
+                addLocalStream('blurred', blurredVersion, null, true, true);
+              }
+            }
+          } else {
+            // Blur turned OFF
+            const existingBlurredStreams = getLocalStreamsByType('blurred');
+            for (const [streamId, streamData] of Object.entries(existingBlurredStreams)) {
               if (streamData.stream) await tearDownStream(streamData.stream);
               removeLocalStream(streamId);
             }
 
-            // Re-acquire stream using currentCameraDeviceId and apply new blur setting
-            const deviceInfo = currentCameraDeviceId.split('|') || [];
-            const newRawStream = await navigator.mediaDevices.getUserMedia({
-              video:
-                deviceInfo.length === 2 ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] } : true
-            });
-
-            let finalStream = newRawStream;
-            if (newConfig.media.blurVideo === 'yes') {
-              try {
-                const videoElem = document.createElement('video');
-                videoElem.autoplay = true;
-                videoElem.muted = true;
-                videoElem.srcObject = newRawStream;
-                await new Promise<void>((resolve) => {
-                  // Keep existing promise pattern
-                  videoElem.onloadedmetadata = () => videoElem.play().then(() => resolve());
-                });
-                const blurredStream = await backgroundChange(videoElem);
-                finalStream = blurredStream;
-              } catch (error) {
-                console.error('Failed to apply background blur on config change:', error);
-                finalStream = newRawStream; // Fallback to non-blurred stream
-              }
+            const existingCameraStreamsData = getLocalStreamsByType('camera');
+            for (const streamId of Object.keys(existingCameraStreamsData)) {
+              // TODO: When streamStore.ts is provided, call:
+              // updateLocalStreamProperties(streamId, { viewable: true, sendable: true });
+              console.warn(`[localStreamManager] Marking stream ${streamId} as viewable/sendable (requires updateLocalStreamProperties for full effect)`);
             }
-            setupStream(finalStream, 'low', 'motion', true);
-            addLocalStream('camera', finalStream, null, true, true);
           }
         }
       }
@@ -156,41 +155,59 @@ audioDevice.subscribe(async (audio) => {
 cameraDevice.subscribe(async (camera) => {
   const globalConfig = getAllConfig();
   if (camera !== null) {
-    const cameraStreams = getLocalStreamsByType('camera');
-    for (const [streamId, streamData] of Object.entries(cameraStreams)) {
+    // Clean up ALL existing camera and blurred streams first
+    const oldCameraStreams = getLocalStreamsByType('camera');
+    for (const [streamId, streamData] of Object.entries(oldCameraStreams)) {
+      if (streamData.stream) await tearDownStream(streamData.stream);
+      removeLocalStream(streamId);
+    }
+    const oldBlurredStreams = getLocalStreamsByType('blurred');
+    for (const [streamId, streamData] of Object.entries(oldBlurredStreams)) {
       if (streamData.stream) await tearDownStream(streamData.stream);
       removeLocalStream(streamId);
     }
 
     const deviceInfo = camera.split('|') || [];
-    const stream = await navigator.mediaDevices.getUserMedia({
+    const rawVideoStream = await navigator.mediaDevices.getUserMedia({
       video: deviceInfo.length === 2 ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] } : true
     });
+    setupStream(rawVideoStream, 'low', 'motion', true); // Setup for the raw stream
+    const rawCameraStreamId = addLocalStream('camera', rawVideoStream, null, true, true); // Add as 'camera', initially viewable/sendable
 
     if (globalConfig.media.blurVideo === 'yes') {
+      // TODO: When streamStore.ts is provided, call:
+      // updateLocalStreamProperties(rawCameraStreamId, { viewable: false, sendable: false });
+      console.warn(`[localStreamManager] Marking stream ${rawCameraStreamId} as non-viewable/sendable (requires updateLocalStreamProperties for full effect)`);
+
       try {
         const videoElem = document.createElement('video');
         videoElem.autoplay = true;
         videoElem.muted = true;
-        videoElem.srcObject = stream;
+        videoElem.srcObject = rawVideoStream; // Use the raw stream
         await new Promise<void>((resolve) => {
           videoElem.onloadedmetadata = () => videoElem.play().then(() => resolve());
         });
         const blurredStream = await backgroundChange(videoElem);
-        setupStream(blurredStream, 'low', 'motion', true);
-        addLocalStream('camera', blurredStream, null, true, true);
+        setupStream(blurredStream, 'low', 'motion', true); // Setup for the blurred stream
+        addLocalStream('blurred', blurredStream, null, true, true); // Add as 'blurred', viewable/sendable
       } catch (error) {
-        console.error('Failed to apply background blur:', error);
-        setupStream(stream, 'low', 'motion', true);
-        addLocalStream('camera', stream, null, true, true);
+        console.error('Failed to apply background blur on new camera device:', error);
+        // Fallback: ensure the raw camera stream is viewable/sendable if blur fails
+        // TODO: When streamStore.ts is provided, call:
+        // updateLocalStreamProperties(rawCameraStreamId, { viewable: true, sendable: true });
+        console.warn(`[localStreamManager] Fallback: Marking stream ${rawCameraStreamId} as viewable/sendable due to blur error (requires updateLocalStreamProperties for full effect)`);
       }
-    } else {
-      setupStream(stream, 'low', 'motion', true);
-      addLocalStream('camera', stream, null, true, true);
     }
+    // If blur is 'no', the raw 'camera' stream added above is already correctly viewable/sendable.
   } else {
+    // Camera is turned off
     const cameraStreams = getLocalStreamsByType('camera');
     for (const [streamId, streamData] of Object.entries(cameraStreams)) {
+      if (streamData.stream) await tearDownStream(streamData.stream);
+      removeLocalStream(streamId);
+    }
+    const blurredStreams = getLocalStreamsByType('blurred'); // Also cleanup blurred streams
+    for (const [streamId, streamData] of Object.entries(blurredStreams)) {
       if (streamData.stream) await tearDownStream(streamData.stream);
       removeLocalStream(streamId);
     }
