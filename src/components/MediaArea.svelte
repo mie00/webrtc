@@ -206,7 +206,13 @@
     if (!isAudioEnabled) {
       // Add a placeholder stream; localStreamManager will pick it up
       // Pass the current configured device (or 'default') as a hint in the 'src' field
-      addStreamStoreLocalStream('audio', null, $configStore.media.audioDevice || 'default', true, true);
+      addStreamStoreLocalStream(
+        'audio',
+        null,
+        $configStore.media.audioDevice || 'default',
+        true,
+        true
+      );
     } else {
       // Remove all active audio streams
       const audioStreams = getLocalStreamsByType('audio');
@@ -300,7 +306,13 @@
     if (!isCameraEnabled) {
       // Add a placeholder stream; localStreamManager will pick it up
       // Pass the current configured device (or 'default') as a hint in the 'src' field
-      addStreamStoreLocalStream('camera', null, $configStore.media.videoDevice || 'default', true, true);
+      addStreamStoreLocalStream(
+        'camera',
+        null,
+        $configStore.media.videoDevice || 'default',
+        true,
+        true
+      );
     } else {
       // Remove all active camera and blurred streams
       const cameraStreams = getLocalStreamsByType('camera');
