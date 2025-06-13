@@ -146,7 +146,8 @@ cameraConfig.subscribe(async (cameraDeviceValue) => {
     removeLocalStream(streamId);
   }
 
-  if (cameraDeviceValue) { // Camera should be on if cameraDeviceValue is a device ID string
+  if (cameraDeviceValue) {
+    // Camera should be on if cameraDeviceValue is a device ID string
     const deviceInfo = cameraDeviceValue.split('|') || [];
     const rawVideoStream = await navigator.mediaDevices.getUserMedia({
       video: deviceInfo.length === 2 ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] } : true
@@ -175,113 +176,4 @@ cameraConfig.subscribe(async (cameraDeviceValue) => {
     // If blur is 'no', the raw 'camera' stream is already correctly viewable/sendable.
   }
   // If cameraDeviceValue is undefined, all streams were already cleaned up at the start of the subscription.
-});
-
-// Screen sharing and file streaming are now managed by MediaArea.svelte directly
-// The derived stores screenSharing and fileStream, and their subscribers, are removed.
-/*
-screenSharing.subscribe(async (screen) => {
-  if (screen) {
-    for (const [streamId, streamData] of Object.entries(oldCameraStreams)) {
-      if (streamData.stream) await tearDownStream(streamData.stream);
-      removeLocalStream(streamId);
-    }
-    const oldBlurredStreams = getLocalStreamsByType('blurred');
-    for (const [streamId, streamData] of Object.entries(oldBlurredStreams)) {
-      if (streamData.stream) await tearDownStream(streamData.stream);
-      removeLocalStream(streamId);
-    }
-
-    const deviceInfo = camera.split('|') || [];
-    const rawVideoStream = await navigator.mediaDevices.getUserMedia({
-      video: deviceInfo.length === 2 ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] } : true
-    });
-    setupStream(rawVideoStream, 'low', 'motion', true); // Setup for the raw stream
-    const rawCameraStreamId = addLocalStream('camera', rawVideoStream, null, true, true); // Add as 'camera', initially viewable/sendable
-
-    if (globalConfig.media.blurVideo === 'yes') {
-      updateLocalStreamProperties(rawCameraStreamId, { viewable: false, sendable: false });
-
-      try {
-        const videoElem = document.createElement('video');
-        videoElem.autoplay = true;
-        videoElem.muted = true;
-        videoElem.srcObject = rawVideoStream; // Use the raw stream
-        await new Promise<void>((resolve) => {
-          videoElem.onloadedmetadata = () => videoElem.play().then(() => resolve());
-        });
-        const blurredStream = await backgroundChange(videoElem);
-        setupStream(blurredStream, 'low', 'motion', true); // Setup for the blurred stream
-        addLocalStream('blurred', blurredStream, null, true, true); // Add as 'blurred', viewable/sendable
-      } catch (error) {
-        console.error('Failed to apply background blur on new camera device:', error);
-        // Fallback: ensure the raw camera stream is viewable/sendable if blur fails
-        updateLocalStreamProperties(rawCameraStreamId, { viewable: true, sendable: true });
-      }
-    }
-    // If blur is 'no', the raw 'camera' stream added above is already correctly viewable/sendable.
-  } else {
-    // Camera is turned off
-    const cameraStreams = getLocalStreamsByType('camera');
-    for (const [streamId, streamData] of Object.entries(cameraStreams)) {
-      if (streamData.stream) await tearDownStream(streamData.stream);
-      removeLocalStream(streamId);
-    }
-    const blurredStreams = getLocalStreamsByType('blurred'); // Also cleanup blurred streams
-    for (const [streamId, streamData] of Object.entries(blurredStreams)) {
-      if (streamData.stream) await tearDownStream(streamData.stream);
-      removeLocalStream(streamId);
-    }
-  }
-});
-
-screenSharing.subscribe(async (screen) => {
-  if (screen) {
-    const screenStreams = getLocalStreamsByType('screen');
-    for (const [streamId, streamData] of Object.entries(screenStreams)) {
-      if (streamData.stream) await tearDownStream(streamData.stream);
-      removeLocalStream(streamId);
-    }
-    const stream = await navigator.mediaDevices.getDisplayMedia({
-      audio: true,
-      video: { cursor: 'always' } as any
-    });
-    setupStream(stream, 'medium', 'detail', false);
-    addLocalStream('screen', stream, null, true, true);
-  } else {
-    const screenStreams = getLocalStreamsByType('screen');
-    for (const [streamId, streamData] of Object.entries(screenStreams)) {
-      if (streamData.stream) await tearDownStream(streamData.stream);
-      removeLocalStream(streamId);
-    }
-  }
-});
-
-fileStream.subscribe(async (file) => {
-  if (file !== null) {
-    const fileStreams = getLocalStreamsByType('file');
-    for (const [streamId, streamData] of Object.entries(fileStreams)) {
-      if (streamData.stream) {
-        await tearDownStream(streamData.stream);
-      } else if (streamData.src) {
-        URL.revokeObjectURL(streamData.src);
-        const stream = getLocalFileStreamState().localFileStreams[streamData.src];
-        if (stream) await tearDownStream(stream);
-      }
-      removeLocalStream(streamId);
-    }
-    addLocalStream('file', null, file, true, false);
-  } else {
-    const fileStreams = getLocalStreamsByType('file');
-    for (const [streamId, streamData] of Object.entries(fileStreams)) {
-      if (streamData.stream) {
-        await tearDownStream(streamData.stream);
-      } else if (streamData.src) {
-        URL.revokeObjectURL(streamData.src);
-        const stream = getLocalFileStreamState().localFileStreams[streamData.src];
-        if (stream) await tearDownStream(stream);
-      }
-      removeLocalStream(streamId);
-    }
-  }
 });
