@@ -1,15 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { connectionStore } from './connectionStore'; // Import connectionStore
 
-// Stream configuration interface
-export interface StreamConfig {
-  audio: string | null; // Contains device ID when enabled, null when disabled
-  camera: string | null; // Contains device ID when enabled, null when disabled
-  screen: boolean;
-  file: string | null; // Contains video source URL when enabled, null when disabled
-  videoStream: MediaStream | null; // Still needed for file playback
-}
-
 // Stream type definitions
 export type StreamType = 'camera' | 'screen' | 'audio' | 'file' | 'blurred';
 export type LayoutType = 'grid' | 'focus' | 'presentation';
@@ -42,8 +33,6 @@ export interface StreamState {
     focusedStream?: string;
     gridSize?: number;
   };
-
-  streamConfig: StreamConfig;
 }
 
 // Initial state
@@ -55,14 +44,6 @@ const initialState: StreamState = {
   // View configuration
   activeView: {
     layout: 'grid'
-  },
-
-  streamConfig: {
-    audio: null,
-    camera: null,
-    screen: false,
-    file: null,
-    videoStream: null
   }
 };
 
@@ -72,17 +53,6 @@ export const streamStore = writable<StreamState>(initialState);
 // Helper functions
 export function getStreamState() {
   return get(streamStore);
-}
-
-// Stream config updates
-export function updateStreamConfig(config: Partial<StreamConfig>): void {
-  streamStore.update((state) => ({
-    ...state,
-    streamConfig: {
-      ...state.streamConfig,
-      ...config
-    }
-  }));
 }
 
 // Enhanced stream management functions
