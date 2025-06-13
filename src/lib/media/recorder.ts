@@ -16,9 +16,7 @@ if (electronAPI) {
   electronRecorderSingletonWrapper.recorderStore = recorderStore;
 }
 
-const activeRecorder: IRecorder = electronAPI
-  ? new ElectronRecorder()
-  : new BrowserRecorder();
+const activeRecorder: IRecorder = electronAPI ? new ElectronRecorder() : new BrowserRecorder();
 
 export async function startRecording(): Promise<void> {
   if (get(recorderStore).isRecording) {
@@ -77,12 +75,19 @@ export function calculateFit(position: Position, streamInfo: StreamInfo): FitRes
   } else {
     const videoTrack = streamInfo.stream.getVideoTracks()[0];
     if (!videoTrack) {
-      console.warn(`No video track found for stream id ${streamInfo.id} (key ${streamInfo.key}), using 16:9.`);
+      console.warn(
+        `No video track found for stream id ${streamInfo.id} (key ${streamInfo.key}), using 16:9.`
+      );
       videoAspectRatio = 16 / 9; // Default fallback
     } else {
       const settings = videoTrack.getSettings();
       const { width: videoWidth, height: videoHeight } = settings;
-      if (videoWidth === undefined || videoHeight === undefined || videoWidth === 0 || videoHeight === 0) {
+      if (
+        videoWidth === undefined ||
+        videoHeight === undefined ||
+        videoWidth === 0 ||
+        videoHeight === 0
+      ) {
         console.warn(
           `Invalid video dimensions from track settings for stream id ${streamInfo.id} (key ${streamInfo.key}):`,
           settings,
@@ -96,9 +101,13 @@ export function calculateFit(position: Position, streamInfo: StreamInfo): FitRes
   }
 
   const positionAspectRatio = position.width / position.height;
-  let dx = 0, dy = 0, width = position.width, height = position.height;
+  let dx = 0,
+    dy = 0,
+    width = position.width,
+    height = position.height;
 
-  if (Math.abs(videoAspectRatio - positionAspectRatio) < 0.01) { // If aspect ratios are very close
+  if (Math.abs(videoAspectRatio - positionAspectRatio) < 0.01) {
+    // If aspect ratios are very close
     // Use full position
   } else if (videoAspectRatio > positionAspectRatio) {
     height = width / videoAspectRatio; // Video is wider, fit to width, letterbox top/bottom

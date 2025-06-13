@@ -163,7 +163,7 @@ export class BrowserRecorder implements IRecorder {
           return;
         }
         const { dx, dy, width, height } = calculateFit(position, streamInfo);
-        const videoOptions: AddStreamOptions = {
+        const videoOptions: Partial<AddStreamOptions> = {
           x: position.x + dx,
           y: position.y + dy,
           width,
@@ -171,15 +171,15 @@ export class BrowserRecorder implements IRecorder {
           mute: false,
           index: 0 // Adjust index for layering if needed
         };
-        merger.addStream(streamInfo.key, streamInfo.stream, videoOptions);
+        merger.addStream(streamInfo.stream, videoOptions as AddStreamOptions);
       }
     });
 
     // Add new audio-only streams
     currentAudioStreams.forEach((streamInfo) => {
       if (!oldStreamKeys.has(streamInfo.key)) {
-        const audioOptions: AddStreamOptions = { mute: false };
-        merger.addStream(streamInfo.key, streamInfo.stream, audioOptions);
+        const audioOptions: Partial<AddStreamOptions> = { mute: false };
+        merger.addStream(streamInfo.stream, audioOptions as AddStreamOptions);
       }
     });
     this.internalState.lastStreamKeys = newStreamKeys;
