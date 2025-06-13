@@ -68,7 +68,8 @@ configStore.subscribe(async (newConfig) => {
             // Re-acquire stream using currentCameraDeviceId and apply new blur setting
             const deviceInfo = currentCameraDeviceId.split('|') || [];
             const newRawStream = await navigator.mediaDevices.getUserMedia({
-              video: deviceInfo.length === 2 ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] } : true
+              video:
+                deviceInfo.length === 2 ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] } : true
             });
 
             let finalStream = newRawStream;
@@ -78,7 +79,8 @@ configStore.subscribe(async (newConfig) => {
                 videoElem.autoplay = true;
                 videoElem.muted = true;
                 videoElem.srcObject = newRawStream;
-                await new Promise<void>((resolve) => { // Keep existing promise pattern
+                await new Promise<void>((resolve) => {
+                  // Keep existing promise pattern
                   videoElem.onloadedmetadata = () => videoElem.play().then(() => resolve());
                 });
                 const blurredStream = await backgroundChange(videoElem);
