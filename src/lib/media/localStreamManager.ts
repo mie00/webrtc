@@ -32,26 +32,69 @@ export function setAudioCallback(cb: ((instant: number) => void) | undefined) {
 // Track previous config state for device changes
 let prevConfig: Config = getAllConfig();
 
-configStore.subscribe((newConfig) => {
-  const streamState = getStreamState();
+configStore.subscribe(async (newConfig) => {
+  const streamState = getStreamState(); // Initial stream state for this update cycle
+  let videoDeviceChangedInThisUpdate = prevConfig.media.videoDevice !== newConfig.media.videoDevice;
 
-  (Object.keys(newConfig.media) as Array<keyof MediaConfig>).forEach((key) => {
+  for (const key of Object.keys(newConfig.media) as Array<keyof MediaConfig>) {
     if (prevConfig.media[key] !== newConfig.media[key]) {
       if (key === 'audioDevice') {
-        if (streamState.streamConfig.audio !== null) {
+        // Check against initial streamState, as streamStore might be updated by other handlers sync
+        if (getStreamState().streamConfig.audio !== null) {
           updateStreamConfig({ audio: newConfig.media.audioDevice });
         }
       } else if (key === 'videoDevice') {
-        if (streamState.streamConfig.camera !== null) {
+        // Check against initial streamState
+        if (getStreamState().streamConfig.camera !== null) {
           updateStreamConfig({ camera: newConfig.media.videoDevice });
         }
-      } else if (key === 'blurVideo' && streamState.streamConfig.camera !== null) {
-        const currentVideoDevice = newConfig.media.videoDevice;
-        updateStreamConfig({ camera: null });
-        setTimeout(() => updateStreamConfig({ camera: currentVideoDevice }), 100);
+        // videoDeviceChangedInThisUpdate is already set based on prevConfig and newConfig
+      } else if (key === 'blurVideo') {
+        if (videoDeviceChangedInThisUpdate) {
+          // If videoDevice also changed, cameraDevice.subscribe will handle
+          // setting up the new device with the correct blur. Do nothing here.
+        } else {
+          // videoDevice did NOT change, only blurVideo (or other non-device media settings).
+          // Apply blur change to the existing camera stream if a camera is configured.
+          const currentCameraDeviceId = newConfig.media.videoDevice; // Current configured device
+          if (currentCameraDeviceId !== null) {
+            // Teardown existing camera streams
+            const existingCameraStreams = getLocalStreamsByType('camera');
+            for (const [streamId, streamData] of Object.entries(existingCameraStreams)) {
+              if (streamData.stream) await tearDownStream(streamData.stream);
+              removeLocalStream(streamId);
+            }
+
+            // Re-acquire stream using currentCameraDeviceId and apply new blur setting
+            const deviceInfo = currentCameraDeviceId.split('|') || [];
+            const newRawStream = await navigator.mediaDevices.getUserMedia({
+              video: deviceInfo.length === 2 ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] } : true
+            });
+
+            let finalStream = newRawStream;
+            if (newConfig.media.blurVideo === 'yes') {
+              try {
+                const videoElem = document.createElement('video');
+                videoElem.autoplay = true;
+                videoElem.muted = true;
+                videoElem.srcObject = newRawStream;
+                await new Promise<void>((resolve) => { // Keep existing promise pattern
+                  videoElem.onloadedmetadata = () => videoElem.play().then(() => resolve());
+                });
+                const blurredStream = await backgroundChange(videoElem);
+                finalStream = blurredStream;
+              } catch (error) {
+                console.error('Failed to apply background blur on config change:', error);
+                finalStream = newRawStream; // Fallback to non-blurred stream
+              }
+            }
+            setupStream(finalStream, 'low', 'motion', true);
+            addLocalStream('camera', finalStream, null, true, true);
+          }
+        }
       }
     }
-  });
+  }
   prevConfig = newConfig;
 });
 
