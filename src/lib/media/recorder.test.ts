@@ -23,8 +23,8 @@ import { getStreamState as mockGetStreamStateOriginal } from '../stores/streamSt
 vi.mock('./browserRecorder', () => {
   // console.log('Mocking BrowserRecorder');
   const BrowserRecorderMock = vi.fn().mockImplementation(() => ({
-    start: (...args) => mockBrowserStart(...args),
-    stop: (...args) => mockBrowserStop(...args)
+    start: () => mockBrowserStart(),
+    stop: () => mockBrowserStop()
   }));
   return { BrowserRecorder: BrowserRecorderMock };
 });
@@ -32,8 +32,8 @@ vi.mock('./browserRecorder', () => {
 vi.mock('./electronRecorder', () => {
   // console.log('Mocking ElectronRecorder');
   const ElectronRecorderMock = vi.fn().mockImplementation(() => ({
-    start: (...args) => mockElectronStart(...args),
-    stop: (...args) => mockElectronStop(...args)
+    start: () => mockElectronStart(),
+    stop: () => mockElectronStop()
   }));
   return {
     ElectronRecorder: ElectronRecorderMock,
