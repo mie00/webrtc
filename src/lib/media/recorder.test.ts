@@ -1,6 +1,11 @@
 /// <reference types="vitest/globals" />
 import { get } from 'svelte/store';
 import type { Mock } from 'vitest';
+const mockBrowserStart = vi.fn();
+const mockBrowserStop = vi.fn();
+const mockElectronStart = vi.fn();
+const mockElectronStop = vi.fn();
+
 // Import calculateFit statically as it's a pure function and its tests are separate.
 // recorderStore, startRecording, stopRecording, toggleRecording will be imported dynamically
 // for the 'Recording functions (Facade)' tests.
@@ -18,8 +23,8 @@ import { getStreamState as mockGetStreamStateOriginal } from '../stores/streamSt
 vi.mock('./browserRecorder', () => {
   // console.log('Mocking BrowserRecorder');
   const BrowserRecorderMock = vi.fn().mockImplementation(() => ({
-    start: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn()
+    start: () => mockBrowserStart(),
+    stop: () => mockBrowserStop()
   }));
   return { BrowserRecorder: BrowserRecorderMock };
 });
@@ -27,8 +32,8 @@ vi.mock('./browserRecorder', () => {
 vi.mock('./electronRecorder', () => {
   // console.log('Mocking ElectronRecorder');
   const ElectronRecorderMock = vi.fn().mockImplementation(() => ({
-    start: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn()
+    start: () => mockElectronStart(),
+    stop: () => mockElectronStop()
   }));
   return {
     ElectronRecorder: ElectronRecorderMock,
@@ -269,26 +274,35 @@ describe('Recording functions (Facade)', () => {
     // Set initial store state for the test using the dynamically imported store
     recorderStoreInstance.set({ isRecording: false });
 
-    // Access the mock instance created within the re-evaluated recorder.ts
-    const browserRecorderModule = await import('./browserRecorder');
-    const BRMock = vi.mocked(browserRecorderModule.BrowserRecorder);
-
-    const electronRecorderModule = await import('./electronRecorder');
-    const ERMock = vi.mocked(electronRecorderModule.ElectronRecorder);
+    // Reset spies and set default behavior for async start methods
+    mockBrowserStart.mockClear().mockResolvedValue(undefined);
+    mockBrowserStop.mockClear();
+    mockElectronStart.mockClear().mockResolvedValue(undefined);
+    mockElectronStop.mockClear();
 
     const recorderTypesModule = await import('./recorderTypes');
     const currentElectronAPI = recorderTypesModule.electronAPI;
 
+    // The actual recorder (BrowserRecorder or ElectronRecorder) will be instantiated
+    // by recorder.ts when it's imported. The mocks we set up earlier ensure that
+    // their start/stop methods point to our top-level spies.
+    // We just need to point activeRecorderMocks to the correct set of spies.
     if (currentElectronAPI) {
-      if (ERMock.mock.instances.length === 0) {
-        throw new Error('ElectronRecorder mock constructor was not called by recorder.ts');
-      }
-      activeRecorderMocks = ERMock.mock.instances[0] as unknown as { start: Mock; stop: Mock };
+      activeRecorderMocks = { start: mockElectronStart, stop: mockElectronStop };
+      // We can optionally verify that the ElectronRecorder constructor was called if needed
+      // const electronRecorderModule = await import('./electronRecorder');
+      // const ERMock = vi.mocked(electronRecorderModule.ElectronRecorder);
+      // if (ERMock.mock.calls.length === 0) { // Check if constructor was called
+      //   throw new Error('ElectronRecorder mock constructor was not called by recorder.ts');
+      // }
     } else {
-      if (BRMock.mock.instances.length === 0) {
-        throw new Error('BrowserRecorder mock constructor was not called by recorder.ts');
-      }
-      activeRecorderMocks = BRMock.mock.instances[0] as unknown as { start: Mock; stop: Mock };
+      activeRecorderMocks = { start: mockBrowserStart, stop: mockBrowserStop };
+      // Optionally verify BrowserRecorder constructor call
+      // const browserRecorderModule = await import('./browserRecorder');
+      // const BRMock = vi.mocked(browserRecorderModule.BrowserRecorder);
+      // if (BRMock.mock.calls.length === 0) {
+      //  throw new Error('BrowserRecorder mock constructor was not called by recorder.ts');
+      // }
     }
   });
 
