@@ -282,14 +282,20 @@ describe('Recording functions (Facade)', () => {
     // Re-initialize mocks for start/stop on new instances if constructor is called again
     // This ensures that each test gets a fresh mock instance if the module was re-evaluated
     // or if the constructor is called multiple times across tests.
-    BRMock.mockImplementation(() => ({
-      start: vi.fn().mockResolvedValue(undefined),
-      stop: vi.fn()
-    } as unknown as import('./browserRecorder').BrowserRecorder));
-    ERMock.mockImplementation(() => ({
-      start: vi.fn().mockResolvedValue(undefined),
-      stop: vi.fn()
-    } as unknown as import('./electronRecorder').ElectronRecorder));
+    BRMock.mockImplementation(
+      () =>
+        ({
+          start: vi.fn().mockResolvedValue(undefined),
+          stop: vi.fn()
+        }) as unknown as import('./browserRecorder').BrowserRecorder
+    );
+    ERMock.mockImplementation(
+      () =>
+        ({
+          start: vi.fn().mockResolvedValue(undefined),
+          stop: vi.fn()
+        }) as unknown as import('./electronRecorder').ElectronRecorder
+    );
   });
 
   describe('startRecording', () => {
