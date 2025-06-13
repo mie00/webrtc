@@ -60,11 +60,15 @@ configStore.subscribe(async (newConfig) => {
           if (newConfig.media.blurVideo === 'yes') {
             // Blur turned ON
             const existingCameraStreamsData = getLocalStreamsByType('camera');
-            for (const [originalStreamId, streamData] of Object.entries(existingCameraStreamsData)) {
+            for (const [originalStreamId, streamData] of Object.entries(
+              existingCameraStreamsData
+            )) {
               if (streamData.stream) {
                 // TODO: When streamStore.ts is provided, call:
                 // updateLocalStreamProperties(originalStreamId, { viewable: false, sendable: false });
-                console.warn(`[localStreamManager] Marking stream ${originalStreamId} as non-viewable/sendable (requires updateLocalStreamProperties for full effect)`);
+                console.warn(
+                  `[localStreamManager] Marking stream ${originalStreamId} as non-viewable/sendable (requires updateLocalStreamProperties for full effect)`
+                );
 
                 const videoElem = document.createElement('video');
                 videoElem.autoplay = true;
@@ -90,7 +94,9 @@ configStore.subscribe(async (newConfig) => {
             for (const streamId of Object.keys(existingCameraStreamsData)) {
               // TODO: When streamStore.ts is provided, call:
               // updateLocalStreamProperties(streamId, { viewable: true, sendable: true });
-              console.warn(`[localStreamManager] Marking stream ${streamId} as viewable/sendable (requires updateLocalStreamProperties for full effect)`);
+              console.warn(
+                `[localStreamManager] Marking stream ${streamId} as viewable/sendable (requires updateLocalStreamProperties for full effect)`
+              );
             }
           }
         }
@@ -177,7 +183,9 @@ cameraDevice.subscribe(async (camera) => {
     if (globalConfig.media.blurVideo === 'yes') {
       // TODO: When streamStore.ts is provided, call:
       // updateLocalStreamProperties(rawCameraStreamId, { viewable: false, sendable: false });
-      console.warn(`[localStreamManager] Marking stream ${rawCameraStreamId} as non-viewable/sendable (requires updateLocalStreamProperties for full effect)`);
+      console.warn(
+        `[localStreamManager] Marking stream ${rawCameraStreamId} as non-viewable/sendable (requires updateLocalStreamProperties for full effect)`
+      );
 
       try {
         const videoElem = document.createElement('video');
@@ -195,7 +203,9 @@ cameraDevice.subscribe(async (camera) => {
         // Fallback: ensure the raw camera stream is viewable/sendable if blur fails
         // TODO: When streamStore.ts is provided, call:
         // updateLocalStreamProperties(rawCameraStreamId, { viewable: true, sendable: true });
-        console.warn(`[localStreamManager] Fallback: Marking stream ${rawCameraStreamId} as viewable/sendable due to blur error (requires updateLocalStreamProperties for full effect)`);
+        console.warn(
+          `[localStreamManager] Fallback: Marking stream ${rawCameraStreamId} as viewable/sendable due to blur error (requires updateLocalStreamProperties for full effect)`
+        );
       }
     }
     // If blur is 'no', the raw 'camera' stream added above is already correctly viewable/sendable.
