@@ -128,7 +128,7 @@ export function updateLocalStreamProperties(
       newStreamData.stream
     ) {
       const trackStream = newStreamData.stream;
-      const webRTCApp = (window as any).webRTCAppInstance;
+      const webRTCApp = window.webRTCApp;
 
       if (!webRTCApp || !webRTCApp.negotiationManager) {
         console.warn(
