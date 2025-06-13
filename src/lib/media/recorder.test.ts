@@ -1,5 +1,6 @@
 /// <reference types="vitest/globals" />
 import { get } from 'svelte/store';
+import type { Mock } from 'vitest';
 import {
   recorderStore,
   startRecording,
@@ -316,7 +317,7 @@ describe('Recording functions (Facade)', () => {
 
     it('should handle errors from activeRecorder.start() and update store', async () => {
       const activeMock = await getActiveRecorderMockInstance();
-      (activeMock.start as vi.Mock).mockRejectedValueOnce(new Error('Start failed'));
+      (activeMock.start as Mock).mockRejectedValueOnce(new Error('Start failed'));
 
       await expect(startRecording()).rejects.toThrow('Start failed');
       expect(get(recorderStore).isRecording).toBe(false);
@@ -355,8 +356,8 @@ describe('Recording functions (Facade)', () => {
       const activeMock = await getActiveRecorderMockInstance();
       // Ensure the instance has a mock start if it's a new one from the constructor mock
       // The start method should always exist on activeMock as per our mock setup.
-      // We cast it to vi.Mock to use mockResolvedValueOnce.
-      (activeMock.start as vi.Mock).mockResolvedValueOnce(undefined);
+      // We cast it to Mock to use mockResolvedValueOnce.
+      (activeMock.start as Mock).mockResolvedValueOnce(undefined);
 
       toggleRecording();
       expect(activeMock.stop).toHaveBeenCalledTimes(1);
