@@ -1,3 +1,4 @@
+/// <reference types="vitest/globals" />
 import { get } from 'svelte/store';
 import {
   recorderStore,
