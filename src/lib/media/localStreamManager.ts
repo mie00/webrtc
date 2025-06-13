@@ -57,7 +57,7 @@ configStore.subscribe(async (newConfig) => {
           // videoDevice did NOT change, only blurVideo (or other non-device media settings).
           // Apply blur change to the existing camera stream if a camera is configured.
           const currentCameraDeviceId = newConfig.media.videoDevice; // Current configured device
-          if (currentCameraDeviceId !== null) {
+          if (currentCameraDeviceId) { // Check for null or undefined
             // Teardown existing camera streams
             const existingCameraStreams = getLocalStreamsByType('camera');
             for (const [streamId, streamData] of Object.entries(existingCameraStreams)) {
