@@ -5,7 +5,7 @@ import { calculateGridPositions, type Position } from './streamLayout';
 import { getStreamMetadata } from '../stores/localFileStreamStore';
 import type { IRecorder, StreamInfo } from './recorderTypes';
 import { RECORDER_FW, RECORDER_FH } from './recorderTypes';
-import { calculateFit } from './recorder'; // calculateFit is in recorder.ts
+import { calculateFit } from './mediaUtils'; // calculateFit is now in mediaUtils.ts
 
 interface BrowserRecorderInternalState {
   merger: VideoStreamMerger | null;

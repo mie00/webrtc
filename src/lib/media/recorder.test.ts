@@ -4,7 +4,8 @@ import type { Mock } from 'vitest';
 // Import calculateFit statically as it's a pure function and its tests are separate.
 // recorderStore, startRecording, stopRecording, toggleRecording will be imported dynamically
 // for the 'Recording functions (Facade)' tests.
-import { calculateFit, recorderStore } from './recorder';
+import { recorderStore } from './recorder';
+import { calculateFit } from './mediaUtils';
 import type { Position } from './streamLayout';
 import { getStreamMetadata as mockGetStreamMetadata } from '../stores/localFileStreamStore';
 // getStreamState is used by recorder implementations, so its mock setup is still relevant if testing those deeply.
