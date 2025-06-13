@@ -64,11 +64,7 @@ configStore.subscribe(async (newConfig) => {
               existingCameraStreamsData
             )) {
               if (streamData.stream) {
-                // TODO: When streamStore.ts is provided, call:
-                // updateLocalStreamProperties(originalStreamId, { viewable: false, sendable: false });
-                console.warn(
-                  `[localStreamManager] Marking stream ${originalStreamId} as non-viewable/sendable (requires updateLocalStreamProperties for full effect)`
-                );
+                updateLocalStreamProperties(originalStreamId, { viewable: false, sendable: false });
 
                 const videoElem = document.createElement('video');
                 videoElem.autoplay = true;
@@ -92,11 +88,7 @@ configStore.subscribe(async (newConfig) => {
 
             const existingCameraStreamsData = getLocalStreamsByType('camera');
             for (const streamId of Object.keys(existingCameraStreamsData)) {
-              // TODO: When streamStore.ts is provided, call:
-              // updateLocalStreamProperties(streamId, { viewable: true, sendable: true });
-              console.warn(
-                `[localStreamManager] Marking stream ${streamId} as viewable/sendable (requires updateLocalStreamProperties for full effect)`
-              );
+              updateLocalStreamProperties(streamId, { viewable: true, sendable: true });
             }
           }
         }
@@ -181,11 +173,7 @@ cameraDevice.subscribe(async (camera) => {
     const rawCameraStreamId = addLocalStream('camera', rawVideoStream, null, true, true); // Add as 'camera', initially viewable/sendable
 
     if (globalConfig.media.blurVideo === 'yes') {
-      // TODO: When streamStore.ts is provided, call:
-      // updateLocalStreamProperties(rawCameraStreamId, { viewable: false, sendable: false });
-      console.warn(
-        `[localStreamManager] Marking stream ${rawCameraStreamId} as non-viewable/sendable (requires updateLocalStreamProperties for full effect)`
-      );
+      updateLocalStreamProperties(rawCameraStreamId, { viewable: false, sendable: false });
 
       try {
         const videoElem = document.createElement('video');
@@ -201,11 +189,7 @@ cameraDevice.subscribe(async (camera) => {
       } catch (error) {
         console.error('Failed to apply background blur on new camera device:', error);
         // Fallback: ensure the raw camera stream is viewable/sendable if blur fails
-        // TODO: When streamStore.ts is provided, call:
-        // updateLocalStreamProperties(rawCameraStreamId, { viewable: true, sendable: true });
-        console.warn(
-          `[localStreamManager] Fallback: Marking stream ${rawCameraStreamId} as viewable/sendable due to blur error (requires updateLocalStreamProperties for full effect)`
-        );
+        updateLocalStreamProperties(rawCameraStreamId, { viewable: true, sendable: true });
       }
     }
     // If blur is 'no', the raw 'camera' stream added above is already correctly viewable/sendable.
