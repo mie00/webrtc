@@ -204,10 +204,15 @@
   async function handleToggleAudio() {
     setAudioCallback((arg) => (instant = arg));
     if (!isAudioEnabled) {
-      const deviceString = $configStore.media.audioDevice || ''; // Use selected or default
-      updateConfig('media', 'audioDevice', deviceString);
+      // Add a placeholder stream; localStreamManager will pick it up
+      // Pass the current configured device (or 'default') as a hint in the 'src' field
+      addStreamStoreLocalStream('audio', null, $configStore.media.audioDevice || 'default', true, true);
     } else {
-      updateConfig('media', 'audioDevice', undefined); // Undefined means audio off
+      // Remove all active audio streams
+      const audioStreams = getLocalStreamsByType('audio');
+      for (const streamId of Object.keys(audioStreams)) {
+        removeStreamStoreLocalStream(streamId); // localStreamManager will handle teardown
+      }
     }
   }
 
@@ -225,15 +230,15 @@
     }
 
     const configKey = type === 'audio' ? 'audioDevice' : 'videoDevice';
-    const currentDeviceId = $configStore.media[configKey];
-    const isEnabled = !!currentDeviceId;
+    const currentDeviceId = $configStore.media[configKey]; // This is the selected device, not on/off state
+    const isTypeEnabled = type === 'audio' ? isAudioEnabled : isCameraEnabled;
 
     menuItems = [
       {
         id: 'enable-disable',
-        label: isEnabled ? `Disable ${type}` : `Enable ${type}`,
+        label: isTypeEnabled ? `Disable ${type}` : `Enable ${type}`,
         type: 'toggle' as const,
-        checked: isEnabled,
+        checked: isTypeEnabled,
         action: () => {
           if (type === 'audio') handleToggleAudio();
           else handleToggleVideo();
@@ -293,10 +298,19 @@
 
   async function handleToggleVideo() {
     if (!isCameraEnabled) {
-      const deviceString = $configStore.media.videoDevice || ''; // Use selected or default
-      updateConfig('media', 'videoDevice', deviceString);
+      // Add a placeholder stream; localStreamManager will pick it up
+      // Pass the current configured device (or 'default') as a hint in the 'src' field
+      addStreamStoreLocalStream('camera', null, $configStore.media.videoDevice || 'default', true, true);
     } else {
-      updateConfig('media', 'videoDevice', undefined); // Undefined means camera off
+      // Remove all active camera and blurred streams
+      const cameraStreams = getLocalStreamsByType('camera');
+      for (const streamId of Object.keys(cameraStreams)) {
+        removeStreamStoreLocalStream(streamId);
+      }
+      const blurredStreams = getLocalStreamsByType('blurred');
+      for (const streamId of Object.keys(blurredStreams)) {
+        removeStreamStoreLocalStream(streamId);
+      }
     }
   }
 

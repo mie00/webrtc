@@ -30,134 +30,66 @@ export function setAudioCallback(cb: ((instant: number) => void) | undefined) {
 }
 
 // Track previous config state for device changes
-let prevConfig: Config = getAllConfig();
+let prevConfigState: Config = getAllConfig();
+let prevLocalStreamsState: Record<string, any> = getStreamState().localStreams;
 
-configStore.subscribe(async (newConfig) => {
-  // Check if videoDevice changed to coordinate with blur logic
-  const videoDeviceJustChanged = prevConfig.media.videoDevice !== newConfig.media.videoDevice;
-
-  // Handle blur changes
-  if (prevConfig.media.blurVideo !== newConfig.media.blurVideo) {
-    // Only apply blur changes if the camera is intended to be active
-    // and the video device itself hasn't just changed (which would trigger a full camera restart via cameraDevice.subscribe)
-    if (newConfig.media.videoDevice && !videoDeviceJustChanged) {
-      if (newConfig.media.blurVideo === 'yes') {
-        // Blur turned ON for existing camera stream
-        const existingCameraStreamsData = getLocalStreamsByType('camera');
-        for (const [originalStreamId, streamData] of Object.entries(existingCameraStreamsData)) {
-          if (streamData.stream) {
-            updateLocalStreamProperties(originalStreamId, { viewable: false, sendable: false });
-            const videoElem = document.createElement('video');
-            videoElem.autoplay = true;
-            videoElem.muted = true;
-            videoElem.srcObject = streamData.stream;
-            await new Promise<void>((resolve) => {
-              videoElem.onloadedmetadata = () => videoElem.play().then(() => resolve());
-            });
-            const blurredVersion = await backgroundChange(videoElem);
-            setupStream(blurredVersion, 'low', 'motion', true);
-            addLocalStream('blurred', blurredVersion, null, true, true);
-          }
-        }
-      } else {
-        // Blur turned OFF
-        const existingBlurredStreams = getLocalStreamsByType('blurred');
-        for (const [streamId, streamData] of Object.entries(existingBlurredStreams)) {
-          if (streamData.stream) await tearDownStream(streamData.stream);
-          removeLocalStream(streamId);
-        }
-        const existingCameraStreamsData = getLocalStreamsByType('camera');
-        for (const streamId of Object.keys(existingCameraStreamsData)) {
-          updateLocalStreamProperties(streamId, { viewable: true, sendable: true });
-        }
-      }
-    }
-  }
-  prevConfig = { ...newConfig }; // Store a copy of the new config
-});
-
-// Derived stores for active audio and camera based on configStore
-const audioConfig = derived(configStore, ($config) => $config.media.audioDevice);
-const cameraConfig = derived(configStore, ($config) => $config.media.videoDevice);
-// Screen sharing and file streaming are managed directly by MediaArea.svelte for now
-
-audioConfig.subscribe(async (audioDeviceValue) => {
-  // audioDeviceValue is the device ID string, or undefined if audio should be off
-  if (audioDeviceValue) {
-    const audioStreams = getLocalStreamsByType('audio');
-    for (const [streamId, streamData] of Object.entries(audioStreams)) {
-      if (streamData.stream) {
-        await tearDownStream(streamData.stream);
-        const audioNodes = getAudioProcessingContext(streamId);
-        stopProcessingAudio(audioNodes);
-        removeAudioProcessingContext(streamId);
-      }
-      removeLocalStream(streamId);
-    }
-
-    const deviceInfo = audioDeviceValue.split('|') || [];
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: deviceInfo.length === 2 ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] } : true
-    });
-    setupStream(stream, 'high');
-    const newStreamId = addLocalStream('audio', stream, null, true, true);
-
-    if (audioCbFunction) {
-      const context = await processAudio(stream, (dataArray, analyser) => {
-        if (dataArray.length > 0) {
-          let sum = 0;
-          for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-          audioCbFunction?.(sum / dataArray.length);
-        } else {
-          audioCbFunction?.(0);
-        }
-      });
-      setAudioProcessingContext(newStreamId, context);
-    }
+// Helper function to get device constraints
+function getDeviceConstraints(
+  deviceHint: string | null | undefined,
+  type: 'audio' | 'video'
+): MediaStreamConstraints {
+  const constraints: MediaStreamConstraints = {};
+  if (type === 'audio') {
+    constraints.audio = deviceHint && deviceHint !== 'default' ? { deviceId: { exact: deviceHint.split('|')[1] } } : true;
   } else {
-    // Audio should be off (audioDeviceValue is undefined)
-    const audioStreams = getLocalStreamsByType('audio');
-    for (const [streamId, streamData] of Object.entries(audioStreams)) {
-      if (streamData.stream) {
-        await tearDownStream(streamData.stream);
-        const audioNodes = getAudioProcessingContext(streamId);
-        stopProcessingAudio(audioNodes);
-        removeAudioProcessingContext(streamId);
+    constraints.video = deviceHint && deviceHint !== 'default' ? { deviceId: { exact: deviceHint.split('|')[1] } } : true;
+  }
+  return constraints;
+}
+
+// Manage a single audio stream based on its LocalStreamData
+async function manageAudioStream(streamId: string, streamData: any, config: MediaConfig) {
+  if (!streamData.stream) { // Stream needs to be initialized
+    const deviceHint = streamData.src || config.audioDevice; // Use src as hint, fallback to config
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia(
+        getDeviceConstraints(deviceHint, 'audio')
+      );
+      setupStream(mediaStream, 'high');
+      updateLocalStreamProperties(streamId, { stream: mediaStream, src: null }); // Clear src hint
+
+      if (audioCbFunction) {
+        const context = await processAudio(mediaStream, (dataArray) => {
+          if (dataArray.length > 0) {
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+            audioCbFunction?.(sum / dataArray.length);
+          } else {
+            audioCbFunction?.(0);
+          }
+        });
+        setAudioProcessingContext(streamId, context);
       }
-      removeLocalStream(streamId);
+    } catch (err) {
+      console.error(`Error initializing audio stream ${streamId}:`, err);
+      removeLocalStream(streamId); // Remove if initialization failed
     }
-    if (audioCbFunction) audioCbFunction(0);
   }
-});
+}
 
-cameraConfig.subscribe(async (cameraDeviceValue) => {
-  const globalConfig = getAllConfig(); // Get current global config, including blur setting
+// Manage a single camera stream based on its LocalStreamData
+async function manageCameraStream(streamId: string, streamData: any, config: MediaConfig) {
+  if (!streamData.stream) { // Stream needs to be initialized
+    const deviceHint = streamData.src || config.videoDevice; // Use src as hint
+    try {
+      const rawVideoStream = await navigator.mediaDevices.getUserMedia(
+        getDeviceConstraints(deviceHint, 'video')
+      );
+      setupStream(rawVideoStream, 'low', 'motion', true);
+      updateLocalStreamProperties(streamId, { stream: rawVideoStream, src: null }); // Update with actual stream
 
-  // First, clean up ALL existing camera and blurred streams
-  // This ensures a clean state regardless of whether camera is being turned on, off, or device is changing.
-  const oldCameraStreams = getLocalStreamsByType('camera');
-  for (const [streamId, streamData] of Object.entries(oldCameraStreams)) {
-    if (streamData.stream) await tearDownStream(streamData.stream);
-    removeLocalStream(streamId);
-  }
-  const oldBlurredStreams = getLocalStreamsByType('blurred');
-  for (const [streamId, streamData] of Object.entries(oldBlurredStreams)) {
-    if (streamData.stream) await tearDownStream(streamData.stream);
-    removeLocalStream(streamId);
-  }
-
-  if (cameraDeviceValue) {
-    // Camera should be on if cameraDeviceValue is a device ID string
-    const deviceInfo = cameraDeviceValue.split('|') || [];
-    const rawVideoStream = await navigator.mediaDevices.getUserMedia({
-      video: deviceInfo.length === 2 ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] } : true
-    });
-    setupStream(rawVideoStream, 'low', 'motion', true);
-    const rawCameraStreamId = addLocalStream('camera', rawVideoStream, null, true, true);
-
-    if (globalConfig.media.blurVideo === 'yes') {
-      updateLocalStreamProperties(rawCameraStreamId, { viewable: false, sendable: false });
-      try {
+      if (config.blurVideo === 'yes') {
+        updateLocalStreamProperties(streamId, { viewable: false, sendable: false });
         const videoElem = document.createElement('video');
         videoElem.autoplay = true;
         videoElem.muted = true;
@@ -167,13 +99,145 @@ cameraConfig.subscribe(async (cameraDeviceValue) => {
         });
         const blurredStream = await backgroundChange(videoElem);
         setupStream(blurredStream, 'low', 'motion', true);
-        addLocalStream('blurred', blurredStream, null, true, true);
-      } catch (error) {
-        console.error('Failed to apply background blur on new camera device:', error);
-        updateLocalStreamProperties(rawCameraStreamId, { viewable: true, sendable: true });
+        addLocalStream('blurred', blurredStream, null, true, true); // This will be managed by its own entry
+      }
+    } catch (err) {
+      console.error(`Error initializing camera stream ${streamId}:`, err);
+      removeLocalStream(streamId); // Remove if initialization failed
+    }
+  }
+}
+
+// Teardown for a specific stream
+async function teardownStreamResource(streamId: string, streamData: any) {
+  if (streamData.stream) {
+    await tearDownStream(streamData.stream);
+  }
+  if (streamData.type === 'audio') {
+    const audioNodes = getAudioProcessingContext(streamId);
+    stopProcessingAudio(audioNodes);
+    removeAudioProcessingContext(streamId);
+    if (audioCbFunction) audioCbFunction(0);
+  }
+  // If it's a 'camera' stream that was blurred, its 'blurred' counterpart is a separate entry
+  // and will be handled by its own removal from streamStore.
+}
+
+
+// Subscribe to streamStore to manage stream lifecycles
+streamStore.subscribe(async (currentStreamState) => {
+  const currentLocalStreams = currentStreamState.localStreams;
+  const currentConfig = getAllConfig().media;
+
+  // Detect added streams
+  for (const streamId in currentLocalStreams) {
+    if (!prevLocalStreamsState[streamId]) {
+      const streamData = currentLocalStreams[streamId];
+      if (streamData.type === 'audio') {
+        await manageAudioStream(streamId, streamData, currentConfig);
+      } else if (streamData.type === 'camera') {
+        await manageCameraStream(streamId, streamData, currentConfig);
+      }
+      // 'blurred' streams are added by manageCameraStream, not directly by user toggle
+    }
+  }
+
+  // Detect removed streams
+  for (const streamId in prevLocalStreamsState) {
+    if (!currentLocalStreams[streamId]) {
+      const streamData = prevLocalStreamsState[streamId];
+      await teardownStreamResource(streamId, streamData);
+      // If a 'camera' stream is removed, and blur was on, ensure its 'blurred' counterpart is also removed.
+      if (streamData.type === 'camera' && currentConfig.blurVideo === 'yes') {
+        const blurredStreams = getLocalStreamsByType('blurred');
+        // This assumes a naming convention or relation if multiple cameras could be blurred.
+        // For simplicity, let's assume one primary blurred stream if any.
+        for (const blurredId of Object.keys(blurredStreams)) {
+           // Check if this blurred stream was derived from the camera stream being removed.
+           // This logic might need refinement if we store relation between camera and blurred stream.
+           // For now, if a camera is removed and blur is on, we remove *all* blurred streams.
+           // This is a simplification and might need a more robust link if multiple cameras are supported.
+          const bStream = prevLocalStreamsState[blurredId] || currentLocalStreams[blurredId];
+          if(bStream) await teardownStreamResource(blurredId, bStream);
+          removeLocalStream(blurredId); // Ensure it's removed from store
+        }
       }
     }
-    // If blur is 'no', the raw 'camera' stream is already correctly viewable/sendable.
   }
-  // If cameraDeviceValue is undefined, all streams were already cleaned up at the start of the subscription.
+  prevLocalStreamsState = { ...currentLocalStreams };
+});
+
+
+configStore.subscribe(async (newConfig) => {
+  const currentStreams = getStreamState().localStreams; // Get latest streams
+
+  // Handle audio device change if an audio stream is active
+  if (newConfig.media.audioDevice !== prevConfigState.media.audioDevice) {
+    const audioStreams = getLocalStreamsByType('audio');
+    for (const streamId in audioStreams) {
+      if (currentStreams[streamId] && currentStreams[streamId].stream) {
+        await teardownStreamResource(streamId, currentStreams[streamId]);
+        // Re-initialize with new device by treating it as a new stream for manageAudioStream
+        // but we need to ensure it uses the new device from newConfig.media.audioDevice
+        const placeholderData = { ...currentStreams[streamId], stream: null, src: newConfig.media.audioDevice };
+        await manageAudioStream(streamId, placeholderData, newConfig.media);
+      }
+    }
+  }
+
+  // Handle video device change if a camera stream is active
+  if (newConfig.media.videoDevice !== prevConfigState.media.videoDevice) {
+    const cameraStreams = getLocalStreamsByType('camera');
+    for (const streamId in cameraStreams) {
+      if (currentStreams[streamId] && currentStreams[streamId].stream) {
+        // Teardown existing camera and any associated blurred stream
+        const oldCameraStreamData = currentStreams[streamId];
+        await teardownStreamResource(streamId, oldCameraStreamData);
+        const blurredStreams = getLocalStreamsByType('blurred'); // Check for related blurred
+        for (const blurredId of Object.keys(blurredStreams)) {
+            // Simplified: remove all blurred streams if video device changes
+            const bStream = currentStreams[blurredId] || prevLocalStreamsState[blurredId];
+            if(bStream) await teardownStreamResource(blurredId, bStream);
+            removeLocalStream(blurredId);
+        }
+        // Re-initialize with new device
+        const placeholderData = { ...currentStreams[streamId], stream: null, src: newConfig.media.videoDevice };
+        await manageCameraStream(streamId, placeholderData, newConfig.media);
+      }
+    }
+  }
+
+  // Handle blur video change
+  if (newConfig.media.blurVideo !== prevConfigState.media.blurVideo) {
+    const cameraStreams = getLocalStreamsByType('camera');
+    for (const streamId in cameraStreams) {
+      const cameraStreamData = currentStreams[streamId];
+      if (cameraStreamData && cameraStreamData.stream) { // Ensure camera stream exists and is materialized
+        if (newConfig.media.blurVideo === 'yes') {
+          // Blur turned ON
+          updateLocalStreamProperties(streamId, { viewable: false, sendable: false });
+          const videoElem = document.createElement('video');
+          videoElem.autoplay = true;
+          videoElem.muted = true;
+          videoElem.srcObject = cameraStreamData.stream;
+          await new Promise<void>((resolve) => {
+            videoElem.onloadedmetadata = () => videoElem.play().then(() => resolve());
+          });
+          const blurredVersion = await backgroundChange(videoElem);
+          setupStream(blurredVersion, 'low', 'motion', true);
+          addLocalStream('blurred', blurredVersion, null, true, true);
+        } else {
+          // Blur turned OFF
+          updateLocalStreamProperties(streamId, { viewable: true, sendable: true });
+          const blurredStreams = getLocalStreamsByType('blurred');
+          for (const blurredId of Object.keys(blurredStreams)) {
+            const bStream = currentStreams[blurredId] || prevLocalStreamsState[blurredId];
+            if(bStream) await teardownStreamResource(blurredId, bStream);
+            removeLocalStream(blurredId);
+          }
+        }
+      }
+    }
+  }
+  prevConfigState = { ...newConfig };
 });
