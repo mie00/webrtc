@@ -247,11 +247,16 @@ describe('calculateFit', () => {
 // These tests will verify that the correct recorder implementation (mocked) is called.
 describe('Recording functions (Facade)', () => {
   // Helper to get the *mocked* instance of the active recorder
-  const getActiveRecorderMockInstance = () => {
-    // Need to require them here to get the mocked constructors after vi.mock has run
-    const { BrowserRecorder: BRMock } = vi.mocked(require('./browserRecorder'));
-    const { ElectronRecorder: ERMock } = vi.mocked(require('./electronRecorder'));
-    const { electronAPI: currentElectronAPI } = vi.mocked(require('./recorderTypes'));
+  const getActiveRecorderMockInstance = async () => {
+    // Need to import them here to get the mocked constructors after vi.mock has run
+    const browserRecorderModule = await import('./browserRecorder');
+    const BRMock = vi.mocked(browserRecorderModule.BrowserRecorder);
+
+    const electronRecorderModule = await import('./electronRecorder');
+    const ERMock = vi.mocked(electronRecorderModule.ElectronRecorder);
+
+    const recorderTypesModule = await import('./recorderTypes');
+    const currentElectronAPI = recorderTypesModule.electronAPI;
 
     if (currentElectronAPI) {
       // Access the last created instance from the mock constructor
@@ -260,14 +265,18 @@ describe('Recording functions (Facade)', () => {
     return BRMock.mock.instances[BRMock.mock.instances.length - 1];
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     recorderStore.set({ isRecording: false });
     vi.clearAllMocks(); // Clears call counts etc. for mocks
 
     // Ensure mocks for constructors are reset and can create new instances for each test
     // This is important if the activeRecorder is instantiated at the module level in recorder.ts
-    const { BrowserRecorder: BRMock } = vi.mocked(require('./browserRecorder'));
-    const { ElectronRecorder: ERMock } = vi.mocked(require('./electronRecorder'));
+    const browserRecorderModule = await import('./browserRecorder');
+    const BRMock = vi.mocked(browserRecorderModule.BrowserRecorder);
+
+    const electronRecorderModule = await import('./electronRecorder');
+    const ERMock = vi.mocked(electronRecorderModule.ElectronRecorder);
+
     BRMock.mockClear(); // Clears instances and calls for the constructor mock itself
     ERMock.mockClear();
     // Re-initialize mocks for start/stop on new instances if constructor is called again
@@ -286,7 +295,7 @@ describe('Recording functions (Facade)', () => {
   describe('startRecording', () => {
     it('should call activeRecorder.start() and update store', async () => {
       await startRecording();
-      const activeMock = getActiveRecorderMockInstance();
+      const activeMock = await getActiveRecorderMockInstance();
       expect(activeMock.start).toHaveBeenCalledTimes(1);
       expect(get(recorderStore).isRecording).toBe(true);
     });
@@ -294,12 +303,12 @@ describe('Recording functions (Facade)', () => {
     it('should not call activeRecorder.start() if already recording', async () => {
       recorderStore.set({ isRecording: true });
       await startRecording();
-      const activeMock = getActiveRecorderMockInstance();
+      const activeMock = await getActiveRecorderMockInstance();
       expect(activeMock.start).not.toHaveBeenCalled();
     });
 
     it('should handle errors from activeRecorder.start() and update store', async () => {
-      const activeMock = getActiveRecorderMockInstance();
+      const activeMock = await getActiveRecorderMockInstance();
       activeMock.start.mockRejectedValueOnce(new Error('Start failed'));
 
       await expect(startRecording()).rejects.toThrow('Start failed');
@@ -310,17 +319,17 @@ describe('Recording functions (Facade)', () => {
   });
 
   describe('stopRecording', () => {
-    it('should call activeRecorder.stop() and update store if recording', () => {
+    it('should call activeRecorder.stop() and update store if recording', async () => {
       recorderStore.set({ isRecording: true });
       stopRecording();
-      const activeMock = getActiveRecorderMockInstance();
+      const activeMock = await getActiveRecorderMockInstance();
       expect(activeMock.stop).toHaveBeenCalledTimes(1);
       expect(get(recorderStore).isRecording).toBe(false);
     });
 
-    it('should not call activeRecorder.stop() if not recording', () => {
+    it('should not call activeRecorder.stop() if not recording', async () => {
       stopRecording(); // isRecording is false by default
-      const activeMock = getActiveRecorderMockInstance();
+      const activeMock = await getActiveRecorderMockInstance();
       expect(activeMock.stop).not.toHaveBeenCalled();
     });
   });
@@ -328,7 +337,7 @@ describe('Recording functions (Facade)', () => {
   describe('toggleRecording', () => {
     it('should call startRecording (and thus activeRecorder.start) if not recording', async () => {
       await toggleRecording();
-      const activeMock = getActiveRecorderMockInstance();
+      const activeMock = await getActiveRecorderMockInstance();
       expect(activeMock.start).toHaveBeenCalledTimes(1);
       expect(get(recorderStore).isRecording).toBe(true);
     });
@@ -336,7 +345,7 @@ describe('Recording functions (Facade)', () => {
     it('should call stopRecording (and thus activeRecorder.stop) if already recording', async () => {
       recorderStore.set({ isRecording: true });
       // Mock start on the instance so it doesn't interfere if toggle calls it before checking state
-      const activeMock = getActiveRecorderMockInstance();
+      const activeMock = await getActiveRecorderMockInstance();
       // Ensure the instance has a mock start if it's a new one from the constructor mock
       if (!activeMock.start) activeMock.start = vi.fn().mockResolvedValue(undefined);
       else activeMock.start.mockResolvedValueOnce(undefined);
