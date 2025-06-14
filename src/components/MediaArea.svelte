@@ -41,13 +41,20 @@
   let refreshInterval: number;
 
   // Reactive button states
-  const isAudioEnabled = $derived(Object.keys(getLocalStreamsByType('audio')).length > 0);
-  const isCameraEnabled = $derived(
-    Object.keys(getLocalStreamsByType('camera')).length > 0 ||
-      Object.keys(getLocalStreamsByType('blurred')).length > 0
+  const isAudioEnabled = $derived(
+    Object.values($streamStore.localStreams).some((stream) => stream.type === 'audio')
   );
-  const isScreenSharing = $derived(Object.keys(getLocalStreamsByType('screen')).length > 0);
-  const isVideoShared = $derived(Object.keys(getLocalStreamsByType('file')).length > 0);
+  const isCameraEnabled = $derived(
+    Object.values($streamStore.localStreams).some(
+      (stream) => stream.type === 'camera' || stream.type === 'blurred'
+    )
+  );
+  const isScreenSharing = $derived(
+    Object.values($streamStore.localStreams).some((stream) => stream.type === 'screen')
+  );
+  const isVideoShared = $derived(
+    Object.values($streamStore.localStreams).some((stream) => stream.type === 'file')
+  );
   const isBlurEnabled = $derived($configStore.media.blurVideo === 'yes');
   const isTranscribing = $derived($transcriberStore.isTranscribingOverall);
 
