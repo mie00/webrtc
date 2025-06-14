@@ -42,6 +42,8 @@
   } = $props();
 
   let uploadVideoElement: HTMLInputElement;
+  let audioButtonElement: HTMLButtonElement;
+  let videoButtonElement: HTMLButtonElement;
 
   // --- Logic for long press detection ---
   let longPressTimer: number | undefined = undefined;

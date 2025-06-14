@@ -61,24 +61,6 @@ interface AuthStoreType extends Pick<Writable<AuthState>, 'subscribe'> {
   getAuthState: () => AuthState;
 }
 
-// Create a mock version of the authStore for tests
-const createMockAuthStore = () => {
-  return {
-    subscribe: vi.fn(() => () => {}),
-    ensureKeyPair: vi.fn().mockResolvedValue(null),
-    getDevicePublicKeyAsSpki: vi.fn().mockResolvedValue(null),
-    setJwtAndVerifyKey: vi.fn().mockResolvedValue(true),
-    logout: vi.fn(),
-    getPrivateKey: vi.fn().mockResolvedValue(null),
-    getAuthState: vi.fn().mockReturnValue({
-      publicKeyJwk: null,
-      privateKeyJwk: null,
-      userPubKey: null,
-      jwt: null
-    })
-  };
-};
-
 // Helper to reset the authStore to its initial state by re-creating it or calling a reset method
 // Since authStore is created immediately, we need to manipulate its internal state or mock its creation for full reset.
 // For now, we'll rely on logout() and clearing localStorage for most reset needs.
