@@ -30,8 +30,6 @@
   // Get local user name directly from the config store
   const localUserName = $derived($configStore.profile.userName || 'You');
 
-  let controlsPanel: HTMLDivElement;
-
   // --- Create Combined Feed ---
   // This logic remains in ControlPanel as it's used by unreadCount logic here
   const combinedFeed = $derived(
@@ -208,7 +206,6 @@
 </script>
 
 <div
-  bind:this={controlsPanel}
   id="test-control-panel"
   class="w-11/12 lg:w-1/2 xl:w-1/4 2x:w-1/4 flex flex-col fixed bottom-0 top-0"
   class:left-full={!isPanelOpen}

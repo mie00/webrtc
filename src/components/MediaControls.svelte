@@ -42,8 +42,6 @@
   } = $props();
 
   let uploadVideoElement: HTMLInputElement;
-  let audioButtonElement: HTMLButtonElement;
-  let videoButtonElement: HTMLButtonElement;
 
   // --- Logic for long press detection ---
   let longPressTimer: number | undefined = undefined;
@@ -102,7 +100,6 @@
   </button>
   <button
     id="test-toggle-audio-button"
-    bind:this={audioButtonElement}
     onclick={onToggleAudio}
     oncontextmenu={(e) => {
       e.preventDefault();
@@ -122,7 +119,6 @@
   </button>
   <button
     id="test-toggle-video-button"
-    bind:this={videoButtonElement}
     onclick={onToggleVideo}
     oncontextmenu={(e) => {
       e.preventDefault();
