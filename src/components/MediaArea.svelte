@@ -37,7 +37,6 @@
   let menuItems: MenuItem[] = $state([]);
   let instant = $state(0);
   let supportsVideoCaptureStream = $state(false);
-  let selectedButton: 'audio' | 'camera';
 
   let refreshInterval: number;
 
@@ -224,7 +223,6 @@
 
   async function handleContextMenu(type: 'audio' | 'camera', event: MouseEvent) {
     event.preventDefault();
-    selectedButton = type;
     const devices = await navigator.mediaDevices.enumerateDevices();
     const filtered = devices.filter(
       (device) => device.kind === `${type === 'camera' ? 'video' : type}input`
