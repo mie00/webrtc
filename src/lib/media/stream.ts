@@ -18,33 +18,6 @@ interface AudioNodes {
   fftSize: number;
 }
 
-// Audio processor worklet code as a string
-// const audioProcessorWorklet = `
-// class AudioLevelProcessor extends AudioWorkletProcessor {
-//   process(inputs, outputs, parameters) {
-//     const input = inputs[0][0];
-    if (!input) return true;
-    
-    let sum = 0.0;
-    let clipcount = 0;
-    
-    for (let i = 0; i < input.length; ++i) {
-      sum += input[i] * input[i];
-      if (Math.abs(input[i]) > 0.99) {
-        clipcount += 1;
-      }
-    }
-    
-    const instant = Math.sqrt(Math.sqrt(sum / input.length)) * 100;
-    this.port.postMessage({ instant });
-    
-    return true;
-  }
-}
-
-registerProcessor('audio-level-processor', AudioLevelProcessor);
-`;
-
 // Setup audio processing with analyzer
 function processAudio(
   stream: MediaStream,

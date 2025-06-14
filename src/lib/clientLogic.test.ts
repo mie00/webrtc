@@ -238,7 +238,11 @@ describe('ClientLogic', () => {
       const mockAnswererCid = 'mock-answerer-cid';
       let answerIceCallback: ((candidate: any, cid: string) => Promise<void>) | null = null;
       (mockContext.webRTCApp.getAnswer as any).mockImplementation(
-        async (offer: string, cb: (candidate: any, cid: string) => Promise<void>, _options: any) => {
+        async (
+          offer: string,
+          cb: (candidate: any, cid: string) => Promise<void>,
+          _options: any
+        ) => {
           expect(offer).toBe(offerSdp);
           // Simulate WebRTCApp passing the CID to the callback
           answerIceCallback = (candidate) => cb(candidate, mockAnswererCid);
