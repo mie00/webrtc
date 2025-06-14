@@ -64,7 +64,7 @@
     tabindex="0"
     aria-modal="true"
     onclick={handleClose}
-    onkeypress={(e) => e.key === 'Escape' && onclose && onclose()}
+    onkeypress={(e: KeyboardEvent) => e.key === 'Escape' && onclose && onclose()}
   >
     <div
       class="bg-white rounded-md shadow-md flex w-full max-w-2xl h-auto max-h-[80vh]"
@@ -113,7 +113,7 @@
                 id="config-loader"
                 class="w-full border border-gray-300 px-3 py-2 rounded-md"
                 value={$configStore.general.configLoader}
-                onchange={(e) => handleInputChange(e, 'general', 'configLoader')}
+                onchange={(e: Event) => handleInputChange(e, 'general', 'configLoader')}
               >
                 <option value="server">Server</option>
                 <option value="client">Client</option>
@@ -128,7 +128,7 @@
                 placeholder="Host URL (e.g., https://app.example.com)"
                 class="w-full border border-gray-300 px-3 py-2 rounded-md"
                 value={$configStore.general.configHost}
-                oninput={(e) => handleInputChange(e, 'general', 'configHost')}
+                oninput={(e: Event) => handleInputChange(e, 'general', 'configHost')}
               />
             </div>
 
@@ -142,7 +142,7 @@
                 placeholder="Host (e.g., https://example.com)"
                 class="w-full border border-gray-300 px-3 py-2 rounded-md"
                 value={$configStore.general.identityProviderHost}
-                oninput={(e) => handleInputChange(e, 'general', 'identityProviderHost')}
+                oninput={(e: Event) => handleInputChange(e, 'general', 'identityProviderHost')}
               />
             </div>
 
@@ -154,7 +154,7 @@
                 placeholder="Coordinator URL (e.g., ws://localhost:5001)"
                 class="w-full border border-gray-300 px-3 py-2 rounded-md"
                 value={$configStore.general.coordinatorUrl}
-                oninput={(e) => handleInputChange(e, 'general', 'coordinatorUrl')}
+                oninput={(e: Event) => handleInputChange(e, 'general', 'coordinatorUrl')}
               />
             </div>
           {/if}
@@ -169,7 +169,7 @@
                 placeholder="e.g., stun.l.google.com:19302"
                 class="w-full border border-gray-300 px-3 py-2 rounded-md"
                 value={$configStore.rtc.stunServers}
-                oninput={(e) => handleInputChange(e, 'rtc', 'stunServers')}
+                oninput={(e: Event) => handleInputChange(e, 'rtc', 'stunServers')}
               />
             </div>
 
@@ -181,7 +181,7 @@
                 placeholder="e.g., turn.example.com:3478"
                 class="w-full border border-gray-300 px-3 py-2 rounded-md"
                 value={$configStore.rtc.turnServerV2}
-                oninput={(e) => handleInputChange(e, 'rtc', 'turnServerV2')}
+                oninput={(e: Event) => handleInputChange(e, 'rtc', 'turnServerV2')}
               />
             </div>
 
@@ -193,7 +193,7 @@
                 placeholder="TURN Username"
                 class="w-full border border-gray-300 px-3 py-2 rounded-md"
                 value={$configStore.rtc.turnUsername}
-                oninput={(e) => handleInputChange(e, 'rtc', 'turnUsername')}
+                oninput={(e: Event) => handleInputChange(e, 'rtc', 'turnUsername')}
               />
             </div>
 
@@ -205,7 +205,7 @@
                 placeholder="TURN Password"
                 class="w-full border border-gray-300 px-3 py-2 rounded-md"
                 value={$configStore.rtc.turnPassword}
-                oninput={(e) => handleInputChange(e, 'rtc', 'turnPassword')}
+                oninput={(e: Event) => handleInputChange(e, 'rtc', 'turnPassword')}
               />
             </div>
           {/if}
@@ -218,7 +218,7 @@
                 id="audio-device"
                 class="w-full border border-gray-300 px-3 py-2 rounded-md"
                 value={$configStore.media.audioDevice}
-                onchange={(e) => handleInputChange(e, 'media', 'audioDevice')}
+                onchange={(e: Event) => handleInputChange(e, 'media', 'audioDevice')}
               >
                 <option value="default|default">Default</option>
                 {#each audioInputDevices as device, i (device.deviceId)}
@@ -235,7 +235,7 @@
                 id="video-device"
                 class="w-full border border-gray-300 px-3 py-2 rounded-md"
                 value={$configStore.media.videoDevice}
-                onchange={(e) => handleInputChange(e, 'media', 'videoDevice')}
+                onchange={(e: Event) => handleInputChange(e, 'media', 'videoDevice')}
               >
                 <option value="default|default">Default</option>
                 {#each videoInputDevices as device, i (device.deviceId)}
@@ -252,7 +252,7 @@
                 id="blur-video"
                 class="w-full border border-gray-300 px-3 py-2 rounded-md"
                 value={$configStore.media.blurVideo}
-                onchange={(e) => handleInputChange(e, 'media', 'blurVideo')}
+                onchange={(e: Event) => handleInputChange(e, 'media', 'blurVideo')}
               >
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
@@ -270,7 +270,7 @@
                 placeholder="Username"
                 class="w-full border border-gray-300 px-3 py-2 rounded-md"
                 value={$configStore.profile.userName}
-                oninput={(e) => handleInputChange(e, 'profile', 'userName')}
+                oninput={(e: Event) => handleInputChange(e, 'profile', 'userName')}
               />
             </div>
           {/if}

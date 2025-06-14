@@ -200,8 +200,6 @@ const setupStream = (
 
 // setupStream remains the same as it calls setupTrack
 
-// REMOVE StreamConfig interface
-
 // Export functions for use in other modules
 export {
   normalizeStreamId,

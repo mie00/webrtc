@@ -89,6 +89,7 @@ async function manageCameraStream(streamId: string, streamData: any, config: Med
   if (!streamData.stream) {
     // Stream needs to be initialized
     const deviceHint = streamData.src || config.videoDevice; // Use src as hint
+    console.log('dh', streamData.src, config.videoDevice, deviceHint, getDeviceConstraints(deviceHint, 'video'))
     try {
       const rawVideoStream = await navigator.mediaDevices.getUserMedia(
         getDeviceConstraints(deviceHint, 'video')
