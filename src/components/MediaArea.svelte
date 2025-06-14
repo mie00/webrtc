@@ -37,6 +37,7 @@
   let menuItems: MenuItem[] = $state([]);
   let instant = $state(0);
   let supportsVideoCaptureStream = $state(false);
+  let selectedButton: 'audio' | 'camera';
 
   let refreshInterval: number;
 
