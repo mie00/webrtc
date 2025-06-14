@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { getDirectClient } from './stores/connectionStore'; // Updated path
 import { getAllConfig } from './stores/configStore'; // Corrected path
 import { get } from 'svelte/store';
-import { appLogicModuleStore, type AppLogicState } from './stores/appLogicStore'; // Import the store
+import { appLogicModuleStore } from './stores/appLogicStore'; // Import the store
 // RTCIceCandidateInit should be globally available or via WebRTC types.
 
 export class ServerLogic implements AppLogic {

@@ -126,9 +126,9 @@ describe('authStore', () => {
       publicKey: { alg: 'ES384', kty: 'EC', crv: 'P-384', x: 'x_val', y: 'y_val' }, // Mock JWK
       privateKey: { alg: 'ES384', kty: 'EC', crv: 'P-384', d: 'd_val', x: 'x_val', y: 'y_val' } // Mock JWK
     } as any); // Changed CryptoKeyPair to any
-    mockCrypto.subtle.exportKey.mockImplementation(async (format, key) => key); // Simple passthrough
+    mockCrypto.subtle.exportKey.mockImplementation(async (_format, key) => key); // Simple passthrough
     mockCrypto.subtle.importKey.mockImplementation(
-      async (format, keyData, alg, extractable, usages) =>
+      async (_format, keyData, alg, extractable, usages) =>
         ({ keyData, alg, extractable, usages }) as unknown as CryptoKey
     ); // Mock CryptoKey
     mockCrypto.subtle.verify.mockResolvedValue(true); // Default to successful verification

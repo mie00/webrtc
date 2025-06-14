@@ -19,10 +19,10 @@ interface AudioNodes {
 }
 
 // Audio processor worklet code as a string
-const audioProcessorWorklet = `
-class AudioLevelProcessor extends AudioWorkletProcessor {
-  process(inputs, outputs, parameters) {
-    const input = inputs[0][0];
+// const audioProcessorWorklet = `
+// class AudioLevelProcessor extends AudioWorkletProcessor {
+//   process(inputs, outputs, parameters) {
+//     const input = inputs[0][0];
     if (!input) return true;
     
     let sum = 0.0;

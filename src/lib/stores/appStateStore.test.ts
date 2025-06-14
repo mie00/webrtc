@@ -8,7 +8,7 @@ import {
   type SpecificNegoHandler,
   type CleanupFunc
 } from './appStateStore';
-import type { NegoMessageType, NegoMessageMap } from '../../types/negoMessages';
+import type { NegoMessageType } from '../../types/negoMessages';
 
 describe('appStateStore', () => {
   beforeEach(() => {

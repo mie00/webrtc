@@ -1,7 +1,6 @@
 import { mount } from 'svelte';
 import App from './App.svelte';
 import { WebRTCApp } from './lib/webrtc/WebRTCApp';
-import { authStore } from './lib/stores/authStore'; // Import authStore
 
 // Make WebRTCApp available globally
 window.WebRTCApp = WebRTCApp;

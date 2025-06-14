@@ -1,5 +1,4 @@
 <script lang="ts">
-  import type { MenuItem } from '../types/menu';
 
   let {
     hangup,
@@ -43,8 +42,6 @@
     onVideoUpload: (event: Event) => Promise<void>;
   } = $props();
 
-  let audioButtonElement: HTMLElement;
-  let videoButtonElement: HTMLElement;
   let uploadVideoElement: HTMLInputElement;
 
   // --- Logic for long press detection ---
@@ -82,7 +79,7 @@
     }
   }
 
-  function handleTouchMove(event: TouchEvent) {
+  function handleTouchMove(_event: TouchEvent) {
     // If the finger moves, cancel the long press timer.
     if (longPressTimer) {
       clearTimeout(longPressTimer);

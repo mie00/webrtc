@@ -7,12 +7,12 @@
   import CopyOverlay from './CopyOverlay.svelte';
   import ConfigOverlay from './ConfigOverlay.svelte';
   import ForwardOverlay from './ForwardOverlay.svelte';
-  import { configStore, getAllConfig, type Config } from '../lib/stores/configStore';
+  import { configStore, getAllConfig } from '../lib/stores/configStore';
   import { connectionStore } from '../lib/stores/connectionStore'; // getDirectClient not used here
   // import { compress, decompress } from '../lib/utils/sdpCompress'; // Not used directly here
   import DownloadAppOverlay from './DownloadAppOverlay.svelte';
   import type { WebRTCApp } from '../lib/webrtc/WebRTCApp';
-  import { appLogicModuleStore, type AppLogicState } from '../lib/stores/appLogicStore'; // Import the store
+  import { appLogicModuleStore } from '../lib/stores/appLogicStore'; // Import the store
 
   import type { AppLogic, AppLogicContext } from '../lib/appLogic';
   import { ClientLogic } from '../lib/clientLogic';
@@ -25,8 +25,6 @@
 
   // Other component specific state
   let showConfigOverlay = false;
-  // currentPath is still used by onMount logic for parameter parsing, but not for /cb routing
-  let currentPath = window.location.pathname; // This seems fine as it's only used in onMount before logic init
   let showDownloadAppOverlay = true; // Controls rendering of DownloadAppOverlay
   // let currentAuthState: AuthState; // No longer needed for UI logic here
 

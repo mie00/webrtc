@@ -9,7 +9,6 @@ import {
   clearLogMessages
 } from '../../stores/forwardStore';
 import {
-  getSendHostInterval,
   setSendHostInterval,
   clearSendHostInterval
 } from '../../app/forwardLifecycle';

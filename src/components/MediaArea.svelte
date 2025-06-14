@@ -35,7 +35,6 @@
   let showMenu = $state(false);
   let menuPosition = $state({ x: 0, y: 0 });
   let menuItems: MenuItem[] = $state([]);
-  let selectedButton: 'audio' | 'camera' | null = $state(null);
   let instant = $state(0);
   let supportsVideoCaptureStream = $state(false);
 

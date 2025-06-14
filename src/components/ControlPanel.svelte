@@ -5,7 +5,7 @@
   import { configStore } from '../lib/stores/configStore';
   import { chatStore } from '../lib/stores/chatStore';
   import { fileStore, type FileTransfer } from '../lib/stores/fileStore';
-  import { transcriptionDisplayStore, type TranscriptionSegment } from '../lib/media/transcriber';
+  import { transcriptionDisplayStore } from '../lib/media/transcriber';
   import MediaCarousel, { type CarouselMediaItem } from './MediaCarousel.svelte';
 
   import ParticipantsPanel from './ParticipantsPanel.svelte';
@@ -14,7 +14,6 @@
 
   // State for panel toggle
   let isPanelOpen = $state(false);
-  let controlsPanel: HTMLDivElement | null = null;
 
   // --- State for Transcription Display ---
   let showCompletedTranscriptions = $state(true);

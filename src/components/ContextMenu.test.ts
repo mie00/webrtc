@@ -203,7 +203,7 @@ describe('ContextMenu.svelte', () => {
     // We rely on the component's internal logic that handleWindowClick calls hide()
     // We can spy on `hide` and ensure it's callable.
     // A more direct test would require a full browser environment or more complex Svelte testing utils.
-    const { component } = render(ContextMenu, {
+    render(ContextMenu, {
       props: { menuItems: basicItems, hide: mockHide, position: { x: 0, y: 0 } }
     });
     // Simulate the effect of a window click by directly calling the handler if possible,

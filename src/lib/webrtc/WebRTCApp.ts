@@ -2,15 +2,11 @@ import { EMOJIS } from '../utils/emojis';
 import { setCidKeys, removeCidKeys, resetCidKeyStore, getKeysByCid } from '../stores/cidKeyStore';
 import type {
   NegoData,
-  NegoMessageMap,
-  NegoMessageType,
   OfferNegoMessage,
   AnswerNegoMessage,
-  TrustedNegoMessage,
   ParticipantNegoMessage,
   ParticipantEndNegoMessage,
-  HangupNegoMessage,
-  BaseNegoMessage
+  HangupNegoMessage
 } from '../../types/negoMessages';
 import {
   addDirectClient,
@@ -21,13 +17,9 @@ import {
   removeParticipant,
   resetConnectionStore,
   getDirectClient,
-  getAllDirectClients,
-  getAllClientCids,
-  type DirectClientState,
-  getDirectClientState
+  getAllClientCids
 } from '../stores/connectionStore';
 import { getAllConfig } from '../stores/configStore';
-import { updatePeerProfile, removePeerProfile } from '../stores/peerProfileStore';
 import {
   registerNegoHandler,
   getNegoHandler,

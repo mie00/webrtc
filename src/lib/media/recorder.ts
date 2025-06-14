@@ -52,7 +52,7 @@ export function toggleRecording(): void {
   if (currentlyRecording) {
     stopRecording();
   } else {
-    startRecording().catch((error) => {
+    startRecording().catch((_error) => {
       // Error is already logged by startRecording and store updated
       // UI can subscribe to recorderStore.error if that field is added and used
       console.info('Toggle recording: startRecording attempt failed (error already handled).');

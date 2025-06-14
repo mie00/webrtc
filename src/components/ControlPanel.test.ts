@@ -1,8 +1,7 @@
 /// <reference types="vitest/globals" />
-import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
+import { render, screen, fireEvent } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import ControlPanel from './ControlPanel.svelte';
-import { writable } from 'svelte/store';
 import type { FileTransfer } from '../lib/stores/fileStore.js';
 import type { ChatState } from '../lib/stores/chatStore';
 import type { FileState } from '../lib/stores/fileStore';
@@ -96,8 +95,7 @@ describe('ControlPanel.svelte', () => {
   });
 
   test('updates unread count correctly', async () => {
-    const { container } = render(ControlPanel);
-    const panel = container.querySelector('#test-control-panel');
+    render(ControlPanel);
     let toggleButton = screen.getByLabelText('Open panel (0 unread)');
 
     // Initial state: panel closed, 0 unread
@@ -185,7 +183,7 @@ describe('ControlPanel.svelte', () => {
   });
 
   test('handles file items in combinedFeed and unread count', async () => {
-    const { container } = render(ControlPanel);
+    render(ControlPanel);
     let toggleButton = screen.getByLabelText('Open panel (0 unread)');
 
     // Mock local user name for clarity in sender checks

@@ -197,7 +197,7 @@ function readFileSliceAsArrayBuffer(slice: Blob): Promise<ArrayBuffer> {
         reject(new Error('Failed to read file slice.'));
       }
     };
-    reader.onerror = (event) => {
+    reader.onerror = (_event) => {
       reject(reader.error || new Error('FileReader error'));
     };
     reader.readAsArrayBuffer(slice);

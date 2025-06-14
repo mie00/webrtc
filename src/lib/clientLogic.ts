@@ -3,7 +3,7 @@ import { getDirectClient } from './stores/connectionStore';
 import { get } from 'svelte/store';
 import { getAllConfig } from './stores/configStore';
 import { compress, decompress } from './utils/sdpCompress';
-import { appLogicModuleStore, type AppLogicState } from './stores/appLogicStore'; // Import the store
+import { appLogicModuleStore } from './stores/appLogicStore'; // Import the store
 
 export class ClientLogic implements AppLogic {
   private context: AppLogicContext;
@@ -97,7 +97,7 @@ export class ClientLogic implements AppLogic {
         let answererCid: string;
         answererCid = await webRTCApp.getAnswer(
           offer,
-          async (candidate: RTCIceCandidateInit | null, iceCallbackCid?: string) => {
+          async (_candidate: RTCIceCandidateInit | null, iceCallbackCid?: string) => {
             // Expect cid from callback
             if (Date.now() - now > 10 * 1000) {
               return;
@@ -175,7 +175,7 @@ export class ClientLogic implements AppLogic {
     let compressedOfferForReturn: string | null = null;
 
     newCidForOffer = await webRTCApp.getOffer(
-      async (candidate: RTCIceCandidateInit | null, iceCallbackCid?: string) => {
+      async (_candidate: RTCIceCandidateInit | null, iceCallbackCid?: string) => {
         // Expect cid from callback
         if (Date.now() - now > 10 * 1000) {
           return;

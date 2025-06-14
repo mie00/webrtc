@@ -47,7 +47,7 @@ async function backgroundChange(videoSource: HTMLVideoElement): Promise<MediaStr
   });
   selfieSegmentation.onResults(onResults);
 
-  return new Promise<MediaStream>((resolve, reject) => {
+  return new Promise<MediaStream>((resolve, _reject) => {
     const ddo = async (): Promise<void> => {
       await selfieSegmentation.send({ image: videoSource });
       videoSource.requestVideoFrameCallback(ddo);

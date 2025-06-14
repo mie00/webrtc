@@ -15,7 +15,6 @@ import type { Position } from './streamLayout';
 import { getStreamMetadata as mockGetStreamMetadata } from '../stores/localFileStreamStore';
 // getStreamState is used by recorder implementations, so its mock setup is still relevant if testing those deeply.
 // For facade testing, it's less critical unless calculateFit or other utils depend on it here.
-import { getStreamState as mockGetStreamStateOriginal } from '../stores/streamStore';
 
 // Mock the recorder implementations themselves
 // Need to ensure these mocks are established before recorder.ts is imported and instantiates one.

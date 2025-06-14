@@ -3,8 +3,7 @@ import {
   streamStore,
   getStreamState,
   type LocalStreamData,
-  type RemoteStreamData,
-  type StreamState
+  type RemoteStreamData
 } from '../stores/streamStore';
 import { getDirectClient, getAllDirectClients } from '../stores/connectionStore'; // Added
 
@@ -373,7 +372,7 @@ export function toggleOverallTranscription(): void {
 }
 
 // Helper to generate a user-friendly speaker label
-function getSpeakerLabelFromAsr(sessionId: string, asrSpeakerId: number, text: string): string {
+function getSpeakerLabelFromAsr(sessionId: string, asrSpeakerId: number, _text: string): string {
   if (asrSpeakerId === -2) return 'Silence'; // Typically, ASR indicates silence.
   // if (asrSpeakerId === 0) return "Processing..."; // ASR might use 0 for segments under diarization.
 

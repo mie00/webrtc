@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
 
   let {
     stream,
@@ -44,7 +44,6 @@
 
   // Audio level state
   let audioLevel = $state(0);
-  let borderColor = $state('red');
   // use #5be7a9 as base
   let borderStyle = $derived(
     `4px solid ${
@@ -89,7 +88,7 @@
         // Process audio for both audio-only and video streams
         audioNodes = processAudio(
           streamToProcess,
-          (dataArray, analyser) => {
+          (dataArray, _analyser) => {
             // For audio-only streams, draw visualization
             if (type === 'audio' && canvasContext && audioVisualizationCanvas) {
               drawVisualization(

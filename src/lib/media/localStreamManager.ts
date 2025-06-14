@@ -1,4 +1,3 @@
-import { derived } from 'svelte/store';
 import {
   streamStore, // Keep for direct access if needed, though getStreamState is preferred for snapshots
   getStreamState,
@@ -8,9 +7,7 @@ import {
   updateLocalStreamProperties
 } from '../stores/streamStore';
 import { getAllConfig, configStore, type Config, type MediaConfig } from '../stores/configStore';
-import { getLocalFileStreamState } from '../stores/localFileStreamStore';
 import {
-  type AudioNodes,
   setupStream,
   processAudio,
   stopProcessingAudio,
