@@ -1,4 +1,4 @@
-import { writable, get } from 'svelte/store';
+import { writable, get, derived } from 'svelte/store';
 import { setupStream, tearDownStream } from '../media/stream';
 
 // Stream type definitions
@@ -55,28 +55,49 @@ export function getStreamState() {
   return get(streamStore);
 }
 
-// Helper functions to check if streams are enabled
-export function isAudioEnabled(): boolean {
+// Reactive derived stores to check if streams are enabled
+export const isAudioEnabled = derived(streamStore, ($state) =>
+  Object.values($state.localStreams).some((stream) => stream.type === 'audio')
+);
+
+export const isCameraEnabled = derived(streamStore, ($state) =>
+  Object.values($state.localStreams).some((stream) => stream.type === 'camera')
+);
+
+export const isScreenSharingEnabled = derived(streamStore, ($state) =>
+  Object.values($state.localStreams).some((stream) => stream.type === 'screen')
+);
+
+export const isFileStreamEnabled = derived(streamStore, ($state) =>
+  Object.values($state.localStreams).some((stream) => stream.type === 'file')
+);
+
+export const isBlurredStreamEnabled = derived(streamStore, ($state) =>
+  Object.values($state.localStreams).some((stream) => stream.type === 'blurred')
+);
+
+// Helper functions for non-reactive checks (for use in non-reactive contexts)
+export function getIsAudioEnabled(): boolean {
   const state = getStreamState();
   return Object.values(state.localStreams).some((stream) => stream.type === 'audio');
 }
 
-export function isCameraEnabled(): boolean {
+export function getIsCameraEnabled(): boolean {
   const state = getStreamState();
   return Object.values(state.localStreams).some((stream) => stream.type === 'camera');
 }
 
-export function isScreenSharingEnabled(): boolean {
+export function getIsScreenSharingEnabled(): boolean {
   const state = getStreamState();
   return Object.values(state.localStreams).some((stream) => stream.type === 'screen');
 }
 
-export function isFileStreamEnabled(): boolean {
+export function getIsFileStreamEnabled(): boolean {
   const state = getStreamState();
   return Object.values(state.localStreams).some((stream) => stream.type === 'file');
 }
 
-export function isBlurredStreamEnabled(): boolean {
+export function getIsBlurredStreamEnabled(): boolean {
   const state = getStreamState();
   return Object.values(state.localStreams).some((stream) => stream.type === 'blurred');
 }

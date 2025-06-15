@@ -52,10 +52,10 @@
   let refreshInterval: number;
 
   // Reactive button states
-  const audioEnabled = $derived(isAudioEnabled());
-  const cameraEnabled = $derived(isCameraEnabled());
-  const screenSharing = $derived(isScreenSharingEnabled());
-  const videoShared = $derived(isFileStreamEnabled());
+  const audioEnabled = $derived($isAudioEnabled);
+  const cameraEnabled = $derived($isCameraEnabled);
+  const screenSharing = $derived($isScreenSharingEnabled);
+  const videoShared = $derived($isFileStreamEnabled);
   const isBlurEnabled = $derived($configStore.media.blurVideo === 'yes');
   const isTranscribing = $derived($transcriberStore.isTranscribingOverall);
 

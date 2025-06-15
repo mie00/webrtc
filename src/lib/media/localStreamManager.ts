@@ -3,8 +3,8 @@ import {
   removeLocalStream,
   getLocalStreamsByType,
   updateLocalStreamProperties,
-  isAudioEnabled,
-  isCameraEnabled
+  getIsAudioEnabled,
+  getIsCameraEnabled
 } from '../stores/streamStore';
 import { getAllConfig, configStore, type Config, type MediaConfig } from '../stores/configStore';
 import { getLocalFileStreamState } from '../stores/localFileStreamStore';
@@ -32,12 +32,12 @@ configStore.subscribe(async (newConfig) => {
     if (prevConfig.media[key] !== newConfig.media[key]) {
       if (key === 'audioDevice') {
         // If audio is currently enabled, restart with new device
-        if (isAudioEnabled()) {
+        if (getIsAudioEnabled()) {
           await restartAudioWithDevice(newConfig.media.audioDevice);
         }
       } else if (key === 'videoDevice') {
         // If camera is currently enabled, restart with new device
-        if (isCameraEnabled()) {
+        if (getIsCameraEnabled()) {
           await restartCameraWithDevice(newConfig.media.videoDevice);
         }
         // videoDeviceChangedInThisUpdate is already set based on prevConfig and newConfig
@@ -251,13 +251,13 @@ export async function disableFileStream(): Promise<void> {
 
 // Helper functions for device changes
 async function restartAudioWithDevice(deviceId?: string): Promise<void> {
-  if (isAudioEnabled()) {
+  if (getIsAudioEnabled()) {
     await enableAudio(deviceId);
   }
 }
 
 async function restartCameraWithDevice(deviceId?: string): Promise<void> {
-  if (isCameraEnabled()) {
+  if (getIsCameraEnabled()) {
     await enableCamera(deviceId);
   }
 }
