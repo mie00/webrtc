@@ -107,14 +107,14 @@ export async function enableAudio(deviceId?: string): Promise<void> {
   const config = getAllConfig();
   const deviceString = deviceId || config.media.audioDevice;
   let audioConstraints: boolean | MediaTrackConstraints = true;
-  
+
   if (deviceString && deviceString !== '<auto>') {
     const deviceInfo = deviceString.split('|');
     if (deviceInfo.length === 2) {
       audioConstraints = { groupId: deviceInfo[0], deviceId: deviceInfo[1] };
     }
   }
-  
+
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: audioConstraints
   });
@@ -166,14 +166,14 @@ export async function enableCamera(deviceId?: string): Promise<void> {
 
   const deviceString = deviceId || globalConfig.media.videoDevice;
   let videoConstraints: boolean | MediaTrackConstraints = true;
-  
+
   if (deviceString && deviceString !== '<auto>') {
     const deviceInfo = deviceString.split('|');
     if (deviceInfo.length === 2) {
       videoConstraints = { groupId: deviceInfo[0], deviceId: deviceInfo[1] };
     }
   }
-  
+
   const rawVideoStream = await navigator.mediaDevices.getUserMedia({
     video: videoConstraints
   });
