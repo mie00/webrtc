@@ -219,7 +219,7 @@
                 value={$configStore.media.audioDevice}
                 onchange={(e: Event) => handleInputChange(e, 'media', 'audioDevice')}
               >
-                <option value="default|default">Default</option>
+                <option value="<auto>">Auto</option>
                 {#each audioInputDevices as device, i (device.deviceId)}
                   <option value={`${device.groupId}|${device.deviceId}`}>
                     {device.label || `Audio Input ${i + 1}`}
@@ -236,7 +236,7 @@
                 value={$configStore.media.videoDevice}
                 onchange={(e: Event) => handleInputChange(e, 'media', 'videoDevice')}
               >
-                <option value="default|default">Default</option>
+                <option value="<auto>">Auto</option>
                 {#each videoInputDevices as device, i (device.deviceId)}
                   <option value={`${device.groupId}|${device.deviceId}`}>
                     {device.label || `Video Input ${i + 1}`}

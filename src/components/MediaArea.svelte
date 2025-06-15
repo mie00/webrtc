@@ -266,11 +266,18 @@
       });
     }
 
-    menuItems.push({
-      id: 'select-device',
-      label: 'Select Device',
-      type: 'submenu' as const,
-      children: filtered.map((device) => {
+    const deviceMenuChildren = [
+      {
+        id: '<auto>',
+        label: 'Auto',
+        type: 'toggle' as const,
+        checked: currentDeviceId === '<auto>',
+        action: () => {
+          const configKey = type === 'audio' ? 'audioDevice' : 'videoDevice';
+          updateConfig('media', configKey, '<auto>');
+        }
+      },
+      ...filtered.map((device) => {
         const deviceString = `${device.groupId}|${device.deviceId}`;
         const isCurrentDevice = currentDeviceId === deviceString;
         return {
@@ -281,15 +288,16 @@
           action: () => {
             const configKey = type === 'audio' ? 'audioDevice' : 'videoDevice';
             updateConfig('media', configKey, deviceString);
-            // streamStore.streamConfig will be updated by the listener in streamBridge.ts
-            // For immediate effect if the stream is already active, we might still want this,
-            // but the config change should trigger the streamBridge to update it.
-            // Let's rely on streamBridge to handle the stream update based on config change.
-            // If the stream is currently off, turning it on will use the new config.
-            // If it's on, streamBridge will restart it with the new device.
           }
         };
       })
+    ];
+
+    menuItems.push({
+      id: 'select-device',
+      label: 'Select Device',
+      type: 'submenu' as const,
+      children: deviceMenuChildren
     });
 
     menuPosition = { x: event.pageX, y: event.pageY };

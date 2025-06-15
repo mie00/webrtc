@@ -21,8 +21,8 @@ export interface RtcConfig {
 
 export interface MediaConfig {
   blurVideo: 'yes' | 'no';
-  audioDevice?: string;
-  videoDevice?: string;
+  audioDevice: string;
+  videoDevice: string;
 }
 
 // Define the main Config interface
@@ -52,8 +52,8 @@ export const defaultConfig: Config = {
   },
   media: {
     blurVideo: 'no',
-    audioDevice: '',
-    videoDevice: ''
+    audioDevice: '<auto>',
+    videoDevice: '<auto>'
   }
 };
 

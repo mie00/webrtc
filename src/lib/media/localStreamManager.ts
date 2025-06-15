@@ -105,10 +105,18 @@ export async function enableAudio(deviceId?: string): Promise<void> {
   }
 
   const config = getAllConfig();
-  const deviceString = deviceId || config.media.audioDevice || '';
-  const deviceInfo = deviceString.split('|') || [];
+  const deviceString = deviceId || config.media.audioDevice;
+  let audioConstraints: boolean | MediaTrackConstraints = true;
+  
+  if (deviceString && deviceString !== '<auto>') {
+    const deviceInfo = deviceString.split('|');
+    if (deviceInfo.length === 2) {
+      audioConstraints = { groupId: deviceInfo[0], deviceId: deviceInfo[1] };
+    }
+  }
+  
   const stream = await navigator.mediaDevices.getUserMedia({
-    audio: deviceInfo.length === 2 ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] } : true
+    audio: audioConstraints
   });
   setupStream(stream, 'high');
   const streamId = addLocalStream('audio', stream, null, true, true);
@@ -156,10 +164,18 @@ export async function enableCamera(deviceId?: string): Promise<void> {
     removeLocalStream(streamId);
   }
 
-  const deviceString = deviceId || globalConfig.media.videoDevice || '';
-  const deviceInfo = deviceString.split('|') || [];
+  const deviceString = deviceId || globalConfig.media.videoDevice;
+  let videoConstraints: boolean | MediaTrackConstraints = true;
+  
+  if (deviceString && deviceString !== '<auto>') {
+    const deviceInfo = deviceString.split('|');
+    if (deviceInfo.length === 2) {
+      videoConstraints = { groupId: deviceInfo[0], deviceId: deviceInfo[1] };
+    }
+  }
+  
   const rawVideoStream = await navigator.mediaDevices.getUserMedia({
-    video: deviceInfo.length === 2 ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] } : true
+    video: videoConstraints
   });
   setupStream(rawVideoStream, 'low', 'motion', true);
   const rawCameraStreamId = addLocalStream('camera', rawVideoStream, null, true, true);

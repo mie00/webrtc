@@ -54,8 +54,8 @@ const defaultConfig = {
   },
   media: {
     blurVideo: 'no',
-    audioDevice: '',
-    videoDevice: ''
+    audioDevice: '<auto>',
+    videoDevice: '<auto>'
   }
 };
 
