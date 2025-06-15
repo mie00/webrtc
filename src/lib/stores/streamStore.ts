@@ -1,5 +1,5 @@
 import { writable, get } from 'svelte/store';
-import { connectionStore } from './connectionStore'; // Import connectionStore
+import { setupStream, tearDownStream } from '../media/stream';
 
 // Stream configuration interface
 export interface StreamConfig {
@@ -127,7 +127,6 @@ export function updateLocalStreamProperties(
       oldStreamData.sendable !== newStreamData.sendable &&
       newStreamData.stream
     ) {
-      const trackStream = newStreamData.stream;
       const webRTCApp = window.webRTCApp;
 
       if (!webRTCApp || !webRTCApp.negotiationManager) {
@@ -135,38 +134,20 @@ export function updateLocalStreamProperties(
           '[streamStore] WebRTCApp instance or negotiationManager not found on window. Skipping track management for peers.'
         );
       } else {
-        const { directClients } = get(connectionStore);
-        for (const cid in directClients) {
-          const client = directClients[cid];
-          if (client && client.pc) {
-            const pc = client.pc;
-            try {
-              if (newStreamData.sendable) {
-                // Add tracks
-                trackStream.getTracks().forEach((track) => {
-                  if (!pc.getSenders().find((sender) => sender.track === track)) {
-                    pc.addTrack(track, trackStream);
-                  }
-                });
-                console.log(`[streamStore] Added tracks from stream ${id} to peer ${cid}`);
-              } else {
-                // Remove tracks
-                pc.getSenders().forEach((sender) => {
-                  if (sender.track && trackStream.getTracks().includes(sender.track)) {
-                    pc.removeTrack(sender);
-                  }
-                });
-                console.log(`[streamStore] Removed tracks from stream ${id} for peer ${cid}`);
-              }
-              // Trigger renegotiation
-              webRTCApp.negotiationManager.startOrRestartNego(cid, client.polite ?? false);
-            } catch (error) {
-              console.error(
-                `[streamStore] Error managing tracks for stream ${id} with peer ${cid}:`,
-                error
-              );
+        try {
+          if (newStreamData.sendable) {
+            if (newStreamData.type === 'audio') {
+              setupStream(newStreamData.stream, 'high');
+            } else if (newStreamData.type === 'screen') {
+              setupStream(newStreamData.stream, 'medium', 'detail', false);
+            } else {
+              setupStream(newStreamData.stream, 'low', 'motion', true);
             }
+          } else {
+            tearDownStream(newStreamData.stream);
           }
+        } catch (error) {
+          console.error(`[streamStore] Error managing tracks for stream ${id}:`, error);
         }
       }
     }

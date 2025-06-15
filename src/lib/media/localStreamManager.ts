@@ -10,12 +10,7 @@ import {
 } from '../stores/streamStore';
 import { getAllConfig, configStore, type Config, type MediaConfig } from '../stores/configStore';
 import { getLocalFileStreamState } from '../stores/localFileStreamStore';
-import {
-  setupStream,
-  processAudio,
-  stopProcessingAudio,
-  tearDownStream
-} from './stream';
+import { setupStream, processAudio, stopProcessingAudio, tearDownStream } from './stream';
 import { backgroundChange } from './background';
 import {
   getAudioProcessingContext,
