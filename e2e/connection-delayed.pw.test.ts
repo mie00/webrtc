@@ -43,6 +43,11 @@ test.describe('WebRTC Peer Connection with Delays E2E Test', () => {
       `should establish connection with ${delayConfig.id} delay (A->B nav and B->A paste) ${delayConfig.tag}`.trim();
 
     test(testTitle, async ({ browser }) => {
+      // Set a dynamic timeout for this specific test
+      // Timeout = (delay1 + delay2) + 60s buffer
+      const testTimeout = delayConfig.duration * 2 + 60000;
+      test.setTimeout(testTimeout);
+
       const setupResult = await standardSetup(browser, {
         delayAfterPageAOpenMs: delayConfig.duration,
         delayBeforePastingResponseMs: delayConfig.duration
