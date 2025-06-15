@@ -33,7 +33,7 @@
   } from '../lib/media/transcriber';
   import { calculateStreamPositions } from '../lib/media/streamLayout';
   import ContextMenu from './ContextMenu.svelte';
-  import { updateConfig, configStore } from '../lib/stores/configStore';
+  import { updateConfig, configStore, getAllConfig } from '../lib/stores/configStore';
   import type { MenuItem } from '../types/menu';
   import { addLocalFileStream, removeLocalFileStream } from '../lib/stores/localFileStreamStore';
 

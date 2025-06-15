@@ -1,15 +1,10 @@
-import { derived } from 'svelte/store';
 import {
-  streamStore,
-  getStreamState,
   addLocalStream,
   removeLocalStream,
   getLocalStreamsByType,
   updateLocalStreamProperties,
   isAudioEnabled,
-  isCameraEnabled,
-  isScreenSharingEnabled,
-  isFileStreamEnabled
+  isCameraEnabled
 } from '../stores/streamStore';
 import { getAllConfig, configStore, type Config, type MediaConfig } from '../stores/configStore';
 import { getLocalFileStreamState } from '../stores/localFileStreamStore';
