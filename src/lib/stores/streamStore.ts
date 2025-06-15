@@ -1,5 +1,14 @@
 import { writable, get } from 'svelte/store';
-import { setupStream, tearDownStream } from '../media/stream';
+import { connectionStore } from './connectionStore'; // Import connectionStore
+
+// Stream configuration interface
+export interface StreamConfig {
+  audio: string | null; // Contains device ID when enabled, null when disabled
+  camera: string | null; // Contains device ID when enabled, null when disabled
+  screen: boolean;
+  file: string | null; // Contains video source URL when enabled, null when disabled
+  videoStream: MediaStream | null; // Still needed for file playback
+}
 
 // Stream type definitions
 export type StreamType = 'camera' | 'screen' | 'audio' | 'file' | 'blurred';
@@ -33,6 +42,8 @@ export interface StreamState {
     focusedStream?: string;
     gridSize?: number;
   };
+
+  streamConfig: StreamConfig;
 }
 
 // Initial state
@@ -44,6 +55,14 @@ const initialState: StreamState = {
   // View configuration
   activeView: {
     layout: 'grid'
+  },
+
+  streamConfig: {
+    audio: null,
+    camera: null,
+    screen: false,
+    file: null,
+    videoStream: null
   }
 };
 
@@ -53,6 +72,17 @@ export const streamStore = writable<StreamState>(initialState);
 // Helper functions
 export function getStreamState() {
   return get(streamStore);
+}
+
+// Stream config updates
+export function updateStreamConfig(config: Partial<StreamConfig>): void {
+  streamStore.update((state) => ({
+    ...state,
+    streamConfig: {
+      ...state.streamConfig,
+      ...config
+    }
+  }));
 }
 
 // Enhanced stream management functions
@@ -97,6 +127,7 @@ export function updateLocalStreamProperties(
       oldStreamData.sendable !== newStreamData.sendable &&
       newStreamData.stream
     ) {
+      const trackStream = newStreamData.stream;
       const webRTCApp = window.webRTCApp;
 
       if (!webRTCApp || !webRTCApp.negotiationManager) {
@@ -104,17 +135,38 @@ export function updateLocalStreamProperties(
           '[streamStore] WebRTCApp instance or negotiationManager not found on window. Skipping track management for peers.'
         );
       } else {
-        try {
-          if (newStreamData.sendable) {
-            setupStream(newStreamData.stream, newStreamData.type === 'audio'?'high':'low', newStreamData.type === 'audio'? undefined:'motion', newStreamData.type === 'audio'? undefined:true)
-          } else {
-            tearDownStream(newStreamData.stream);
+        const { directClients } = get(connectionStore);
+        for (const cid in directClients) {
+          const client = directClients[cid];
+          if (client && client.pc) {
+            const pc = client.pc;
+            try {
+              if (newStreamData.sendable) {
+                // Add tracks
+                trackStream.getTracks().forEach((track) => {
+                  if (!pc.getSenders().find((sender) => sender.track === track)) {
+                    pc.addTrack(track, trackStream);
+                  }
+                });
+                console.log(`[streamStore] Added tracks from stream ${id} to peer ${cid}`);
+              } else {
+                // Remove tracks
+                pc.getSenders().forEach((sender) => {
+                  if (sender.track && trackStream.getTracks().includes(sender.track)) {
+                    pc.removeTrack(sender);
+                  }
+                });
+                console.log(`[streamStore] Removed tracks from stream ${id} for peer ${cid}`);
+              }
+              // Trigger renegotiation
+              webRTCApp.negotiationManager.startOrRestartNego(cid, client.polite ?? false);
+            } catch (error) {
+              console.error(
+                `[streamStore] Error managing tracks for stream ${id} with peer ${cid}:`,
+                error
+              );
+            }
           }
-        } catch (error) {
-          console.error(
-            `[streamStore] Error managing tracks for stream ${id}:`,
-            error
-          );
         }
       }
     }

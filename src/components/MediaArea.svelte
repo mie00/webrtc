@@ -2,12 +2,10 @@
   import { onMount, onDestroy } from 'svelte';
   import {
     streamStore,
+    updateStreamConfig,
     setViewLayout,
     updateLocalStreamProperties,
     getLocalStreamsByType,
-    getFirstLocalStreamByType,
-    removeLocalStream as removeStreamStoreLocalStream,
-    addLocalStream as addStreamStoreLocalStream,
     type LayoutType
   } from '../lib/stores/streamStore';
   import { normalizeStreamId, setupStream } from '../lib/media/stream';
@@ -41,20 +39,10 @@
   let refreshInterval: number;
 
   // Reactive button states
-  const isAudioEnabled = $derived(
-    Object.values($streamStore.localStreams).some((stream) => stream.type === 'audio')
-  );
-  const isCameraEnabled = $derived(
-    Object.values($streamStore.localStreams).some(
-      (stream) => stream.type === 'camera' || stream.type === 'blurred'
-    )
-  );
-  const isScreenSharing = $derived(
-    Object.values($streamStore.localStreams).some((stream) => stream.type === 'screen')
-  );
-  const isVideoShared = $derived(
-    Object.values($streamStore.localStreams).some((stream) => stream.type === 'file')
-  );
+  const isAudioEnabled = $derived($streamStore.streamConfig.audio !== null);
+  const isCameraEnabled = $derived($streamStore.streamConfig.camera !== null);
+  const isScreenSharing = $derived($streamStore.streamConfig.screen);
+  const isVideoShared = $derived($streamStore.streamConfig.file !== null);
   const isBlurEnabled = $derived($configStore.media.blurVideo === 'yes');
   const isTranscribing = $derived($transcriberStore.isTranscribingOverall);
 
@@ -209,22 +197,11 @@
 
   async function handleToggleAudio() {
     setAudioCallback((arg) => (instant = arg));
-    if (!isAudioEnabled) {
-      // Add a placeholder stream; localStreamManager will pick it up
-      // Pass the current configured device (or 'default') as a hint in the 'src' field
-      addStreamStoreLocalStream(
-        'audio',
-        null,
-        $configStore.media.audioDevice || 'default',
-        true,
-        true
-      );
+    if ($streamStore.streamConfig.audio === null) {
+      const deviceString = $configStore.media.audioDevice || '';
+      updateStreamConfig({ audio: deviceString });
     } else {
-      // Remove all active audio streams
-      const audioStreams = getLocalStreamsByType('audio');
-      for (const streamId of Object.keys(audioStreams)) {
-        removeStreamStoreLocalStream(streamId); // localStreamManager will handle teardown
-      }
+      updateStreamConfig({ audio: null });
     }
   }
 
@@ -240,16 +217,13 @@
       return;
     }
 
-    const configKey = type === 'audio' ? 'audioDevice' : 'videoDevice';
-    const currentDeviceId = $configStore.media[configKey]; // This is the selected device, not on/off state
-    const isTypeEnabled = type === 'audio' ? isAudioEnabled : isCameraEnabled;
-
+    const currentDeviceId = $streamStore.streamConfig[type];
     menuItems = [
       {
         id: 'enable-disable',
-        label: isTypeEnabled ? `Disable ${type}` : `Enable ${type}`,
+        label: $streamStore.streamConfig[type] === null ? `Enable ${type}` : `Disable ${type}`,
         type: 'toggle' as const,
-        checked: isTypeEnabled,
+        checked: $streamStore.streamConfig[type] !== null,
         action: () => {
           if (type === 'audio') handleToggleAudio();
           else handleToggleVideo();
@@ -308,26 +282,11 @@
   }
 
   async function handleToggleVideo() {
-    if (!isCameraEnabled) {
-      // Add a placeholder stream; localStreamManager will pick it up
-      // Pass the current configured device (or 'default') as a hint in the 'src' field
-      addStreamStoreLocalStream(
-        'camera',
-        null,
-        $configStore.media.videoDevice || 'default',
-        true,
-        true
-      );
+    if ($streamStore.streamConfig.camera === null) {
+      const deviceString = $configStore.media.videoDevice || '';
+      updateStreamConfig({ camera: deviceString });
     } else {
-      // Remove all active camera and blurred streams
-      const cameraStreams = getLocalStreamsByType('camera');
-      for (const streamId of Object.keys(cameraStreams)) {
-        removeStreamStoreLocalStream(streamId);
-      }
-      const blurredStreams = getLocalStreamsByType('blurred');
-      for (const streamId of Object.keys(blurredStreams)) {
-        removeStreamStoreLocalStream(streamId);
-      }
+      updateStreamConfig({ camera: null });
     }
   }
 
@@ -338,28 +297,8 @@
   }
 
   async function handleToggleScreen() {
-    if (!isScreenSharing) {
-      // Logic to start screen sharing is in localStreamManager, triggered by config change
-      // For now, we assume localStreamManager handles starting based on a config flag
-      // This might need a dedicated flag in configStore.media if not already present
-      // Or, more directly:
-      try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-          audio: true,
-          video: { cursor: 'always' } as any
-        });
-        setupStream(stream, 'medium', 'detail', false);
-        addStreamStoreLocalStream('screen', stream, null, true, true);
-      } catch (err) {
-        console.error('Error starting screen sharing:', err);
-      }
-    } else {
-      const screenStreams = getLocalStreamsByType('screen');
-      for (const streamId of Object.keys(screenStreams)) {
-        // Assuming tearDownStream is handled by removeStreamStoreLocalStream's effects or localStreamManager
-        removeStreamStoreLocalStream(streamId);
-      }
-    }
+    const newValue = !$streamStore.streamConfig.screen;
+    updateStreamConfig({ screen: newValue });
   }
 
   async function handleToggleForward() {
@@ -376,50 +315,39 @@
     if (input.files && input.files.length > 0) {
       const file = input.files[0];
       const fileURL = URL.createObjectURL(file);
-      // Remove existing file streams first
-      const existingFileStreams = getLocalStreamsByType('file');
-      for (const streamId of Object.keys(existingFileStreams)) {
-        removeStreamStoreLocalStream(streamId);
-      }
-      // Add new file stream (initially without MediaStream, not sendable)
-      addStreamStoreLocalStream('file', null, fileURL, true, false);
-      // removeLocalFileStream might be for a different store, ensure consistency if it also manages URL.revokeObjectURL
+      updateStreamConfig({
+        file: fileURL,
+        videoStream: undefined
+      });
     }
   }
 
   async function handleVideoCleanup() {
-    const fileStreams = getLocalStreamsByType('file');
-    const fileStreamEntry = Object.entries(fileStreams)[0];
-    if (fileStreamEntry) {
-      const [streamId, streamData] = fileStreamEntry;
-      if (streamData.src) {
-        removeLocalFileStream(streamData.src); // Assuming this revokes ObjectURL and cleans up other stores
-      }
-      removeStreamStoreLocalStream(streamId);
-    }
+    const src = $streamStore.streamConfig.file!;
+    removeLocalFileStream(src);
+    updateStreamConfig({ file: null, videoStream: null });
   }
 
   async function handleFilePlay(event: Event) {
-    const fileStreamEntry = getFirstLocalStreamByType('file');
-    if (!fileStreamEntry) return;
-
-    const [fileStreamId, fileStreamData] = fileStreamEntry;
-    if (fileStreamData.stream) return; // Already has a stream
-
+    if ($streamStore.streamConfig.videoStream) return;
     const videoNode = event.target as HTMLVideoElement;
     videoNode.play();
-    const captureStreamFn = (videoNode as any).captureStream || (videoNode as any).mozCaptureStream;
-    let videoMediaStream;
-    if (captureStreamFn) {
-      videoMediaStream = captureStreamFn.call(videoNode);
+    const captureStream = (videoNode as any).captureStream || (videoNode as any).mozCaptureStream;
+    let videoStream;
+    if (captureStream) {
+      videoStream = captureStream.call(videoNode);
     } else {
-      alert("The browser doesn't support capturing video stream for sharing.");
+      alert("the browser doesn't support video sharing");
       return;
     }
-
-    addLocalFileStream(fileStreamData.src!, videoMediaStream); // Assuming this is for the other store
-    setupStream(videoMediaStream, 'medium', 'detail', false);
-    updateLocalStreamProperties(fileStreamId, { stream: videoMediaStream, sendable: true });
+    updateStreamConfig({ videoStream });
+    addLocalFileStream($streamStore.streamConfig.file!, videoStream);
+    setupStream(videoStream, 'medium', 'detail', false);
+    const fileStreams = getLocalStreamsByType('file');
+    const fileStreamEntry = Object.entries(fileStreams)[0];
+    if (fileStreamEntry) {
+      updateLocalStreamProperties(fileStreamEntry[0], { sendable: true });
+    }
   }
 
   function handleChangeLayout(layout: LayoutType) {
