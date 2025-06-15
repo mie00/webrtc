@@ -148,7 +148,7 @@ export async function disableAudio(): Promise<void> {
 
 export async function enableCamera(deviceId?: string): Promise<void> {
   const globalConfig = getAllConfig();
-  
+
   // Clean up ALL existing camera and blurred streams first
   const oldCameraStreams = getLocalStreamsByType('camera');
   for (const [streamId, streamData] of Object.entries(oldCameraStreams)) {

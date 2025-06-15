@@ -1,7 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { setupStream, tearDownStream } from '../media/stream';
 
-
 // Stream type definitions
 export type StreamType = 'camera' | 'screen' | 'audio' | 'file' | 'blurred';
 export type LayoutType = 'grid' | 'focus' | 'presentation';
@@ -59,27 +58,27 @@ export function getStreamState() {
 // Helper functions to check if streams are enabled
 export function isAudioEnabled(): boolean {
   const state = getStreamState();
-  return Object.values(state.localStreams).some(stream => stream.type === 'audio');
+  return Object.values(state.localStreams).some((stream) => stream.type === 'audio');
 }
 
 export function isCameraEnabled(): boolean {
   const state = getStreamState();
-  return Object.values(state.localStreams).some(stream => stream.type === 'camera');
+  return Object.values(state.localStreams).some((stream) => stream.type === 'camera');
 }
 
 export function isScreenSharingEnabled(): boolean {
   const state = getStreamState();
-  return Object.values(state.localStreams).some(stream => stream.type === 'screen');
+  return Object.values(state.localStreams).some((stream) => stream.type === 'screen');
 }
 
 export function isFileStreamEnabled(): boolean {
   const state = getStreamState();
-  return Object.values(state.localStreams).some(stream => stream.type === 'file');
+  return Object.values(state.localStreams).some((stream) => stream.type === 'file');
 }
 
 export function isBlurredStreamEnabled(): boolean {
   const state = getStreamState();
-  return Object.values(state.localStreams).some(stream => stream.type === 'blurred');
+  return Object.values(state.localStreams).some((stream) => stream.type === 'blurred');
 }
 
 // Enhanced stream management functions

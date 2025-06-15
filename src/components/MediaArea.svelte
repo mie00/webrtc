@@ -12,7 +12,7 @@
     type LayoutType
   } from '../lib/stores/streamStore';
   import { normalizeStreamId, setupStream } from '../lib/media/stream';
-  import { 
+  import {
     setAudioCallback,
     enableAudio,
     disableAudio,
@@ -234,7 +234,9 @@
     menuItems = [
       {
         id: 'enable-disable',
-        label: (type === 'audio' ? audioEnabled : cameraEnabled) ? `Disable ${type}` : `Enable ${type}`,
+        label: (type === 'audio' ? audioEnabled : cameraEnabled)
+          ? `Disable ${type}`
+          : `Enable ${type}`,
         type: 'toggle' as const,
         checked: type === 'audio' ? audioEnabled : cameraEnabled,
         action: () => {
@@ -347,7 +349,7 @@
     const fileStreams = getLocalStreamsByType('file');
     const fileStreamEntry = Object.entries(fileStreams)[0];
     if (fileStreamEntry && fileStreamEntry[1].stream) return; // Already has a stream
-    
+
     const videoNode = event.target as HTMLVideoElement;
     videoNode.play();
     const captureStream = (videoNode as any).captureStream || (videoNode as any).mozCaptureStream;
@@ -358,7 +360,7 @@
       alert("the browser doesn't support video sharing");
       return;
     }
-    
+
     if (fileStreamEntry && fileStreamEntry[1].src) {
       addLocalFileStream(fileStreamEntry[1].src, videoStream);
       setupStream(videoStream, 'medium', 'detail', false);
