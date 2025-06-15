@@ -56,7 +56,9 @@ export async function standardSetup(
   console.log(`Invite URL from Page A: ${inviteUrl}`);
 
   if (options?.delayAfterPageAOpenMs && options.delayAfterPageAOpenMs > 0) {
-    console.log(`Waiting for ${options.delayAfterPageAOpenMs}ms after Page A setup before Page B navigation...`);
+    console.log(
+      `Waiting for ${options.delayAfterPageAOpenMs}ms after Page A setup before Page B navigation...`
+    );
     await pageA.waitForTimeout(options.delayAfterPageAOpenMs);
   }
 

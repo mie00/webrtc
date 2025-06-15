@@ -39,7 +39,8 @@ test.describe('WebRTC Peer Connection with Delays E2E Test', () => {
       contextB = undefined;
     });
 
-    const testTitle = `should establish connection with ${delayConfig.id} delay (A->B nav and B->A paste) ${delayConfig.tag}`.trim();
+    const testTitle =
+      `should establish connection with ${delayConfig.id} delay (A->B nav and B->A paste) ${delayConfig.tag}`.trim();
 
     test(testTitle, async ({ browser }) => {
       const setupResult = await standardSetup(browser, {
