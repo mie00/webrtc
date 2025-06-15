@@ -1,14 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { setupStream, tearDownStream } from '../media/stream';
 
-// Stream configuration interface
-export interface StreamConfig {
-  audio: string | null; // Contains device ID when enabled, null when disabled
-  camera: string | null; // Contains device ID when enabled, null when disabled
-  screen: boolean;
-  file: string | null; // Contains video source URL when enabled, null when disabled
-  videoStream: MediaStream | null; // Still needed for file playback
-}
 
 // Stream type definitions
 export type StreamType = 'camera' | 'screen' | 'audio' | 'file' | 'blurred';
@@ -42,8 +34,6 @@ export interface StreamState {
     focusedStream?: string;
     gridSize?: number;
   };
-
-  streamConfig: StreamConfig;
 }
 
 // Initial state
@@ -55,14 +45,6 @@ const initialState: StreamState = {
   // View configuration
   activeView: {
     layout: 'grid'
-  },
-
-  streamConfig: {
-    audio: null,
-    camera: null,
-    screen: false,
-    file: null,
-    videoStream: null
   }
 };
 
@@ -74,15 +56,30 @@ export function getStreamState() {
   return get(streamStore);
 }
 
-// Stream config updates
-export function updateStreamConfig(config: Partial<StreamConfig>): void {
-  streamStore.update((state) => ({
-    ...state,
-    streamConfig: {
-      ...state.streamConfig,
-      ...config
-    }
-  }));
+// Helper functions to check if streams are enabled
+export function isAudioEnabled(): boolean {
+  const state = getStreamState();
+  return Object.values(state.localStreams).some(stream => stream.type === 'audio');
+}
+
+export function isCameraEnabled(): boolean {
+  const state = getStreamState();
+  return Object.values(state.localStreams).some(stream => stream.type === 'camera');
+}
+
+export function isScreenSharingEnabled(): boolean {
+  const state = getStreamState();
+  return Object.values(state.localStreams).some(stream => stream.type === 'screen');
+}
+
+export function isFileStreamEnabled(): boolean {
+  const state = getStreamState();
+  return Object.values(state.localStreams).some(stream => stream.type === 'file');
+}
+
+export function isBlurredStreamEnabled(): boolean {
+  const state = getStreamState();
+  return Object.values(state.localStreams).some(stream => stream.type === 'blurred');
 }
 
 // Enhanced stream management functions
