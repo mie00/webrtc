@@ -15,8 +15,21 @@ export interface StandardSetupResult {
   contextB: BrowserContext;
 }
 
-export async function standardSetup(browser: Browser): Promise<StandardSetupResult> {
+export interface StandardSetupOptions {
+  delayAfterPageAOpenMs?: number;
+  delayBeforePastingResponseMs?: number;
+}
+
+export async function standardSetup(
+  browser: Browser,
+  options?: StandardSetupOptions
+): Promise<StandardSetupResult> {
   console.log('\n--- Playwright Standard Client E2E Setup (Pages & Connection) ---');
+  if (options?.delayAfterPageAOpenMs || options?.delayBeforePastingResponseMs) {
+    console.log(
+      `--- Applying delays: After Page A Open: ${options.delayAfterPageAOpenMs || 0}ms, Before Paste: ${options.delayBeforePastingResponseMs || 0}ms ---`
+    );
+  }
 
   const contextA = await browser.newContext();
   const contextB = await browser.newContext();
@@ -42,6 +55,11 @@ export async function standardSetup(browser: Browser): Promise<StandardSetupResu
   }
   console.log(`Invite URL from Page A: ${inviteUrl}`);
 
+  if (options?.delayAfterPageAOpenMs && options.delayAfterPageAOpenMs > 0) {
+    console.log(`Waiting for ${options.delayAfterPageAOpenMs}ms after Page A setup before Page B navigation...`);
+    await pageA.waitForTimeout(options.delayAfterPageAOpenMs);
+  }
+
   console.log('Page B navigating to invite URL...');
   await pageB.goto(inviteUrl, { waitUntil: 'networkidle', timeout: PW_TIMEOUT });
   console.log('Page B navigation complete.');
@@ -53,6 +71,13 @@ export async function standardSetup(browser: Browser): Promise<StandardSetupResu
 
   const copyText = await pageB.locator('textarea#test-copy').inputValue();
   console.log(`Copy text from Page B: ${copyText}`);
+
+  if (options?.delayBeforePastingResponseMs && options.delayBeforePastingResponseMs > 0) {
+    console.log(
+      `Waiting for ${options.delayBeforePastingResponseMs}ms after Page B setup before pasting response to Page A...`
+    );
+    await pageB.waitForTimeout(options.delayBeforePastingResponseMs);
+  }
 
   await pageA.locator('#test-paste').fill(copyText);
   console.log(`Pasted text into Page A: ${copyText}`);
