@@ -52,6 +52,34 @@ vi.mock('../stores/connectionStore', async () => {
   };
 });
 
+// Mock MediaStream first as MediaRecorder mock might depend on it
+class MockMediaStream {
+  tracks: any[];
+  active: boolean = true;
+  id: string = `mock-media-stream-${Math.random()}`;
+
+  constructor(tracks: any[] = []) {
+    this.tracks = tracks;
+  }
+  getTracks = vi.fn(() => this.tracks);
+  getAudioTracks = vi.fn(() => this.tracks.filter((t) => t.kind === 'audio'));
+  getVideoTracks = vi.fn(() => this.tracks.filter((t) => t.kind === 'video'));
+  addTrack = vi.fn((track) => this.tracks.push(track));
+  removeTrack = vi.fn((track) => {
+    this.tracks = this.tracks.filter((t) => t !== track);
+  });
+  clone = vi.fn(() => new MockMediaStream([...this.tracks]));
+  getTrackById = vi.fn((trackId) => this.tracks.find((t) => t.id === trackId) || null);
+
+  // EventTarget properties
+  addEventListener = vi.fn();
+  removeEventListener = vi.fn();
+  dispatchEvent = vi.fn(() => true);
+  onaddtrack: ((this: MediaStream, ev: MediaStreamTrackEvent) => any) | null = null;
+  onremovetrack: ((this: MediaStream, ev: MediaStreamTrackEvent) => any) | null = null;
+}
+global.MediaStream = MockMediaStream as any;
+
 // Mock MediaRecorder and WebSocket
 const mockMediaRecorderInstance = {
   start: vi.fn(),
@@ -104,34 +132,6 @@ const resetStores = () => {
   (getDirectClient as any).mockReset(); // Cast to any for svelte-check
   (getAllDirectClients as any).mockReturnValue({}); // Cast to any for svelte-check
 };
-
-// Mock MediaStream
-class MockMediaStream {
-  tracks: any[];
-  active: boolean = true;
-  id: string = `mock-media-stream-${Math.random()}`;
-
-  constructor(tracks: any[] = []) {
-    this.tracks = tracks;
-  }
-  getTracks = vi.fn(() => this.tracks);
-  getAudioTracks = vi.fn(() => this.tracks.filter((t) => t.kind === 'audio'));
-  getVideoTracks = vi.fn(() => this.tracks.filter((t) => t.kind === 'video'));
-  addTrack = vi.fn((track) => this.tracks.push(track));
-  removeTrack = vi.fn((track) => {
-    this.tracks = this.tracks.filter((t) => t !== track);
-  });
-  clone = vi.fn(() => new MockMediaStream([...this.tracks]));
-  getTrackById = vi.fn((trackId) => this.tracks.find((t) => t.id === trackId) || null);
-
-  // EventTarget properties
-  addEventListener = vi.fn();
-  removeEventListener = vi.fn();
-  dispatchEvent = vi.fn(() => true);
-  onaddtrack: ((this: MediaStream, ev: MediaStreamTrackEvent) => any) | null = null;
-  onremovetrack: ((this: MediaStream, ev: MediaStreamTrackEvent) => any) | null = null;
-}
-global.MediaStream = MockMediaStream as any;
 
 describe('Transcriber', () => {
   beforeEach(() => {
