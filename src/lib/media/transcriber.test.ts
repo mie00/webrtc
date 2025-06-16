@@ -66,7 +66,6 @@ const mockMediaRecorderInstance = {
 global.MediaRecorder = vi.fn().mockImplementation(() => mockMediaRecorderInstance) as any;
 (global.MediaRecorder as any).isTypeSupported = vi.fn((mimeType) => mimeType === 'audio/webm');
 
-
 global.WebSocket = vi.fn().mockImplementation(() => ({
   send: vi.fn(),
   close: vi.fn(),
@@ -94,7 +93,8 @@ const resetStores = () => {
     remoteStreams: {},
     activeView: { layout: 'grid' }
   });
-  (getStreamState as any).mockReturnValue({ // Cast to any for svelte-check
+  (getStreamState as any).mockReturnValue({
+    // Cast to any for svelte-check
     localStreams: {},
     remoteStreams: {},
     activeView: { layout: 'grid' }
@@ -115,14 +115,14 @@ class MockMediaStream {
     this.tracks = tracks;
   }
   getTracks = vi.fn(() => this.tracks);
-  getAudioTracks = vi.fn(() => this.tracks.filter(t => t.kind === 'audio'));
-  getVideoTracks = vi.fn(() => this.tracks.filter(t => t.kind === 'video'));
+  getAudioTracks = vi.fn(() => this.tracks.filter((t) => t.kind === 'audio'));
+  getVideoTracks = vi.fn(() => this.tracks.filter((t) => t.kind === 'video'));
   addTrack = vi.fn((track) => this.tracks.push(track));
   removeTrack = vi.fn((track) => {
-    this.tracks = this.tracks.filter(t => t !== track);
+    this.tracks = this.tracks.filter((t) => t !== track);
   });
   clone = vi.fn(() => new MockMediaStream([...this.tracks]));
-  getTrackById = vi.fn(trackId => this.tracks.find(t => t.id === trackId) || null);
+  getTrackById = vi.fn((trackId) => this.tracks.find((t) => t.id === trackId) || null);
 
   // EventTarget properties
   addEventListener = vi.fn();
@@ -132,7 +132,6 @@ class MockMediaStream {
   onremovetrack: ((this: MediaStream, ev: MediaStreamTrackEvent) => any) | null = null;
 }
 global.MediaStream = MockMediaStream as any;
-
 
 describe('Transcriber', () => {
   beforeEach(() => {
@@ -179,7 +178,8 @@ describe('Transcriber', () => {
 
     it('should start transcription for local audio streams', async () => {
       const mockStream = new (global.MediaStream as any)([{ id: 'audio-track-1', kind: 'audio' }]);
-      (getStreamState as any).mockReturnValue({ // Cast to any for svelte-check
+      (getStreamState as any).mockReturnValue({
+        // Cast to any for svelte-check
         localStreams: { 'local-stream-1': { stream: mockStream, type: 'audio' } },
         remoteStreams: {},
         activeView: { layout: 'grid' }
@@ -203,8 +203,11 @@ describe('Transcriber', () => {
     });
 
     it('should start transcription for remote audio streams', async () => {
-      const mockStream = new (global.MediaStream as any)([{ id: 'remote-audio-track-1', kind: 'audio' }]);
-      (getStreamState as any).mockReturnValue({ // Cast to any for svelte-check
+      const mockStream = new (global.MediaStream as any)([
+        { id: 'remote-audio-track-1', kind: 'audio' }
+      ]);
+      (getStreamState as any).mockReturnValue({
+        // Cast to any for svelte-check
         localStreams: {},
         remoteStreams: {
           'peer-1': {
@@ -230,10 +233,12 @@ describe('Transcriber', () => {
     });
 
     it('should handle streams with no audio tracks gracefully', async () => {
-      const mockStreamNoAudio = { // Keep this simple as it's for no audio tracks
+      const mockStreamNoAudio = {
+        // Keep this simple as it's for no audio tracks
         getAudioTracks: () => []
       } as unknown as MediaStream; // Cast to unknown first
-      (getStreamState as any).mockReturnValue({ // Cast to any for svelte-check
+      (getStreamState as any).mockReturnValue({
+        // Cast to any for svelte-check
         localStreams: { 'local-no-audio': { stream: mockStreamNoAudio, type: 'video' } },
         remoteStreams: {},
         activeView: { layout: 'grid' }
@@ -294,8 +299,7 @@ describe('Transcriber', () => {
       if (currentMockWebSocketInstance.onopen) {
         currentMockWebSocketInstance.onopen();
       }
-       await new Promise(process.nextTick);
-
+      await new Promise(process.nextTick);
 
       // Ensure MediaRecorder is in 'recording' state
       currentMockMediaRecorderInstance.state = 'recording';
@@ -303,16 +307,15 @@ describe('Transcriber', () => {
       stopOverallTranscription();
       await new Promise(process.nextTick);
 
-
       expect(currentMockMediaRecorderInstance.stop).toHaveBeenCalled();
       // Check if EOS was sent. This happens in mediaRecorder.onstop if state was 'recording'.
       // To test this properly, we'd need to trigger onstop.
       // For now, let's assume if stop() was called, the EOS logic path is entered.
       // If the MR was recording, an empty blob should be sent.
       if (currentMockMediaRecorderInstance.onstop) {
-         currentMockMediaRecorderInstance.onstop(); // Manually trigger onstop
-         await new Promise(process.nextTick);
-         expect(currentMockWebSocketInstance.send).toHaveBeenCalledWith(expect.any(Blob));
+        currentMockMediaRecorderInstance.onstop(); // Manually trigger onstop
+        await new Promise(process.nextTick);
+        expect(currentMockWebSocketInstance.send).toHaveBeenCalledWith(expect.any(Blob));
       } else {
         // If onstop is not set up by the mock in this flow, this check might be too strict.
         // The core is that stop() is called.
