@@ -280,4 +280,3 @@
 <ForwardOverlay />
 
 <div id="diffs" class="whitespace-pre-line hidden"></div>
-<!-- Removed {:else} block for /cb path -->
