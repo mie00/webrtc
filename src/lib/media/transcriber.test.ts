@@ -255,7 +255,8 @@ describe('Transcriber', () => {
   });
 
   describe('stopOverallTranscription', () => {
-    it('should set isTranscribingOverall to false and clear active sessions', async () => { // Add async
+    it('should set isTranscribingOverall to false and clear active sessions', async () => {
+      // Add async
       // Setup a dummy active session to test clearing
       transcriberStore.set({
         isTranscribingOverall: true,
