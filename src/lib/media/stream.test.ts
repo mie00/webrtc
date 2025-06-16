@@ -37,20 +37,34 @@ const mockRequestAnimationFrame = vi.fn().mockImplementation(() => {
 vi.stubGlobal('requestAnimationFrame', mockRequestAnimationFrame);
 vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
+// Persistent mocks for analyser and source methods
+let mockGetByteFrequencyData: ReturnType<typeof vi.fn>;
+let mockAnalyserConnect: ReturnType<typeof vi.fn>;
+let mockAnalyserDisconnect: ReturnType<typeof vi.fn>;
+let mockSourceConnect: ReturnType<typeof vi.fn>;
+let mockSourceDisconnect: ReturnType<typeof vi.fn>;
+
 describe('stream.ts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    mockGetByteFrequencyData = vi.fn();
+    mockAnalyserConnect = vi.fn();
+    mockAnalyserDisconnect = vi.fn();
+    mockSourceConnect = vi.fn();
+    mockSourceDisconnect = vi.fn();
+
     // Reset fftSize for each test if necessary, or ensure mockAnalyser is fresh
     mockAudioContext.createAnalyser.mockReturnValue({
       fftSize: 256, // Default or specific test value
       frequencyBinCount: 128,
-      connect: vi.fn(),
-      getByteFrequencyData: vi.fn(),
-      disconnect: vi.fn() // Ensure disconnect is part of the mock
+      connect: mockAnalyserConnect,
+      getByteFrequencyData: mockGetByteFrequencyData,
+      disconnect: mockAnalyserDisconnect // Ensure disconnect is part of the mock
     });
     mockAudioContext.createMediaStreamSource.mockReturnValue({
-      connect: vi.fn(),
-      disconnect: vi.fn()
+      connect: mockSourceConnect,
+      disconnect: mockSourceDisconnect
     });
   });
 
@@ -117,20 +131,24 @@ describe('stream.ts', () => {
     it('should call the callback function within the animation loop', () => {
       const cb = vi.fn();
       // Redefine mockRequestAnimationFrame for this specific test to control callback execution
-      const customMockRequestAnimationFrame = vi.fn().mockImplementation((loopCb) => {
-        loopCb(); // Execute the loop's callback immediately
-        return 123; // Return a mock ID
-      });
+      const customMockRequestAnimationFrame = vi.fn()
+        .mockImplementationOnce((loopCb) => { // First call from processAudio
+          loopCb(); // Execute updateAnalysis once, which calls cb and then requestAnimationFrame again
+          return 123; // Return a mock ID
+        })
+        .mockImplementation(() => 456); // Subsequent calls (from within updateAnalysis) just return an ID and do nothing else
+
+      const originalGlobalRaf = global.requestAnimationFrame; // This will be the general test mock
       vi.stubGlobal('requestAnimationFrame', customMockRequestAnimationFrame);
 
       processAudio(mockStream, cb);
 
-      expect(customMockRequestAnimationFrame).toHaveBeenCalled();
-      expect(cb).toHaveBeenCalled();
-      expect(mockAudioContext.createAnalyser().getByteFrequencyData).toHaveBeenCalled();
+      expect(customMockRequestAnimationFrame).toHaveBeenCalledTimes(2); // Called by processAudio, then by updateAnalysis
+      expect(cb).toHaveBeenCalledTimes(1);
+      expect(mockGetByteFrequencyData).toHaveBeenCalledTimes(1); // Use the persistent mock
 
-      // Restore original mock
-      vi.stubGlobal('requestAnimationFrame', mockRequestAnimationFrame);
+      // Restore the general test mock for requestAnimationFrame
+      vi.stubGlobal('requestAnimationFrame', originalGlobalRaf);
     });
   });
 
