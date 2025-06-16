@@ -262,7 +262,7 @@ describe('Transcriber', () => {
 
       (global.MediaRecorder as vi.Mock).mockImplementationOnce(() => mockMediaRecorderInstance);
       (global.WebSocket as vi.Mock).mockImplementationOnce(() => mockWebSocketInstance);
-      
+
       // Simulate an active session being created
       const stream = { getAudioTracks: () => [{ id: 'audio-track' }] } as MediaStream;
       (getStreamState as vi.Mock).mockReturnValue({
@@ -277,7 +277,7 @@ describe('Transcriber', () => {
       if (wsInstance.onopen) {
         wsInstance.onopen();
       }
-      
+
       // Ensure MediaRecorder is in 'recording' state
       const mrInstance = (global.MediaRecorder as vi.Mock).mock.results[0].value;
       mrInstance.state = 'recording'; // Manually set state for the mock
@@ -289,7 +289,7 @@ describe('Transcriber', () => {
       // stopTranscriptionForSession will send EOS if MR was recording.
       // The actual WS.close() happens after 'ready_to_stop' or error.
       // For this test, we check if EOS was sent.
-      expect(mockWebSocketInstance.send).toHaveBeenCalledWith(expect.any(Blob)); 
+      expect(mockWebSocketInstance.send).toHaveBeenCalledWith(expect.any(Blob));
     });
   });
 
@@ -308,7 +308,7 @@ describe('Transcriber', () => {
       expect(get(transcriberStore).isTranscribingOverall).toBe(false);
     });
   });
-  
+
   describe('processReceivedTranscriptionPayload', () => {
     const baseTime = Date.now();
     const createSegment = (
@@ -351,7 +351,16 @@ describe('Transcriber', () => {
 
     it('should append text to the last segment if utteranceId and speaker match and it is the absolute last', () => {
       // Initial segment
-      const segment1 = createSegment(1, 1, 'session1', 'SpeakerA', 'Hello', '0:00:00', '0:00:01', 0);
+      const segment1 = createSegment(
+        1,
+        1,
+        'session1',
+        'SpeakerA',
+        'Hello',
+        '0:00:00',
+        '0:00:01',
+        0
+      );
       processReceivedTranscriptionPayload({
         type: 'transcription_data',
         finalSegments: [segment1],
@@ -394,7 +403,16 @@ describe('Transcriber', () => {
         originalSessionId: 'session1'
       });
 
-      const segB1 = createSegment(2, 1, 'session1', 'SpeakerB', 'Hi there', '0:00:01', '0:00:03', 100);
+      const segB1 = createSegment(
+        2,
+        1,
+        'session1',
+        'SpeakerB',
+        'Hi there',
+        '0:00:01',
+        '0:00:03',
+        100
+      );
       processReceivedTranscriptionPayload({
         type: 'transcription_data',
         finalSegments: [segB1],
