@@ -123,14 +123,15 @@ describe('CopyOverlay.svelte', () => {
     expect(await screen.findByText('Clipboard unavailable, please copy manually')).toBeVisible();
   });
 
-    it('should show error message if clipboard writeText fails', async () => {
-    (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Copy failed'));
+  it('should show error message if clipboard writeText fails', async () => {
+    (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('Copy failed')
+    );
     render(CopyOverlay, { ...defaultProps, show: true, copyText: 'Text to copy' });
     const copyButton = screen.getByText('Copy');
     await fireEvent.click(copyButton);
     expect(await screen.findByText('Error copying, please copy manually')).toBeVisible();
   });
-
 
   it('should not show copy button if showCopyButton is false', () => {
     render(CopyOverlay, { ...defaultProps, show: true, showCopyButton: false });
@@ -153,7 +154,7 @@ describe('CopyOverlay.svelte', () => {
     });
     const pasteTextarea = screen.getByRole('textbox', { name: '' }) as HTMLTextAreaElement;
     await fireEvent.input(pasteTextarea, { target: { value: 'Pasted value' } });
-    
+
     const acceptButton = screen.getByText('Accept');
     await fireEvent.click(acceptButton);
 
@@ -184,7 +185,7 @@ describe('CopyOverlay.svelte', () => {
   });
 
   it('should render copyText in the textarea', () => {
-    const myCopyText = "This is the text that should be copied.";
+    const myCopyText = 'This is the text that should be copied.';
     render(CopyOverlay, { ...defaultProps, show: true, copyText: myCopyText });
     const textarea = screen.getByDisplayValue(myCopyText) as HTMLTextAreaElement;
     expect(textarea).toBeVisible();
