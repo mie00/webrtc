@@ -21,8 +21,14 @@ const mockAudioContext = {
   }),
   close: vi.fn()
 };
-vi.stubGlobal('AudioContext', vi.fn(() => mockAudioContext));
-vi.stubGlobal('webkitAudioContext', vi.fn(() => mockAudioContext));
+vi.stubGlobal(
+  'AudioContext',
+  vi.fn(() => mockAudioContext)
+);
+vi.stubGlobal(
+  'webkitAudioContext',
+  vi.fn(() => mockAudioContext)
+);
 
 const mockRequestAnimationFrame = vi.fn().mockImplementation((cb) => {
   // cb(); // Optionally call the callback immediately for some tests
@@ -138,7 +144,9 @@ describe('stream.ts', () => {
       const mockNodes: AudioNodes = {
         context: mockAudioContext as unknown as AudioContext,
         analyser: mockAudioContext.createAnalyser() as AnalyserNode,
-        source: mockAudioContext.createMediaStreamSource({} as MediaStream) as MediaStreamAudioSourceNode,
+        source: mockAudioContext.createMediaStreamSource(
+          {} as MediaStream
+        ) as MediaStreamAudioSourceNode,
         dataArray: new Uint8Array(128),
         animationFrame: 12345,
         fftSize: 256
@@ -156,7 +164,9 @@ describe('stream.ts', () => {
       const mockNodes: AudioNodes = {
         context: mockAudioContext as unknown as AudioContext,
         analyser: mockAudioContext.createAnalyser() as AnalyserNode,
-        source: mockAudioContext.createMediaStreamSource({} as MediaStream) as MediaStreamAudioSourceNode,
+        source: mockAudioContext.createMediaStreamSource(
+          {} as MediaStream
+        ) as MediaStreamAudioSourceNode,
         dataArray: new Uint8Array(128),
         animationFrame: undefined,
         fftSize: 256
@@ -210,7 +220,12 @@ describe('stream.ts', () => {
       let x = 0;
       for (let i = 0; i < dataArray.length; i++) {
         const barHeight = dataArray[i] / 2;
-        expect(mockCanvasContext.fillRect).toHaveBeenCalledWith(x, height - barHeight, barWidth, barHeight);
+        expect(mockCanvasContext.fillRect).toHaveBeenCalledWith(
+          x,
+          height - barHeight,
+          barWidth,
+          barHeight
+        );
         x += barWidth + 1;
       }
     });
