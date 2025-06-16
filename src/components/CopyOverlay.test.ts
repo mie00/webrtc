@@ -48,7 +48,8 @@ describe('CopyOverlay.svelte', () => {
     reset: resetMock,
     accept: acceptMock,
     join: joinMock
-  };
+  }; // This was missing the closing brace for defaultProps
+  }); // This is the closing brace for beforeEach
 
   it('should not be visible when show is false', () => {
     render(CopyOverlay, { ...defaultProps, show: false });
