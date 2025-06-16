@@ -272,7 +272,12 @@ export class WebRTCApp {
     addDirectClient(cid, client);
 
     pc.onconnectionstatechange = () => {
-      console.log('onconnectionstatechange', options);
+      console.log('onconnectionstatechange', options,
+        "signalingState", pc?.signalingState,
+        "connectionState", pc?.connectionState,
+        "iceGatheringState", pc?.iceGatheringState,
+        "iceConnectionState", pc?.iceConnectionState,
+      )
       if (pc) {
         updateDirectClientState(cid, pc.connectionState, pc.iceConnectionState);
         if (pc.connectionState === 'connected' && pc.iceConnectionState === 'connected') {
@@ -281,7 +286,12 @@ export class WebRTCApp {
       }
     };
     pc.oniceconnectionstatechange = () => {
-      console.log('oniceconnectionstatechange', options);
+      console.log('oniceconnectionstatechange', options,
+        "signalingState", pc?.signalingState,
+        "connectionState", pc?.connectionState,
+        "iceGatheringState", pc?.iceGatheringState,
+        "iceConnectionState", pc?.iceConnectionState,
+      )
       if (pc) {
         updateDirectClientState(cid, pc.connectionState, pc.iceConnectionState);
         if (pc.iceConnectionState === 'failed') {
@@ -365,15 +375,6 @@ export class WebRTCApp {
         client.makingOffer = false;
       }
     };
-
-    if (!offer) {
-      setTimeout(() => {
-        const currentClient = getDirectClient(cid);
-        if (currentClient?.pc?.signalingState === 'have-local-offer') {
-          this.destroyClient(cid);
-        }
-      }, 60 * 1000);
-    }
     return cid;
   }
 

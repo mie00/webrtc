@@ -5,7 +5,7 @@ import { standardTeardown } from './setup/pwStandardTeardown';
 
 const delays = [
   { id: '5s', duration: 5000, tag: '' },
-  { id: '10s', duration: 10000, tag: '' },
+  { id: '10s', duration: 10000, tag: '@slow' },
   { id: '20s', duration: 20000, tag: '@slow' },
   { id: '40s', duration: 40000, tag: '@slow' },
   { id: '80s', duration: 80000, tag: '@slow' },

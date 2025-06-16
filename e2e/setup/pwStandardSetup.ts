@@ -48,12 +48,6 @@ export async function standardSetup(
 
   console.log('Waiting for invite URL copy button on Page A...');
   await pageA.locator(INVITE_URL_SELECTOR).waitFor({ state: 'visible', timeout: PW_TIMEOUT });
-  console.log('Invite URL element found. Evaluating textarea...');
-  const inviteUrl = await pageA.locator('textarea#test-copy').inputValue();
-  if (!inviteUrl || (!inviteUrl.startsWith('http://') && !inviteUrl.startsWith('https://'))) {
-    throw new Error(`Failed to get a valid invite URL from Page A: ${inviteUrl}`);
-  }
-  console.log(`Invite URL from Page A: ${inviteUrl}`);
 
   if (options?.delayAfterPageAOpenMs && options.delayAfterPageAOpenMs > 0) {
     console.log(
@@ -61,6 +55,13 @@ export async function standardSetup(
     );
     await pageA.waitForTimeout(options.delayAfterPageAOpenMs);
   }
+
+  console.log('Invite URL element found. Evaluating textarea...');
+  const inviteUrl = await pageA.locator('textarea#test-copy').inputValue();
+  if (!inviteUrl || (!inviteUrl.startsWith('http://') && !inviteUrl.startsWith('https://'))) {
+    throw new Error(`Failed to get a valid invite URL from Page A: ${inviteUrl}`);
+  }
+  console.log(`Invite URL from Page A: ${inviteUrl}`);
 
   console.log('Page B navigating to invite URL...');
   await pageB.goto(inviteUrl, { waitUntil: 'networkidle', timeout: PW_TIMEOUT });
@@ -71,15 +72,15 @@ export async function standardSetup(
   await pageB.locator('#test-copy-button').waitFor({ state: 'visible', timeout: PW_TIMEOUT });
   await pageB.waitForTimeout(1000); // wait for a bit
 
-  const copyText = await pageB.locator('textarea#test-copy').inputValue();
-  console.log(`Copy text from Page B: ${copyText}`);
-
   if (options?.delayBeforePastingResponseMs && options.delayBeforePastingResponseMs > 0) {
     console.log(
       `Waiting for ${options.delayBeforePastingResponseMs}ms after Page B setup before pasting response to Page A...`
     );
     await pageB.waitForTimeout(options.delayBeforePastingResponseMs);
   }
+
+  const copyText = await pageB.locator('textarea#test-copy').inputValue();
+  console.log(`Copy text from Page B: ${copyText}`);
 
   await pageA.locator('#test-paste').fill(copyText);
   console.log(`Pasted text into Page A: ${copyText}`);
