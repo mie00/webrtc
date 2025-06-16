@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
+  import { onMount, onDestroy, effect } from 'svelte'; // Added effect
   // import { authStore, type AuthState } from '../lib/stores/authStore'; // No longer directly needed for UI
   import MediaArea from './MediaArea.svelte';
   import ControlPanel from './ControlPanel.svelte';
@@ -8,7 +9,7 @@
   import ConfigOverlay from './ConfigOverlay.svelte';
   import ForwardOverlay from './ForwardOverlay.svelte';
   import { configStore, getAllConfig } from '../lib/stores/configStore';
-  import { connectionStore } from '../lib/stores/connectionStore'; // getDirectClient not used here
+  import { connectionStore, getDirectClient } from '../lib/stores/connectionStore'; // Now using getDirectClient
   // import { compress, decompress } from '../lib/utils/sdpCompress'; // Not used directly here
   import DownloadAppOverlay from './DownloadAppOverlay.svelte';
   import type { WebRTCApp } from '../lib/webrtc/WebRTCApp';
@@ -26,6 +27,7 @@
   // Other component specific state
   let showConfigOverlay = false;
   let showDownloadAppOverlay = true; // Controls rendering of DownloadAppOverlay
+  let previousShowCopyOverlay = $state(get(appLogicModuleStore).showCopyOverlay);
   // let currentAuthState: AuthState; // No longer needed for UI logic here
 
   // authStore.subscribe(value => { // No longer needed for UI logic here
@@ -233,6 +235,30 @@
       }
     }
   }
+
+  // Effect to destroy client when CopyOverlay is dismissed, unless the client itself connected
+  effect(() => {
+    const currentShowCopyOverlay = $appLogicModuleStore.showCopyOverlay;
+    const currentCid = $appLogicModuleStore.currentOfferCid;
+
+    if (previousShowCopyOverlay && !currentShowCopyOverlay && currentCid) {
+      const client = getDirectClient(currentCid);
+      if (client && client.state === 'connected' && client.iceState === 'connected') {
+        // currentOfferCid itself is connected. Do NOT destroy it.
+        console.log(
+          `CopyOverlay for ${currentCid} dismissed, but client is connected. Not destroying.`
+        );
+      } else {
+        console.log(
+          `CopyOverlay for ${currentCid} dismissed, client not (yet) connected. Destroying client.`
+        );
+        webRTCApp.destroyClient(currentCid);
+        // Optionally, clear currentOfferCid if it's not cleared by other flows that hide the overlay
+        // appLogicModuleStore.update(s => ({ ...s, currentOfferCid: null }));
+      }
+    }
+    previousShowCopyOverlay = currentShowCopyOverlay;
+  });
 </script>
 
 <!-- 
