@@ -253,7 +253,7 @@
         );
         webRTCApp.destroyClient(currentCid);
         // Optionally, clear currentOfferCid if it's not cleared by other flows that hide the overlay
-        appLogicModuleStore.update(s => ({ ...s, currentOfferCid: null }));
+        appLogicModuleStore.update((s) => ({ ...s, currentOfferCid: null }));
       }
     }
     previousShowCopyOverlay = currentShowCopyOverlay;
