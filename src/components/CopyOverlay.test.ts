@@ -37,18 +37,18 @@ describe('CopyOverlay.svelte', () => {
     defaultProps = {
       show: false,
       copyText: 'Test copy text',
-    qrCodeUrl: 'http://test.com',
-    showAcceptButton: false,
-    showJoinButton: false,
-    showCopyButton: true,
-    showPasteText: false,
-    cid: null,
-    close: closeMock,
-    openConfig: openConfigMock,
-    reset: resetMock,
-    accept: acceptMock,
-    join: joinMock
-  }; // This was missing the closing brace for defaultProps
+      qrCodeUrl: 'http://test.com',
+      showAcceptButton: false,
+      showJoinButton: false,
+      showCopyButton: true,
+      showPasteText: false,
+      cid: null,
+      close: closeMock,
+      openConfig: openConfigMock,
+      reset: resetMock,
+      accept: acceptMock,
+      join: joinMock
+    }; // This was missing the closing brace for defaultProps
   }); // This is the closing brace for beforeEach
 
   it('should not be visible when show is false', () => {
