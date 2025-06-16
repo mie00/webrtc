@@ -24,8 +24,8 @@
   // appLogicModuleStore is now imported
 
   // Other component specific state
-  let showConfigOverlay = false;
-  let showDownloadAppOverlay = true; // Controls rendering of DownloadAppOverlay
+  let showConfigOverlay = $state(false);
+  let showDownloadAppOverlay = $state(true); // Controls rendering of DownloadAppOverlay
   let previousShowCopyOverlay = $state(get(appLogicModuleStore).showCopyOverlay);
   // let currentAuthState: AuthState; // No longer needed for UI logic here
 
