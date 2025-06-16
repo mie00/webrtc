@@ -216,8 +216,8 @@
     }
   }
 
-  // Reactive statement to hide copy overlay
-  $: {
+  // Reactive statement to hide copy overlay, converted to $effect
+  $effect(() => {
     if ($appLogicModuleStore.showCopyOverlay && $appLogicModuleStore.initialOverlayShown) {
       const clients = Object.values($connectionStore.directClients);
       const isAnyClientConnected = clients.some(
@@ -233,7 +233,7 @@
         }));
       }
     }
-  }
+  });
 
   // Effect to destroy client when CopyOverlay is dismissed, unless the client itself connected
   $effect(() => {
