@@ -15,6 +15,7 @@ describe('CopyOverlay.svelte', () => {
   let resetMock: ReturnType<typeof vi.fn>;
   let acceptMock: ReturnType<typeof vi.fn>;
   let joinMock: ReturnType<typeof vi.fn>;
+  let defaultProps: any; // Declare defaultProps here
 
   beforeEach(() => {
     closeMock = vi.fn();
@@ -31,11 +32,11 @@ describe('CopyOverlay.svelte', () => {
       writable: true,
       configurable: true
     });
-  });
 
-  const defaultProps = {
-    show: false,
-    copyText: 'Test copy text',
+    // Initialize defaultProps here, after mocks are created
+    defaultProps = {
+      show: false,
+      copyText: 'Test copy text',
     qrCodeUrl: 'http://test.com',
     showAcceptButton: false,
     showJoinButton: false,
@@ -139,20 +140,21 @@ describe('CopyOverlay.svelte', () => {
   });
 
   it('should show paste textarea if showPasteText is true', () => {
-    render(CopyOverlay, { ...defaultProps, show: true, showPasteText: true });
-    expect(screen.getByRole('textbox', { name: '' })).toBeVisible(); // textarea has no explicit label
+    const { container } = render(CopyOverlay, { ...defaultProps, show: true, showPasteText: true });
+    const pasteTextarea = container.querySelector('#test-paste');
+    expect(pasteTextarea).toBeVisible();
   });
 
   it('should call accept with pasteValue and cid when accept button is clicked', async () => {
     const testCid = 'test-cid-123';
-    render(CopyOverlay, {
+    const { container } = render(CopyOverlay, {
       ...defaultProps,
       show: true,
       showPasteText: true,
       showAcceptButton: true,
       cid: testCid
     });
-    const pasteTextarea = screen.getByRole('textbox', { name: '' }) as HTMLTextAreaElement;
+    const pasteTextarea = container.querySelector('#test-paste') as HTMLTextAreaElement;
     await fireEvent.input(pasteTextarea, { target: { value: 'Pasted value' } });
 
     const acceptButton = screen.getByText('Accept');
