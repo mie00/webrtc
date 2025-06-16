@@ -94,9 +94,22 @@ const mockMediaRecorderInstance = {
 global.MediaRecorder = vi.fn().mockImplementation(() => mockMediaRecorderInstance) as any;
 (global.MediaRecorder as any).isTypeSupported = vi.fn((mimeType) => mimeType === 'audio/webm');
 
-global.WebSocket = vi.fn().mockImplementation(() => ({
-  send: vi.fn(),
-  close: vi.fn(),
+let lastMockWsInstance: any;
+global.WebSocket = vi.fn().mockImplementation(() => {
+  lastMockWsInstance = {
+    send: vi.fn(),
+    close: vi.fn(),
+    readyState: WebSocket.OPEN,
+    onopen: null,
+    onmessage: null,
+    onclose: null,
+    onerror: null
+  };
+  return lastMockWsInstance;
+}) as any;
+
+// Helper to reset stores
+const resetStores = () => {
   readyState: WebSocket.OPEN,
   onopen: null,
   onmessage: null,
@@ -188,11 +201,15 @@ describe('Transcriber', () => {
       startOverallTranscription();
 
       expect(get(transcriberStore).isTranscribingOverall).toBe(true);
-      // Wait for async operations within startTranscriptionForStream if any
-      await new Promise(process.nextTick); // Allow microtasks to run
+      await new Promise(process.nextTick); // Allow WS connection attempt
+
+      expect(lastMockWsInstance).toBeDefined();
+      if (lastMockWsInstance && lastMockWsInstance.onopen) {
+        lastMockWsInstance.onopen(); // Trigger onopen
+      }
+      await new Promise(process.nextTick); // Allow onopen logic to run (MR start, store update)
 
       // Check if MediaRecorder and WebSocket were called for the local stream
-      // This depends on the internal logic of startTranscriptionForStream
       // We expect one session to be active
       const activeSessions = get(transcriberStore).activeSessions;
       const sessionKeys = Object.keys(activeSessions);
@@ -222,7 +239,13 @@ describe('Transcriber', () => {
 
       startOverallTranscription();
       expect(get(transcriberStore).isTranscribingOverall).toBe(true);
-      await new Promise(process.nextTick);
+      await new Promise(process.nextTick); // Allow WS connection attempt
+
+      expect(lastMockWsInstance).toBeDefined();
+      if (lastMockWsInstance && lastMockWsInstance.onopen) {
+        lastMockWsInstance.onopen(); // Trigger onopen
+      }
+      await new Promise(process.nextTick); // Allow onopen logic to run
 
       const activeSessions = get(transcriberStore).activeSessions;
       const sessionKeys = Object.keys(activeSessions);
@@ -294,32 +317,32 @@ describe('Transcriber', () => {
       startOverallTranscription(); // This will create a session
 
       // Wait for async operations in startTranscriptionForStream
-      await new Promise(process.nextTick);
+      await new Promise(process.nextTick); // Allow WS connection attempt
 
       // Trigger onopen for WebSocket to simulate connection and MediaRecorder start
-      if (currentMockWebSocketInstance.onopen) {
-        currentMockWebSocketInstance.onopen();
+      expect(lastMockWsInstance).toBeDefined();
+      if (lastMockWsInstance && lastMockWsInstance.onopen) {
+        lastMockWsInstance.onopen(); // Trigger onopen for the session created by startOverallTranscription
       }
-      await new Promise(process.nextTick);
+      await new Promise(process.nextTick); // Allow onopen logic (MR start, store update) to complete
 
       // Ensure MediaRecorder is in 'recording' state
-      currentMockMediaRecorderInstance.state = 'recording';
+      // currentMockMediaRecorderInstance refers to the shared mockMediaRecorderInstance, which is correct.
+      mockMediaRecorderInstance.state = 'recording'; // Set state on the shared instance
 
       stopOverallTranscription();
-      await new Promise(process.nextTick);
+      await new Promise(process.nextTick); // Allow stopOverallTranscription to process
 
-      expect(currentMockMediaRecorderInstance.stop).toHaveBeenCalled();
+      expect(mockMediaRecorderInstance.stop).toHaveBeenCalled();
+
       // Check if EOS was sent. This happens in mediaRecorder.onstop if state was 'recording'.
-      // To test this properly, we'd need to trigger onstop.
-      // For now, let's assume if stop() was called, the EOS logic path is entered.
-      // If the MR was recording, an empty blob should be sent.
-      if (currentMockMediaRecorderInstance.onstop) {
-        currentMockMediaRecorderInstance.onstop(); // Manually trigger onstop
-        await new Promise(process.nextTick);
-        expect(currentMockWebSocketInstance.send).toHaveBeenCalledWith(expect.any(Blob));
-      } else {
-        // If onstop is not set up by the mock in this flow, this check might be too strict.
-        // The core is that stop() is called.
+      // Manually trigger onstop for the shared mock instance if it was assigned.
+      if (mockMediaRecorderInstance.onstop) {
+        mockMediaRecorderInstance.onstop();
+        await new Promise(process.nextTick); // Allow onstop logic to run
+        // currentMockWebSocketInstance here should ideally be the one associated with the session.
+        // Since lastMockWsInstance is the one from the last `new WebSocket()`, it's the correct one.
+        expect(lastMockWsInstance.send).toHaveBeenCalledWith(expect.any(Blob));
       }
     });
   });
