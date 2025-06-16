@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
-  import { onMount, onDestroy, effect } from 'svelte'; // Added effect
   // import { authStore, type AuthState } from '../lib/stores/authStore'; // No longer directly needed for UI
   import MediaArea from './MediaArea.svelte';
   import ControlPanel from './ControlPanel.svelte';
@@ -237,7 +236,7 @@
   }
 
   // Effect to destroy client when CopyOverlay is dismissed, unless the client itself connected
-  effect(() => {
+  $effect(() => {
     const currentShowCopyOverlay = $appLogicModuleStore.showCopyOverlay;
     const currentCid = $appLogicModuleStore.currentOfferCid;
 
