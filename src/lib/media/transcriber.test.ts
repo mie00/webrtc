@@ -110,15 +110,6 @@ global.WebSocket = vi.fn().mockImplementation(() => {
 
 // Helper to reset stores
 const resetStores = () => {
-  readyState: WebSocket.OPEN,
-  onopen: null,
-  onmessage: null,
-  onclose: null,
-  onerror: null
-})) as any;
-
-// Helper to reset stores
-const resetStores = () => {
   transcriberStore.set({
     isTranscribingOverall: false,
     activeSessions: {}
