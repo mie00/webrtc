@@ -255,7 +255,7 @@ describe('Transcriber', () => {
   });
 
   describe('stopOverallTranscription', () => {
-    it('should set isTranscribingOverall to false and clear active sessions', () => {
+    it('should set isTranscribingOverall to false and clear active sessions', async () => { // Add async
       // Setup a dummy active session to test clearing
       transcriberStore.set({
         isTranscribingOverall: true,
@@ -280,8 +280,8 @@ describe('Transcriber', () => {
 
     it('should call stop on MediaRecorder and attempt to send EOS on WebSocket for active sessions', async () => {
       // Use the globally mocked instances
-      const currentMockMediaRecorderInstance = global.MediaRecorder(); // Get the instance from the global mock
-      const currentMockWebSocketInstance = global.WebSocket(); // Get the instance
+      const currentMockMediaRecorderInstance = new (global.MediaRecorder as any)(); // Add new
+      const currentMockWebSocketInstance = new (global.WebSocket as any)('ws://localhost'); // Add new and a dummy URL
 
       // Simulate an active session being created
       const stream = new (global.MediaStream as any)([{ id: 'audio-track', kind: 'audio' }]);
