@@ -237,7 +237,7 @@ export class WebRTCApp {
 
   public async initClient(polite: boolean, options: ClientInitOptions): Promise<string> {
     console.log('entered init client', options);
-    const currentConfig = getAllConfig(); // Returns new Config type
+    const currentConfig = getAllConfig();
     const rtcConfig = {
       iceServers: [
         ...(currentConfig.rtc.stunServers

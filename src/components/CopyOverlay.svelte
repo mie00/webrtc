@@ -1,7 +1,6 @@
 <script lang="ts">
   import QRCode from 'qrcode';
 
-  // Props
   let {
     show = false,
     copyText = '',
@@ -10,7 +9,7 @@
     showJoinButton = false,
     showCopyButton = true,
     showPasteText = false,
-    cid = null, // Receive CID as prop,
+    cid = null,
     close,
     openConfig,
     reset,
@@ -24,11 +23,11 @@
     showJoinButton: boolean;
     showCopyButton: boolean;
     showPasteText: boolean;
-    cid: string | null; // Allow null as per the original logic
+    cid: string | null;
     close: () => void;
     openConfig: () => void;
     reset: () => void;
-    accept: (detail: AcceptEventDetail) => void; // Define the 'accept' prop
+    accept: (detail: AcceptEventDetail) => void;
     join: () => void;
   } = $props();
 
@@ -36,10 +35,9 @@
   let copyButtonText = $state('Copy');
   let qrCodeDataURL: string = $state('');
 
-  // Define the structure of the detail for the 'accept' event
   interface AcceptEventDetail {
     pasteValue: string;
-    cid: string | null; // Allow null as per the original logic
+    cid: string | null;
   }
 
   $effect(() => {
@@ -88,11 +86,9 @@
   }
 
   function handleAccept() {
-    // Ensure the dispatched object matches the AcceptEventDetail interface
-    // Use the cid prop directly
     const detail: AcceptEventDetail = {
       pasteValue,
-      cid: cid // Use the passed-in cid
+      cid: cid
     };
     accept(detail);
     copyButtonText = 'Copy';

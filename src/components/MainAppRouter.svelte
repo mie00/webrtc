@@ -1,18 +1,16 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
-  // import { authStore, type AuthState } from '../lib/stores/authStore'; // No longer directly needed for UI
   import MediaArea from './MediaArea.svelte';
   import ControlPanel from './ControlPanel.svelte';
   import CopyOverlay from './CopyOverlay.svelte';
   import ConfigOverlay from './ConfigOverlay.svelte';
   import ForwardOverlay from './ForwardOverlay.svelte';
   import { configStore, getAllConfig } from '../lib/stores/configStore';
-  import { connectionStore, getDirectClient } from '../lib/stores/connectionStore'; // Now using getDirectClient
-  // import { compress, decompress } from '../lib/utils/sdpCompress'; // Not used directly here
+  import { connectionStore, getDirectClient } from '../lib/stores/connectionStore';
   import DownloadAppOverlay from './DownloadAppOverlay.svelte';
   import type { WebRTCApp } from '../lib/webrtc/WebRTCApp';
-  import { appLogicModuleStore } from '../lib/stores/appLogicStore'; // Import the store
+  import { appLogicModuleStore } from '../lib/stores/appLogicStore';
 
   import type { AppLogic, AppLogicContext } from '../lib/appLogic';
   import { ClientLogic } from '../lib/clientLogic';
@@ -21,27 +19,16 @@
   // Props
   let { webRTCApp }: { webRTCApp: WebRTCApp } = $props();
 
-  // appLogicModuleStore is now imported
-
   // Other component specific state
   let showConfigOverlay = $state(false);
   let showDownloadAppOverlay = $state(true); // Controls rendering of DownloadAppOverlay
   let previousShowCopyOverlay = $state(get(appLogicModuleStore).showCopyOverlay);
-  // let currentAuthState: AuthState; // No longer needed for UI logic here
-
-  // authStore.subscribe(value => { // No longer needed for UI logic here
-  //   currentAuthState = value;
-  // });
 
   let appLogicInstance: AppLogic | null = null;
 
   function handleCloseDownloadOverlay() {
     showDownloadAppOverlay = false;
-    // To make dismissal persistent across sessions, you could use localStorage:
-    // localStorage.setItem('downloadOverlayDismissed_v1', 'true');
   }
-
-  // setState and getState are removed, logic modules will use the store directly.
 
   const appOnId = () => {
     const config = getAllConfig();
@@ -84,8 +71,6 @@
 
       const newContext: AppLogicContext = {
         webRTCApp,
-        // config, getDirectClient, compress, decompress removed
-        // appStateStore removed from context
         appOnId,
         broadcastManuallyEnteredAnswer,
         reportCriticalError
@@ -108,22 +93,9 @@
     }
   };
 
-  // performLoginRedirect and handleLoginClick moved to AuthHandler.svelte
-
   onMount(async () => {
-    // If using localStorage for persistent dismissal, check it here:
-    // if (localStorage.getItem('downloadOverlayDismissed_v1') === 'true') {
-    //   showDownloadAppOverlay = false;
-    // }
-
     const urlParams = new URLSearchParams(window.location.search);
 
-    // The /cb path is handled by AuthHandler.svelte and App.svelte ensures
-    // this component is not rendered on /cb.
-    // So, the if (currentPath === '/cb') block is removed.
-
-    // Regular initialization for non-/cb paths.
-    // This component now assumes it's only mounted when authenticated and not on /cb.
     let mode: 'client' | 'server';
     if (!$configStore.general.coordinatorUrl) {
       mode = 'client';
@@ -138,8 +110,6 @@
 
     const context: AppLogicContext = {
       webRTCApp,
-      // config, getDirectClient, compress, decompress removed
-      // appStateStore removed from context
       appOnId,
       broadcastManuallyEnteredAnswer,
       reportCriticalError
@@ -252,7 +222,6 @@
           `CopyOverlay for ${currentCid} dismissed, client not (yet) connected. Destroying client.`
         );
         webRTCApp.destroyClient(currentCid);
-        // Optionally, clear currentOfferCid if it's not cleared by other flows that hide the overlay
         appLogicModuleStore.update((s) => ({ ...s, currentOfferCid: null }));
       }
     }
