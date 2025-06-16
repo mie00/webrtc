@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   normalizeStreamId,
   processAudio,
@@ -30,7 +30,7 @@ vi.stubGlobal(
   vi.fn(() => mockAudioContext)
 );
 
-const mockRequestAnimationFrame = vi.fn().mockImplementation((cb) => {
+const mockRequestAnimationFrame = vi.fn().mockImplementation(() => {
   // cb(); // Optionally call the callback immediately for some tests
   return 12345; // Return a mock animation frame ID
 });
