@@ -19,7 +19,7 @@
   import { ServerLogic } from '../lib/serverLogic';
 
   // Props
-  export let webRTCApp: WebRTCApp;
+  let { webRTCApp }: { webRTCApp: WebRTCApp } = $props();
 
   // appLogicModuleStore is now imported
 
