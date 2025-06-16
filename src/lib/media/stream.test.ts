@@ -131,8 +131,10 @@ describe('stream.ts', () => {
     it('should call the callback function within the animation loop', () => {
       const cb = vi.fn();
       // Redefine mockRequestAnimationFrame for this specific test to control callback execution
-      const customMockRequestAnimationFrame = vi.fn()
-        .mockImplementationOnce((loopCb) => { // First call from processAudio
+      const customMockRequestAnimationFrame = vi
+        .fn()
+        .mockImplementationOnce((loopCb) => {
+          // First call from processAudio
           loopCb(); // Execute updateAnalysis once, which calls cb and then requestAnimationFrame again
           return 123; // Return a mock ID
         })
