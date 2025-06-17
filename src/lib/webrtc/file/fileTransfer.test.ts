@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { setupFileChannel, sendFile } from './fileTransfer';
 import {
   getDirectClient,
@@ -41,6 +41,7 @@ class MockRTCDataChannel {
   protocol: string = '';
   addEventListener = vi.fn();
   removeEventListener = vi.fn();
+  dispatchEvent = vi.fn<[Event], boolean>();
   send = vi.fn();
   close = vi.fn();
 
@@ -273,7 +274,7 @@ describe('fileTransfer', () => {
     beforeEach(() => {
       mockFile = new File(['file content'], 'test-file.txt', { type: 'text/plain' });
       // Mock FileReader
-      global.FileReader = vi.fn(() => ({
+      global.FileReader = vi.fn().mockImplementation(() => ({
         readAsArrayBuffer: vi.fn(),
         onload: null,
         onerror: null,
@@ -289,7 +290,7 @@ describe('fileTransfer', () => {
         onerror: null,
         result: new ArrayBuffer(mockFile.size) // Simulate successful read
       };
-      (global.FileReader as Mock).mockImplementation(() => mockReaderInstance);
+      (global.FileReader as Mock<any[], any>).mockImplementation(() => mockReaderInstance);
 
       // Simulate async read completion
       mockReaderInstance.readAsArrayBuffer.mockImplementation(function (this: any, _blob: Blob) {
@@ -355,7 +356,7 @@ describe('fileTransfer', () => {
         result: null,
         error: new Error('FileReader failed')
       };
-      (global.FileReader as Mock).mockImplementation(() => mockReaderInstance);
+      (global.FileReader as Mock<any[], any>).mockImplementation(() => mockReaderInstance);
       mockReaderInstance.readAsArrayBuffer.mockImplementation(function (this: any, _blob: Blob) {
         if (this.onerror) {
           // @ts-ignore
@@ -390,7 +391,7 @@ describe('fileTransfer', () => {
         onload: null as ((e: ProgressEvent<FileReader>) => void) | null,
         result: new ArrayBuffer(mockFile.size)
       };
-      (global.FileReader as Mock).mockImplementation(() => mockReaderInstance);
+      (global.FileReader as Mock<any[], any>).mockImplementation(() => mockReaderInstance);
       mockReaderInstance.readAsArrayBuffer.mockImplementation(function (this: any, _blob: Blob) {
         if (this.onload) {
           // @ts-ignore
@@ -432,7 +433,7 @@ describe('fileTransfer', () => {
         onload: null as ((e: ProgressEvent<FileReader>) => void) | null,
         result: fileContent.buffer
       };
-      (global.FileReader as Mock).mockImplementation(() => mockReaderInstance);
+      (global.FileReader as Mock<any[], any>).mockImplementation(() => mockReaderInstance);
       mockReaderInstance.readAsArrayBuffer.mockImplementation(function (this: any, _blob: Blob) {
         if (this.onload) {
           // @ts-ignore
