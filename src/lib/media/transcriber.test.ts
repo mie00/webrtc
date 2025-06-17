@@ -91,8 +91,13 @@ const mockMediaRecorderInstance = {
   mimeType: 'audio/webm',
   stream: new (global.MediaStream as any)() // Add a mock stream property
 };
-global.MediaRecorder = vi.fn().mockImplementation(() => mockMediaRecorderInstance) as any;
-(global.MediaRecorder as any).isTypeSupported = vi.fn((mimeType) => mimeType === 'audio/webm');
+
+// Refined MediaRecorder mock setup
+const mockIsTypeSupported = vi.fn((mimeType) => mimeType === 'audio/webm');
+const mockMediaRecorderConstructor = vi.fn().mockImplementation(() => mockMediaRecorderInstance);
+// Attach static method mock to the constructor mock
+(mockMediaRecorderConstructor as any).isTypeSupported = mockIsTypeSupported;
+global.MediaRecorder = mockMediaRecorderConstructor as any;
 
 let lastMockWsInstance: any;
 global.WebSocket = vi.fn().mockImplementation(() => {
@@ -158,8 +163,10 @@ describe('Transcriber', () => {
     mockMediaRecorderInstance.ondataavailable = null;
     mockMediaRecorderInstance.onerror = null;
     mockMediaRecorderInstance.onstop = null;
-    (global.MediaRecorder as any).mockClear();
-    (global.MediaRecorder.isTypeSupported as any).mockClear().mockReturnValue(true); // Default to true
+
+    // Reset MediaRecorder mocks to default behavior
+    mockMediaRecorderConstructor.mockClear().mockImplementation(() => mockMediaRecorderInstance);
+    mockIsTypeSupported.mockClear().mockReturnValue(true);
 
     // Reset shared mock instance states for WebSocket
     // lastMockWsInstance is created fresh by the mock constructor, but clear its method mocks if needed
@@ -706,7 +713,8 @@ describe('Transcriber', () => {
 
     it('should handle MediaRecorder constructor error gracefully', async () => {
       const error = new Error('MediaRecorder failed');
-      (global.MediaRecorder as any).mockImplementation(() => {
+      // Temporarily override MediaRecorder constructor to throw an error for this test only
+      mockMediaRecorderConstructor.mockImplementationOnce(() => {
         throw error;
       });
       const mockStream = new (global.MediaStream as any)([{ id: 'audio-1', kind: 'audio' }]);
