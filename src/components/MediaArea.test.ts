@@ -2,7 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/svelte';
 import MediaArea from './MediaArea.svelte';
 import { streamStore, type LayoutType } from '../lib/stores/streamStore';
-import { configStore, type GeneralConfig } from '../lib/stores/configStore';
+import {
+  configStore,
+  type GeneralConfig,
+  type Config,
+  type MediaConfig,
+  type ProfileConfig,
+  type RtcConfig
+} from '../lib/stores/configStore';
 import { forwardStore, type ForwardState } from '../lib/stores/forwardStore';
 import { transcriberStore, type TranscriptionDisplayStoreState } from '../lib/media/transcriber';
 import { writable } from 'svelte/store';
@@ -84,19 +91,36 @@ describe('MediaArea.svelte', () => {
     identityProviderHost: 'localhost',
     coordinatorUrl: 'ws://localhost:1234'
   };
-  const mockConfigStore = {
-    media: { blurVideo: 'no', audioDevice: '<auto>', videoDevice: '<auto>' },
-    general: mockConfigStoreGeneral,
-    profile: { userName: 'TestUser' }, // Minimal ProfileConfig
-    rtc: {
-      stunServers: '',
-      turnServerV2: '',
-      turnUsername: '',
-      turnPassword: ''
-      // iceServers: [], // These are usually derived or part of a more complex setup
-      // iceTransportPolicy: 'all' // This is also often a default or configurable
-    }
+
+  const mockMediaConfig: MediaConfig = {
+    blurVideo: 'no',
+    audioDevice: '<auto>',
+    videoDevice: '<auto>'
+    // Ensure all required MediaConfig fields are present if there are others
   };
+
+  const mockProfileConfig: ProfileConfig = {
+    userName: 'TestUser',
+    userColor: '#FF00FF', // Default value satisfying ProfileConfig
+    userEmoji: '🧪' // Default value satisfying ProfileConfig
+  };
+
+  const mockRtcConfig: RtcConfig = {
+    iceServers: [], // Must be of type RTCIceServer[]
+    iceTransportPolicy: 'all', // Must be of type RTCIceTransportPolicy
+    stunServers: '',
+    turnServerV2: '',
+    turnUsername: '',
+    turnPassword: '' // turnPassword is optional in RtcConfig, empty string is fine
+  };
+
+  const mockConfigStore: Config = {
+    general: mockConfigStoreGeneral,
+    media: mockMediaConfig,
+    profile: mockProfileConfig,
+    rtc: mockRtcConfig
+  };
+
   const mockForwardStore: ForwardState = {
     allowedHosts: [],
     forwardPeer: null,
