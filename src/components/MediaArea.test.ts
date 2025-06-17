@@ -43,13 +43,13 @@ vi.mock('../lib/media/transcriber', async () => {
   const actualTranscriberStore = writable<TranscriptionDisplayStoreState>({
     segments: [],
     activeBuffers: {},
-    lastTextBySpeaker: {},
+    lastTextBySpeaker: {}
     // Add any other properties from TranscriptionDisplayStoreState with default values
     // For example, if isTranscribingOverall is part of it, though it seems to be a separate concept in MediaArea.svelte
     // For the purpose of this mock, we'll assume isTranscribingOverall is handled by the component/store logic
     // and the mock here just needs to satisfy the TranscriptionDisplayStoreState structure.
     // If transcriberStore itself holds isTranscribingOverall, it should be:
-    // isTranscribingOverall: false, 
+    // isTranscribingOverall: false,
   });
 
   return {
@@ -102,14 +102,12 @@ describe('MediaArea.svelte', () => {
     // isTranscribingOverall: false, // if this is part of the store state
   };
 
-
   beforeEach(() => {
     // Reset stores to their mock initial state before each test
     streamStore.set(mockStreamStore);
     configStore.set(mockConfigStore);
     forwardStore.set(mockForwardStore);
     transcriberStore.set(mockTranscriberStoreState);
-
 
     // Reset mocks
     vi.clearAllMocks();
@@ -188,7 +186,7 @@ describe('MediaArea.svelte', () => {
     // Let's adjust the mock to include it for this test.
     // We'll assume isTranscribingOverall is a property directly on the store's value.
     transcriberStore.set({
-      ...mockTranscriberStoreState,
+      ...mockTranscriberStoreState
       // If 'isTranscribingOverall' is a direct property of the store's value:
       // isTranscribingOverall: true, // This line might cause issues if TranscriptionDisplayStoreState doesn't define it.
       // The component reads $transcriberStore.isTranscribingOverall, so the store mock should provide it.
@@ -208,8 +206,12 @@ describe('MediaArea.svelte', () => {
     // The easiest way is to update the store directly if the mock allows.
     // The provided mock for transcriberStore is: writable({ isTranscribingOverall: false /* other properties */ })
     // So we can do:
-    (transcriberStore as any).set({ isTranscribingOverall: true, activeBuffers: {}, segments: [], lastTextBySpeaker: {} });
-
+    (transcriberStore as any).set({
+      isTranscribingOverall: true,
+      activeBuffers: {},
+      segments: [],
+      lastTextBySpeaker: {}
+    });
 
     const { unmount } = render(MediaArea, { props: { hangup: vi.fn(), openQr: vi.fn() } });
     unmount();
