@@ -259,9 +259,9 @@ describe('WebRTCApp', () => {
     resetCidKeyStore();
 
     // Reset configStore mock
-    const configStoreMock = await vi.importMock('../stores/configStore');
-    (configStoreMock.resetConfigStore as Mock)(); // Call the simplified mock
-    (configStoreMock.getAllConfig as Mock).mockReturnValue({
+    const configStore = await import('../stores/configStore');
+    (configStore.resetConfigStore as Mock)(); // Call the simplified mock
+    (configStore.getAllConfig as Mock).mockReturnValue({
       // Ensure it's reset to default
       rtc: {
         stunServers: 'stun:stun.l.google.com:19302',
