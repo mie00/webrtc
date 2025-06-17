@@ -454,17 +454,15 @@ describe('fileTransfer', () => {
       });
 
       // Mock addEventListener for 'bufferedamountlow' to simulate buffer draining
-      mockClient.dc_file.addEventListener.mockImplementation(
-        (event: string, cb: () => void) => {
-          if (event === 'bufferedamountlow') {
-            // Simulate the drain and event firing asynchronously
-            setTimeout(() => {
-              mockClient.dc_file.bufferedAmount = 0; // Simulate drained buffer
-              cb(); // Call the listener passed to addEventListener
-            }, 0); // Use setTimeout with 0 to yield execution then run
-          }
+      mockClient.dc_file.addEventListener.mockImplementation((event: string, cb: () => void) => {
+        if (event === 'bufferedamountlow') {
+          // Simulate the drain and event firing asynchronously
+          setTimeout(() => {
+            mockClient.dc_file.bufferedAmount = 0; // Simulate drained buffer
+            cb(); // Call the listener passed to addEventListener
+          }, 0); // Use setTimeout with 0 to yield execution then run
         }
-      );
+      });
 
       // Simulate send increasing the buffered amount
       mockClient.dc_file.send.mockImplementation((data: ArrayBuffer | Blob | string) => {
