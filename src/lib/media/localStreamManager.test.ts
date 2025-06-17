@@ -12,17 +12,17 @@ import {
 } from './localStreamManager';
 import * as streamStore from '../stores/streamStore';
 import * as configStoreModule from '../stores/configStore';
-import * as localFileStreamStoreModule from '../stores/localFileStreamStore';
+// import * as localFileStreamStoreModule from '../stores/localFileStreamStore'; // TODO: Add tests and uncomment
 import * as streamUtils from './stream';
-import * as backgroundUtils from './background';
+// import * as backgroundUtils from './background'; // TODO: Add tests and uncomment
 import * as streamLifecycle from '../app/streamLifecycle';
 
 // Mock dependencies
 vi.mock('../stores/streamStore');
 vi.mock('../stores/configStore');
-vi.mock('../stores/localFileStreamStore');
+vi.mock('../stores/localFileStreamStore'); // Keep mock even if module import is commented, for other spies
 vi.mock('./stream');
-vi.mock('./background');
+vi.mock('./background'); // Keep mock even if module import is commented
 vi.mock('../app/streamLifecycle');
 
 const mockGetLocalStreamsByType = vi.spyOn(streamStore, 'getLocalStreamsByType');
@@ -103,9 +103,12 @@ const mockMediaStream: MediaStream = {
   removeTrack: vi.fn(),
   clone: vi.fn(),
   getTrackById: vi.fn(),
+  getTracks: vi.fn(() => [mockAudioTrack, mockVideoTrack]), // Added
   addEventListener: vi.fn(),
   removeEventListener: vi.fn(),
-  dispatchEvent: vi.fn()
+  dispatchEvent: vi.fn(),
+  onaddtrack: null, // Added
+  onremovetrack: null // Added
 };
 
 const mockUserMedia = vi.fn().mockResolvedValue(mockMediaStream);
@@ -166,7 +169,7 @@ describe('localStreamManager', () => {
     });
     mockAddLocalStream.mockReturnValue('new-stream-id');
     mockProcessAudio.mockResolvedValue({
-      source: {} as AudioNode, // Changed sourceNode to source
+      source: { mediaStream: mockMediaStream } as MediaStreamAudioSourceNode, // Made more specific
       analyser: {} as AnalyserNode,
       gain: {} as GainNode,
       scriptProcessor: {} as ScriptProcessorNode, // or AudioWorkletNode
@@ -200,6 +203,7 @@ describe('localStreamManager', () => {
       expect(mockUserMedia).toHaveBeenCalledWith({ audio: true });
       expect(mockSetupStream).toHaveBeenCalledWith(mockMediaStream, 'high');
       expect(mockAddLocalStream).toHaveBeenCalledWith('audio', mockMediaStream, null, true, true);
+      expect(mockSetAudioProcessingContext).toHaveBeenCalled(); // Added assertion
     });
 
     it('should use a specific deviceId if provided', async () => {
@@ -242,6 +246,7 @@ describe('localStreamManager', () => {
 
       expect(mockUserMedia).toHaveBeenCalledTimes(1); // New stream requested
       expect(mockAddLocalStream).toHaveBeenCalledTimes(1); // New stream added
+      expect(mockSetAudioProcessingContext).toHaveBeenCalled(); // Added assertion
     });
 
     it('should call audioCbFunction if set', async () => {
@@ -257,6 +262,7 @@ describe('localStreamManager', () => {
       processAudioCb(testDataArray, {} as AnalyserNode);
 
       expect(cb).toHaveBeenCalledWith(150); // (100+150+200)/3
+      expect(mockSetAudioProcessingContext).toHaveBeenCalled(); // Added assertion
     });
   });
 
