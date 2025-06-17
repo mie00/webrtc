@@ -1,13 +1,13 @@
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import {
   enableAudio,
   disableAudio,
-  enableCamera,
-  disableCamera,
-  enableScreenSharing,
-  disableScreenSharing,
-  enableFileStream,
-  disableFileStream,
+  // enableCamera, // TODO: Add tests and uncomment
+  // disableCamera, // TODO: Add tests and uncomment
+  // enableScreenSharing, // TODO: Add tests and uncomment
+  // disableScreenSharing, // TODO: Add tests and uncomment
+  // enableFileStream, // TODO: Add tests and uncomment
+  // disableFileStream, // TODO: Add tests and uncomment
   setAudioCallback
 } from './localStreamManager';
 import * as streamStore from '../stores/streamStore';
@@ -28,69 +28,77 @@ vi.mock('../app/streamLifecycle');
 const mockGetLocalStreamsByType = vi.spyOn(streamStore, 'getLocalStreamsByType');
 const mockAddLocalStream = vi.spyOn(streamStore, 'addLocalStream');
 const mockRemoveLocalStream = vi.spyOn(streamStore, 'removeLocalStream');
-const mockUpdateLocalStreamProperties = vi.spyOn(streamStore, 'updateLocalStreamProperties');
-const mockGetIsAudioEnabled = vi.spyOn(streamStore, 'getIsAudioEnabled');
-const mockGetIsCameraEnabled = vi.spyOn(streamStore, 'getIsCameraEnabled');
+// const mockUpdateLocalStreamProperties = vi.spyOn(streamStore, 'updateLocalStreamProperties'); // TODO: Add tests and uncomment
+// const mockGetIsAudioEnabled = vi.spyOn(streamStore, 'getIsAudioEnabled'); // TODO: Add tests and uncomment
+// const mockGetIsCameraEnabled = vi.spyOn(streamStore, 'getIsCameraEnabled'); // TODO: Add tests and uncomment
 
 const mockGetAllConfig = vi.spyOn(configStoreModule, 'getAllConfig');
 const mockConfigStoreSubscribe = vi.fn();
 // @ts-expect-error - part of the mock
 configStoreModule.configStore = { subscribe: mockConfigStoreSubscribe };
 
-const mockGetLocalFileStreamState = vi.spyOn(localFileStreamStoreModule, 'getLocalFileStreamState');
+// const mockGetLocalFileStreamState = vi.spyOn(localFileStreamStoreModule, 'getLocalFileStreamState'); // TODO: Add tests and uncomment
 
 const mockSetupStream = vi.spyOn(streamUtils, 'setupStream');
 const mockProcessAudio = vi.spyOn(streamUtils, 'processAudio');
 const mockStopProcessingAudio = vi.spyOn(streamUtils, 'stopProcessingAudio');
 const mockTearDownStream = vi.spyOn(streamUtils, 'tearDownStream');
 
-const mockBackgroundChange = vi.spyOn(backgroundUtils, 'backgroundChange');
+// const mockBackgroundChange = vi.spyOn(backgroundUtils, 'backgroundChange'); // TODO: Add tests and uncomment
 
 const mockGetAudioProcessingContext = vi.spyOn(streamLifecycle, 'getAudioProcessingContext');
-const mockSetAudioProcessingContext = vi.spyOn(streamLifecycle, 'setAudioProcessingContext');
+const mockSetAudioProcessingContext = vi.spyOn(streamLifecycle, 'setAudioProcessingContext'); // Used in enableAudio
 const mockRemoveAudioProcessingContext = vi.spyOn(streamLifecycle, 'removeAudioProcessingContext');
+
+const mockAudioTrack: MediaStreamTrack = {
+  id: 'audio-track-1',
+  kind: 'audio',
+  enabled: true,
+  label: 'Mock Audio Track',
+  muted: false,
+  readyState: 'live',
+  stop: vi.fn(),
+  applyConstraints: vi.fn(),
+  getCapabilities: vi.fn(),
+  getConstraints: vi.fn(),
+  getSettings: vi.fn(),
+  clone: vi.fn(),
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+  dispatchEvent: vi.fn(),
+  contentHint: '',
+  onended: null,
+  onmute: null,
+  onunmute: null
+};
+
+const mockVideoTrack: MediaStreamTrack = {
+  id: 'video-track-1',
+  kind: 'video',
+  enabled: true,
+  label: 'Mock Video Track',
+  muted: false,
+  readyState: 'live',
+  stop: vi.fn(),
+  applyConstraints: vi.fn(),
+  getCapabilities: vi.fn(),
+  getConstraints: vi.fn(),
+  getSettings: vi.fn(),
+  clone: vi.fn(),
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+  dispatchEvent: vi.fn(),
+  contentHint: '',
+  onended: null,
+  onmute: null,
+  onunmute: null
+};
 
 const mockMediaStream: MediaStream = {
   id: 'mock-stream-id',
   active: true,
-  getAudioTracks: vi.fn(() => [
-    {
-      id: 'audio-track-1',
-      kind: 'audio',
-      enabled: true,
-      label: 'Mock Audio Track',
-      muted: false,
-      readyState: 'live',
-      stop: vi.fn(),
-      applyConstraints: vi.fn(),
-      getCapabilities: vi.fn(),
-      getConstraints: vi.fn(),
-      getSettings: vi.fn(),
-      clone: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn()
-    }
-  ]),
-  getVideoTracks: vi.fn(() => [
-    {
-      id: 'video-track-1',
-      kind: 'video',
-      enabled: true,
-      label: 'Mock Video Track',
-      muted: false,
-      readyState: 'live',
-      stop: vi.fn(),
-      applyConstraints: vi.fn(),
-      getCapabilities: vi.fn(),
-      getConstraints: vi.fn(),
-      getSettings: vi.fn(),
-      clone: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn()
-    }
-  ]),
+  getAudioTracks: vi.fn(() => [mockAudioTrack]),
+  getVideoTracks: vi.fn(() => [mockVideoTrack]),
   addTrack: vi.fn(),
   removeTrack: vi.fn(),
   clone: vi.fn(),
@@ -103,11 +111,22 @@ const mockMediaStream: MediaStream = {
 const mockUserMedia = vi.fn().mockResolvedValue(mockMediaStream);
 const mockDisplayMedia = vi.fn().mockResolvedValue(mockMediaStream);
 
-global.navigator.mediaDevices = {
-  ...global.navigator.mediaDevices,
-  getUserMedia: mockUserMedia,
-  getDisplayMedia: mockDisplayMedia
-};
+// Mock specific methods on navigator.mediaDevices
+if (global.navigator.mediaDevices) {
+  vi.spyOn(global.navigator.mediaDevices, 'getUserMedia').mockImplementation(mockUserMedia);
+  vi.spyOn(global.navigator.mediaDevices, 'getDisplayMedia').mockImplementation(mockDisplayMedia);
+} else {
+  // @ts-expect-error - navigator.mediaDevices might not exist in all test environments
+  global.navigator.mediaDevices = {
+    getUserMedia: mockUserMedia,
+    getDisplayMedia: mockDisplayMedia,
+    enumerateDevices: vi.fn().mockResolvedValue([]),
+    getSupportedConstraints: vi.fn().mockReturnValue({}),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn()
+  };
+}
 
 global.URL.createObjectURL = vi.fn(() => 'mock-object-url');
 global.URL.revokeObjectURL = vi.fn();
@@ -147,10 +166,11 @@ describe('localStreamManager', () => {
     });
     mockAddLocalStream.mockReturnValue('new-stream-id');
     mockProcessAudio.mockResolvedValue({
-      sourceNode: {} as AudioNode,
-      analyserNode: {} as AnalyserNode,
-      gainNode: {} as GainNode,
-      scriptProcessorNode: {} as ScriptProcessorNode // or AudioWorkletNode
+      source: {} as AudioNode, // Changed sourceNode to source
+      analyser: {} as AnalyserNode,
+      gain: {} as GainNode,
+      scriptProcessor: {} as ScriptProcessorNode, // or AudioWorkletNode
+      animationFrame: 0
     });
   });
 
@@ -197,7 +217,7 @@ describe('localStreamManager', () => {
       const existingStreamData = {
         stream: mockMediaStream,
         src: null,
-        type: 'audio',
+        type: 'audio' as streamStore.StreamType,
         viewable: true,
         sendable: true,
         name: 'Audio',
@@ -205,10 +225,11 @@ describe('localStreamManager', () => {
       };
       mockGetLocalStreamsByType.mockReturnValueOnce({ [existingStreamId]: existingStreamData });
       const mockAudioNodes = {
-        sourceNode: {} as AudioNode,
-        analyserNode: {} as AnalyserNode,
-        gainNode: {} as GainNode,
-        scriptProcessorNode: {} as ScriptProcessorNode
+        source: {} as AudioNode,
+        analyser: {} as AnalyserNode,
+        gain: {} as GainNode,
+        scriptProcessor: {} as ScriptProcessorNode,
+        animationFrame: 0
       };
       mockGetAudioProcessingContext.mockReturnValueOnce(mockAudioNodes);
 
@@ -245,7 +266,7 @@ describe('localStreamManager', () => {
       const streamData1 = {
         stream: mockMediaStream,
         src: null,
-        type: 'audio',
+        type: 'audio' as streamStore.StreamType,
         viewable: true,
         sendable: true,
         name: 'Audio 1',
@@ -253,10 +274,11 @@ describe('localStreamManager', () => {
       };
       mockGetLocalStreamsByType.mockReturnValueOnce({ [streamId1]: streamData1 });
       const mockAudioNodes = {
-        sourceNode: {} as AudioNode,
-        analyserNode: {} as AnalyserNode,
-        gainNode: {} as GainNode,
-        scriptProcessorNode: {} as ScriptProcessorNode
+        source: {} as AudioNode,
+        analyser: {} as AnalyserNode,
+        gain: {} as GainNode,
+        scriptProcessor: {} as ScriptProcessorNode,
+        animationFrame: 0
       };
       mockGetAudioProcessingContext.mockReturnValueOnce(mockAudioNodes);
 
