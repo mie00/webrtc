@@ -128,8 +128,10 @@ describe('WebRTCApp', () => {
       webRTCApp.cleanup();
 
       // Assertions
-      expect(mockCleanupFunction).toHaveBeenCalledTimes(1);
-      expect(mockCleanupFunction).toHaveBeenCalledWith(); // Called with no cid for global cleanup
+      expect(mockCleanupFunction).toHaveBeenCalledTimes(3); // Global + once per client
+      expect(mockCleanupFunction).toHaveBeenCalledWith(); // Global cleanup call
+      expect(mockCleanupFunction).toHaveBeenCalledWith('cid1'); // destroyClient('cid1') call
+      expect(mockCleanupFunction).toHaveBeenCalledWith('cid2'); // destroyClient('cid2') call
 
       expect(destroyClientSpy).toHaveBeenCalledTimes(2);
       expect(destroyClientSpy).toHaveBeenCalledWith('cid1');
@@ -145,7 +147,8 @@ describe('WebRTCApp', () => {
       const mockClient = { pc: { close: vi.fn() } as any, nego_dc: { send: vi.fn() } as any };
       (getAllClientCids as Mock).mockReturnValue(['cid1']);
       (getDirectClient as Mock).mockReturnValue(mockClient);
-      const sendNegoMessageSpy = vi.spyOn(webRTCApp, 'sendNegoMessage');
+      // Spy on the method that is actually called within cleanup
+      const sendNegoMessageSpy = vi.spyOn(webRTCApp['negotiationManager'], 'sendNegoMessage');
 
       webRTCApp.cleanup();
 
