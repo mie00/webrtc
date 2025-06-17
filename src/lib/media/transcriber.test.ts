@@ -329,7 +329,10 @@ describe('Transcriber', () => {
       // Manually trigger onstop for the shared mock instance if it was assigned by the SUT.
       if (typeof mockMediaRecorderInstance.onstop === 'function') {
         // Use .call to explicitly set 'this' context and cast to any for svelte-check
-        (mockMediaRecorderInstance.onstop as any).call(mockMediaRecorderInstance, new Event('stop'));
+        (mockMediaRecorderInstance.onstop as any).call(
+          mockMediaRecorderInstance,
+          new Event('stop')
+        );
         await new Promise(process.nextTick); // Allow onstop logic to run
         expect(lastMockWsInstance.send).toHaveBeenCalledWith(expect.any(Blob));
       } else {
