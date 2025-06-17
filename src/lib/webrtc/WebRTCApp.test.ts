@@ -124,6 +124,11 @@ describe('WebRTCApp', () => {
 
       const destroyClientSpy = vi.spyOn(webRTCApp, 'destroyClient');
 
+      // Clear mock history for store resets before the action specifically for this test's assertions
+      (resetConnectionStore as Mock).mockClear();
+      (resetAppStateStore as Mock).mockClear();
+      (resetCidKeyStore as Mock).mockClear();
+
       // Action
       webRTCApp.cleanup();
 
