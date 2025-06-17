@@ -276,9 +276,9 @@ describe('WebRTCApp', () => {
     // For connectionStore, our mock's resetConnectionStore will clear mockConnectionStoreClients
     const connectionStore = await import('../stores/connectionStore');
     (connectionStore.resetConnectionStore as Mock)();
-    
+
     resetAppStateStore(); // This is mocked to call the actual reset
-    resetCidKeyStore();   // This is mocked to call the actual reset
+    resetCidKeyStore(); // This is mocked to call the actual reset
 
     // Reset configStore mock
     const configStore = await import('../stores/configStore');
