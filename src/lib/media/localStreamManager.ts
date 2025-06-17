@@ -8,7 +8,7 @@ import {
   getLocalStreamByDeviceId,
   getIsDeviceStreamActive // Import new helper
 } from '../stores/streamStore';
-import { getAllConfig, configStore, type Config, type MediaConfig } from '../stores/configStore';
+import { getAllConfig, configStore, type Config } from '../stores/configStore';
 import { getLocalFileStreamState } from '../stores/localFileStreamStore';
 import { setupStream, processAudio, stopProcessingAudio, tearDownStream } from './stream';
 import { backgroundChange } from './background';
@@ -106,7 +106,7 @@ export async function enableAudio(requestedDeviceId?: string): Promise<void> {
   }
 
   let audioConstraints: boolean | MediaTrackConstraints = true;
-  let effectiveDeviceId = targetDeviceId; // Will store the actual deviceId if <auto>
+  let effectiveDeviceId: string | undefined = targetDeviceId; // Will store the actual deviceId if <auto>
 
   if (targetDeviceId && targetDeviceId !== '<auto>') {
     const deviceInfo = targetDeviceId.split('|');
@@ -201,7 +201,7 @@ export async function enableCamera(requestedDeviceId?: string): Promise<void> {
   }
 
   let videoConstraints: boolean | MediaTrackConstraints = true;
-  let effectiveDeviceId = targetDeviceId;
+  let effectiveDeviceId: string | undefined = targetDeviceId;
 
   if (targetDeviceId && targetDeviceId !== '<auto>') {
     const deviceInfo = targetDeviceId.split('|');

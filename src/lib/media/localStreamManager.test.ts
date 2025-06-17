@@ -1,13 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import {
-  enableAudio,
-  disableAudio,
-  // enableCamera, // TODO: Add tests and uncomment
-  // disableCamera, // TODO: Add tests and uncomment
-  // enableScreenSharing, // TODO: Add tests and uncomment
-  // disableScreenSharing, // TODO: Add tests and uncomment
-  // enableFileStream, // TODO: Add tests and uncomment
-  // disableFileStream, // TODO: Add tests and uncomment
   setAudioCallback,
   enableAudio,
   disableAudio,
@@ -23,7 +15,7 @@ import { get } from 'svelte/store';
 import * as configStoreModule from '../stores/configStore';
 // import * as localFileStreamStoreModule from '../stores/localFileStreamStore'; // TODO: Add tests and uncomment
 import * as streamUtils from './stream';
-// import * as backgroundUtils from './background'; // TODO: Add tests and uncomment
+import * as backgroundUtils from './background'; // Import backgroundUtils
 import * as streamLifecycle from '../app/streamLifecycle';
 
 // Mock dependencies
@@ -52,7 +44,6 @@ configStoreModule.configStore = { subscribe: mockConfigStoreSubscribe };
 
 // const mockGetLocalFileStreamState = vi.spyOn(localFileStreamStoreModule, 'getLocalFileStreamState'); // TODO: Add tests and uncomment
 
-const mockSetupStream = vi.spyOn(streamUtils, 'setupStream');
 const mockProcessAudio = vi.spyOn(streamUtils, 'processAudio');
 const mockStopProcessingAudio = vi.spyOn(streamUtils, 'stopProcessingAudio');
 const mockTearDownStream = vi.spyOn(streamUtils, 'tearDownStream');
@@ -536,7 +527,7 @@ describe('localStreamManager', () => {
       // Trigger config change to blur: yes
       const newConfigBlurOn = {
         ...get(configStoreModule.configStore), // Get current state which includes the stream
-        media: { ...get(configStoreModule.configStore).media, blurVideo: 'yes' }
+        media: { ...get(configStoreModule.configStore).media, blurVideo: 'yes' as 'yes' | 'no' }
       };
       configStoreModule.configStore.set(newConfigBlurOn); // This will trigger subscribers
 
@@ -586,7 +577,7 @@ describe('localStreamManager', () => {
       // Trigger config change to blur: no
       const newConfigBlurOff = {
         ...get(configStoreModule.configStore),
-        media: { ...get(configStoreModule.configStore).media, blurVideo: 'no' }
+        media: { ...get(configStoreModule.configStore).media, blurVideo: 'no' as 'yes' | 'no' }
       };
       configStoreModule.configStore.set(newConfigBlurOff);
 
