@@ -50,9 +50,16 @@ vi.mock('../stores/streamStore', async () => {
 });
 // Import after mocking
 import * as streamStore from '../stores/streamStore';
+import type { Config } from '../stores/configStore'; // Import the Config type
 
 // --- Mock configStore ---
-const mockConfigStoreSubscribeFn = vi.fn(() => () => {}); // Returns an unsubscribe function
+let capturedConfigSubscriber: ((config: Config) => Promise<void> | void) | undefined;
+const mockConfigStoreSubscribeFn = vi.fn((subscriberCallback: (config: Config) => Promise<void> | void) => {
+  capturedConfigSubscriber = subscriberCallback;
+  return () => {
+    capturedConfigSubscriber = undefined; // Optional: clear on unsubscribe
+  }; // Returns an unsubscribe function
+});
 const mockGetAllConfigFn = vi.fn();
 const mockUpdateConfigFn = vi.fn();
 const mockConfigStoreSetFn = vi.fn();
@@ -79,7 +86,7 @@ vi.mock('../stores/configStore', async () => {
 });
 // Import after mocking
 // import * as configStoreModule from '../stores/configStore'; // No longer needed as we use direct mock functions
-import type { Config } from '../stores/configStore'; // Import the Config type
+// Config type is imported above
 
 // --- Other Mocks ---
 vi.mock('../stores/localFileStreamStore');
@@ -603,23 +610,20 @@ describe('localStreamManager', () => {
       });
 
       // Simulate configStore subscription callback
-      const newConfigBlurOn = {
+      const newConfigBlurOn: Config = {
         general: {
-          configLoader: 'client',
+          configLoader: 'client' as const,
           configHost: '',
           identityProviderHost: '',
           coordinatorUrl: ''
         },
         profile: { userName: 'TestUser' },
         rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
-        media: { blurVideo: 'yes' as 'yes' | 'no', audioDevice: '<auto>', videoDevice: camDeviceId }
+        media: { blurVideo: 'yes', audioDevice: '<auto>', videoDevice: camDeviceId }
       };
-      // Get the subscriber from localStreamManager.ts via the mock
-      const firstCall = mockConfigStoreSubscribeFn.mock.calls[0];
-      const subscriber = firstCall?.[0] as ((config: Config) => Promise<void> | void) | undefined;
 
-      if (subscriber) {
-        await subscriber(newConfigBlurOn);
+      if (capturedConfigSubscriber) {
+        await capturedConfigSubscriber(newConfigBlurOn);
       } else {
         throw new Error('configStore.subscribe was not called by localStreamManager');
       }
@@ -678,22 +682,20 @@ describe('localStreamManager', () => {
       vi.mocked(streamStore.updateLocalStreamProperties).mockClear();
 
       // Simulate configStore subscription callback
-      const newConfigBlurOff = {
+      const newConfigBlurOff: Config = {
         general: {
-          configLoader: 'client',
+          configLoader: 'client' as const,
           configHost: '',
           identityProviderHost: '',
           coordinatorUrl: ''
         },
         profile: { userName: 'TestUser' },
         rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
-        media: { blurVideo: 'no' as 'yes' | 'no', audioDevice: '<auto>', videoDevice: camDeviceId }
+        media: { blurVideo: 'no', audioDevice: '<auto>', videoDevice: camDeviceId }
       };
-      const firstCall = mockConfigStoreSubscribeFn.mock.calls[0];
-      const subscriber = firstCall?.[0] as ((config: Config) => Promise<void> | void) | undefined;
 
-      if (subscriber) {
-        await subscriber(newConfigBlurOff);
+      if (capturedConfigSubscriber) {
+        await capturedConfigSubscriber(newConfigBlurOff);
       } else {
         throw new Error('configStore.subscribe was not called by localStreamManager');
       }
@@ -734,9 +736,9 @@ describe('localStreamManager', () => {
 
       // Simulate configStore subscription callback with a new default device
       const newDefaultAudioDevice = 'audio-device-new-default';
-      const newConfigWithNewDefault = {
+      const newConfigWithNewDefault: Config = {
         general: {
-          configLoader: 'client',
+          configLoader: 'client' as const,
           configHost: '',
           identityProviderHost: '',
           coordinatorUrl: ''
@@ -745,11 +747,9 @@ describe('localStreamManager', () => {
         rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
         media: { blurVideo: 'no', audioDevice: newDefaultAudioDevice, videoDevice: '<auto>' }
       };
-      const firstCall = mockConfigStoreSubscribeFn.mock.calls[0];
-      const subscriber = firstCall?.[0] as ((config: Config) => Promise<void> | void) | undefined;
 
-      if (subscriber) {
-        await subscriber(newConfigWithNewDefault); // prevConfig will be updated inside localStreamManager
+      if (capturedConfigSubscriber) {
+        await capturedConfigSubscriber(newConfigWithNewDefault); // prevConfig will be updated inside localStreamManager
       } else {
         throw new Error('configStore.subscribe was not called by localStreamManager');
       }
