@@ -200,6 +200,8 @@ describe('WebRTCApp', () => {
     mockPeerConnectionInstance.iceConnectionState = 'new';
     // Ensure vi.fn() on mockPeerConnectionInstance are cleared by clearAllMocks or reset here
     // e.g., mockPeerConnectionInstance.createDataChannel.mockClear(); ...
+    // Re-apply mockReturnValue after vi.clearAllMocks()
+    mockPeerConnectionInstance.createDataChannel.mockReturnValue(mockDataChannel); 
     mockPeerConnectionInstance.getStats.mockResolvedValue(new Map()); // Reset to default
 
     // Reset document mocks
@@ -582,27 +584,32 @@ describe('WebRTCApp', () => {
 
   describe('genEmojis', () => {
     it('should generate 4 emojis from a digest', async () => {
-      webRTCApp = new WebRTCApp();
+      // Override crypto.subtle.digest for this specific test for very predictable small hash values
+      const simpleHashBuffer = new Uint8Array(32); // 32 bytes of zeros
+      simpleHashBuffer[0] = 1; // Make it slightly non-zero but small
+      simpleHashBuffer[1] = 1;
+      simpleHashBuffer[2] = 1;
+      simpleHashBuffer[3] = 1;
+
+      vi.stubGlobal('crypto', {
+        getRandomValues: vi.fn().mockImplementation((arr: Uint8Array) => {
+          for (let i = 0; i < arr.length; i++) {
+            arr[i] = Math.floor(Math.random() * 256);
+          }
+          return arr;
+        }),
+        subtle: {
+          digest: vi.fn().mockResolvedValue(simpleHashBuffer.buffer)
+        }
+      });
+
+      webRTCApp = new WebRTCApp(); // Re-initialize to pick up the test-specific crypto mock
       const digest = 'testdigest';
       const emojis = await webRTCApp.genEmojis(digest);
-      // This test relies on the EMOJIS array and the mocked crypto.subtle.digest
-      // The exact output depends on the mocked hash and EMOJIS content.
-      // We are primarily testing that it produces 4 characters (emojis).
+
       expect(emojis).toBeDefined();
-      // Unicode emojis can be multiple code units. A simple length check might be tricky.
-      // A more robust check would be to count grapheme clusters if this were critical.
-      // For now, checking it's a non-empty string and relying on visual inspection or a known good value from the mock.
       expect(typeof emojis === 'string').toBe(true);
-      // Based on the fixed mock hash, we can derive an expected emoji string if EMOJIS array is stable.
-      // For simplicity, let's check it returns something plausible.
-      // Example: If EMOJIS[0] is '😀', and calculation results in all zeros:
-      // expect(emojis).toBe('😀😀😀😀'); // This would be too brittle.
-      // Just check length for now, assuming emojis are single char for this test.
-      // A better check might be to spy on EMOJIS access or mock EMOJIS for predictable output.
-      // Given the current mock, the output is deterministic.
-      // Let's assume the mock digest 'mockedhash_testdigest' results in some indices.
-      // The number of emojis is fixed at 4 by the implementation.
-      const emojiArray = Array.from(emojis); // Splits into grapheme clusters
+      const emojiArray = Array.from(emojis);
       expect(emojiArray.length).toBe(4);
     });
 
