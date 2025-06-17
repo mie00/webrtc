@@ -14,6 +14,20 @@ import { forwardStore, type ForwardState } from '../lib/stores/forwardStore';
 import { transcriberStore, type TranscriptionDisplayStoreState } from '../lib/media/transcriber';
 import { writable } from 'svelte/store';
 
+// Hoist store creations for mocks
+const hoistedRecorderStore = vi.hoisted(() =>
+  writable({ isRecording: false, recordings: [] })
+);
+const hoistedTranscriberStore = vi.hoisted(() =>
+  writable({
+    segments: [],
+    activeBuffers: {},
+    lastTextBySpeaker: {},
+    isTranscribingOverall: false,
+    activeSessions: {}
+  })
+);
+
 // Mocks for external dependencies
 vi.mock('../lib/media/stream', () => ({
   normalizeStreamId: vi.fn((id) => id),
@@ -37,31 +51,15 @@ vi.mock('../lib/app/forwardHandler', () => ({
 }));
 
 vi.mock('../lib/media/recorder', () => {
-  // Simplified mock factory: non-async, no vi.importActual
   return {
-    recorderStore: writable({ isRecording: false, recordings: [] }), // Mock store
+    recorderStore: hoistedRecorderStore,
     toggleRecording: vi.fn()
-    // If other exports from recorder were needed by the component or its children for these tests,
-    // they would need to be explicitly mocked here. MediaArea.svelte only uses recorderStore and toggleRecording.
   };
 });
 
 vi.mock('../lib/media/transcriber', () => {
-  // Simplified mock factory: non-async, no vi.importActual, no originalModule spread.
-  // Directly define the structure for the writable store.
-  // This structure should align with what FactoryMockTranscriberState previously defined
-  // and what the component expects from $transcriberStore.
-  const actualTranscriberStore = writable({
-    segments: [], // Corresponds to LocalTranscriptionSegment[]
-    activeBuffers: {}, // Corresponds to Record<string, { sessionId: string; speakerLabel: string; text: string }>
-    lastTextBySpeaker: {}, // Corresponds to Record<string, { text: string; utteranceId: string }>
-    isTranscribingOverall: false,
-    activeSessions: {} // Corresponds to Record<string, any>
-  });
-
   return {
-    // Only provide the exports that MediaArea.svelte (and its children, if relevant for these tests) use.
-    transcriberStore: actualTranscriberStore,
+    transcriberStore: hoistedTranscriberStore,
     toggleOverallTranscription: vi.fn(),
     stopOverallTranscription: vi.fn()
   };
