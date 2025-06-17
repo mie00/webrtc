@@ -22,7 +22,6 @@
   // Other component specific state
   let showConfigOverlay = $state(false);
   let showDownloadAppOverlay = $state(true); // Controls rendering of DownloadAppOverlay
-  let previousShowCopyOverlay = $state(get(appLogicModuleStore).showCopyOverlay);
 
   let appLogicInstance: AppLogic | null = null;
 
@@ -205,28 +204,20 @@
     }
   });
 
-  // Effect to destroy client when CopyOverlay is dismissed, unless the client itself connected
-  $effect(() => {
-    const currentShowCopyOverlay = $appLogicModuleStore.showCopyOverlay;
+  const closeCopyOverlayHandler = () => {
+    appLogicModuleStore.update((s) => ({ ...s, showCopyOverlay: false, currentOfferCid: null }));
     const currentCid = $appLogicModuleStore.currentOfferCid;
 
-    if (previousShowCopyOverlay && !currentShowCopyOverlay && currentCid) {
+    if (currentCid) {
       const client = getDirectClient(currentCid);
-      if (client && client.state === 'connected' && client.iceState === 'connected') {
-        // currentOfferCid itself is connected. Do NOT destroy it.
-        console.log(
-          `CopyOverlay for ${currentCid} dismissed, but client is connected. Not destroying.`
-        );
-      } else {
+      if (client && (client.state !== 'connected' || client.iceState !== 'connected')) {
         console.log(
           `CopyOverlay for ${currentCid} dismissed, client not (yet) connected. Destroying client.`
         );
         webRTCApp.destroyClient(currentCid);
-        appLogicModuleStore.update((s) => ({ ...s, currentOfferCid: null }));
       }
     }
-    previousShowCopyOverlay = currentShowCopyOverlay;
-  });
+  };
 </script>
 
 <!-- 
@@ -248,7 +239,7 @@
   showJoinButton={$appLogicModuleStore.showJoinButton}
   showCopyButton={$appLogicModuleStore.showCopyButton}
   showPasteText={$appLogicModuleStore.showPasteText}
-  close={() => appLogicModuleStore.update((s) => ({ ...s, showCopyOverlay: false }))}
+  close={closeCopyOverlayHandler}
   openConfig={toggleConfigOverlay}
   reset={handleReset}
   accept={(e) => {

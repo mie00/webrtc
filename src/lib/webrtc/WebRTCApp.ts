@@ -272,12 +272,18 @@ export class WebRTCApp {
     addDirectClient(cid, client);
 
     pc.onconnectionstatechange = () => {
-      console.log('onconnectionstatechange', options,
-        "signalingState", pc?.signalingState,
-        "connectionState", pc?.connectionState,
-        "iceGatheringState", pc?.iceGatheringState,
-        "iceConnectionState", pc?.iceConnectionState,
-      )
+      console.log(
+        'onconnectionstatechange',
+        options,
+        'signalingState',
+        pc?.signalingState,
+        'connectionState',
+        pc?.connectionState,
+        'iceGatheringState',
+        pc?.iceGatheringState,
+        'iceConnectionState',
+        pc?.iceConnectionState
+      );
       if (pc) {
         updateDirectClientState(cid, pc.connectionState, pc.iceConnectionState);
         if (pc.connectionState === 'connected' && pc.iceConnectionState === 'connected') {
@@ -286,12 +292,18 @@ export class WebRTCApp {
       }
     };
     pc.oniceconnectionstatechange = () => {
-      console.log('oniceconnectionstatechange', options,
-        "signalingState", pc?.signalingState,
-        "connectionState", pc?.connectionState,
-        "iceGatheringState", pc?.iceGatheringState,
-        "iceConnectionState", pc?.iceConnectionState,
-      )
+      console.log(
+        'oniceconnectionstatechange',
+        options,
+        'signalingState',
+        pc?.signalingState,
+        'connectionState',
+        pc?.connectionState,
+        'iceGatheringState',
+        pc?.iceGatheringState,
+        'iceConnectionState',
+        pc?.iceConnectionState
+      );
       if (pc) {
         updateDirectClientState(cid, pc.connectionState, pc.iceConnectionState);
         if (pc.iceConnectionState === 'failed') {
