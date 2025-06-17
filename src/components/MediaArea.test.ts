@@ -47,13 +47,33 @@ vi.mock('../lib/media/recorder', async () => {
 
 vi.mock('../lib/media/transcriber', async () => {
   const originalModule = await vi.importActual('../lib/media/transcriber');
-  // Based on errors, TranscriberState needs isTranscribingOverall and activeSessions.
-  // It likely also includes the display state.
-  type MockTranscriberState = TranscriptionDisplayStoreState & {
+
+  // Locally define types to avoid circular dependency with the module being mocked.
+  type LocalTranscriptionSegment = {
+    id: string;
+    utteranceId: string;
+    sessionId: string;
+    speakerLabel: string;
+    text: string;
+    beg: string;
+    end: string;
+    timestamp: number;
+    final?: boolean;
+  };
+
+  type LocalTranscriptionDisplayStoreState = {
+    segments: LocalTranscriptionSegment[];
+    activeBuffers: Record<string, { sessionId: string; speakerLabel: string; text: string }>;
+    lastTextBySpeaker: Record<string, { text: string; utteranceId: string }>;
+  };
+
+  // This MockTranscriberState is local to the mock factory
+  type FactoryMockTranscriberState = LocalTranscriptionDisplayStoreState & {
     isTranscribingOverall: boolean;
     activeSessions: Record<string, any>; // Use 'any' or a more specific mock type if known
   };
-  const actualTranscriberStore = writable<MockTranscriberState>({
+
+  const actualTranscriberStore = writable<FactoryMockTranscriberState>({
     segments: [],
     activeBuffers: {},
     lastTextBySpeaker: {},
