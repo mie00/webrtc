@@ -12,7 +12,6 @@ import {
 } from '../lib/stores/configStore';
 import { forwardStore, type ForwardState } from '../lib/stores/forwardStore';
 import { transcriberStore, type TranscriptionDisplayStoreState } from '../lib/media/transcriber';
-import { writable } from 'svelte/store';
 
 // Hoist store creations for mocks
 const hoistedRecorderStore = vi.hoisted(async () => {
