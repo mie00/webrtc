@@ -102,7 +102,7 @@ vi.mock('../app/forwardLifecycle', () => ({
 }));
 
 vi.mock('../stores/connectionStore', async () => {
-  const actual = await vi.importActual('../stores/connectionStore'); // To get the original reset function if needed
+  // const actual = await vi.importActual('../stores/connectionStore'); // To get the original reset function if needed
 
   return {
     // Spread actual if there are other functions that should retain original behavior and are not mocked.
