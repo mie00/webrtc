@@ -36,12 +36,13 @@ vi.mock('../lib/app/forwardHandler', () => ({
   toggleForwardHandler: vi.fn()
 }));
 
-vi.mock('../lib/media/recorder', async () => {
-  const originalModule = await vi.importActual('../lib/media/recorder');
+vi.mock('../lib/media/recorder', () => {
+  // Simplified mock factory: non-async, no vi.importActual
   return {
-    ...originalModule,
     recorderStore: writable({ isRecording: false, recordings: [] }), // Mock store
     toggleRecording: vi.fn()
+    // If other exports from recorder were needed by the component or its children for these tests,
+    // they would need to be explicitly mocked here. MediaArea.svelte only uses recorderStore and toggleRecording.
   };
 });
 
