@@ -45,7 +45,11 @@ const mockPeerConnectionInstance = {
   remoteDescription: null as RTCSessionDescriptionInit | null
 };
 
-global.RTCPeerConnection = vi.fn().mockImplementation(() => mockPeerConnectionInstance);
+global.RTCPeerConnection = vi.fn().mockImplementation(() => mockPeerConnectionInstance) as any;
+// Add the static method mock
+(global.RTCPeerConnection as any).generateCertificate = vi
+  .fn()
+  .mockResolvedValue({} as RTCCertificate); // Mock a basic certificate object
 
 global.crypto = {
   ...global.crypto, // Preserve other crypto properties like getRandomValues if they exist
@@ -95,7 +99,7 @@ global.document = {
   }))
 } as any;
 
-global.setInterval = vi.fn(() => 12345 as unknown as NodeJS.Timeout);
+global.setInterval = vi.fn(() => 12345 as unknown as number); // Changed to number
 global.clearInterval = vi.fn();
 global.history = { ...(global.history || {}), replaceState: vi.fn() } as any;
 global.URLSearchParams = vi.fn().mockImplementation(() => ({
