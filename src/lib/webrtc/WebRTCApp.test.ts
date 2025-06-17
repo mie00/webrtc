@@ -69,7 +69,9 @@ vi.mock('../stores/configStore', async () => {
       general: {}
     }),
     // Assuming resetConfigStore might be part of actual and used elsewhere.
-    resetConfigStore: (actual as any).resetConfigStore ? vi.fn((actual as any).resetConfigStore) : vi.fn()
+    resetConfigStore: (actual as any).resetConfigStore
+      ? vi.fn((actual as any).resetConfigStore)
+      : vi.fn()
   };
 });
 
@@ -127,9 +129,13 @@ describe('WebRTCApp', () => {
       if (id === 'diffs') return mockDiffsElement;
       return null;
     });
-    (global.document.createDocumentFragment as Mock).mockImplementation(() => ({ appendChild: vi.fn() }));
-    (global.document.createElement as Mock).mockImplementation((tagName) => ({ style: {}, appendChild: vi.fn() }));
-
+    (global.document.createDocumentFragment as Mock).mockImplementation(() => ({
+      appendChild: vi.fn()
+    }));
+    (global.document.createElement as Mock).mockImplementation((tagName) => ({
+      style: {},
+      appendChild: vi.fn()
+    }));
 
     // Reset crypto.subtle.digest mock if its behavior needs to be fresh for each test
     (global.crypto.subtle.digest as Mock).mockImplementation(async (algorithm, data) => {
@@ -146,7 +152,6 @@ describe('WebRTCApp', () => {
       get: vi.fn().mockReturnValue(null)
     }));
 
-
     // Manually reset stores that have actual implementations for reset
     resetConnectionStore();
     resetAppStateStore();
@@ -154,9 +159,10 @@ describe('WebRTCApp', () => {
     // Potentially reset configStore if it has a reset function and is stateful
     const configStoreMock = await vi.importMock('../stores/configStore');
     if (configStoreMock.resetConfigStore) {
-        configStoreMock.resetConfigStore();
+      configStoreMock.resetConfigStore();
     }
-    (configStoreMock.getAllConfig as Mock).mockReturnValue({ // Ensure it's reset to default
+    (configStoreMock.getAllConfig as Mock).mockReturnValue({
+      // Ensure it's reset to default
       rtc: {
         stunServers: 'stun:stun.l.google.com:19302',
         turnServerV2: '',
@@ -287,7 +293,10 @@ describe('WebRTCApp', () => {
       expect(cid).toBeDefined();
       expect(global.RTCPeerConnection).toHaveBeenCalledTimes(1);
       expect(getDirectClient(cid)).toBeDefined();
-      expect(mockPeerConnectionInstance.createDataChannel).toHaveBeenCalledWith('nego', { negotiated: true, id: 0 });
+      expect(mockPeerConnectionInstance.createDataChannel).toHaveBeenCalledWith('nego', {
+        negotiated: true,
+        id: 0
+      });
       expect(mockPeerConnectionInstance.createOffer).toHaveBeenCalledTimes(1);
       expect(mockPeerConnectionInstance.setLocalDescription).toHaveBeenCalledTimes(1);
       expect(webRTCApp.getCid(sid)).toBe(cid);
@@ -301,7 +310,10 @@ describe('WebRTCApp', () => {
 
       expect(cid).toBeDefined();
       expect(global.RTCPeerConnection).toHaveBeenCalledTimes(1);
-      expect(mockPeerConnectionInstance.setRemoteDescription).toHaveBeenCalledWith({ type: 'offer', sdp: offerSdp.trim() + '\n' });
+      expect(mockPeerConnectionInstance.setRemoteDescription).toHaveBeenCalledWith({
+        type: 'offer',
+        sdp: offerSdp.trim() + '\n'
+      });
       expect(mockPeerConnectionInstance.createAnswer).toHaveBeenCalledTimes(1);
       expect(mockPeerConnectionInstance.setLocalDescription).toHaveBeenCalledTimes(1); // Once for answer
       expect(webRTCApp.getCid(sid)).toBe(cid);
@@ -345,37 +357,52 @@ describe('WebRTCApp', () => {
       const sid = 'negotiation-needed-sid';
       await webRTCApp.initClient(false, { sid }); // polite=false, so it's an offerer
 
-      mockPeerConnectionInstance.localDescription = { type: 'offer', sdp: 'mockOfferSdpFromNegotiation' };
+      mockPeerConnectionInstance.localDescription = {
+        type: 'offer',
+        sdp: 'mockOfferSdpFromNegotiation'
+      };
 
       expect(mockPeerConnectionInstance.onnegotiationneeded).toBeInstanceOf(Function);
       if (mockPeerConnectionInstance.onnegotiationneeded) {
         await mockPeerConnectionInstance.onnegotiationneeded(); // Manually trigger
       }
-      expect(sendNegoMessageSpy).toHaveBeenCalledWith(
-        expect.anything(),
-        { type: 'offer', sdp: 'mockOfferSdpFromNegotiation' }
-      );
+      expect(sendNegoMessageSpy).toHaveBeenCalledWith(expect.anything(), {
+        type: 'offer',
+        sdp: 'mockOfferSdpFromNegotiation'
+      });
     });
-    
+
     it('should call updateDirectClientState and updateFingerprint on connection success', async () => {
       webRTCApp = new WebRTCApp();
       const sid = 'connection-state-sid';
       const cid = await webRTCApp.initClient(false, { sid });
 
       const mockStatsReport = new Map();
-      mockStatsReport.set('transport-1', { type: 'transport', localCertificateId: 'cert-local', remoteCertificateId: 'cert-remote'});
-      mockStatsReport.set('cert-local', { type: 'certificate', id: 'cert-local', fingerprint: 'local_fp_mock'});
-      mockStatsReport.set('cert-remote', { type: 'certificate', id: 'cert-remote', fingerprint: 'remote_fp_mock'});
+      mockStatsReport.set('transport-1', {
+        type: 'transport',
+        localCertificateId: 'cert-local',
+        remoteCertificateId: 'cert-remote'
+      });
+      mockStatsReport.set('cert-local', {
+        type: 'certificate',
+        id: 'cert-local',
+        fingerprint: 'local_fp_mock'
+      });
+      mockStatsReport.set('cert-remote', {
+        type: 'certificate',
+        id: 'cert-remote',
+        fingerprint: 'remote_fp_mock'
+      });
       mockPeerConnectionInstance.getStats.mockResolvedValue(mockStatsReport);
-      
+
       mockPeerConnectionInstance.connectionState = 'connected';
       mockPeerConnectionInstance.iceConnectionState = 'connected';
 
       expect(mockPeerConnectionInstance.onconnectionstatechange).toBeInstanceOf(Function);
       if (mockPeerConnectionInstance.onconnectionstatechange) {
-         mockPeerConnectionInstance.onconnectionstatechange(); // Trigger event
+        mockPeerConnectionInstance.onconnectionstatechange(); // Trigger event
       }
-      
+
       // Wait for async operations within onconnectionstatechange, like updateFingerprint
       await vi.waitFor(() => {
         expect(updateDirectClientState).toHaveBeenCalledWith(cid, 'connected', 'connected');
@@ -416,7 +443,10 @@ describe('WebRTCApp', () => {
 
       expect(cid).toBeDefined();
       expect(global.RTCPeerConnection).toHaveBeenCalledTimes(1); // initClient called
-      expect(mockPeerConnectionInstance.setRemoteDescription).toHaveBeenCalledWith({ type: 'offer', sdp: offerSdp.trim() + '\n' });
+      expect(mockPeerConnectionInstance.setRemoteDescription).toHaveBeenCalledWith({
+        type: 'offer',
+        sdp: offerSdp.trim() + '\n'
+      });
       expect(mockPeerConnectionInstance.onicecandidate).toBeInstanceOf(Function);
 
       // Simulate an ICE candidate
@@ -433,8 +463,10 @@ describe('WebRTCApp', () => {
       webRTCApp = new WebRTCApp();
       const message = 'test message';
       // The mock crypto.subtle.digest returns a fixed ArrayBuffer based on 'mockedhash_' + message
-      const expectedHash = Buffer.from(await global.crypto.subtle.digest('', new TextEncoder().encode(message))).toString('hex');
-      
+      const expectedHash = Buffer.from(
+        await global.crypto.subtle.digest('', new TextEncoder().encode(message))
+      ).toString('hex');
+
       const hash = await webRTCApp.sha256(message);
       expect(hash).toBe(expectedHash);
     });
@@ -476,14 +508,14 @@ describe('WebRTCApp', () => {
       global.crypto.subtle = originalSubtle; // Restore
     });
   });
-  
+
   describe('logDiff', () => {
     it('should append diff to the #diffs element', () => {
       webRTCApp = new WebRTCApp();
       (webRTCApp as any).debug = true; // Enable debug to show diffs
-      
+
       webRTCApp.logDiff('abc', 'abd');
-      
+
       expect(document.getElementById).toHaveBeenCalledWith('diffs');
       expect(mockDiffsElement.classList.remove).toHaveBeenCalledWith('hidden');
       expect(document.createDocumentFragment).toHaveBeenCalled();
@@ -496,10 +528,10 @@ describe('WebRTCApp', () => {
 
     it('should not show diffs if debug is false', () => {
       webRTCApp = new WebRTCApp();
-      (webRTCApp as any).debug = false; 
+      (webRTCApp as any).debug = false;
 
       webRTCApp.logDiff('abc', 'abd');
-      
+
       expect(document.getElementById).toHaveBeenCalledWith('diffs');
       // classList.remove('hidden') should NOT be called if debug is false and element is already hidden
       // However, the current implementation of logDiff always calls remove('hidden') if debug is true.
