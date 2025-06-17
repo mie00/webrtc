@@ -442,15 +442,13 @@ describe('fileTransfer', () => {
 
       // Mock splitArrayBuffer to create multiple small chunks
       const smallChunkSize = 16 * 1024;
-      (splitArrayBuffer as Mock).mockImplementation(
-        (buffer: ArrayBuffer, _chunkSize: number) => {
-          const chunks: ArrayBuffer[] = [];
-          for (let i = 0; i < buffer.byteLength; i += smallChunkSize) {
-            chunks.push(buffer.slice(i, Math.min(i + smallChunkSize, buffer.byteLength)));
-          }
-          return chunks;
+      (splitArrayBuffer as Mock).mockImplementation((buffer: ArrayBuffer, _chunkSize: number) => {
+        const chunks: ArrayBuffer[] = [];
+        for (let i = 0; i < buffer.byteLength; i += smallChunkSize) {
+          chunks.push(buffer.slice(i, Math.min(i + smallChunkSize, buffer.byteLength)));
         }
-      );
+        return chunks;
+      });
 
       // Mock addEventListener for 'bufferedamountlow'
       let bufferedAmountLowCallback: (() => void) | null = null;
