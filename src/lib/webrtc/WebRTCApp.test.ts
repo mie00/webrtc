@@ -77,7 +77,8 @@ global.document = {
     // prefixed tagName with _
     style: {},
     appendChild: vi.fn()
-  }))
+  })),
+  createTextNode: vi.fn((text = '') => ({ nodeType: 3, textContent: text, data: text })) // Added mock for createTextNode
 } as any;
 
 global.setInterval = vi.fn(() => 12345 as unknown as NodeJS.Timeout) as any; // Return NodeJS.Timeout and cast assignment
@@ -222,23 +223,21 @@ describe('WebRTCApp', () => {
       style: {},
       appendChild: vi.fn()
     }));
+    (global.document.createTextNode as Mock)
+      ?.mockClear()
+      .mockImplementation((text = '') => ({ nodeType: 3, textContent: text, data: text }));
 
-    // Stub global.crypto for each test
+    // Stub global.crypto for each test with clean mock implementations
     vi.stubGlobal('crypto', {
-      // Attempt to spread original crypto if it exists, otherwise provide full mock
-      ...(typeof globalThis.crypto !== 'undefined' ? globalThis.crypto : {}),
-      getRandomValues:
-        globalThis.crypto?.getRandomValues ||
-        vi.fn().mockImplementation((arr: Uint8Array) => {
-          for (let i = 0; i < arr.length; i++) {
-            arr[i] = Math.floor(Math.random() * 256);
-          }
-          return arr;
-        }),
+      getRandomValues: vi.fn().mockImplementation((arr: Uint8Array) => {
+        for (let i = 0; i < arr.length; i++) {
+          arr[i] = Math.floor(Math.random() * 256);
+        }
+        return arr;
+      }),
       subtle: {
-        ...(globalThis.crypto?.subtle || {}), // Spread original subtle if available
         digest: vi.fn().mockImplementation(async (_algorithm, data) => {
-          const S = 'mockedhash_';
+          const S = 'mockedhash_'; // Keep consistent with previous mock for predictable hash
           const textEncoder = new TextEncoder();
           const dataArray = textEncoder.encode(S + new TextDecoder().decode(data as ArrayBuffer));
           return dataArray.buffer;
@@ -600,28 +599,25 @@ describe('WebRTCApp', () => {
     });
 
     it('should return fallback emojis if crypto.subtle is not available', async () => {
-      // Temporarily stub crypto.subtle to be undefined for this test
-      // Preserve getRandomValues from the existing global.crypto or the one stubbed in beforeEach
-      const existingCrypto = globalThis.crypto;
+      // Temporarily stub crypto for this specific test case
       vi.stubGlobal('crypto', {
-        ...existingCrypto,
-        getRandomValues:
-          existingCrypto?.getRandomValues ||
-          vi.fn().mockImplementation((arr: Uint8Array) => {
-            for (let i = 0; i < arr.length; i++) {
-              arr[i] = Math.floor(Math.random() * 256);
-            }
-            return arr;
-          }),
-        subtle: undefined // Key change: set subtle to undefined
+        // getRandomValues might be called by uuidv4 during WebRTCApp instantiation or other init paths
+        getRandomValues: vi.fn().mockImplementation((arr: Uint8Array) => {
+          for (let i = 0; i < arr.length; i++) {
+            arr[i] = Math.floor(Math.random() * 256);
+          }
+          return arr;
+        }),
+        subtle: undefined // Key: set subtle to undefined
       });
 
+      // Re-initialize WebRTCApp to ensure it picks up the modified crypto stub
       webRTCApp = new WebRTCApp();
       const digest = 'testdigest_no_subtle';
       const emojis = await webRTCApp.genEmojis(digest);
       expect(emojis).toBe('❗❗❗❗❗❗❗❗');
 
-      // vi.restoreAllMocks() in afterEach will handle restoring the crypto stub
+      // vi.restoreAllMocks() in afterEach will restore the original crypto stub
     });
   });
 
