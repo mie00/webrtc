@@ -99,7 +99,7 @@ global.document = {
   }))
 } as any;
 
-global.setInterval = vi.fn(() => 12345 as unknown as number); // Changed to number
+global.setInterval = vi.fn(() => 12345 as unknown as NodeJS.Timeout) as any; // Return NodeJS.Timeout and cast assignment
 global.clearInterval = vi.fn();
 global.history = { ...(global.history || {}), replaceState: vi.fn() } as any;
 global.URLSearchParams = vi.fn().mockImplementation(() => ({
