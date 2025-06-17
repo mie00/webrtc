@@ -9,11 +9,12 @@
     isCameraEnabled,
     isScreenSharingEnabled,
     isFileStreamEnabled,
-    type LayoutType
+    type LayoutType,
+    getIsDeviceStreamActive // Non-reactive check for immediate use
   } from '../lib/stores/streamStore';
   import { normalizeStreamId, setupStream } from '../lib/media/stream';
   import {
-    setAudioCallback,
+    setAudioCallback, // Keep this
     enableAudio,
     disableAudio,
     enableCamera,
@@ -209,50 +210,49 @@
   }
 
   async function handleToggleAudio() {
-    setAudioCallback((arg) => (instant = arg));
-    if (audioEnabled) {
-      await disableAudio();
+    setAudioCallback((arg) => (instant = arg)); // Ensure callback is set/reset
+    if (audioEnabled) { // If any audio stream is enabled
+      await disableAudio(); // Disable all audio streams
     } else {
-      await enableAudio();
+      await enableAudio(); // Enable default audio stream
     }
   }
 
   async function handleContextMenu(type: 'audio' | 'camera', event: MouseEvent) {
     event.preventDefault();
     const devices = await navigator.mediaDevices.enumerateDevices();
-    const filtered = devices.filter(
-      (device) => device.kind === `${type === 'camera' ? 'video' : type}input`
-    );
+    const inputKind = type === 'camera' ? 'videoinput' : 'audioinput';
+    const filteredDevices = devices.filter((device) => device.kind === inputKind);
 
-    if (filtered.length === 0) {
+    // Allow menu for audio even if no devices (for transcription toggle)
+    if (filteredDevices.length === 0 && type === 'camera') {
       alert(`No ${type} devices found`);
       return;
     }
 
     const config = getAllConfig();
-    const currentDeviceId = type === 'audio' ? config.media.audioDevice : config.media.videoDevice;
+    const currentDefaultConfigDeviceId = type === 'audio' ? config.media.audioDevice : config.media.videoDevice;
+    const isOverallTypeEnabled = type === 'audio' ? audioEnabled : cameraEnabled;
+
     menuItems = [
       {
-        id: 'enable-disable',
-        label: (type === 'audio' ? audioEnabled : cameraEnabled)
-          ? `Disable ${type}`
-          : `Enable ${type}`,
-        type: 'toggle' as const,
-        checked: type === 'audio' ? audioEnabled : cameraEnabled,
-        action: () => {
-          if (type === 'audio') handleToggleAudio();
-          else handleToggleVideo();
+        id: `master-toggle-${type}`,
+        label: isOverallTypeEnabled ? `Disable All ${type}` : `Enable Default ${type}`,
+        type: 'item' as const,
+        action: async () => {
+          if (type === 'audio') await handleToggleAudio();
+          else await handleToggleVideo();
         }
       }
     ];
 
     if (type === 'camera') {
       menuItems.push({
-        id: 'blur',
-        label: 'Blur background',
+        id: 'blur-toggle',
+        label: 'Blur Background',
         type: 'toggle' as const,
         checked: isBlurEnabled,
-        action: () => handleToggleBlur()
+        action: () => handleToggleBlur() // Assumes handleToggleBlur updates configStore
       });
     }
 
@@ -266,49 +266,85 @@
       });
     }
 
-    const deviceMenuChildren = [
+    // Submenu for selecting the *default* device (updates configStore)
+    const setDefaultDeviceSubmenuItems: MenuItem[] = [
       {
-        id: '<auto>',
-        label: 'Auto',
+        id: `<auto>-default-config-${type}`,
+        label: 'Auto (System Default)',
         type: 'toggle' as const,
-        checked: currentDeviceId === '<auto>',
+        checked: currentDefaultConfigDeviceId === '<auto>',
         action: () => {
           const configKey = type === 'audio' ? 'audioDevice' : 'videoDevice';
           updateConfig('media', configKey, '<auto>');
         }
       },
-      ...filtered.map((device) => {
-        const deviceString = `${device.groupId}|${device.deviceId}`;
-        const isCurrentDevice = currentDeviceId === deviceString;
+      ...filteredDevices.map((device) => {
+        // Use a consistent deviceId string format, e.g., just device.deviceId or groupId|deviceId
+        // For simplicity, let's assume device.deviceId is unique enough for this context,
+        // but in production, a more robust groupId|deviceId might be better if available and consistent.
+        // The localStreamManager uses "groupId|deviceId" if available, otherwise just deviceId.
+        // Let's try to match that.
+        const deviceIdString = device.groupId ? `${device.groupId}|${device.deviceId}` : device.deviceId;
+
         return {
-          id: deviceString,
-          label: device.label,
+          id: `set-default-${deviceIdString}`,
+          label: device.label || `${type} device ${device.deviceId.substring(0, 6)}...`,
           type: 'toggle' as const,
-          checked: isCurrentDevice,
+          checked: currentDefaultConfigDeviceId === deviceIdString,
           action: () => {
             const configKey = type === 'audio' ? 'audioDevice' : 'videoDevice';
-            updateConfig('media', configKey, deviceString);
+            updateConfig('media', configKey, deviceIdString);
           }
         };
       })
     ];
-
     menuItems.push({
-      id: 'select-device',
-      label: 'Select Device',
+      id: `set-default-${type}-submenu`,
+      label: 'Set Default Device',
       type: 'submenu' as const,
-      children: deviceMenuChildren
+      children: setDefaultDeviceSubmenuItems
     });
+
+    // Submenu for toggling *individual* devices on/off (does not change configStore default)
+    if (filteredDevices.length > 0) {
+      const toggleDeviceSubmenuItems: MenuItem[] = filteredDevices.map((device) => {
+        const deviceIdString = device.groupId ? `${device.groupId}|${device.deviceId}` : device.deviceId;
+        const isActive = getIsDeviceStreamActive(type, deviceIdString); // Non-reactive check
+
+        return {
+          id: `toggle-device-${deviceIdString}`,
+          label: device.label || `${type} device ${device.deviceId.substring(0, 6)}...`,
+          type: 'toggle' as const,
+          checked: isActive,
+          action: async () => {
+            if (isActive) {
+              if (type === 'audio') await disableAudio(deviceIdString);
+              else await disableCamera(deviceIdString);
+            } else {
+              if (type === 'audio') await enableAudio(deviceIdString);
+              else await enableCamera(deviceIdString);
+            }
+          }
+        };
+      });
+
+      menuItems.push({
+        id: `toggle-${type}-devices-submenu`,
+        label: 'Toggle Specific Devices',
+        type: 'submenu' as const,
+        children: toggleDeviceSubmenuItems
+      });
+    }
 
     menuPosition = { x: event.pageX, y: event.pageY };
     showMenu = true;
   }
 
   async function handleToggleVideo() {
-    if (cameraEnabled) {
-      await disableCamera();
+    if (cameraEnabled) { // If any camera stream is enabled
+      await disableCamera(); // Disable all camera streams
     } else {
-      await enableCamera();
+      await enableCamera(); // Enable default camera stream
     }
   }
 

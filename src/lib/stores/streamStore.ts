@@ -10,9 +10,10 @@ export interface LocalStreamData {
   id: string; // Unique identifier for the stream
   type: StreamType;
   stream: MediaStream | null;
-  src: string | null;
+  src: string | null; // For file streams
   viewable: boolean;
   sendable: boolean;
+  deviceId?: string; // For camera/audio streams from specific devices
 }
 
 // Remote stream interface
@@ -106,16 +107,20 @@ export function getIsBlurredStreamEnabled(): boolean {
 export function addLocalStream(
   type: StreamType,
   stream: MediaStream | null,
-  src: string | null,
+  src: string | null, // Primarily for file streams
   viewable: boolean = true,
-  sendable: boolean = true
+  sendable: boolean = true,
+  deviceId?: string // For associating with a specific media device
 ): string {
   // Generate a unique ID for the stream
-  const streamId = `${type}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  const streamIdSuffix = deviceId
+    ? deviceId.replace(/[^a-zA-Z0-9]/g, '')
+    : `${Date.now()}`;
+  const streamId = `${type}-${streamIdSuffix}-${Math.random().toString(36).substring(2, 9)}`;
 
   streamStore.update((state) => {
     const localStreams = { ...state.localStreams };
-    localStreams[streamId] = { id: streamId, type, stream, src, viewable, sendable };
+    localStreams[streamId] = { id: streamId, type, stream, src, viewable, sendable, deviceId };
     return { ...state, localStreams };
   });
 
@@ -196,6 +201,37 @@ export function getFirstLocalStreamByType(type: StreamType): [string, LocalStrea
   const streams = getLocalStreamsByType(type);
   const entries = Object.entries(streams);
   return entries.length > 0 ? entries[0] : null;
+}
+
+// Helper to get a local stream by its device ID and type
+export function getLocalStreamByDeviceId(
+  type: StreamType,
+  deviceId: string
+): [string, LocalStreamData] | null {
+  const state = getStreamState();
+  const foundEntry = Object.entries(state.localStreams).find(
+    ([_, data]) => data.type === type && data.deviceId === deviceId
+  );
+  return foundEntry || null;
+}
+
+// Reactive derived store to check if a specific device stream is active
+export function isDeviceStreamActive(type: StreamType, deviceId: string) {
+  return derived(
+    streamStore,
+    ($state) =>
+      Object.values($state.localStreams).some(
+        (stream) => stream.type === type && stream.deviceId === deviceId
+      )
+  );
+}
+
+// Non-reactive helper for the above
+export function getIsDeviceStreamActive(type: StreamType, deviceId: string): boolean {
+  const state = getStreamState();
+  return Object.values(state.localStreams).some(
+    (s) => s.type === type && s.deviceId === deviceId
+  );
 }
 
 export function addRemoteStream(peerId: string, streamId: string, stream: MediaStream): void {
