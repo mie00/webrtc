@@ -51,16 +51,18 @@ vi.mock('../lib/app/forwardHandler', () => ({
   toggleForwardHandler: vi.fn()
 }));
 
-vi.mock('../lib/media/recorder', () => {
+vi.mock('../lib/media/recorder', async () => {
+  const store = await hoistedRecorderStore;
   return {
-    recorderStore: hoistedRecorderStore,
+    recorderStore: store,
     toggleRecording: vi.fn()
   };
 });
 
-vi.mock('../lib/media/transcriber', () => {
+vi.mock('../lib/media/transcriber', async () => {
+  const store = await hoistedTranscriberStore;
   return {
-    transcriberStore: hoistedTranscriberStore,
+    transcriberStore: store,
     toggleOverallTranscription: vi.fn(),
     stopOverallTranscription: vi.fn()
   };
