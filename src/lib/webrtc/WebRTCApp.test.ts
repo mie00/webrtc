@@ -261,7 +261,7 @@ describe('WebRTCApp', () => {
     // Reset configStore mock
     const configStore = await import('../stores/configStore');
     // Cast to any to satisfy TypeScript for the mocked properties
-    ((configStore as any).resetConfigStore as Mock)(); 
+    ((configStore as any).resetConfigStore as Mock)();
     ((configStore as any).getAllConfig as Mock).mockReturnValue({
       // Ensure it's reset to default
       rtc: {
