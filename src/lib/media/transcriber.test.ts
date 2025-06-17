@@ -751,7 +751,7 @@ describe('Transcriber', () => {
       const eventData = { data: new Blob(['audio data'], { type: 'audio/webm' }) };
       expect(typeof mockMediaRecorderInstance.ondataavailable).toBe('function');
       if (typeof mockMediaRecorderInstance.ondataavailable === 'function') {
-        mockMediaRecorderInstance.ondataavailable(eventData);
+        (mockMediaRecorderInstance.ondataavailable as any)(eventData);
       }
       expect(lastMockWsInstance.send).toHaveBeenCalledWith(eventData.data);
     });
