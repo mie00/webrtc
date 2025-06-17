@@ -201,7 +201,7 @@ describe('WebRTCApp', () => {
     // Ensure vi.fn() on mockPeerConnectionInstance are cleared by clearAllMocks or reset here
     // e.g., mockPeerConnectionInstance.createDataChannel.mockClear(); ...
     // Re-apply mockReturnValue after vi.clearAllMocks()
-    mockPeerConnectionInstance.createDataChannel.mockReturnValue(mockDataChannel); 
+    mockPeerConnectionInstance.createDataChannel.mockReturnValue(mockDataChannel);
     mockPeerConnectionInstance.getStats.mockResolvedValue(new Map()); // Reset to default
 
     // Reset document mocks
