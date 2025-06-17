@@ -18,7 +18,8 @@ import {
 
 // --- Mock streamStore ---
 // Use vi.hoisted to ensure actualTestStreamStore is initialized before vi.mock factory runs
-const hoistedStore = vi.hoisted(() => {
+const hoistedStore = vi.hoisted(async () => {
+  const { writable } = await import('svelte/store');
   const store = writable<ActualStreamStateType>({
     // Use the imported type alias
     localStreams: {},
