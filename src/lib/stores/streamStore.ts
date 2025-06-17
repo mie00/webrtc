@@ -113,9 +113,7 @@ export function addLocalStream(
   deviceId?: string // For associating with a specific media device
 ): string {
   // Generate a unique ID for the stream
-  const streamIdSuffix = deviceId
-    ? deviceId.replace(/[^a-zA-Z0-9]/g, '')
-    : `${Date.now()}`;
+  const streamIdSuffix = deviceId ? deviceId.replace(/[^a-zA-Z0-9]/g, '') : `${Date.now()}`;
   const streamId = `${type}-${streamIdSuffix}-${Math.random().toString(36).substring(2, 9)}`;
 
   streamStore.update((state) => {
@@ -217,21 +215,17 @@ export function getLocalStreamByDeviceId(
 
 // Reactive derived store to check if a specific device stream is active
 export function isDeviceStreamActive(type: StreamType, deviceId: string) {
-  return derived(
-    streamStore,
-    ($state) =>
-      Object.values($state.localStreams).some(
-        (stream) => stream.type === type && stream.deviceId === deviceId
-      )
+  return derived(streamStore, ($state) =>
+    Object.values($state.localStreams).some(
+      (stream) => stream.type === type && stream.deviceId === deviceId
+    )
   );
 }
 
 // Non-reactive helper for the above
 export function getIsDeviceStreamActive(type: StreamType, deviceId: string): boolean {
   const state = getStreamState();
-  return Object.values(state.localStreams).some(
-    (s) => s.type === type && s.deviceId === deviceId
-  );
+  return Object.values(state.localStreams).some((s) => s.type === type && s.deviceId === deviceId);
 }
 
 export function addRemoteStream(peerId: string, streamId: string, stream: MediaStream): void {

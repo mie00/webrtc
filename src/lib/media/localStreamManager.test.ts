@@ -45,7 +45,6 @@ let mockGetIsCameraEnabled = vi.spyOn(streamStore, 'getIsCameraEnabled');
 let mockGetLocalStreamByDeviceId = vi.spyOn(streamStore, 'getLocalStreamByDeviceId');
 let mockGetIsDeviceStreamActive = vi.spyOn(streamStore, 'getIsDeviceStreamActive');
 
-
 let mockGetAllConfig = vi.spyOn(configStoreModule, 'getAllConfig');
 const mockConfigStoreSubscribe = vi.fn();
 // @ts-expect-error - part of the mock
@@ -182,25 +181,26 @@ describe('localStreamManager', () => {
       );
     });
     mockGetLocalStreamByDeviceId.mockImplementation((type, deviceId) => {
-       const allStreams = get(streamStore.streamStore).localStreams;
-       const entry = Object.entries(allStreams).find(
-         ([,data]) => data.type === type && data.deviceId === deviceId
-       );
-       return entry || null;
+      const allStreams = get(streamStore.streamStore).localStreams;
+      const entry = Object.entries(allStreams).find(
+        ([, data]) => data.type === type && data.deviceId === deviceId
+      );
+      return entry || null;
     });
     mockGetIsDeviceStreamActive.mockImplementation((type, deviceId) => {
       const allStreams = get(streamStore.streamStore).localStreams;
-      return Object.values(allStreams).some(s => s.type === type && s.deviceId === deviceId);
+      return Object.values(allStreams).some((s) => s.type === type && s.deviceId === deviceId);
     });
-     mockGetIsAudioEnabled.mockImplementation(() => {
+    mockGetIsAudioEnabled.mockImplementation(() => {
       const state = get(streamStore.streamStore);
       return Object.values(state.localStreams).some((stream) => stream.type === 'audio');
     });
     mockGetIsCameraEnabled.mockImplementation(() => {
       const state = get(streamStore.streamStore);
-      return Object.values(state.localStreams).some((stream) => stream.type === 'camera' || stream.type === 'blurred');
+      return Object.values(state.localStreams).some(
+        (stream) => stream.type === 'camera' || stream.type === 'blurred'
+      );
     });
-
 
     mockGetAllConfig.mockReturnValue({
       general: {
@@ -286,17 +286,16 @@ describe('localStreamManager', () => {
     });
 
     it('should not start a new stream if the specific requested deviceId is already active', async () => {
-       const deviceId = 'audio-device-special';
-       // Simulate it's active by adding it to the store
-       streamStore.addLocalStream('audio', mockMediaStream, null, true, true, deviceId);
-       mockUserMedia.mockClear(); // Clear any previous calls
-       mockAddLocalStream.mockClear();
+      const deviceId = 'audio-device-special';
+      // Simulate it's active by adding it to the store
+      streamStore.addLocalStream('audio', mockMediaStream, null, true, true, deviceId);
+      mockUserMedia.mockClear(); // Clear any previous calls
+      mockAddLocalStream.mockClear();
 
-       await enableAudio(deviceId);
-       expect(mockUserMedia).not.toHaveBeenCalled();
-       expect(mockAddLocalStream).toHaveBeenCalledTimes(1); // Original add, not a new one
+      await enableAudio(deviceId);
+      expect(mockUserMedia).not.toHaveBeenCalled();
+      expect(mockAddLocalStream).toHaveBeenCalledTimes(1); // Original add, not a new one
     });
-
 
     it('should start multiple audio streams if called with different deviceIds', async () => {
       const deviceId1 = 'audio-dev-1';
@@ -304,27 +303,35 @@ describe('localStreamManager', () => {
 
       await enableAudio(deviceId1);
       expect(mockUserMedia).toHaveBeenCalledWith({ audio: { deviceId: deviceId1 } });
-      const firstCallArgs = mockAddLocalStream.mock.calls.find(call => call[5] === deviceId1);
+      const firstCallArgs = mockAddLocalStream.mock.calls.find((call) => call[5] === deviceId1);
       expect(firstCallArgs).toBeDefined();
-
 
       mockUserMedia.mockClear();
       // Don't clear mockAddLocalStream, check its total calls later
 
       await enableAudio(deviceId2);
       expect(mockUserMedia).toHaveBeenCalledWith({ audio: { deviceId: deviceId2 } });
-      const secondCallArgs = mockAddLocalStream.mock.calls.find(call => call[5] === deviceId2);
+      const secondCallArgs = mockAddLocalStream.mock.calls.find((call) => call[5] === deviceId2);
       expect(secondCallArgs).toBeDefined();
 
-
-      expect(Object.values(get(streamStore.streamStore).localStreams).filter(s => s.type === 'audio').length).toBe(2);
+      expect(
+        Object.values(get(streamStore.streamStore).localStreams).filter((s) => s.type === 'audio')
+          .length
+      ).toBe(2);
     });
   });
 
   describe('disableAudio', () => {
     it('should tear down a specific audio stream if deviceId is provided', async () => {
       const deviceId1 = 'audio-to-disable-1';
-      const streamIdToRemove = streamStore.addLocalStream('audio', mockMediaStream, null, true, true, deviceId1);
+      const streamIdToRemove = streamStore.addLocalStream(
+        'audio',
+        mockMediaStream,
+        null,
+        true,
+        true,
+        deviceId1
+      );
       expect(streamStore.getLocalStreamByDeviceId('audio', deviceId1)).not.toBeNull();
 
       mockGetAudioProcessingContext.mockReturnValueOnce({} as streamUtils.AudioNodes);
@@ -340,8 +347,18 @@ describe('localStreamManager', () => {
 
     it('should tear down all audio streams if no deviceId is provided', async () => {
       streamStore.addLocalStream('audio', mockMediaStream, null, true, true, 'audio-all-1');
-      streamStore.addLocalStream('audio', { ...mockMediaStream, id:"ms2" }, null, true, true, 'audio-all-2');
-      expect(Object.values(get(streamStore.streamStore).localStreams).filter(s => s.type === 'audio').length).toBe(2);
+      streamStore.addLocalStream(
+        'audio',
+        { ...mockMediaStream, id: 'ms2' },
+        null,
+        true,
+        true,
+        'audio-all-2'
+      );
+      expect(
+        Object.values(get(streamStore.streamStore).localStreams).filter((s) => s.type === 'audio')
+          .length
+      ).toBe(2);
 
       mockGetAudioProcessingContext.mockReturnValue({} as streamUtils.AudioNodes);
 
@@ -351,14 +368,17 @@ describe('localStreamManager', () => {
       expect(mockStopProcessingAudio).toHaveBeenCalledTimes(2);
       expect(mockRemoveAudioProcessingContext).toHaveBeenCalledTimes(2);
       expect(mockRemoveLocalStream).toHaveBeenCalledTimes(2);
-      expect(Object.values(get(streamStore.streamStore).localStreams).filter(s => s.type === 'audio').length).toBe(0);
+      expect(
+        Object.values(get(streamStore.streamStore).localStreams).filter((s) => s.type === 'audio')
+          .length
+      ).toBe(0);
     });
 
     it('should call audioCbFunction with 0 if set and all audio becomes disabled', async () => {
       const cb = vi.fn();
       setAudioCallback(cb);
       streamStore.addLocalStream('audio', mockMediaStream, null, true, true, 'audio-cb-test');
-      
+
       await disableAudio(); // Disable all
       expect(cb).toHaveBeenCalledWith(0);
     });
@@ -374,35 +394,65 @@ describe('localStreamManager', () => {
       });
       await enableCamera();
       expect(mockUserMedia).toHaveBeenCalledWith({ video: true });
-      expect(mockAddLocalStream).toHaveBeenCalledWith('camera', mockMediaStream, null, true, true, actualAutoCamId);
+      expect(mockAddLocalStream).toHaveBeenCalledWith(
+        'camera',
+        mockMediaStream,
+        null,
+        true,
+        true,
+        actualAutoCamId
+      );
     });
 
     it('should start specific camera if deviceId provided and blur is off', async () => {
       const deviceId = 'cam-device-1';
       mockGetAllConfig.mockReturnValueOnce({
-         ...get(configStoreModule.configStore),
+        ...get(configStoreModule.configStore),
         media: { blurVideo: 'no', audioDevice: '<auto>', videoDevice: 'some-default-not-used' }
       });
       await enableCamera(deviceId);
       expect(mockUserMedia).toHaveBeenCalledWith({ video: { deviceId: deviceId } });
-      expect(mockAddLocalStream).toHaveBeenCalledWith('camera', mockMediaStream, null, true, true, deviceId);
+      expect(mockAddLocalStream).toHaveBeenCalledWith(
+        'camera',
+        mockMediaStream,
+        null,
+        true,
+        true,
+        deviceId
+      );
     });
 
     it('should start camera and blurred stream if blur is on', async () => {
       const deviceId = 'cam-device-blur';
       mockGetAllConfig.mockReturnValueOnce({
-         ...get(configStoreModule.configStore),
+        ...get(configStoreModule.configStore),
         media: { blurVideo: 'yes', audioDevice: '<auto>', videoDevice: deviceId }
       });
       // @ts-expect-error - backgroundChange is a mock
-      backgroundUtils.backgroundChange = vi.fn().mockResolvedValue({...mockMediaStream, id: "blurred-stream-id"});
+      backgroundUtils.backgroundChange = vi
+        .fn()
+        .mockResolvedValue({ ...mockMediaStream, id: 'blurred-stream-id' });
 
       await enableCamera(deviceId);
       expect(mockUserMedia).toHaveBeenCalledWith({ video: { deviceId: deviceId } });
       // Original camera stream added (viewable: false, sendable: false)
-      expect(mockAddLocalStream).toHaveBeenCalledWith('camera', mockMediaStream, null, false, false, deviceId);
+      expect(mockAddLocalStream).toHaveBeenCalledWith(
+        'camera',
+        mockMediaStream,
+        null,
+        false,
+        false,
+        deviceId
+      );
       // Blurred stream added (viewable: true, sendable: true)
-      expect(mockAddLocalStream).toHaveBeenCalledWith('blurred', {...mockMediaStream, id: "blurred-stream-id"}, null, true, true, deviceId);
+      expect(mockAddLocalStream).toHaveBeenCalledWith(
+        'blurred',
+        { ...mockMediaStream, id: 'blurred-stream-id' },
+        null,
+        true,
+        true,
+        deviceId
+      );
       expect(backgroundUtils.backgroundChange).toHaveBeenCalled();
     });
   });
@@ -410,8 +460,22 @@ describe('localStreamManager', () => {
   describe('disableCamera', () => {
     it('should disable specific camera and its blurred stream if deviceId provided', async () => {
       const deviceId = 'cam-to-disable-specific';
-      const camStreamId = streamStore.addLocalStream('camera', mockMediaStream, null, false, false, deviceId);
-      const blurStreamId = streamStore.addLocalStream('blurred', { ...mockMediaStream, id: "blur-s"}, null, true, true, deviceId);
+      const camStreamId = streamStore.addLocalStream(
+        'camera',
+        mockMediaStream,
+        null,
+        false,
+        false,
+        deviceId
+      );
+      const blurStreamId = streamStore.addLocalStream(
+        'blurred',
+        { ...mockMediaStream, id: 'blur-s' },
+        null,
+        true,
+        true,
+        deviceId
+      );
 
       await disableCamera(deviceId);
       expect(mockRemoveLocalStream).toHaveBeenCalledWith(camStreamId);
@@ -421,22 +485,40 @@ describe('localStreamManager', () => {
 
     it('should disable all camera and blurred streams if no deviceId provided', async () => {
       streamStore.addLocalStream('camera', mockMediaStream, null, true, true, 'cam-all-1');
-      streamStore.addLocalStream('blurred', { ...mockMediaStream, id: "blur-all-1"}, null, true, true, 'cam-all-1');
-      streamStore.addLocalStream('camera', { ...mockMediaStream, id: "cam-all-2-id"}, null, true, true, 'cam-all-2');
+      streamStore.addLocalStream(
+        'blurred',
+        { ...mockMediaStream, id: 'blur-all-1' },
+        null,
+        true,
+        true,
+        'cam-all-1'
+      );
+      streamStore.addLocalStream(
+        'camera',
+        { ...mockMediaStream, id: 'cam-all-2-id' },
+        null,
+        true,
+        true,
+        'cam-all-2'
+      );
 
       await disableCamera(); // No deviceId
       // 2 camera streams + 1 blurred stream = 3 removals, 3 teardowns
       expect(mockRemoveLocalStream).toHaveBeenCalledTimes(3);
       expect(mockTearDownStream).toHaveBeenCalledTimes(3);
-       expect(Object.values(get(streamStore.streamStore).localStreams)
-         .filter(s => s.type === 'camera' || s.type === 'blurred').length).toBe(0);
+      expect(
+        Object.values(get(streamStore.streamStore).localStreams).filter(
+          (s) => s.type === 'camera' || s.type === 'blurred'
+        ).length
+      ).toBe(0);
     });
   });
 
   describe('configStore subscription for blur', () => {
     it('should apply blur to active, viewable camera streams when blurVideo turns "yes"', async () => {
       const camDeviceId = 'cam-for-blur-config';
-      mockGetAllConfig.mockReturnValue({ // Initial config: blur off
+      mockGetAllConfig.mockReturnValue({
+        // Initial config: blur off
         ...get(configStoreModule.configStore),
         media: { blurVideo: 'no', audioDevice: '<auto>', videoDevice: camDeviceId }
       });
@@ -447,7 +529,9 @@ describe('localStreamManager', () => {
 
       mockAddLocalStream.mockClear(); // Clear to only catch the 'blurred' add
       // @ts-expect-error - backgroundChange is a mock
-      backgroundUtils.backgroundChange = vi.fn().mockResolvedValue({...mockMediaStream, id: "blurred-on-config-change"});
+      backgroundUtils.backgroundChange = vi
+        .fn()
+        .mockResolvedValue({ ...mockMediaStream, id: 'blurred-on-config-change' });
 
       // Trigger config change to blur: yes
       const newConfigBlurOn = {
@@ -457,24 +541,37 @@ describe('localStreamManager', () => {
       configStoreModule.configStore.set(newConfigBlurOn); // This will trigger subscribers
 
       await vi.waitFor(() => {
-        expect(mockUpdateLocalStreamProperties).toHaveBeenCalledWith(camStreamEntry![0], { viewable: false, sendable: false });
+        expect(mockUpdateLocalStreamProperties).toHaveBeenCalledWith(camStreamEntry![0], {
+          viewable: false,
+          sendable: false
+        });
       });
       await vi.waitFor(() => {
         expect(backgroundUtils.backgroundChange).toHaveBeenCalled();
       });
       await vi.waitFor(() => {
-        expect(mockAddLocalStream).toHaveBeenCalledWith('blurred', {...mockMediaStream, id: "blurred-on-config-change"}, null, true, true, camDeviceId);
+        expect(mockAddLocalStream).toHaveBeenCalledWith(
+          'blurred',
+          { ...mockMediaStream, id: 'blurred-on-config-change' },
+          null,
+          true,
+          true,
+          camDeviceId
+        );
       });
     });
 
-     it('should remove blur from active streams when blurVideo turns "no"', async () => {
+    it('should remove blur from active streams when blurVideo turns "no"', async () => {
       const camDeviceId = 'cam-for-unblur-config';
-      mockGetAllConfig.mockReturnValue({ // Initial config: blur on
+      mockGetAllConfig.mockReturnValue({
+        // Initial config: blur on
         ...get(configStoreModule.configStore),
         media: { blurVideo: 'yes', audioDevice: '<auto>', videoDevice: camDeviceId }
       });
-       // @ts-expect-error - backgroundChange is a mock
-      backgroundUtils.backgroundChange = vi.fn().mockResolvedValue({...mockMediaStream, id: "blurred-stream-initial"});
+      // @ts-expect-error - backgroundChange is a mock
+      backgroundUtils.backgroundChange = vi
+        .fn()
+        .mockResolvedValue({ ...mockMediaStream, id: 'blurred-stream-initial' });
       await enableCamera(camDeviceId); // Starts camera (non-viewable) and blurred (viewable)
 
       const originalCamStreamEntry = streamStore.getLocalStreamByDeviceId('camera', camDeviceId);
@@ -489,7 +586,7 @@ describe('localStreamManager', () => {
       // Trigger config change to blur: no
       const newConfigBlurOff = {
         ...get(configStoreModule.configStore),
-         media: { ...get(configStoreModule.configStore).media, blurVideo: 'no' }
+        media: { ...get(configStoreModule.configStore).media, blurVideo: 'no' }
       };
       configStoreModule.configStore.set(newConfigBlurOff);
 
@@ -497,7 +594,10 @@ describe('localStreamManager', () => {
         expect(mockRemoveLocalStream).toHaveBeenCalledWith(blurredStreamEntry![0]);
       });
       await vi.waitFor(() => {
-        expect(mockUpdateLocalStreamProperties).toHaveBeenCalledWith(originalCamStreamEntry![0], { viewable: true, sendable: true });
+        expect(mockUpdateLocalStreamProperties).toHaveBeenCalledWith(originalCamStreamEntry![0], {
+          viewable: true,
+          sendable: true
+        });
       });
     });
 
@@ -522,7 +622,7 @@ describe('localStreamManager', () => {
       configStoreModule.configStore.set(newConfigWithNewDefault);
 
       // Wait a bit to ensure no async operations are triggered to change streams
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify that the initial stream was NOT torn down and no new stream was added
       expect(mockTearDownStream).not.toHaveBeenCalled();

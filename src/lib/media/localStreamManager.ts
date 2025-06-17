@@ -38,7 +38,8 @@ configStore.subscribe(async (newConfig) => {
       // Blur turned ON: find active 'camera' streams and create 'blurred' versions
       const cameraStreamsToBlur = getLocalStreamsByType('camera');
       for (const [camStreamId, camStreamData] of Object.entries(cameraStreamsToBlur)) {
-        if (camStreamData.stream && camStreamData.viewable) { // Only blur viewable (non-blurred) camera streams
+        if (camStreamData.stream && camStreamData.viewable) {
+          // Only blur viewable (non-blurred) camera streams
           updateLocalStreamProperties(camStreamId, { viewable: false, sendable: false });
           try {
             const videoElem = document.createElement('video');
@@ -67,7 +68,10 @@ configStore.subscribe(async (newConfig) => {
 
         // Find the original camera stream using deviceId
         if (blurredStreamData.deviceId) {
-          const originalCamStreamEntry = getLocalStreamByDeviceId('camera', blurredStreamData.deviceId);
+          const originalCamStreamEntry = getLocalStreamByDeviceId(
+            'camera',
+            blurredStreamData.deviceId
+          );
           if (originalCamStreamEntry) {
             const [originalCamStreamId] = originalCamStreamEntry;
             updateLocalStreamProperties(originalCamStreamId, { viewable: true, sendable: true });
@@ -86,7 +90,11 @@ export async function enableAudio(requestedDeviceId?: string): Promise<void> {
   const targetDeviceId = requestedDeviceId || config.media.audioDevice;
 
   // Prevent starting if the specific stream is already active
-  if (targetDeviceId && targetDeviceId !== '<auto>' && getIsDeviceStreamActive('audio', targetDeviceId)) {
+  if (
+    targetDeviceId &&
+    targetDeviceId !== '<auto>' &&
+    getIsDeviceStreamActive('audio', targetDeviceId)
+  ) {
     console.warn(`Audio stream for device ${targetDeviceId} is already active.`);
     return;
   }
@@ -102,9 +110,10 @@ export async function enableAudio(requestedDeviceId?: string): Promise<void> {
 
   if (targetDeviceId && targetDeviceId !== '<auto>') {
     const deviceInfo = targetDeviceId.split('|');
-    audioConstraints = deviceInfo.length === 2
-      ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] }
-      : { deviceId: targetDeviceId };
+    audioConstraints =
+      deviceInfo.length === 2
+        ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] }
+        : { deviceId: targetDeviceId };
   }
 
   try {
@@ -113,8 +122,10 @@ export async function enableAudio(requestedDeviceId?: string): Promise<void> {
       effectiveDeviceId = stream.getAudioTracks()[0]?.getSettings().deviceId || undefined;
       // Check again if this auto-selected device is already active (edge case)
       if (effectiveDeviceId && getIsDeviceStreamActive('audio', effectiveDeviceId)) {
-        console.warn(`Auto-selected audio device ${effectiveDeviceId} is already active. Stopping redundant stream.`);
-        stream.getTracks().forEach(track => track.stop());
+        console.warn(
+          `Auto-selected audio device ${effectiveDeviceId} is already active. Stopping redundant stream.`
+        );
+        stream.getTracks().forEach((track) => track.stop());
         return;
       }
     }
@@ -124,14 +135,14 @@ export async function enableAudio(requestedDeviceId?: string): Promise<void> {
 
     if (audioCbFunction) {
       const context = await processAudio(stream, (dataArray, _analyser) => {
-      if (dataArray.length > 0) {
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-        audioCbFunction?.(sum / dataArray.length);
-      } else {
-        audioCbFunction?.(0);
-      }
-    });
+        if (dataArray.length > 0) {
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+          audioCbFunction?.(sum / dataArray.length);
+        } else {
+          audioCbFunction?.(0);
+        }
+      });
       setAudioProcessingContext(streamId, context);
     }
   } catch (error) {
@@ -176,7 +187,11 @@ export async function enableCamera(requestedDeviceId?: string): Promise<void> {
   const globalConfig = getAllConfig();
   const targetDeviceId = requestedDeviceId || globalConfig.media.videoDevice;
 
-  if (targetDeviceId && targetDeviceId !== '<auto>' && getIsDeviceStreamActive('camera', targetDeviceId)) {
+  if (
+    targetDeviceId &&
+    targetDeviceId !== '<auto>' &&
+    getIsDeviceStreamActive('camera', targetDeviceId)
+  ) {
     console.warn(`Camera stream for device ${targetDeviceId} is already active.`);
     return;
   }
@@ -190,9 +205,10 @@ export async function enableCamera(requestedDeviceId?: string): Promise<void> {
 
   if (targetDeviceId && targetDeviceId !== '<auto>') {
     const deviceInfo = targetDeviceId.split('|');
-    videoConstraints = deviceInfo.length === 2
-      ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] }
-      : { deviceId: targetDeviceId };
+    videoConstraints =
+      deviceInfo.length === 2
+        ? { groupId: deviceInfo[0], deviceId: deviceInfo[1] }
+        : { deviceId: targetDeviceId };
   }
 
   try {
@@ -200,8 +216,10 @@ export async function enableCamera(requestedDeviceId?: string): Promise<void> {
     if (targetDeviceId === '<auto>') {
       effectiveDeviceId = rawVideoStream.getVideoTracks()[0]?.getSettings().deviceId || undefined;
       if (effectiveDeviceId && getIsDeviceStreamActive('camera', effectiveDeviceId)) {
-        console.warn(`Auto-selected camera device ${effectiveDeviceId} is already active. Stopping redundant stream.`);
-        rawVideoStream.getTracks().forEach(track => track.stop());
+        console.warn(
+          `Auto-selected camera device ${effectiveDeviceId} is already active. Stopping redundant stream.`
+        );
+        rawVideoStream.getTracks().forEach((track) => track.stop());
         return;
       }
     }

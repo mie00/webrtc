@@ -211,7 +211,8 @@
 
   async function handleToggleAudio() {
     setAudioCallback((arg) => (instant = arg)); // Ensure callback is set/reset
-    if (audioEnabled) { // If any audio stream is enabled
+    if (audioEnabled) {
+      // If any audio stream is enabled
       await disableAudio(); // Disable all audio streams
     } else {
       await enableAudio(); // Enable default audio stream
@@ -231,7 +232,8 @@
     }
 
     const config = getAllConfig();
-    const currentDefaultConfigDeviceId = type === 'audio' ? config.media.audioDevice : config.media.videoDevice;
+    const currentDefaultConfigDeviceId =
+      type === 'audio' ? config.media.audioDevice : config.media.videoDevice;
     const isOverallTypeEnabled = type === 'audio' ? audioEnabled : cameraEnabled;
 
     menuItems = [
@@ -284,7 +286,9 @@
         // but in production, a more robust groupId|deviceId might be better if available and consistent.
         // The localStreamManager uses "groupId|deviceId" if available, otherwise just deviceId.
         // Let's try to match that.
-        const deviceIdString = device.groupId ? `${device.groupId}|${device.deviceId}` : device.deviceId;
+        const deviceIdString = device.groupId
+          ? `${device.groupId}|${device.deviceId}`
+          : device.deviceId;
 
         return {
           id: `set-default-${deviceIdString}`,
@@ -308,7 +312,9 @@
     // Submenu for toggling *individual* devices on/off (does not change configStore default)
     if (filteredDevices.length > 0) {
       const toggleDeviceSubmenuItems: MenuItem[] = filteredDevices.map((device) => {
-        const deviceIdString = device.groupId ? `${device.groupId}|${device.deviceId}` : device.deviceId;
+        const deviceIdString = device.groupId
+          ? `${device.groupId}|${device.deviceId}`
+          : device.deviceId;
         const isActive = getIsDeviceStreamActive(type, deviceIdString); // Non-reactive check
 
         return {
@@ -341,7 +347,8 @@
   }
 
   async function handleToggleVideo() {
-    if (cameraEnabled) { // If any camera stream is enabled
+    if (cameraEnabled) {
+      // If any camera stream is enabled
       await disableCamera(); // Disable all camera streams
     } else {
       await enableCamera(); // Enable default camera stream
