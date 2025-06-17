@@ -43,12 +43,11 @@ vi.mock('../lib/media/transcriber', async () => {
   const originalModule = await vi.importActual('../lib/media/transcriber');
   return {
     ...originalModule,
-    transcriberStore: writable({ isTranscribingOverall: false, /* other properties */ }), // Mock store
+    transcriberStore: writable({ isTranscribingOverall: false /* other properties */ }), // Mock store
     toggleOverallTranscription: vi.fn(),
     stopOverallTranscription: vi.fn()
   };
 });
-
 
 vi.mock('../lib/media/streamLayout', () => ({
   calculateStreamPositions: vi.fn(() => [])
@@ -58,7 +57,6 @@ vi.mock('../lib/stores/localFileStreamStore', () => ({
   addLocalFileStream: vi.fn(),
   removeLocalFileStream: vi.fn()
 }));
-
 
 describe('MediaArea.svelte', () => {
   // Mock initial store values
@@ -116,7 +114,7 @@ describe('MediaArea.svelte', () => {
   it('calls hangup when hangup prop is called', async () => {
     const hangupMock = vi.fn();
     render(MediaArea, { props: { hangup: hangupMock, openQr: vi.fn() } });
-    
+
     // To simulate handleHangup, we need to trigger it.
     // This might involve finding a button in MediaControls and clicking it,
     // or if MediaControls passes up the event, we'd test that interaction.
@@ -126,7 +124,7 @@ describe('MediaArea.svelte', () => {
     // const hangupButton = screen.getByRole('button', { name: /hang up/i });
     // await fireEvent.click(hangupButton);
     // expect(hangupMock).toHaveBeenCalled();
-    
+
     // Since handleHangup is directly passed to MediaControls, we can't directly call it from MediaArea test.
     // We would test this interaction in MediaControls.test.ts or via an integration test.
     // However, we can check if the prop is passed.
@@ -134,23 +132,27 @@ describe('MediaArea.svelte', () => {
   });
 
   it('updates stream positions on mount and resize', async () => {
-    const calculateStreamPositionsMock = vi.mocked(require('../lib/media/streamLayout').calculateStreamPositions);
+    const calculateStreamPositionsMock = vi.mocked(
+      require('../lib/media/streamLayout').calculateStreamPositions
+    );
     render(MediaArea, { props: { hangup: vi.fn(), openQr: vi.fn() } });
-    
+
     // onMount
     expect(calculateStreamPositionsMock).toHaveBeenCalled();
-    
+
     calculateStreamPositionsMock.mockClear(); // Clear previous calls
 
     // Simulate window resize
     global.dispatchEvent(new Event('resize'));
     expect(calculateStreamPositionsMock).toHaveBeenCalled();
   });
-  
+
   it('clears refresh interval and stops transcription on destroy', () => {
     const clearIntervalSpy = vi.spyOn(window, 'clearInterval');
-    const stopOverallTranscriptionMock = vi.mocked(require('../lib/media/transcriber').stopOverallTranscription);
-    
+    const stopOverallTranscriptionMock = vi.mocked(
+      require('../lib/media/transcriber').stopOverallTranscription
+    );
+
     // Set isTranscribingOverall to true to test stopOverallTranscription call
     transcriberStore.set({ isTranscribingOverall: true });
 
@@ -159,7 +161,7 @@ describe('MediaArea.svelte', () => {
 
     expect(clearIntervalSpy).toHaveBeenCalled();
     expect(stopOverallTranscriptionMock).toHaveBeenCalled();
-    
+
     clearIntervalSpy.mockRestore();
   });
 
