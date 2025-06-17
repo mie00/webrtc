@@ -2,9 +2,110 @@ import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vite
 import { WebRTCApp } from './WebRTCApp';
 import { streamInit } from '../app/streamLifecycle';
 import { forwardInit } from '../app/forwardLifecycle';
-import { resetConnectionStore, getAllClientCids, getDirectClient } from '../stores/connectionStore';
+import {
+  resetConnectionStore,
+  getAllClientCids,
+  getDirectClient,
+  updateDirectClientState,
+  updateDirectClientFingerprint
+} from '../stores/connectionStore';
 import { resetAppStateStore, getAllCleanups } from '../stores/appStateStore';
 import { resetCidKeyStore } from '../stores/cidKeyStore';
+
+// Mocks for WebRTCApp dependencies that are globally accessed or need to be defined early
+const mockDataChannel = {
+  send: vi.fn(),
+  close: vi.fn(),
+  onopen: null as (() => void) | null,
+  onmessage: null as ((event: MessageEvent) => void) | null,
+  onclose: null as (() => void) | null,
+  onerror: null as ((event: any) => void) | null,
+  readyState: 'open' as RTCDataChannelState
+};
+
+const mockPeerConnectionInstance = {
+  createDataChannel: vi.fn().mockReturnValue(mockDataChannel),
+  createOffer: vi.fn().mockResolvedValue({ type: 'offer', sdp: 'mockOfferSdp' }),
+  createAnswer: vi.fn().mockResolvedValue({ type: 'answer', sdp: 'mockAnswerSdp' }),
+  setLocalDescription: vi.fn().mockResolvedValue(undefined),
+  setRemoteDescription: vi.fn().mockResolvedValue(undefined),
+  close: vi.fn(),
+  restartIce: vi.fn(),
+  getStats: vi.fn().mockResolvedValue(new Map()),
+  onconnectionstatechange: null as (() => void) | null,
+  oniceconnectionstatechange: null as (() => void) | null,
+  onicecandidate: null as ((event: any) => void) | null,
+  onnegotiationneeded: null as (() => void) | null,
+  signalingState: 'stable' as RTCSignalingState,
+  connectionState: 'new' as RTCPeerConnectionState,
+  iceGatheringState: 'new' as RTCIceGatheringState,
+  iceConnectionState: 'new' as RTCIceConnectionState,
+  localDescription: null as RTCSessionDescriptionInit | null,
+  currentLocalDescription: null as RTCSessionDescriptionInit | null,
+  remoteDescription: null as RTCSessionDescriptionInit | null
+};
+
+global.RTCPeerConnection = vi.fn().mockImplementation(() => mockPeerConnectionInstance);
+
+global.crypto = {
+  ...global.crypto, // Preserve other crypto properties like getRandomValues if they exist
+  getRandomValues:
+    global.crypto?.getRandomValues ||
+    vi.fn().mockImplementation((arr: Uint8Array) => {
+      for (let i = 0; i < arr.length; i++) {
+        arr[i] = Math.floor(Math.random() * 256);
+      }
+      return arr;
+    }),
+  subtle: {
+    ...(global.crypto?.subtle || {}),
+    digest: vi.fn().mockImplementation(async (_algorithm, data) => {
+      const S = 'mockedhash_';
+      const textEncoder = new TextEncoder();
+      const dataArray = textEncoder.encode(S + new TextDecoder().decode(data as ArrayBuffer));
+      return dataArray.buffer;
+    })
+  }
+} as any;
+
+const mockDiffsElement = {
+  classList: {
+    remove: vi.fn(),
+    add: vi.fn()
+  },
+  appendChild: vi.fn(),
+  innerHTML: ''
+};
+
+global.document = {
+  ...(global.document || {}),
+  getElementById: vi.fn().mockImplementation((id) => {
+    if (id === 'diffs') {
+      return mockDiffsElement;
+    }
+    return null;
+  }),
+  createDocumentFragment: vi.fn(() => ({
+    appendChild: vi.fn()
+  })),
+  createElement: vi.fn((_tagName) => ({ // prefixed tagName with _
+    style: {},
+    appendChild: vi.fn()
+  }))
+} as any;
+
+global.setInterval = vi.fn(() => 12345 as unknown as NodeJS.Timeout);
+global.clearInterval = vi.fn();
+global.history = { ...(global.history || {}), replaceState: vi.fn() } as any;
+global.URLSearchParams = vi.fn().mockImplementation(() => ({
+  has: vi.fn().mockReturnValue(false),
+  get: vi.fn().mockReturnValue(null)
+})) as any;
+
+if (typeof TextEncoder === 'undefined') {
+  global.TextEncoder = require('util').TextEncoder;
+  global.TextDecoder = require('util').TextDecoder;
+}
 
 // Mock dependencies
 vi.mock('../app/streamLifecycle', () => ({
@@ -68,10 +169,7 @@ vi.mock('../stores/configStore', async () => {
       media: {},
       general: {}
     }),
-    // Assuming resetConfigStore might be part of actual and used elsewhere.
-    resetConfigStore: (actual as any).resetConfigStore
-      ? vi.fn((actual as any).resetConfigStore)
-      : vi.fn()
+    resetConfigStore: vi.fn() // Simplified mock
   };
 });
 
@@ -94,7 +192,7 @@ vi.mock('../media/transcriber', () => ({
 describe('WebRTCApp', () => {
   let webRTCApp: WebRTCApp;
 
-  beforeEach(() => {
+  beforeEach(async () => { // Made beforeEach async
     // Reset mocks before each test
     vi.clearAllMocks();
 
@@ -132,13 +230,13 @@ describe('WebRTCApp', () => {
     (global.document.createDocumentFragment as Mock).mockImplementation(() => ({
       appendChild: vi.fn()
     }));
-    (global.document.createElement as Mock).mockImplementation((tagName) => ({
+    (global.document.createElement as Mock).mockImplementation((_tagName) => ({ // prefixed tagName with _
       style: {},
       appendChild: vi.fn()
     }));
 
     // Reset crypto.subtle.digest mock if its behavior needs to be fresh for each test
-    (global.crypto.subtle.digest as Mock).mockImplementation(async (algorithm, data) => {
+    (global.crypto.subtle.digest as Mock).mockImplementation(async (_algorithm, data) => { // prefixed algorithm with _
       const S = 'mockedhash_';
       const textEncoder = new TextEncoder();
       const dataArray = textEncoder.encode(S + new TextDecoder().decode(data as ArrayBuffer));
@@ -156,11 +254,10 @@ describe('WebRTCApp', () => {
     resetConnectionStore();
     resetAppStateStore();
     resetCidKeyStore();
-    // Potentially reset configStore if it has a reset function and is stateful
+
+    // Reset configStore mock
     const configStoreMock = await vi.importMock('../stores/configStore');
-    if (configStoreMock.resetConfigStore) {
-      configStoreMock.resetConfigStore();
-    }
+    (configStoreMock.resetConfigStore as Mock)(); // Call the simplified mock
     (configStoreMock.getAllConfig as Mock).mockReturnValue({
       // Ensure it's reset to default
       rtc: {
@@ -499,13 +596,19 @@ describe('WebRTCApp', () => {
     });
 
     it('should return fallback emojis if crypto.subtle is not available', async () => {
-      const originalSubtle = global.crypto.subtle;
-      (global.crypto as any).subtle = undefined; // Simulate crypto.subtle not being available
+      const originalCrypto = global.crypto;
+      // Simulate crypto.subtle not being available by replacing the global.crypto object temporarily
+      global.crypto = {
+        ...originalCrypto,
+        subtle: undefined as any // Set subtle to undefined
+      };
+
       webRTCApp = new WebRTCApp();
       const digest = 'testdigest_no_subtle';
       const emojis = await webRTCApp.genEmojis(digest);
       expect(emojis).toBe('❗❗❗❗❗❗❗❗');
-      global.crypto.subtle = originalSubtle; // Restore
+
+      global.crypto = originalCrypto; // Restore original crypto object
     });
   });
 
