@@ -171,7 +171,7 @@ describe('localStreamManager', () => {
     mockProcessAudio.mockResolvedValue({
       source: { mediaStream: mockMediaStream } as MediaStreamAudioSourceNode, // Made more specific
       analyser: {} as AnalyserNode,
-      gain: {} as GainNode,
+      gainNode: {} as GainNode, // Corrected: gain to gainNode
       scriptProcessor: {} as ScriptProcessorNode, // or AudioWorkletNode
       animationFrame: 0
     });
@@ -231,7 +231,7 @@ describe('localStreamManager', () => {
       const mockAudioNodes = {
         source: {} as AudioNode,
         analyser: {} as AnalyserNode,
-        gain: {} as GainNode,
+        gainNode: {} as GainNode, // Corrected: gain to gainNode
         scriptProcessor: {} as ScriptProcessorNode,
         animationFrame: 0
       };
@@ -282,7 +282,7 @@ describe('localStreamManager', () => {
       const mockAudioNodes = {
         source: {} as AudioNode,
         analyser: {} as AnalyserNode,
-        gain: {} as GainNode,
+        gainNode: {} as GainNode, // Corrected: gain to gainNode
         scriptProcessor: {} as ScriptProcessorNode,
         animationFrame: 0
       };
