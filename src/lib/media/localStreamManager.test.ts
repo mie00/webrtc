@@ -1,4 +1,9 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { writable, get as svelteGet, derived } from 'svelte/store'; // Import svelteGet
+import type { StreamState as ActualStreamStateType } from '../stores/streamStore'; // Import type for use in hoisted
+import * as streamUtils from './stream';
+import * as backgroundUtils from './background'; // Import backgroundUtils
+import * as streamLifecycle from '../app/streamLifecycle';
 import {
   setAudioCallback,
   enableAudio,
@@ -10,11 +15,6 @@ import {
   // enableFileStream, // TODO: Add tests and uncomment
   // disableFileStream, // TODO: Add tests and uncomment
 } from './localStreamManager';
-import { writable, get as svelteGet, derived } from 'svelte/store'; // Import svelteGet
-import type { StreamState as ActualStreamStateType } from '../stores/streamStore'; // Import type for use in hoisted
-import * as streamUtils from './stream';
-import * as backgroundUtils from './background'; // Import backgroundUtils
-import * as streamLifecycle from '../app/streamLifecycle';
 
 // --- Mock streamStore ---
 // Use vi.hoisted to ensure actualTestStreamStore is initialized before vi.mock factory runs
