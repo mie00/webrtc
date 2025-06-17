@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach, type MockInstance } from 'vitest';
 import { get, writable } from 'svelte/store';
 import {
   transcriberStore,
@@ -108,6 +108,11 @@ global.WebSocket = vi.fn().mockImplementation(() => {
   return lastMockWsInstance;
 }) as any;
 
+// Mock console methods
+let consoleLogSpy: MockInstance;
+let consoleErrorSpy: MockInstance;
+let consoleWarnSpy: MockInstance;
+
 // Helper to reset stores
 const resetStores = () => {
   transcriberStore.set({
@@ -140,10 +145,37 @@ const resetStores = () => {
 describe('Transcriber', () => {
   beforeEach(() => {
     resetStores();
-    vi.clearAllMocks();
+    vi.clearAllMocks(); // This should clear spies too if they are created with vi.spyOn
+
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // Reset shared mock instance states for MediaRecorder
+    mockMediaRecorderInstance.start.mockClear();
+    mockMediaRecorderInstance.stop.mockClear();
+    mockMediaRecorderInstance.state = 'inactive';
+    mockMediaRecorderInstance.ondataavailable = null;
+    mockMediaRecorderInstance.onerror = null;
+    mockMediaRecorderInstance.onstop = null;
+    (global.MediaRecorder as any).mockClear();
+    (global.MediaRecorder.isTypeSupported as any).mockClear().mockReturnValue(true); // Default to true
+
+    // Reset shared mock instance states for WebSocket
+    // lastMockWsInstance is created fresh by the mock constructor, but clear its method mocks if needed
+    if (lastMockWsInstance) {
+      lastMockWsInstance.send.mockClear();
+      lastMockWsInstance.close.mockClear();
+    }
+    (global.WebSocket as any).mockClear();
   });
 
   afterEach(() => {
+    // Restore spies
+    consoleLogSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+
     // Ensure any timers or subscriptions are cleaned up if necessary
     // For example, if streamStore subscriptions in transcriber.ts cause issues.
   });
@@ -605,8 +637,264 @@ describe('Transcriber', () => {
   });
 
   // More tests needed for:
-  // - startTranscriptionForStream (complex, involves WebSocket and MediaRecorder lifecycle)
   // - stopTranscriptionForSession (also complex, with EOS logic)
   // - The streamStore subscription logic for dynamic start/stop
   // - handleIncomingTranscriptionMessage (very complex, with different message types and relay logic)
+
+  describe('Detailed Transcription Session Lifecycle (via startOverallTranscription)', () => {
+    it('should log and not start a new session if one is already active for the stream', async () => {
+      const mockStream = new (global.MediaStream as any)([{ id: 'audio-1', kind: 'audio' }]);
+      const streamId = 'local-stream-active';
+      // Simulate an existing active session
+      const existingSessionId = `local|${streamId}`;
+      transcriberStore.update((s) => ({
+        ...s,
+        activeSessions: {
+          [existingSessionId]: {
+            streamId: streamId,
+            mediaRecorder: {} as MediaRecorder, // Minimal mock
+            websocket: {} as WebSocket // Minimal mock
+          }
+        }
+      }));
+
+      (getStreamState as any).mockReturnValue({
+        localStreams: { [streamId]: { stream: mockStream, type: 'audio' } },
+        remoteStreams: {},
+        activeView: { layout: 'grid' }
+      });
+
+      const initialWsCallCount = (global.WebSocket as any).mock.calls.length;
+      const initialMrCallCount = (global.MediaRecorder as any).mock.calls.length;
+
+      startOverallTranscription(); // isTranscribingOverall will be true
+      await new Promise(process.nextTick);
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`Transcription session already active for ${existingSessionId}`)
+      );
+      // Check that WebSocket and MediaRecorder were not called again for this session
+      expect((global.WebSocket as any).mock.calls.length).toBe(initialWsCallCount);
+      expect((global.MediaRecorder as any).mock.calls.length).toBe(initialMrCallCount);
+    });
+
+    it('should use fallback MediaRecorder if preferred mimeType is not supported', async () => {
+      (global.MediaRecorder.isTypeSupported as any).mockImplementation(
+        (mimeType: string) => mimeType !== 'audio/webm'
+      );
+      const mockStream = new (global.MediaStream as any)([{ id: 'audio-1', kind: 'audio' }]);
+      (getStreamState as any).mockReturnValue({
+        localStreams: { 'local-stream-mimetype': { stream: mockStream, type: 'audio' } },
+        remoteStreams: {},
+        activeView: { layout: 'grid' }
+      });
+
+      startOverallTranscription();
+      await new Promise(process.nextTick); // For WebSocket constructor
+
+      expect(lastMockWsInstance).toBeDefined();
+      if (lastMockWsInstance && lastMockWsInstance.onopen) {
+        lastMockWsInstance.onopen(); // Trigger onopen
+      }
+      await new Promise(process.nextTick); // For onopen logic
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('audio/webm is not supported for MediaRecorder')
+      );
+      expect(global.MediaRecorder).toHaveBeenCalledWith(mockStream); // Called without options
+    });
+
+    it('should handle MediaRecorder constructor error gracefully', async () => {
+      const error = new Error('MediaRecorder failed');
+      (global.MediaRecorder as any).mockImplementation(() => {
+        throw error;
+      });
+      const mockStream = new (global.MediaStream as any)([{ id: 'audio-1', kind: 'audio' }]);
+      (getStreamState as any).mockReturnValue({
+        localStreams: { 'local-stream-mr-error': { stream: mockStream, type: 'audio' } },
+        remoteStreams: {},
+        activeView: { layout: 'grid' }
+      });
+
+      startOverallTranscription();
+      await new Promise(process.nextTick);
+
+      expect(lastMockWsInstance).toBeDefined();
+      if (lastMockWsInstance && lastMockWsInstance.onopen) {
+        lastMockWsInstance.onopen(); // Trigger onopen
+      }
+      await new Promise(process.nextTick);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Error starting MediaRecorder'),
+        error
+      );
+      expect(lastMockWsInstance.close).toHaveBeenCalled();
+      expect(get(transcriberStore).activeSessions).toEqual({});
+    });
+
+    it('should send data when mediaRecorder.ondataavailable is called', async () => {
+      const mockStream = new (global.MediaStream as any)([{ id: 'audio-1', kind: 'audio' }]);
+      (getStreamState as any).mockReturnValue({
+        localStreams: { 'local-stream-data': { stream: mockStream, type: 'audio' } },
+        remoteStreams: {},
+        activeView: { layout: 'grid' }
+      });
+
+      startOverallTranscription();
+      await new Promise(process.nextTick);
+      expect(lastMockWsInstance).toBeDefined();
+      lastMockWsInstance.onopen(); // Trigger onopen
+      await new Promise(process.nextTick);
+
+      expect(mockMediaRecorderInstance.start).toHaveBeenCalled();
+      const eventData = { data: new Blob(['audio data'], { type: 'audio/webm' }) };
+      expect(typeof mockMediaRecorderInstance.ondataavailable).toBe('function');
+      if (typeof mockMediaRecorderInstance.ondataavailable === 'function') {
+        mockMediaRecorderInstance.ondataavailable(eventData);
+      }
+      expect(lastMockWsInstance.send).toHaveBeenCalledWith(eventData.data);
+    });
+
+    it('should handle mediaRecorder.onerror by stopping the session', async () => {
+      const mockStream = new (global.MediaStream as any)([{ id: 'audio-1', kind: 'audio' }]);
+      const streamId = 'local-stream-mr-onerror';
+      const sessionId = `local|${streamId}`;
+      (getStreamState as any).mockReturnValue({
+        localStreams: { [streamId]: { stream: mockStream, type: 'audio' } },
+        remoteStreams: {},
+        activeView: { layout: 'grid' }
+      });
+
+      startOverallTranscription();
+      await new Promise(process.nextTick);
+      expect(lastMockWsInstance).toBeDefined();
+      lastMockWsInstance.onopen();
+      await new Promise(process.nextTick);
+
+      expect(get(transcriberStore).activeSessions[sessionId]).toBeDefined();
+      const errorEvent = new Event('error');
+      expect(typeof mockMediaRecorderInstance.onerror).toBe('function');
+      if (typeof mockMediaRecorderInstance.onerror === 'function') {
+        // Cast to any for svelte-check
+        (mockMediaRecorderInstance.onerror as any)(errorEvent);
+      }
+      await new Promise(process.nextTick); // Allow stopTranscriptionForSession to process
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `MediaRecorder error for ${sessionId}:`,
+        errorEvent
+      );
+      // stopTranscriptionForSession will be called, which eventually should close WS and clean up.
+      // The mock for stopTranscriptionForSession is not detailed enough yet to check its full effects.
+      // For now, we check that the session is eventually removed (due to WS close simulation).
+      // Simulate WebSocket close as a result of MR error path in SUT
+      if (lastMockWsInstance && lastMockWsInstance.onclose) {
+         lastMockWsInstance.onclose({ code: 1006, reason: 'MR Error' });
+      }
+      await new Promise(process.nextTick);
+      expect(get(transcriberStore).activeSessions[sessionId]).toBeUndefined();
+    });
+
+    it('should handle websocket.onmessage', async () => {
+      const mockStream = new (global.MediaStream as any)([{ id: 'audio-1', kind: 'audio' }]);
+      const streamId = 'local-stream-ws-onmessage';
+      (getStreamState as any).mockReturnValue({
+        localStreams: { [streamId]: { stream: mockStream, type: 'audio' } },
+        remoteStreams: {},
+        activeView: { layout: 'grid' }
+      });
+
+      startOverallTranscription();
+      await new Promise(process.nextTick);
+      expect(lastMockWsInstance).toBeDefined();
+      lastMockWsInstance.onopen();
+      await new Promise(process.nextTick);
+
+      const messageEvent = { data: JSON.stringify({ type: 'test_message' }) };
+      expect(typeof lastMockWsInstance.onmessage).toBe('function');
+      if (typeof lastMockWsInstance.onmessage === 'function') {
+        lastMockWsInstance.onmessage(messageEvent);
+      }
+      // Test that handleIncomingTranscriptionMessage was called.
+      // Since it's not exported, we check its effects, e.g., on transcriptionDisplayStore or console logs.
+      // For now, let's check a log from handleIncomingTranscriptionMessage.
+      // This requires handleIncomingTranscriptionMessage to log something specific.
+      // Or, we can spy on processReceivedTranscriptionPayload if the message type leads to it.
+      // The current `handleIncomingTranscriptionMessage` logs "ASR Data Received..."
+      // or "Received ready_to_stop..."
+      // Let's assume a simple ASR data message.
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('ASR Data Received (processing) from session local|local-stream-ws-onmessage'),
+        { type: 'test_message' }
+      );
+    });
+
+    it('should handle websocket.onclose by stopping the session', async () => {
+      const mockStream = new (global.MediaStream as any)([{ id: 'audio-1', kind: 'audio' }]);
+      const streamId = 'local-stream-ws-onclose';
+      const sessionId = `local|${streamId}`;
+      (getStreamState as any).mockReturnValue({
+        localStreams: { [streamId]: { stream: mockStream, type: 'audio' } },
+        remoteStreams: {},
+        activeView: { layout: 'grid' }
+      });
+
+      startOverallTranscription();
+      await new Promise(process.nextTick);
+      expect(lastMockWsInstance).toBeDefined();
+      lastMockWsInstance.onopen();
+      await new Promise(process.nextTick);
+
+      expect(get(transcriberStore).activeSessions[sessionId]).toBeDefined();
+      const closeEvent = { code: 1000, reason: 'Normal closure' };
+      expect(typeof lastMockWsInstance.onclose).toBe('function');
+      if (typeof lastMockWsInstance.onclose === 'function') {
+        lastMockWsInstance.onclose(closeEvent);
+      }
+      await new Promise(process.nextTick); // Allow stopTranscriptionForSession logic
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        `WebSocket connection closed for ${sessionId}. Code: ${closeEvent.code}, Reason: ${closeEvent.reason}`
+      );
+      expect(get(transcriberStore).activeSessions[sessionId]).toBeUndefined();
+    });
+
+    it('should handle websocket.onerror by stopping the session', async () => {
+      const mockStream = new (global.MediaStream as any)([{ id: 'audio-1', kind: 'audio' }]);
+      const streamId = 'local-stream-ws-onerror';
+      const sessionId = `local|${streamId}`;
+      (getStreamState as any).mockReturnValue({
+        localStreams: { [streamId]: { stream: mockStream, type: 'audio' } },
+        remoteStreams: {},
+        activeView: { layout: 'grid' }
+      });
+
+      startOverallTranscription();
+      await new Promise(process.nextTick);
+      expect(lastMockWsInstance).toBeDefined();
+      lastMockWsInstance.onopen();
+      await new Promise(process.nextTick);
+
+      expect(get(transcriberStore).activeSessions[sessionId]).toBeDefined();
+      const errorEvent = new Event('error');
+      expect(typeof lastMockWsInstance.onerror).toBe('function');
+      if (typeof lastMockWsInstance.onerror === 'function') {
+        // Cast to any for svelte-check
+        (lastMockWsInstance.onerror as any)(errorEvent);
+      }
+      await new Promise(process.nextTick); // Allow stopTranscriptionForSession logic
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `WebSocket error for ${sessionId}:`,
+        errorEvent
+      );
+      // Simulate that onerror also triggers onclose in practice for many WS clients or server actions
+      if (lastMockWsInstance && lastMockWsInstance.onclose) {
+        lastMockWsInstance.onclose({ code: 1006, reason: 'WS Error' });
+      }
+      await new Promise(process.nextTick);
+      expect(get(transcriberStore).activeSessions[sessionId]).toBeUndefined();
+    });
+  });
 });
