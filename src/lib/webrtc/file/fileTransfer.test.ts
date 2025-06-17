@@ -17,8 +17,7 @@ vi.mock('../../utils/fileUtils');
 const mockCreateObjectURL = vi.fn();
 global.URL.createObjectURL = mockCreateObjectURL;
 
-// Mock Math.random for predictable transfer IDs
-vi.spyOn(Math, 'random').mockReturnValue(0.123456789); // Ensures transferId is '1f9add3f0c9a5'
+// Mock Math.random will be set in beforeEach
 
 class MockRTCDataChannel {
   label: string;
@@ -77,6 +76,9 @@ describe('fileTransfer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    // Mock Math.random for predictable transfer IDs - moved here
+    vi.spyOn(Math, 'random').mockReturnValue(0.123456789); // Ensures transferId is 'f9add3f0c9a5'
+
     mockDcFile = new MockRTCDataChannel('file', { negotiated: true, id: 2 });
     mockClient = {
       pc: new MockRTCPeerConnection(),
@@ -112,7 +114,7 @@ describe('fileTransfer', () => {
       mockDcFile.simulateMessage(JSON.stringify(metadata));
 
       expect(addFileTransfer).toHaveBeenCalledWith({
-        id: '1f9add3f0c9a5', // Based on Math.random mock
+        id: 'f9add3f0c9a5', // Based on Math.random mock
         name: 'test.txt',
         type: 'text/plain',
         size: 100,
@@ -125,7 +127,7 @@ describe('fileTransfer', () => {
         fileName: 'test.txt',
         fileType: 'text/plain',
         fileSize: 100,
-        transferId: '1f9add3f0c9a5',
+        transferId: 'f9add3f0c9a5',
         senderCid: 'client-1',
         receiverCid: '',
         chunks: [],
@@ -141,7 +143,7 @@ describe('fileTransfer', () => {
       const chunk = new ArrayBuffer(50);
       mockDcFile.simulateMessage(chunk);
 
-      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3f0c9a5', {
+      expect(updateFileTransfer).toHaveBeenCalledWith('f9add3f0c9a5', {
         progress: 50, // 50 / 100 * 100
         status: 'receiving'
       });
@@ -156,14 +158,14 @@ describe('fileTransfer', () => {
 
       const chunk1 = new ArrayBuffer(50);
       mockDcFile.simulateMessage(chunk1);
-      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3f0c9a5', {
+      expect(updateFileTransfer).toHaveBeenCalledWith('f9add3f0c9a5', {
         progress: 50,
         status: 'receiving'
       });
 
       const chunk2 = new ArrayBuffer(50);
       mockDcFile.simulateMessage(chunk2);
-      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3f0c9a5', {
+      expect(updateFileTransfer).toHaveBeenCalledWith('f9add3f0c9a5', {
         progress: 100,
         status: 'complete',
         url: 'blob:mock-url'
@@ -187,7 +189,7 @@ describe('fileTransfer', () => {
       );
 
       // The update for completion happens in the same metadata handling block
-      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3f0c9a5', {
+      expect(updateFileTransfer).toHaveBeenCalledWith('f9add3f0c9a5', {
         progress: 100,
         status: 'complete',
         url: 'blob:mock-url' // URL.createObjectURL is called with new Blob([])
@@ -308,7 +310,7 @@ describe('fileTransfer', () => {
       await sendFile(mockFile);
 
       expect(addFileTransfer).toHaveBeenCalledWith({
-        id: '1f9add3f0c9a5',
+        id: 'f9add3f0c9a5',
         name: mockFile.name,
         type: mockFile.type,
         size: mockFile.size,
@@ -325,7 +327,7 @@ describe('fileTransfer', () => {
       // Check if data chunk was sent (splitArrayBuffer mock returns the whole buffer as one chunk)
       expect(mockClient.dc_file.send).toHaveBeenCalledWith(mockReaderInstance.result);
 
-      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3f0c9a5', {
+      expect(updateFileTransfer).toHaveBeenCalledWith('f9add3f0c9a5', {
         progress: 100,
         status: 'complete'
       });
@@ -337,7 +339,7 @@ describe('fileTransfer', () => {
       await sendFile(mockFile);
 
       expect(addFileTransfer).toHaveBeenCalled(); // Still adds the transfer initially
-      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3f0c9a5', {
+      expect(updateFileTransfer).toHaveBeenCalledWith('f9add3f0c9a5', {
         status: 'error',
         error: 'No connected clients with file channel.'
       });
@@ -367,7 +369,7 @@ describe('fileTransfer', () => {
       await sendFile(mockFile);
 
       expect(addFileTransfer).toHaveBeenCalled();
-      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3f0c9a5', {
+      expect(updateFileTransfer).toHaveBeenCalledWith('f9add3f0c9a5', {
         status: 'error',
         error: expect.stringContaining('Failed for 1 client(s): FileReader failed')
       });
@@ -451,34 +453,27 @@ describe('fileTransfer', () => {
         return chunks;
       });
 
-      // Mock addEventListener for 'bufferedamountlow'
-      let bufferedAmountLowCallback: (() => void) | null = null;
-      mockClient.dc_file.addEventListener.mockImplementation((event: string, cb: () => void) => {
-        if (event === 'bufferedamountlow') {
-          bufferedAmountLowCallback = cb;
-        }
-      });
-
-      // Simulate buffer draining
-      mockClient.dc_file.send.mockImplementation(() => {
-        // If bufferedAmountLowCallback is set (meaning we are waiting), simulate it being called
-        if (
-          bufferedAmountLowCallback &&
-          mockClient.dc_file.bufferedAmount > (0.125 * 1024 * 1024) / 2
-        ) {
-          // This is a simplification. In reality, send would increase bufferedAmount.
-          // Then, after some time, the browser would decrease it and fire 'bufferedamountlow'.
-          // For the test, we'll assume send happens, then we manually trigger the drain.
-
-          // Let's simulate the buffer decreasing and the event firing
-          Promise.resolve().then(() => {
-            // Ensure this runs after the current microtask
-            if (bufferedAmountLowCallback) {
+      // Mock addEventListener for 'bufferedamountlow' to simulate buffer draining
+      mockClient.dc_file.addEventListener.mockImplementation(
+        (event: string, cb: () => void) => {
+          if (event === 'bufferedamountlow') {
+            // Simulate the drain and event firing asynchronously
+            setTimeout(() => {
               mockClient.dc_file.bufferedAmount = 0; // Simulate drained buffer
-              bufferedAmountLowCallback();
-              bufferedAmountLowCallback = null; // Event listener is removed
-            }
-          });
+              cb(); // Call the listener passed to addEventListener
+            }, 0); // Use setTimeout with 0 to yield execution then run
+          }
+        }
+      );
+
+      // Simulate send increasing the buffered amount
+      mockClient.dc_file.send.mockImplementation((data: ArrayBuffer | Blob | string) => {
+        if (data instanceof ArrayBuffer) {
+          mockClient.dc_file.bufferedAmount += data.byteLength;
+        } else if (data instanceof Blob) {
+          mockClient.dc_file.bufferedAmount += data.size;
+        } else if (typeof data === 'string') {
+          mockClient.dc_file.bufferedAmount += new TextEncoder().encode(data).byteLength;
         }
       });
 
