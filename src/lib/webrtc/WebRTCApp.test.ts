@@ -88,7 +88,8 @@ global.document = {
   createDocumentFragment: vi.fn(() => ({
     appendChild: vi.fn()
   })),
-  createElement: vi.fn((_tagName) => ({ // prefixed tagName with _
+  createElement: vi.fn((_tagName) => ({
+    // prefixed tagName with _
     style: {},
     appendChild: vi.fn()
   }))
@@ -192,7 +193,8 @@ vi.mock('../media/transcriber', () => ({
 describe('WebRTCApp', () => {
   let webRTCApp: WebRTCApp;
 
-  beforeEach(async () => { // Made beforeEach async
+  beforeEach(async () => {
+    // Made beforeEach async
     // Reset mocks before each test
     vi.clearAllMocks();
 
@@ -230,13 +232,15 @@ describe('WebRTCApp', () => {
     (global.document.createDocumentFragment as Mock).mockImplementation(() => ({
       appendChild: vi.fn()
     }));
-    (global.document.createElement as Mock).mockImplementation((_tagName) => ({ // prefixed tagName with _
+    (global.document.createElement as Mock).mockImplementation((_tagName) => ({
+      // prefixed tagName with _
       style: {},
       appendChild: vi.fn()
     }));
 
     // Reset crypto.subtle.digest mock if its behavior needs to be fresh for each test
-    (global.crypto.subtle.digest as Mock).mockImplementation(async (_algorithm, data) => { // prefixed algorithm with _
+    (global.crypto.subtle.digest as Mock).mockImplementation(async (_algorithm, data) => {
+      // prefixed algorithm with _
       const S = 'mockedhash_';
       const textEncoder = new TextEncoder();
       const dataArray = textEncoder.encode(S + new TextDecoder().decode(data as ArrayBuffer));
