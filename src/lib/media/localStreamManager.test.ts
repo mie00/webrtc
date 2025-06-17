@@ -16,33 +16,37 @@ import * as backgroundUtils from './background'; // Import backgroundUtils
 import * as streamLifecycle from '../app/streamLifecycle';
 
 // --- Mock streamStore ---
-const actualTestStreamStore = writable<streamStore.StreamState>({
-  localStreams: {},
-  remoteStreams: {},
-  activeView: { layout: 'grid' }
+// Use vi.hoisted to ensure actualTestStreamStore is initialized before vi.mock factory runs
+const hoistedStore = vi.hoisted(() => {
+  const store = writable<streamStore.StreamState>({
+    localStreams: {},
+    remoteStreams: {},
+    activeView: { layout: 'grid' }
+  });
+  return { actualTestStreamStore: store };
 });
 
 vi.mock('../stores/streamStore', async () => {
   const original = await vi.importActual<typeof streamStore>('../stores/streamStore');
   return {
     ...original,
-    streamStore: actualTestStreamStore, // Provide our actual store
+    streamStore: hoistedStore.actualTestStreamStore, // Provide our actual store
     // Re-create derived stores based on actualTestStreamStore
-    isAudioEnabled: derived(actualTestStreamStore, ($s) =>
+    isAudioEnabled: derived(hoistedStore.actualTestStreamStore, ($s) =>
       Object.values($s.localStreams).some((stream) => stream.type === 'audio')
     ),
-    isCameraEnabled: derived(actualTestStreamStore, ($s) =>
+    isCameraEnabled: derived(hoistedStore.actualTestStreamStore, ($s) =>
       Object.values($s.localStreams).some(
         (stream) => stream.type === 'camera' || stream.type === 'blurred'
       )
     ),
-    isScreenSharingEnabled: derived(actualTestStreamStore, ($s) =>
+    isScreenSharingEnabled: derived(hoistedStore.actualTestStreamStore, ($s) =>
       Object.values($s.localStreams).some((stream) => stream.type === 'screen')
     ),
-    isFileStreamEnabled: derived(actualTestStreamStore, ($s) =>
+    isFileStreamEnabled: derived(hoistedStore.actualTestStreamStore, ($s) =>
       Object.values($s.localStreams).some((stream) => stream.type === 'file')
     ),
-    isBlurredStreamEnabled: derived(actualTestStreamStore, ($s) =>
+    isBlurredStreamEnabled: derived(hoistedStore.actualTestStreamStore, ($s) =>
       Object.values($s.localStreams).some((stream) => stream.type === 'blurred')
     )
     // Helper functions like getLocalStreamsByType will use the mocked streamStore via getStreamState
@@ -216,7 +220,7 @@ describe('localStreamManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset actualTestStreamStore to initial state for each test
-    actualTestStreamStore.set({
+    hoistedStore.actualTestStreamStore.set({
       localStreams: {},
       remoteStreams: {},
       activeView: { layout: 'grid' }
@@ -355,7 +359,7 @@ describe('localStreamManager', () => {
       );
 
       expect(
-        Object.values(svelteGet(actualTestStreamStore).localStreams).filter(
+        Object.values(svelteGet(hoistedStore.actualTestStreamStore).localStreams).filter(
           (s) => s.type === 'audio'
         ).length
       ).toBe(2);
@@ -399,7 +403,7 @@ describe('localStreamManager', () => {
         'audio-all-2'
       );
       expect(
-        Object.values(svelteGet(actualTestStreamStore).localStreams).filter(
+        Object.values(svelteGet(hoistedStore.actualTestStreamStore).localStreams).filter(
           (s) => s.type === 'audio'
         ).length
       ).toBe(2);
@@ -413,7 +417,7 @@ describe('localStreamManager', () => {
       expect(mockRemoveAudioProcessingContext).toHaveBeenCalledTimes(2);
       expect(streamStore.removeLocalStream).toHaveBeenCalledTimes(2);
       expect(
-        Object.values(svelteGet(actualTestStreamStore).localStreams).filter(
+        Object.values(svelteGet(hoistedStore.actualTestStreamStore).localStreams).filter(
           (s) => s.type === 'audio'
         ).length
       ).toBe(0);
@@ -577,7 +581,7 @@ describe('localStreamManager', () => {
       expect(streamStore.removeLocalStream).toHaveBeenCalledTimes(3);
       expect(mockTearDownStream).toHaveBeenCalledTimes(3);
       expect(
-        Object.values(svelteGet(actualTestStreamStore).localStreams).filter(
+        Object.values(svelteGet(hoistedStore.actualTestStreamStore).localStreams).filter(
           (s) => s.type === 'camera' || s.type === 'blurred'
         ).length
       ).toBe(0);
