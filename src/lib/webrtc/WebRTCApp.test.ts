@@ -53,6 +53,26 @@ vi.mock('../stores/appStateStore', async () => {
   };
 });
 
+vi.mock('../stores/configStore', async () => {
+  const actual = await vi.importActual('../stores/configStore');
+  return {
+    ...actual,
+    getAllConfig: vi.fn().mockReturnValue({
+      rtc: {
+        stunServers: 'stun:stun.l.google.com:19302',
+        turnServerV2: '',
+        turnUsername: '',
+        turnPassword: ''
+      },
+      profile: { userName: 'TestUser' },
+      media: {},
+      general: {}
+    }),
+    // Assuming resetConfigStore might be part of actual and used elsewhere.
+    resetConfigStore: (actual as any).resetConfigStore ? vi.fn((actual as any).resetConfigStore) : vi.fn()
+  };
+});
+
 vi.mock('./stream/trackHandler', () => ({
   setupTrackHandler: vi.fn()
 }));
