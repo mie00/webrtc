@@ -15,16 +15,20 @@ import { transcriberStore, type TranscriptionDisplayStoreState } from '../lib/me
 import { writable } from 'svelte/store';
 
 // Hoist store creations for mocks
-const hoistedRecorderStore = vi.hoisted(() => writable({ isRecording: false, recordings: [] }));
-const hoistedTranscriberStore = vi.hoisted(() =>
-  writable({
+const hoistedRecorderStore = vi.hoisted(async () => {
+  const { writable } = await import('svelte/store');
+  return writable({ isRecording: false, recordings: [] });
+});
+const hoistedTranscriberStore = vi.hoisted(async () => {
+  const { writable } = await import('svelte/store');
+  return writable({
     segments: [],
     activeBuffers: {},
     lastTextBySpeaker: {},
     isTranscribingOverall: false,
     activeSessions: {}
-  })
-);
+  });
+});
 
 // Mocks for external dependencies
 vi.mock('../lib/media/stream', () => ({
