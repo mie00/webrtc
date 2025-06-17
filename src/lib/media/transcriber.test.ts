@@ -790,7 +790,7 @@ describe('Transcriber', () => {
       // For now, we check that the session is eventually removed (due to WS close simulation).
       // Simulate WebSocket close as a result of MR error path in SUT
       if (lastMockWsInstance && lastMockWsInstance.onclose) {
-         lastMockWsInstance.onclose({ code: 1006, reason: 'MR Error' });
+        lastMockWsInstance.onclose({ code: 1006, reason: 'MR Error' });
       }
       await new Promise(process.nextTick);
       expect(get(transcriberStore).activeSessions[sessionId]).toBeUndefined();
@@ -825,7 +825,9 @@ describe('Transcriber', () => {
       // or "Received ready_to_stop..."
       // Let's assume a simple ASR data message.
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('ASR Data Received (processing) from session local|local-stream-ws-onmessage'),
+        expect.stringContaining(
+          'ASR Data Received (processing) from session local|local-stream-ws-onmessage'
+        ),
         { type: 'test_message' }
       );
     });
@@ -885,10 +887,7 @@ describe('Transcriber', () => {
       }
       await new Promise(process.nextTick); // Allow stopTranscriptionForSession logic
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        `WebSocket error for ${sessionId}:`,
-        errorEvent
-      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(`WebSocket error for ${sessionId}:`, errorEvent);
       // Simulate that onerror also triggers onclose in practice for many WS clients or server actions
       if (lastMockWsInstance && lastMockWsInstance.onclose) {
         lastMockWsInstance.onclose({ code: 1006, reason: 'WS Error' });
