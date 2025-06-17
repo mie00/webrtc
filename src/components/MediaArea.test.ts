@@ -15,9 +15,7 @@ import { transcriberStore, type TranscriptionDisplayStoreState } from '../lib/me
 import { writable } from 'svelte/store';
 
 // Hoist store creations for mocks
-const hoistedRecorderStore = vi.hoisted(() =>
-  writable({ isRecording: false, recordings: [] })
-);
+const hoistedRecorderStore = vi.hoisted(() => writable({ isRecording: false, recordings: [] }));
 const hoistedTranscriberStore = vi.hoisted(() =>
   writable({
     segments: [],
