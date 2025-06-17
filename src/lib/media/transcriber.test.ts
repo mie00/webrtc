@@ -86,7 +86,7 @@ const mockMediaRecorderInstance = {
   stop: vi.fn(),
   ondataavailable: null,
   onerror: null,
-  onstop: null as (((this: MediaRecorder, ev: Event) => any) | null), // Refined type
+  onstop: null as ((this: MediaRecorder, ev: Event) => any) | null, // Refined type
   state: 'inactive',
   mimeType: 'audio/webm',
   stream: new (global.MediaStream as any)() // Add a mock stream property
