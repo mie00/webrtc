@@ -100,18 +100,16 @@ describe('MediaArea.svelte', () => {
   };
 
   const mockProfileConfig: ProfileConfig = {
-    userName: 'TestUser',
-    userColor: '#FF00FF', // Default value satisfying ProfileConfig
-    userEmoji: '🧪' // Default value satisfying ProfileConfig
+    userName: 'TestUser'
+    // userColor and userEmoji are not in ProfileConfig as per the error
   };
 
   const mockRtcConfig: RtcConfig = {
-    iceServers: [], // Must be of type RTCIceServer[]
-    iceTransportPolicy: 'all', // Must be of type RTCIceTransportPolicy
+    // iceServers and iceTransportPolicy are not in RtcConfig as per the error
     stunServers: '',
     turnServerV2: '',
     turnUsername: '',
-    turnPassword: '' // turnPassword is optional in RtcConfig, empty string is fine
+    turnPassword: ''
   };
 
   const mockConfigStore: Config = {
