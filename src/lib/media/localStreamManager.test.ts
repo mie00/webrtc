@@ -10,39 +10,87 @@ import {
   // enableFileStream, // TODO: Add tests and uncomment
   // disableFileStream, // TODO: Add tests and uncomment
 } from './localStreamManager';
-import * as streamStore from '../stores/streamStore';
-import { get } from 'svelte/store';
-import * as configStoreModule from '../stores/configStore';
-// import * as localFileStreamStoreModule from '../stores/localFileStreamStore'; // TODO: Add tests and uncomment
+import { writable, get as svelteGet, derived } from 'svelte/store'; // Import svelteGet
 import * as streamUtils from './stream';
 import * as backgroundUtils from './background'; // Import backgroundUtils
 import * as streamLifecycle from '../app/streamLifecycle';
 
-// Mock dependencies
-vi.mock('../stores/streamStore');
-vi.mock('../stores/configStore');
-vi.mock('../stores/localFileStreamStore'); // Keep mock even if module import is commented, for other spies
+// --- Mock streamStore ---
+const actualTestStreamStore = writable<streamStore.StreamState>({
+  localStreams: {},
+  remoteStreams: {},
+  activeView: { layout: 'grid' }
+});
+
+vi.mock('../stores/streamStore', async () => {
+  const original = await vi.importActual<typeof streamStore>('../stores/streamStore');
+  return {
+    ...original,
+    streamStore: actualTestStreamStore, // Provide our actual store
+    // Re-create derived stores based on actualTestStreamStore
+    isAudioEnabled: derived(actualTestStreamStore, ($s) =>
+      Object.values($s.localStreams).some((stream) => stream.type === 'audio')
+    ),
+    isCameraEnabled: derived(actualTestStreamStore, ($s) =>
+      Object.values($s.localStreams).some((stream) => stream.type === 'camera' || stream.type === 'blurred')
+    ),
+    isScreenSharingEnabled: derived(actualTestStreamStore, ($s) =>
+      Object.values($s.localStreams).some((stream) => stream.type === 'screen')
+    ),
+    isFileStreamEnabled: derived(actualTestStreamStore, ($s) =>
+      Object.values($s.localStreams).some((stream) => stream.type === 'file')
+    ),
+    isBlurredStreamEnabled: derived(actualTestStreamStore, ($s) =>
+      Object.values($s.localStreams).some((stream) => stream.type === 'blurred')
+    )
+    // Helper functions like getLocalStreamsByType will use the mocked streamStore via getStreamState
+  };
+});
+// Import after mocking
+import * as streamStore from '../stores/streamStore';
+
+
+// --- Mock configStore ---
+const mockConfigStoreSubscribeFn = vi.fn(() => () => {}); // Returns an unsubscribe function
+const mockGetAllConfigFn = vi.fn();
+const mockUpdateConfigFn = vi.fn();
+const mockConfigStoreSetFn = vi.fn();
+const mockConfigStoreUpdateFn = vi.fn();
+const mockGetConfigValueFn = vi.fn();
+
+vi.mock('../stores/configStore', async () => {
+  const originalConfig = await vi.importActual<typeof import('../stores/configStore')>('../stores/configStore');
+  return {
+    ...originalConfig, // Keep other exports like defaultConfig if not directly problematic
+    configStore: {
+      subscribe: mockConfigStoreSubscribeFn,
+      set: mockConfigStoreSetFn,
+      update: mockConfigStoreUpdateFn
+    },
+    getAllConfig: mockGetAllConfigFn,
+    updateConfig: mockUpdateConfigFn,
+    getConfigValue: mockGetConfigValueFn,
+    // Mock derived stores from configStore as well
+    isServerMode: derived({ subscribe: vi.fn(() => () => {}) }, () => false), // Simple mock derived
+    rtcServers: derived({ subscribe: vi.fn(() => () => {}) }, () => ({ iceServers: [] })) // Simple mock derived
+  };
+});
+// Import after mocking
+import * as configStoreModule from '../stores/configStore';
+
+
+// --- Other Mocks ---
+vi.mock('../stores/localFileStreamStore');
 vi.mock('./stream');
-vi.mock('./background'); // Keep mock even if module import is commented
+vi.mock('./background');
 vi.mock('../app/streamLifecycle');
 
-// Spy on real implementations where possible, or use vi.mock for broader module mocking.
-// For streamStore, we often want to spy on its actual methods to verify calls.
-let mockGetLocalStreamsByType = vi.spyOn(streamStore, 'getLocalStreamsByType');
-let mockAddLocalStream = vi.spyOn(streamStore, 'addLocalStream');
-let mockRemoveLocalStream = vi.spyOn(streamStore, 'removeLocalStream');
-let mockUpdateLocalStreamProperties = vi.spyOn(streamStore, 'updateLocalStreamProperties');
-let mockGetIsAudioEnabled = vi.spyOn(streamStore, 'getIsAudioEnabled');
-let mockGetIsCameraEnabled = vi.spyOn(streamStore, 'getIsCameraEnabled');
-let mockGetLocalStreamByDeviceId = vi.spyOn(streamStore, 'getLocalStreamByDeviceId');
-let mockGetIsDeviceStreamActive = vi.spyOn(streamStore, 'getIsDeviceStreamActive');
 
-let mockGetAllConfig = vi.spyOn(configStoreModule, 'getAllConfig');
-const mockConfigStoreSubscribe = vi.fn();
-// @ts-expect-error - part of the mock
-configStoreModule.configStore = { subscribe: mockConfigStoreSubscribe };
-
-// const mockGetLocalFileStreamState = vi.spyOn(localFileStreamStoreModule, 'getLocalFileStreamState'); // TODO: Add tests and uncomment
+// Spies on functions from auto-mocked modules (or re-exported actual functions)
+const mockAddLocalStream = vi.spyOn(streamStore, 'addLocalStream');
+const mockRemoveLocalStream = vi.spyOn(streamStore, 'removeLocalStream');
+const mockUpdateLocalStreamProperties = vi.spyOn(streamStore, 'updateLocalStreamProperties');
+// No need to spy on getLocalStreamsByType, getIsAudioEnabled etc. if they correctly use actualTestStreamStore
 
 const mockProcessAudio = vi.spyOn(streamUtils, 'processAudio');
 const mockStopProcessingAudio = vi.spyOn(streamUtils, 'stopProcessingAudio');
@@ -157,43 +205,15 @@ global.document.createElement = vi.fn((tagName) => {
 describe('localStreamManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset streamStore to initial state for each test to ensure test isolation
-    streamStore.streamStore.set({
+    // Reset actualTestStreamStore to initial state for each test
+    actualTestStreamStore.set({
       localStreams: {},
       remoteStreams: {},
       activeView: { layout: 'grid' }
     });
 
-    // Mock implementations for streamStore helpers to reflect the actual store's state
-    mockGetLocalStreamsByType.mockImplementation((type) => {
-      const allStreams = get(streamStore.streamStore).localStreams;
-      return Object.fromEntries(
-        Object.entries(allStreams).filter(([, data]) => data.type === type)
-      );
-    });
-    mockGetLocalStreamByDeviceId.mockImplementation((type, deviceId) => {
-      const allStreams = get(streamStore.streamStore).localStreams;
-      const entry = Object.entries(allStreams).find(
-        ([, data]) => data.type === type && data.deviceId === deviceId
-      );
-      return entry || null;
-    });
-    mockGetIsDeviceStreamActive.mockImplementation((type, deviceId) => {
-      const allStreams = get(streamStore.streamStore).localStreams;
-      return Object.values(allStreams).some((s) => s.type === type && s.deviceId === deviceId);
-    });
-    mockGetIsAudioEnabled.mockImplementation(() => {
-      const state = get(streamStore.streamStore);
-      return Object.values(state.localStreams).some((stream) => stream.type === 'audio');
-    });
-    mockGetIsCameraEnabled.mockImplementation(() => {
-      const state = get(streamStore.streamStore);
-      return Object.values(state.localStreams).some(
-        (stream) => stream.type === 'camera' || stream.type === 'blurred'
-      );
-    });
-
-    mockGetAllConfig.mockReturnValue({
+    // Set default mock return value for getAllConfigFn
+    mockGetAllConfigFn.mockReturnValue({
       general: {
         configLoader: 'client',
         configHost: '',
@@ -243,13 +263,12 @@ describe('localStreamManager', () => {
 
   describe('enableAudio', () => {
     it('should request user media for default audio (<auto>) and add it to the store with its actual deviceId', async () => {
-      // Mock getSettings to return a deviceId for the <auto> case
       const actualAutoDeviceId = 'actual-auto-audio-device-id';
       mockAudioTrack.getSettings = vi.fn().mockReturnValue({ deviceId: actualAutoDeviceId });
 
       await enableAudio(); // No deviceId, should use default from config ('<auto>')
       expect(mockUserMedia).toHaveBeenCalledWith({ audio: true }); // For <auto>
-      expect(mockAddLocalStream).toHaveBeenCalledWith(
+      expect(streamStore.addLocalStream).toHaveBeenCalledWith(
         'audio',
         mockMediaStream,
         null,
@@ -266,7 +285,7 @@ describe('localStreamManager', () => {
       expect(mockUserMedia).toHaveBeenCalledWith({
         audio: { groupId: 'group1', deviceId: 'audio-device-1' }
       });
-      expect(mockAddLocalStream).toHaveBeenCalledWith(
+      expect(streamStore.addLocalStream).toHaveBeenCalledWith(
         'audio',
         mockMediaStream,
         null,
@@ -278,14 +297,21 @@ describe('localStreamManager', () => {
 
     it('should not start a new stream if the specific requested deviceId is already active', async () => {
       const deviceId = 'audio-device-special';
-      // Simulate it's active by adding it to the store
+      const deviceId = 'audio-device-special';
+      // Simulate it's active by adding it to the store using the actual addLocalStream
       streamStore.addLocalStream('audio', mockMediaStream, null, true, true, deviceId);
-      mockUserMedia.mockClear(); // Clear any previous calls
-      mockAddLocalStream.mockClear();
 
-      await enableAudio(deviceId);
+      // Clear mocks that would be called if a new stream was started
+      mockUserMedia.mockClear();
+      mockAddLocalStream.mockClear(); // Clear the spy on the actual addLocalStream
+
+      await enableAudio(deviceId); // Attempt to enable the already active stream
+
       expect(mockUserMedia).not.toHaveBeenCalled();
-      expect(mockAddLocalStream).toHaveBeenCalledTimes(1); // Original add, not a new one
+      // addLocalStream should not have been called again to add a *new* stream.
+      // The mockAddLocalStream spy tracks calls to the original streamStore.addLocalStream.
+      // Since we cleared it after the initial setup call, it should remain at 0 calls for this test's action.
+      expect(mockAddLocalStream).not.toHaveBeenCalled();
     });
 
     it('should start multiple audio streams if called with different deviceIds', async () => {
@@ -294,19 +320,22 @@ describe('localStreamManager', () => {
 
       await enableAudio(deviceId1);
       expect(mockUserMedia).toHaveBeenCalledWith({ audio: { deviceId: deviceId1 } });
-      const firstCallArgs = mockAddLocalStream.mock.calls.find((call) => call[5] === deviceId1);
-      expect(firstCallArgs).toBeDefined();
+      // Verify streamStore.addLocalStream was called for deviceId1
+      expect(streamStore.addLocalStream).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything(), expect.anything(), expect.anything(), deviceId1);
+
 
       mockUserMedia.mockClear();
-      // Don't clear mockAddLocalStream, check its total calls later
+      // Clear the spy to check the next call specifically for deviceId2
+      vi.mocked(streamStore.addLocalStream).mockClear();
+
 
       await enableAudio(deviceId2);
       expect(mockUserMedia).toHaveBeenCalledWith({ audio: { deviceId: deviceId2 } });
-      const secondCallArgs = mockAddLocalStream.mock.calls.find((call) => call[5] === deviceId2);
-      expect(secondCallArgs).toBeDefined();
+      expect(streamStore.addLocalStream).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything(), expect.anything(), expect.anything(), deviceId2);
+
 
       expect(
-        Object.values(get(streamStore.streamStore).localStreams).filter((s) => s.type === 'audio')
+        Object.values(svelteGet(actualTestStreamStore).localStreams).filter((s) => s.type === 'audio')
           .length
       ).toBe(2);
     });
@@ -323,6 +352,7 @@ describe('localStreamManager', () => {
         true,
         deviceId1
       );
+      // Check using the actual helper that now uses actualTestStreamStore
       expect(streamStore.getLocalStreamByDeviceId('audio', deviceId1)).not.toBeNull();
 
       mockGetAudioProcessingContext.mockReturnValueOnce({} as streamUtils.AudioNodes);
@@ -332,7 +362,8 @@ describe('localStreamManager', () => {
       expect(mockTearDownStream).toHaveBeenCalledWith(mockMediaStream);
       expect(mockStopProcessingAudio).toHaveBeenCalled();
       expect(mockRemoveAudioProcessingContext).toHaveBeenCalledWith(streamIdToRemove);
-      expect(mockRemoveLocalStream).toHaveBeenCalledWith(streamIdToRemove);
+      expect(streamStore.removeLocalStream).toHaveBeenCalledWith(streamIdToRemove);
+      // Check using the actual helper
       expect(streamStore.getLocalStreamByDeviceId('audio', deviceId1)).toBeNull();
     });
 
@@ -347,7 +378,7 @@ describe('localStreamManager', () => {
         'audio-all-2'
       );
       expect(
-        Object.values(get(streamStore.streamStore).localStreams).filter((s) => s.type === 'audio')
+        Object.values(svelteGet(actualTestStreamStore).localStreams).filter((s) => s.type === 'audio')
           .length
       ).toBe(2);
 
@@ -358,9 +389,9 @@ describe('localStreamManager', () => {
       expect(mockTearDownStream).toHaveBeenCalledTimes(2);
       expect(mockStopProcessingAudio).toHaveBeenCalledTimes(2);
       expect(mockRemoveAudioProcessingContext).toHaveBeenCalledTimes(2);
-      expect(mockRemoveLocalStream).toHaveBeenCalledTimes(2);
+      expect(streamStore.removeLocalStream).toHaveBeenCalledTimes(2);
       expect(
-        Object.values(get(streamStore.streamStore).localStreams).filter((s) => s.type === 'audio')
+        Object.values(svelteGet(actualTestStreamStore).localStreams).filter((s) => s.type === 'audio')
           .length
       ).toBe(0);
     });
@@ -379,13 +410,16 @@ describe('localStreamManager', () => {
     it('should start default camera (<auto>) if no deviceId, blur is off, and store with actual deviceId', async () => {
       const actualAutoCamId = 'actual-auto-cam-id';
       mockVideoTrack.getSettings = vi.fn().mockReturnValue({ deviceId: actualAutoCamId });
-      mockGetAllConfig.mockReturnValueOnce({
-        ...get(configStoreModule.configStore), // Use current value from store
+      mockGetAllConfigFn.mockReturnValueOnce({ // Use mockGetAllConfigFn
+        // ...svelteGet(actualTestConfigStore), // If we had an actualTestConfigStore
+        general: { configLoader: 'client', configHost: '', identityProviderHost: '', coordinatorUrl: '' },
+        profile: { userName: 'TestUser' },
+        rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
         media: { blurVideo: 'no', audioDevice: '<auto>', videoDevice: '<auto>' }
       });
       await enableCamera();
       expect(mockUserMedia).toHaveBeenCalledWith({ video: true });
-      expect(mockAddLocalStream).toHaveBeenCalledWith(
+      expect(streamStore.addLocalStream).toHaveBeenCalledWith(
         'camera',
         mockMediaStream,
         null,
@@ -397,13 +431,15 @@ describe('localStreamManager', () => {
 
     it('should start specific camera if deviceId provided and blur is off', async () => {
       const deviceId = 'cam-device-1';
-      mockGetAllConfig.mockReturnValueOnce({
-        ...get(configStoreModule.configStore),
+      mockGetAllConfigFn.mockReturnValueOnce({ // Use mockGetAllConfigFn
+        general: { configLoader: 'client', configHost: '', identityProviderHost: '', coordinatorUrl: '' },
+        profile: { userName: 'TestUser' },
+        rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
         media: { blurVideo: 'no', audioDevice: '<auto>', videoDevice: 'some-default-not-used' }
       });
       await enableCamera(deviceId);
       expect(mockUserMedia).toHaveBeenCalledWith({ video: { deviceId: deviceId } });
-      expect(mockAddLocalStream).toHaveBeenCalledWith(
+      expect(streamStore.addLocalStream).toHaveBeenCalledWith(
         'camera',
         mockMediaStream,
         null,
@@ -415,19 +451,19 @@ describe('localStreamManager', () => {
 
     it('should start camera and blurred stream if blur is on', async () => {
       const deviceId = 'cam-device-blur';
-      mockGetAllConfig.mockReturnValueOnce({
-        ...get(configStoreModule.configStore),
+      mockGetAllConfigFn.mockReturnValueOnce({ // Use mockGetAllConfigFn
+        general: { configLoader: 'client', configHost: '', identityProviderHost: '', coordinatorUrl: '' },
+        profile: { userName: 'TestUser' },
+        rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
         media: { blurVideo: 'yes', audioDevice: '<auto>', videoDevice: deviceId }
       });
-      // @ts-expect-error - backgroundChange is a mock
-      backgroundUtils.backgroundChange = vi
-        .fn()
-        .mockResolvedValue({ ...mockMediaStream, id: 'blurred-stream-id' });
+      vi.mocked(backgroundUtils.backgroundChange).mockResolvedValue({ ...mockMediaStream, id: 'blurred-stream-id' });
+
 
       await enableCamera(deviceId);
       expect(mockUserMedia).toHaveBeenCalledWith({ video: { deviceId: deviceId } });
       // Original camera stream added (viewable: false, sendable: false)
-      expect(mockAddLocalStream).toHaveBeenCalledWith(
+      expect(streamStore.addLocalStream).toHaveBeenCalledWith(
         'camera',
         mockMediaStream,
         null,
@@ -436,7 +472,7 @@ describe('localStreamManager', () => {
         deviceId
       );
       // Blurred stream added (viewable: true, sendable: true)
-      expect(mockAddLocalStream).toHaveBeenCalledWith(
+      expect(streamStore.addLocalStream).toHaveBeenCalledWith(
         'blurred',
         { ...mockMediaStream, id: 'blurred-stream-id' },
         null,
@@ -469,8 +505,8 @@ describe('localStreamManager', () => {
       );
 
       await disableCamera(deviceId);
-      expect(mockRemoveLocalStream).toHaveBeenCalledWith(camStreamId);
-      expect(mockRemoveLocalStream).toHaveBeenCalledWith(blurStreamId);
+      expect(streamStore.removeLocalStream).toHaveBeenCalledWith(camStreamId);
+      expect(streamStore.removeLocalStream).toHaveBeenCalledWith(blurStreamId);
       expect(mockTearDownStream).toHaveBeenCalledTimes(2);
     });
 
@@ -495,10 +531,10 @@ describe('localStreamManager', () => {
 
       await disableCamera(); // No deviceId
       // 2 camera streams + 1 blurred stream = 3 removals, 3 teardowns
-      expect(mockRemoveLocalStream).toHaveBeenCalledTimes(3);
+      expect(streamStore.removeLocalStream).toHaveBeenCalledTimes(3);
       expect(mockTearDownStream).toHaveBeenCalledTimes(3);
       expect(
-        Object.values(get(streamStore.streamStore).localStreams).filter(
+        Object.values(svelteGet(actualTestStreamStore).localStreams).filter(
           (s) => s.type === 'camera' || s.type === 'blurred'
         ).length
       ).toBe(0);
@@ -508,31 +544,40 @@ describe('localStreamManager', () => {
   describe('configStore subscription for blur', () => {
     it('should apply blur to active, viewable camera streams when blurVideo turns "yes"', async () => {
       const camDeviceId = 'cam-for-blur-config';
-      mockGetAllConfig.mockReturnValue({
-        // Initial config: blur off
-        ...get(configStoreModule.configStore),
+      mockGetAllConfigFn.mockReturnValue({ // Use mockGetAllConfigFn
+        general: { configLoader: 'client', configHost: '', identityProviderHost: '', coordinatorUrl: '' },
+        profile: { userName: 'TestUser' },
+        rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
         media: { blurVideo: 'no', audioDevice: '<auto>', videoDevice: camDeviceId }
       });
       await enableCamera(camDeviceId); // Starts unblurred camera
       const camStreamEntry = streamStore.getLocalStreamByDeviceId('camera', camDeviceId);
       expect(camStreamEntry).not.toBeNull();
-      expect(camStreamEntry![1].viewable).toBe(true);
+      if (!camStreamEntry) throw new Error('Camera stream entry not found'); // Type guard
+      expect(camStreamEntry[1].viewable).toBe(true);
 
-      mockAddLocalStream.mockClear(); // Clear to only catch the 'blurred' add
-      // @ts-expect-error - backgroundChange is a mock
-      backgroundUtils.backgroundChange = vi
-        .fn()
-        .mockResolvedValue({ ...mockMediaStream, id: 'blurred-on-config-change' });
+      vi.mocked(streamStore.addLocalStream).mockClear(); // Clear to only catch the 'blurred' add
+      vi.mocked(backgroundUtils.backgroundChange).mockResolvedValue({ ...mockMediaStream, id: 'blurred-on-config-change' });
 
-      // Trigger config change to blur: yes
+
+      // Simulate configStore subscription callback
       const newConfigBlurOn = {
-        ...get(configStoreModule.configStore), // Get current state which includes the stream
-        media: { ...get(configStoreModule.configStore).media, blurVideo: 'yes' as 'yes' | 'no' }
+        general: { configLoader: 'client', configHost: '', identityProviderHost: '', coordinatorUrl: '' },
+        profile: { userName: 'TestUser' },
+        rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
+        media: { blurVideo: 'yes' as 'yes' | 'no', audioDevice: '<auto>', videoDevice: camDeviceId }
       };
-      configStoreModule.configStore.set(newConfigBlurOn); // This will trigger subscribers
+      // Get the subscriber from localStreamManager.ts via the mock
+      const subscriber = mockConfigStoreSubscribeFn.mock.calls[0]?.[0];
+      if (subscriber) {
+        await subscriber(newConfigBlurOn);
+      } else {
+        throw new Error('configStore.subscribe was not called by localStreamManager');
+      }
+
 
       await vi.waitFor(() => {
-        expect(mockUpdateLocalStreamProperties).toHaveBeenCalledWith(camStreamEntry![0], {
+        expect(streamStore.updateLocalStreamProperties).toHaveBeenCalledWith(camStreamEntry[0], {
           viewable: false,
           sendable: false
         });
@@ -541,7 +586,7 @@ describe('localStreamManager', () => {
         expect(backgroundUtils.backgroundChange).toHaveBeenCalled();
       });
       await vi.waitFor(() => {
-        expect(mockAddLocalStream).toHaveBeenCalledWith(
+        expect(streamStore.addLocalStream).toHaveBeenCalledWith(
           'blurred',
           { ...mockMediaStream, id: 'blurred-on-config-change' },
           null,
@@ -554,38 +599,48 @@ describe('localStreamManager', () => {
 
     it('should remove blur from active streams when blurVideo turns "no"', async () => {
       const camDeviceId = 'cam-for-unblur-config';
-      mockGetAllConfig.mockReturnValue({
-        // Initial config: blur on
-        ...get(configStoreModule.configStore),
+      mockGetAllConfigFn.mockReturnValue({ // Use mockGetAllConfigFn
+        general: { configLoader: 'client', configHost: '', identityProviderHost: '', coordinatorUrl: '' },
+        profile: { userName: 'TestUser' },
+        rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
         media: { blurVideo: 'yes', audioDevice: '<auto>', videoDevice: camDeviceId }
       });
-      // @ts-expect-error - backgroundChange is a mock
-      backgroundUtils.backgroundChange = vi
-        .fn()
-        .mockResolvedValue({ ...mockMediaStream, id: 'blurred-stream-initial' });
+      vi.mocked(backgroundUtils.backgroundChange).mockResolvedValue({ ...mockMediaStream, id: 'blurred-stream-initial' });
       await enableCamera(camDeviceId); // Starts camera (non-viewable) and blurred (viewable)
 
       const originalCamStreamEntry = streamStore.getLocalStreamByDeviceId('camera', camDeviceId);
       expect(originalCamStreamEntry).not.toBeNull();
-      expect(originalCamStreamEntry![1].viewable).toBe(false); // Original camera is not viewable when blurred
+      if (!originalCamStreamEntry) throw new Error('Original camera stream entry not found');
+      expect(originalCamStreamEntry[1].viewable).toBe(false); // Original camera is not viewable when blurred
+
       const blurredStreamEntry = streamStore.getLocalStreamByDeviceId('blurred', camDeviceId);
       expect(blurredStreamEntry).not.toBeNull();
+      if (!blurredStreamEntry) throw new Error('Blurred stream entry not found');
 
-      mockRemoveLocalStream.mockClear();
-      mockUpdateLocalStreamProperties.mockClear();
 
-      // Trigger config change to blur: no
+      vi.mocked(streamStore.removeLocalStream).mockClear();
+      vi.mocked(streamStore.updateLocalStreamProperties).mockClear();
+
+      // Simulate configStore subscription callback
       const newConfigBlurOff = {
-        ...get(configStoreModule.configStore),
-        media: { ...get(configStoreModule.configStore).media, blurVideo: 'no' as 'yes' | 'no' }
+        general: { configLoader: 'client', configHost: '', identityProviderHost: '', coordinatorUrl: '' },
+        profile: { userName: 'TestUser' },
+        rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
+        media: { blurVideo: 'no' as 'yes' | 'no', audioDevice: '<auto>', videoDevice: camDeviceId }
       };
-      configStoreModule.configStore.set(newConfigBlurOff);
+      const subscriber = mockConfigStoreSubscribeFn.mock.calls[0]?.[0];
+      if (subscriber) {
+        await subscriber(newConfigBlurOff);
+      } else {
+        throw new Error('configStore.subscribe was not called by localStreamManager');
+      }
+
 
       await vi.waitFor(() => {
-        expect(mockRemoveLocalStream).toHaveBeenCalledWith(blurredStreamEntry![0]);
+        expect(streamStore.removeLocalStream).toHaveBeenCalledWith(blurredStreamEntry[0]);
       });
       await vi.waitFor(() => {
-        expect(mockUpdateLocalStreamProperties).toHaveBeenCalledWith(originalCamStreamEntry![0], {
+        expect(streamStore.updateLocalStreamProperties).toHaveBeenCalledWith(originalCamStreamEntry[0], {
           viewable: true,
           sendable: true
         });
@@ -594,30 +649,40 @@ describe('localStreamManager', () => {
 
     it('changing default device in configStore should NOT affect active streams', async () => {
       const initialAudioDevice = 'audio-device-initial';
-      mockGetAllConfig.mockReturnValue({
-        ...get(configStoreModule.configStore),
-        media: { ...get(configStoreModule.configStore).media, audioDevice: initialAudioDevice }
+      mockGetAllConfigFn.mockReturnValue({ // Use mockGetAllConfigFn
+        general: { configLoader: 'client', configHost: '', identityProviderHost: '', coordinatorUrl: '' },
+        profile: { userName: 'TestUser' },
+        rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
+        media: { blurVideo: 'no', audioDevice: initialAudioDevice, videoDevice: '<auto>' }
       });
       await enableAudio(initialAudioDevice); // Start stream with initial device
       expect(streamStore.getIsDeviceStreamActive('audio', initialAudioDevice)).toBe(true);
 
       mockTearDownStream.mockClear();
-      mockAddLocalStream.mockClear();
+      vi.mocked(streamStore.addLocalStream).mockClear();
 
-      // Change default audio device in config
+      // Simulate configStore subscription callback with a new default device
       const newDefaultAudioDevice = 'audio-device-new-default';
       const newConfigWithNewDefault = {
-        ...get(configStoreModule.configStore),
-        media: { ...get(configStoreModule.configStore).media, audioDevice: newDefaultAudioDevice }
+        general: { configLoader: 'client', configHost: '', identityProviderHost: '', coordinatorUrl: '' },
+        profile: { userName: 'TestUser' },
+        rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
+        media: { blurVideo: 'no', audioDevice: newDefaultAudioDevice, videoDevice: '<auto>' }
       };
-      configStoreModule.configStore.set(newConfigWithNewDefault);
+      const subscriber = mockConfigStoreSubscribeFn.mock.calls[0]?.[0];
+      if (subscriber) {
+        await subscriber(newConfigWithNewDefault); // prevConfig will be updated inside localStreamManager
+      } else {
+        throw new Error('configStore.subscribe was not called by localStreamManager');
+      }
+
 
       // Wait a bit to ensure no async operations are triggered to change streams
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify that the initial stream was NOT torn down and no new stream was added
       expect(mockTearDownStream).not.toHaveBeenCalled();
-      expect(mockAddLocalStream).not.toHaveBeenCalled();
+      expect(streamStore.addLocalStream).not.toHaveBeenCalled(); // Check the mock of the actual function
       expect(streamStore.getIsDeviceStreamActive('audio', initialAudioDevice)).toBe(true);
       expect(streamStore.getIsDeviceStreamActive('audio', newDefaultAudioDevice)).toBe(false);
     });
