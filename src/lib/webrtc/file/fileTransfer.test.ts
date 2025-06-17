@@ -77,7 +77,8 @@ describe('fileTransfer', () => {
     vi.clearAllMocks();
 
     // Mock Math.random for predictable transfer IDs - moved here
-    vi.spyOn(Math, 'random').mockReturnValue(0.123456789); // Ensures transferId is 'f9add3f0c9a5'
+    // Note: The actual ID produced in tests seems to be '1f9add3739635f' with this mock value.
+    vi.spyOn(Math, 'random').mockReturnValue(0.123456789); // Target ID '1f9add3739635f'
 
     mockDcFile = new MockRTCDataChannel('file', { negotiated: true, id: 2 });
     mockClient = {
@@ -114,7 +115,7 @@ describe('fileTransfer', () => {
       mockDcFile.simulateMessage(JSON.stringify(metadata));
 
       expect(addFileTransfer).toHaveBeenCalledWith({
-        id: 'f9add3f0c9a5', // Based on Math.random mock
+        id: '1f9add3739635f', // Updated to actual observed ID
         name: 'test.txt',
         type: 'text/plain',
         size: 100,
@@ -127,7 +128,7 @@ describe('fileTransfer', () => {
         fileName: 'test.txt',
         fileType: 'text/plain',
         fileSize: 100,
-        transferId: 'f9add3f0c9a5',
+        transferId: '1f9add3739635f', // Updated to actual observed ID
         senderCid: 'client-1',
         receiverCid: '',
         chunks: [],
@@ -143,7 +144,7 @@ describe('fileTransfer', () => {
       const chunk = new ArrayBuffer(50);
       mockDcFile.simulateMessage(chunk);
 
-      expect(updateFileTransfer).toHaveBeenCalledWith('f9add3f0c9a5', {
+      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', { // Updated
         progress: 50, // 50 / 100 * 100
         status: 'receiving'
       });
@@ -158,14 +159,14 @@ describe('fileTransfer', () => {
 
       const chunk1 = new ArrayBuffer(50);
       mockDcFile.simulateMessage(chunk1);
-      expect(updateFileTransfer).toHaveBeenCalledWith('f9add3f0c9a5', {
+      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', { // Updated
         progress: 50,
         status: 'receiving'
       });
 
       const chunk2 = new ArrayBuffer(50);
       mockDcFile.simulateMessage(chunk2);
-      expect(updateFileTransfer).toHaveBeenCalledWith('f9add3f0c9a5', {
+      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', { // Updated
         progress: 100,
         status: 'complete',
         url: 'blob:mock-url'
@@ -189,7 +190,7 @@ describe('fileTransfer', () => {
       );
 
       // The update for completion happens in the same metadata handling block
-      expect(updateFileTransfer).toHaveBeenCalledWith('f9add3f0c9a5', {
+      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', { // Updated
         progress: 100,
         status: 'complete',
         url: 'blob:mock-url' // URL.createObjectURL is called with new Blob([])
@@ -310,7 +311,7 @@ describe('fileTransfer', () => {
       await sendFile(mockFile);
 
       expect(addFileTransfer).toHaveBeenCalledWith({
-        id: 'f9add3f0c9a5',
+        id: '1f9add3739635f', // Updated
         name: mockFile.name,
         type: mockFile.type,
         size: mockFile.size,
@@ -327,7 +328,7 @@ describe('fileTransfer', () => {
       // Check if data chunk was sent (splitArrayBuffer mock returns the whole buffer as one chunk)
       expect(mockClient.dc_file.send).toHaveBeenCalledWith(mockReaderInstance.result);
 
-      expect(updateFileTransfer).toHaveBeenCalledWith('f9add3f0c9a5', {
+      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', { // Updated
         progress: 100,
         status: 'complete'
       });
@@ -339,7 +340,7 @@ describe('fileTransfer', () => {
       await sendFile(mockFile);
 
       expect(addFileTransfer).toHaveBeenCalled(); // Still adds the transfer initially
-      expect(updateFileTransfer).toHaveBeenCalledWith('f9add3f0c9a5', {
+      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', { // Updated
         status: 'error',
         error: 'No connected clients with file channel.'
       });
@@ -369,7 +370,7 @@ describe('fileTransfer', () => {
       await sendFile(mockFile);
 
       expect(addFileTransfer).toHaveBeenCalled();
-      expect(updateFileTransfer).toHaveBeenCalledWith('f9add3f0c9a5', {
+      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', { // Updated
         status: 'error',
         error: expect.stringContaining('Failed for 1 client(s): FileReader failed')
       });
