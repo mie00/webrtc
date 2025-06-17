@@ -11,6 +11,7 @@ import {
   // disableFileStream, // TODO: Add tests and uncomment
 } from './localStreamManager';
 import { writable, get as svelteGet, derived } from 'svelte/store'; // Import svelteGet
+import type { StreamState as ActualStreamStateType } from '../stores/streamStore'; // Import type for use in hoisted
 import * as streamUtils from './stream';
 import * as backgroundUtils from './background'; // Import backgroundUtils
 import * as streamLifecycle from '../app/streamLifecycle';
@@ -18,7 +19,7 @@ import * as streamLifecycle from '../app/streamLifecycle';
 // --- Mock streamStore ---
 // Use vi.hoisted to ensure actualTestStreamStore is initialized before vi.mock factory runs
 const hoistedStore = vi.hoisted(() => {
-  const store = writable<streamStore.StreamState>({
+  const store = writable<ActualStreamStateType>({ // Use the imported type alias
     localStreams: {},
     remoteStreams: {},
     activeView: { layout: 'grid' }
@@ -27,7 +28,7 @@ const hoistedStore = vi.hoisted(() => {
 });
 
 vi.mock('../stores/streamStore', async () => {
-  const original = await vi.importActual<typeof streamStore>('../stores/streamStore');
+  const original = await vi.importActual<typeof import('../stores/streamStore')>('../stores/streamStore');
   return {
     ...original,
     streamStore: hoistedStore.actualTestStreamStore, // Provide our actual store
