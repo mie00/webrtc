@@ -51,26 +51,7 @@ global.RTCPeerConnection = vi.fn().mockImplementation(() => mockPeerConnectionIn
   .fn()
   .mockResolvedValue({} as RTCCertificate); // Mock a basic certificate object
 
-global.crypto = {
-  ...global.crypto, // Preserve other crypto properties like getRandomValues if they exist
-  getRandomValues:
-    global.crypto?.getRandomValues ||
-    vi.fn().mockImplementation((arr: Uint8Array) => {
-      for (let i = 0; i < arr.length; i++) {
-        arr[i] = Math.floor(Math.random() * 256);
-      }
-      return arr;
-    }),
-  subtle: {
-    ...(global.crypto?.subtle || {}),
-    digest: vi.fn().mockImplementation(async (_algorithm, data) => {
-      const S = 'mockedhash_';
-      const textEncoder = new TextEncoder();
-      const dataArray = textEncoder.encode(S + new TextDecoder().decode(data as ArrayBuffer));
-      return dataArray.buffer;
-    })
-  }
-} as any;
+// global.crypto will be stubbed in beforeEach using vi.stubGlobal
 
 const mockDiffsElement = {
   classList: {
@@ -242,13 +223,27 @@ describe('WebRTCApp', () => {
       appendChild: vi.fn()
     }));
 
-    // Reset crypto.subtle.digest mock if its behavior needs to be fresh for each test
-    (global.crypto.subtle.digest as Mock).mockImplementation(async (_algorithm, data) => {
-      // prefixed algorithm with _
-      const S = 'mockedhash_';
-      const textEncoder = new TextEncoder();
-      const dataArray = textEncoder.encode(S + new TextDecoder().decode(data as ArrayBuffer));
-      return dataArray.buffer;
+    // Stub global.crypto for each test
+    vi.stubGlobal('crypto', {
+      // Attempt to spread original crypto if it exists, otherwise provide full mock
+      ...(typeof globalThis.crypto !== 'undefined' ? globalThis.crypto : {}),
+      getRandomValues:
+        globalThis.crypto?.getRandomValues ||
+        vi.fn().mockImplementation((arr: Uint8Array) => {
+          for (let i = 0; i < arr.length; i++) {
+            arr[i] = Math.floor(Math.random() * 256);
+          }
+          return arr;
+        }),
+      subtle: {
+        ...(globalThis.crypto?.subtle || {}), // Spread original subtle if available
+        digest: vi.fn().mockImplementation(async (_algorithm, data) => {
+          const S = 'mockedhash_';
+          const textEncoder = new TextEncoder();
+          const dataArray = textEncoder.encode(S + new TextDecoder().decode(data as ArrayBuffer));
+          return dataArray.buffer;
+        })
+      }
     });
 
     // Reset history and URLSearchParams mocks
@@ -604,19 +599,28 @@ describe('WebRTCApp', () => {
     });
 
     it('should return fallback emojis if crypto.subtle is not available', async () => {
-      const originalCrypto = global.crypto;
-      // Simulate crypto.subtle not being available by replacing the global.crypto object temporarily
-      global.crypto = {
-        ...originalCrypto,
-        subtle: undefined as any // Set subtle to undefined
-      };
+      // Temporarily stub crypto.subtle to be undefined for this test
+      // Preserve getRandomValues from the existing global.crypto or the one stubbed in beforeEach
+      const existingCrypto = globalThis.crypto;
+      vi.stubGlobal('crypto', {
+        ...existingCrypto,
+        getRandomValues:
+          existingCrypto?.getRandomValues ||
+          vi.fn().mockImplementation((arr: Uint8Array) => {
+            for (let i = 0; i < arr.length; i++) {
+              arr[i] = Math.floor(Math.random() * 256);
+            }
+            return arr;
+          }),
+        subtle: undefined // Key change: set subtle to undefined
+      });
 
       webRTCApp = new WebRTCApp();
       const digest = 'testdigest_no_subtle';
       const emojis = await webRTCApp.genEmojis(digest);
       expect(emojis).toBe('❗❗❗❗❗❗❗❗');
 
-      global.crypto = originalCrypto; // Restore original crypto object
+      // vi.restoreAllMocks() in afterEach will handle restoring the crypto stub
     });
   });
 
