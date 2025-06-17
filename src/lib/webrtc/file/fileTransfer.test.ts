@@ -144,7 +144,8 @@ describe('fileTransfer', () => {
       const chunk = new ArrayBuffer(50);
       mockDcFile.simulateMessage(chunk);
 
-      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', { // Updated
+      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', {
+        // Updated
         progress: 50, // 50 / 100 * 100
         status: 'receiving'
       });
@@ -159,14 +160,16 @@ describe('fileTransfer', () => {
 
       const chunk1 = new ArrayBuffer(50);
       mockDcFile.simulateMessage(chunk1);
-      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', { // Updated
+      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', {
+        // Updated
         progress: 50,
         status: 'receiving'
       });
 
       const chunk2 = new ArrayBuffer(50);
       mockDcFile.simulateMessage(chunk2);
-      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', { // Updated
+      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', {
+        // Updated
         progress: 100,
         status: 'complete',
         url: 'blob:mock-url'
@@ -190,7 +193,8 @@ describe('fileTransfer', () => {
       );
 
       // The update for completion happens in the same metadata handling block
-      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', { // Updated
+      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', {
+        // Updated
         progress: 100,
         status: 'complete',
         url: 'blob:mock-url' // URL.createObjectURL is called with new Blob([])
@@ -328,7 +332,8 @@ describe('fileTransfer', () => {
       // Check if data chunk was sent (splitArrayBuffer mock returns the whole buffer as one chunk)
       expect(mockClient.dc_file.send).toHaveBeenCalledWith(mockReaderInstance.result);
 
-      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', { // Updated
+      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', {
+        // Updated
         progress: 100,
         status: 'complete'
       });
@@ -340,7 +345,8 @@ describe('fileTransfer', () => {
       await sendFile(mockFile);
 
       expect(addFileTransfer).toHaveBeenCalled(); // Still adds the transfer initially
-      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', { // Updated
+      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', {
+        // Updated
         status: 'error',
         error: 'No connected clients with file channel.'
       });
@@ -370,7 +376,8 @@ describe('fileTransfer', () => {
       await sendFile(mockFile);
 
       expect(addFileTransfer).toHaveBeenCalled();
-      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', { // Updated
+      expect(updateFileTransfer).toHaveBeenCalledWith('1f9add3739635f', {
+        // Updated
         status: 'error',
         error: expect.stringContaining('Failed for 1 client(s): FileReader failed')
       });
