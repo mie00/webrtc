@@ -40,16 +40,18 @@ vi.mock('../lib/media/recorder', async () => {
 
 vi.mock('../lib/media/transcriber', async () => {
   const originalModule = await vi.importActual('../lib/media/transcriber');
-  const actualTranscriberStore = writable<TranscriptionDisplayStoreState>({
+  // Based on errors, TranscriberState needs isTranscribingOverall and activeSessions.
+  // It likely also includes the display state.
+  type MockTranscriberState = TranscriptionDisplayStoreState & {
+    isTranscribingOverall: boolean;
+    activeSessions: Record<string, any>; // Use 'any' or a more specific mock type if known
+  };
+  const actualTranscriberStore = writable<MockTranscriberState>({
     segments: [],
     activeBuffers: {},
-    lastTextBySpeaker: {}
-    // Add any other properties from TranscriptionDisplayStoreState with default values
-    // For example, if isTranscribingOverall is part of it, though it seems to be a separate concept in MediaArea.svelte
-    // For the purpose of this mock, we'll assume isTranscribingOverall is handled by the component/store logic
-    // and the mock here just needs to satisfy the TranscriptionDisplayStoreState structure.
-    // If transcriberStore itself holds isTranscribingOverall, it should be:
-    // isTranscribingOverall: false,
+    lastTextBySpeaker: {},
+    isTranscribingOverall: false,
+    activeSessions: {}
   });
 
   return {
@@ -85,8 +87,15 @@ describe('MediaArea.svelte', () => {
   const mockConfigStore = {
     media: { blurVideo: 'no', audioDevice: '<auto>', videoDevice: '<auto>' },
     general: mockConfigStoreGeneral,
-    profile: { userName: 'TestUser', userColor: '#FFFFFF', userEmoji: '😊' }, // Added ProfileConfig
-    rtc: { iceServers: [], iceTransportPolicy: 'all' } // Added RtcConfig
+    profile: { userName: 'TestUser' }, // Minimal ProfileConfig
+    rtc: {
+      stunServers: '',
+      turnServerV2: '',
+      turnUsername: '',
+      turnPassword: ''
+      // iceServers: [], // These are usually derived or part of a more complex setup
+      // iceTransportPolicy: 'all' // This is also often a default or configurable
+    }
   };
   const mockForwardStore: ForwardState = {
     allowedHosts: [],
@@ -95,11 +104,19 @@ describe('MediaArea.svelte', () => {
     inflight: {},
     logMessages: []
   };
-  const mockTranscriberStoreState: TranscriptionDisplayStoreState = {
+
+  // This type should match the one used in the vi.mock for transcriberStore
+  type MockTranscriberState = TranscriptionDisplayStoreState & {
+    isTranscribingOverall: boolean;
+    activeSessions: Record<string, any>;
+  };
+
+  const mockTranscriberStoreFullState: MockTranscriberState = {
     segments: [],
     activeBuffers: {},
-    lastTextBySpeaker: {}
-    // isTranscribingOverall: false, // if this is part of the store state
+    lastTextBySpeaker: {},
+    isTranscribingOverall: false,
+    activeSessions: {}
   };
 
   beforeEach(() => {
@@ -107,7 +124,7 @@ describe('MediaArea.svelte', () => {
     streamStore.set(mockStreamStore);
     configStore.set(mockConfigStore);
     forwardStore.set(mockForwardStore);
-    transcriberStore.set(mockTranscriberStoreState);
+    transcriberStore.set(mockTranscriberStoreFullState);
 
     // Reset mocks
     vi.clearAllMocks();
@@ -184,33 +201,11 @@ describe('MediaArea.svelte', () => {
     // So, the mock for transcriberStore needs to reflect this structure if we want to test it.
     // The current mock for transcriberStore in vi.mock doesn't include isTranscribingOverall in its writable state.
     // Let's adjust the mock to include it for this test.
-    // We'll assume isTranscribingOverall is a property directly on the store's value.
-    transcriberStore.set({
-      ...mockTranscriberStoreState
-      // If 'isTranscribingOverall' is a direct property of the store's value:
-      // isTranscribingOverall: true, // This line might cause issues if TranscriptionDisplayStoreState doesn't define it.
-      // The component reads $transcriberStore.isTranscribingOverall, so the store mock should provide it.
-      // Let's update the vi.mock for transcriberStore to include this.
-    });
-    // To properly test this, the transcriberStore mock needs to be:
-    // writable({ segments: [], activeBuffers: {}, lastTextBySpeaker: {}, isTranscribingOverall: false })
-    // And then here:
-    // transcriberStore.update(s => ({ ...s, isTranscribingOverall: true }));
-    // For now, the component's $derived($transcriberStore.isTranscribingOverall) will use the initial mock value.
-    // We need to update the mock itself to allow changing this.
-
-    // For the sake of this specific test, let's assume the component's internal logic
-    // correctly derives isTranscribing. The stopOverallTranscription mock is the key here.
-    // To make the test pass as intended for stopOverallTranscription:
     // We need to ensure $transcriberStore.isTranscribingOverall is true when onDestroy is called.
-    // The easiest way is to update the store directly if the mock allows.
-    // The provided mock for transcriberStore is: writable({ isTranscribingOverall: false /* other properties */ })
-    // So we can do:
-    (transcriberStore as any).set({
-      isTranscribingOverall: true,
-      activeBuffers: {},
-      segments: [],
-      lastTextBySpeaker: {}
+    // The mockTranscriberStoreFullState already defines the full structure.
+    transcriberStore.set({
+      ...mockTranscriberStoreFullState, // Spread the base mock state
+      isTranscribingOverall: true // Set the specific property for this test
     });
 
     const { unmount } = render(MediaArea, { props: { hangup: vi.fn(), openQr: vi.fn() } });
