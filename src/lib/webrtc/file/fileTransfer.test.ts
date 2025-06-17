@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { setupFileChannel, sendFile } from './fileTransfer';
 import {
   getDirectClient,
@@ -28,8 +28,17 @@ class MockRTCDataChannel {
   onopen: ((this: RTCDataChannel, ev: Event) => any) | null = null;
   onclose: ((this: RTCDataChannel, ev: Event) => any) | null = null;
   onerror: ((this: RTCDataChannel, ev: Event) => any) | null = null;
+  onbufferedamountlow: ((this: RTCDataChannel, ev: Event) => any) | null = null;
+  onclosing: ((this: RTCDataChannel, ev: Event) => any) | null = null;
   bufferedAmount: number = 0;
   bufferedAmountLowThreshold: number = 0;
+  binaryType: BinaryType = 'arraybuffer';
+  id: number | null;
+  maxPacketLifeTime: number | null;
+  maxRetransmits: number | null;
+  negotiated: boolean;
+  ordered: boolean;
+  protocol: string = '';
   addEventListener = vi.fn();
   removeEventListener = vi.fn();
   send = vi.fn();
@@ -38,6 +47,11 @@ class MockRTCDataChannel {
   constructor(label: string, options?: RTCDataChannelInit) {
     this.label = label;
     this.options = options;
+    this.id = options?.id ?? null;
+    this.maxPacketLifeTime = options?.maxPacketLifeTime ?? null;
+    this.maxRetransmits = options?.maxRetransmits ?? null;
+    this.negotiated = options?.negotiated ?? false;
+    this.ordered = options?.ordered ?? true;
   }
 
   // Helper to simulate receiving a message
@@ -69,13 +83,15 @@ describe('fileTransfer', () => {
       file_stuff: undefined
     };
 
-    (getDirectClient as vi.Mock).mockReturnValue(mockClient);
-    (getAllClientCids as vi.Mock).mockReturnValue(['client-1']);
-    (getAllDirectClients as vi.Mock).mockReturnValue({ 'client-1': mockClient });
-    (mockClient.pc.createDataChannel as vi.Mock).mockReturnValue(mockDcFile);
+    (getDirectClient as Mock).mockReturnValue(mockClient);
+    (getAllClientCids as Mock).mockReturnValue(['client-1']);
+    (getAllDirectClients as Mock).mockReturnValue({ 'client-1': mockClient });
+    (mockClient.pc.createDataChannel as Mock).mockReturnValue(mockDcFile);
     mockCreateObjectURL.mockReturnValue('blob:mock-url');
-    (getMaxMessageSizeFromSdp as vi.Mock).mockReturnValue(16 * 1024); // Default chunk size
-    (splitArrayBuffer as vi.Mock).mockImplementation((buffer, _chunkSize) => [buffer]); // Simple mock
+    (getMaxMessageSizeFromSdp as Mock).mockReturnValue(16 * 1024); // Default chunk size
+    (splitArrayBuffer as Mock).mockImplementation((buffer: ArrayBuffer, _chunkSize: number) => [
+      buffer
+    ]); // Simple mock
   });
 
   describe('setupFileChannel', () => {
@@ -184,7 +200,7 @@ describe('fileTransfer', () => {
         pc: new MockRTCPeerConnection(),
         dc_file: new MockRTCDataChannel('file-other')
       };
-      (getAllDirectClients as vi.Mock).mockReturnValue({
+      (getAllDirectClients as Mock).mockReturnValue({
         'client-1': mockClient,
         'client-2': mockOtherClient
       });
@@ -205,8 +221,7 @@ describe('fileTransfer', () => {
         dc_file: new MockRTCDataChannel('file-other')
       };
       mockOtherClientClosedDc.dc_file.readyState = 'closed';
-
-      (getAllDirectClients as vi.Mock).mockReturnValue({
+      (getAllDirectClients as Mock).mockReturnValue({
         'client-1': mockClient,
         'client-2-no-dc': mockOtherClientNoDc,
         'client-3-closed-dc': mockOtherClientClosedDc
@@ -274,7 +289,7 @@ describe('fileTransfer', () => {
         onerror: null,
         result: new ArrayBuffer(mockFile.size) // Simulate successful read
       };
-      (global.FileReader as vi.Mock).mockImplementation(() => mockReaderInstance);
+      (global.FileReader as Mock).mockImplementation(() => mockReaderInstance);
 
       // Simulate async read completion
       mockReaderInstance.readAsArrayBuffer.mockImplementation(function (this: any, _blob: Blob) {
@@ -316,7 +331,7 @@ describe('fileTransfer', () => {
     });
 
     it('should update status to error if no clients are available', async () => {
-      (getAllClientCids as vi.Mock).mockReturnValue([]); // No clients
+      (getAllClientCids as Mock).mockReturnValue([]); // No clients
 
       await sendFile(mockFile);
 
@@ -340,7 +355,7 @@ describe('fileTransfer', () => {
         result: null,
         error: new Error('FileReader failed')
       };
-      (global.FileReader as vi.Mock).mockImplementation(() => mockReaderInstance);
+      (global.FileReader as Mock).mockImplementation(() => mockReaderInstance);
       mockReaderInstance.readAsArrayBuffer.mockImplementation(function (this: any, _blob: Blob) {
         if (this.onerror) {
           // @ts-ignore
@@ -363,7 +378,7 @@ describe('fileTransfer', () => {
       mockClient.dc_file.readyState = 'open';
       mockClient.pc.localDescription = { sdp: 'a=max-message-size:262144', type: 'offer' }; // 256KB
       mockClient.pc.remoteDescription = { sdp: 'a=max-message-size:65536', type: 'answer' }; // 64KB
-      (getMaxMessageSizeFromSdp as vi.Mock).mockImplementation((sdp: string) => {
+      (getMaxMessageSizeFromSdp as Mock).mockImplementation((sdp: string) => {
         if (sdp.includes('262144')) return 262144;
         if (sdp.includes('65536')) return 65536;
         return null;
@@ -375,7 +390,7 @@ describe('fileTransfer', () => {
         onload: null as ((e: ProgressEvent<FileReader>) => void) | null,
         result: new ArrayBuffer(mockFile.size)
       };
-      (global.FileReader as vi.Mock).mockImplementation(() => mockReaderInstance);
+      (global.FileReader as Mock).mockImplementation(() => mockReaderInstance);
       mockReaderInstance.readAsArrayBuffer.mockImplementation(function (this: any, _blob: Blob) {
         if (this.onload) {
           // @ts-ignore
@@ -417,7 +432,7 @@ describe('fileTransfer', () => {
         onload: null as ((e: ProgressEvent<FileReader>) => void) | null,
         result: fileContent.buffer
       };
-      (global.FileReader as vi.Mock).mockImplementation(() => mockReaderInstance);
+      (global.FileReader as Mock).mockImplementation(() => mockReaderInstance);
       mockReaderInstance.readAsArrayBuffer.mockImplementation(function (this: any, _blob: Blob) {
         if (this.onload) {
           // @ts-ignore
@@ -427,7 +442,7 @@ describe('fileTransfer', () => {
 
       // Mock splitArrayBuffer to create multiple small chunks
       const smallChunkSize = 16 * 1024;
-      (splitArrayBuffer as vi.Mock).mockImplementation(
+      (splitArrayBuffer as Mock).mockImplementation(
         (buffer: ArrayBuffer, _chunkSize: number) => {
           const chunks: ArrayBuffer[] = [];
           for (let i = 0; i < buffer.byteLength; i += smallChunkSize) {
