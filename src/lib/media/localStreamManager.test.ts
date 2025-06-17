@@ -54,12 +54,14 @@ import type { Config } from '../stores/configStore'; // Import the Config type
 
 // --- Mock configStore ---
 let capturedConfigSubscriber: ((config: Config) => Promise<void> | void) | undefined;
-const mockConfigStoreSubscribeFn = vi.fn((subscriberCallback: (config: Config) => Promise<void> | void) => {
-  capturedConfigSubscriber = subscriberCallback;
-  return () => {
-    capturedConfigSubscriber = undefined; // Optional: clear on unsubscribe
-  }; // Returns an unsubscribe function
-});
+const mockConfigStoreSubscribeFn = vi.fn(
+  (subscriberCallback: (config: Config) => Promise<void> | void) => {
+    capturedConfigSubscriber = subscriberCallback;
+    return () => {
+      capturedConfigSubscriber = undefined; // Optional: clear on unsubscribe
+    }; // Returns an unsubscribe function
+  }
+);
 const mockGetAllConfigFn = vi.fn();
 const mockUpdateConfigFn = vi.fn();
 const mockConfigStoreSetFn = vi.fn();
