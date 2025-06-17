@@ -260,8 +260,9 @@ describe('WebRTCApp', () => {
 
     // Reset configStore mock
     const configStore = await import('../stores/configStore');
-    (configStore.resetConfigStore as Mock)(); // Call the simplified mock
-    (configStore.getAllConfig as Mock).mockReturnValue({
+    // Cast to any to satisfy TypeScript for the mocked properties
+    ((configStore as any).resetConfigStore as Mock)(); 
+    ((configStore as any).getAllConfig as Mock).mockReturnValue({
       // Ensure it's reset to default
       rtc: {
         stunServers: 'stun:stun.l.google.com:19302',
