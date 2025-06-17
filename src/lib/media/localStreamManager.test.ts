@@ -79,6 +79,7 @@ vi.mock('../stores/configStore', async () => {
 });
 // Import after mocking
 // import * as configStoreModule from '../stores/configStore'; // No longer needed as we use direct mock functions
+import type { Config } from '../stores/configStore'; // Import the Config type
 
 // --- Other Mocks ---
 vi.mock('../stores/localFileStreamStore');
@@ -614,9 +615,9 @@ describe('localStreamManager', () => {
         media: { blurVideo: 'yes' as 'yes' | 'no', audioDevice: '<auto>', videoDevice: camDeviceId }
       };
       // Get the subscriber from localStreamManager.ts via the mock
-      const subscriber = mockConfigStoreSubscribeFn.mock.calls[0]?.[0] as (
-        config: Config
-      ) => Promise<void> | void;
+      const firstCall = mockConfigStoreSubscribeFn.mock.calls[0];
+      const subscriber = firstCall?.[0] as ((config: Config) => Promise<void> | void) | undefined;
+
       if (subscriber) {
         await subscriber(newConfigBlurOn);
       } else {
@@ -688,9 +689,9 @@ describe('localStreamManager', () => {
         rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
         media: { blurVideo: 'no' as 'yes' | 'no', audioDevice: '<auto>', videoDevice: camDeviceId }
       };
-      const subscriber = mockConfigStoreSubscribeFn.mock.calls[0]?.[0] as (
-        config: Config
-      ) => Promise<void> | void;
+      const firstCall = mockConfigStoreSubscribeFn.mock.calls[0];
+      const subscriber = firstCall?.[0] as ((config: Config) => Promise<void> | void) | undefined;
+
       if (subscriber) {
         await subscriber(newConfigBlurOff);
       } else {
@@ -744,9 +745,9 @@ describe('localStreamManager', () => {
         rtc: { stunServers: '', turnServerV2: '', turnUsername: '', turnPassword: '' },
         media: { blurVideo: 'no', audioDevice: newDefaultAudioDevice, videoDevice: '<auto>' }
       };
-      const subscriber = mockConfigStoreSubscribeFn.mock.calls[0]?.[0] as (
-        config: Config
-      ) => Promise<void> | void;
+      const firstCall = mockConfigStoreSubscribeFn.mock.calls[0];
+      const subscriber = firstCall?.[0] as ((config: Config) => Promise<void> | void) | undefined;
+
       if (subscriber) {
         await subscriber(newConfigWithNewDefault); // prevConfig will be updated inside localStreamManager
       } else {
