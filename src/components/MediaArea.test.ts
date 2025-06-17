@@ -11,7 +11,11 @@ import {
   type RtcConfig
 } from '../lib/stores/configStore';
 import { forwardStore, type ForwardState } from '../lib/stores/forwardStore';
-import { transcriberStore, type TranscriptionDisplayStoreState } from '../lib/media/transcriber';
+import {
+  transcriberStore,
+  type TranscriptionDisplayStoreState,
+  stopOverallTranscription // Import the specific function
+} from '../lib/media/transcriber';
 
 // Hoist store creations for mocks
 const hoistedRecorderStore = vi.hoisted(async () => {
@@ -211,9 +215,8 @@ describe('MediaArea.svelte', () => {
 
   it('clears refresh interval and stops transcription on destroy', () => {
     const clearIntervalSpy = vi.spyOn(window, 'clearInterval');
-    const stopOverallTranscriptionMock = vi.mocked(
-      require('../lib/media/transcriber').stopOverallTranscription
-    );
+    // Use the imported and mocked function
+    const stopOverallTranscriptionMock = vi.mocked(stopOverallTranscription);
 
     // Set isTranscribingOverall to true to test stopOverallTranscription call
     // This specific property might be managed differently or be part of a more complex state.
