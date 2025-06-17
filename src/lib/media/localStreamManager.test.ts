@@ -19,7 +19,8 @@ import * as streamLifecycle from '../app/streamLifecycle';
 // --- Mock streamStore ---
 // Use vi.hoisted to ensure actualTestStreamStore is initialized before vi.mock factory runs
 const hoistedStore = vi.hoisted(() => {
-  const store = writable<ActualStreamStateType>({ // Use the imported type alias
+  const store = writable<ActualStreamStateType>({
+    // Use the imported type alias
     localStreams: {},
     remoteStreams: {},
     activeView: { layout: 'grid' }
@@ -28,7 +29,8 @@ const hoistedStore = vi.hoisted(() => {
 });
 
 vi.mock('../stores/streamStore', async () => {
-  const original = await vi.importActual<typeof import('../stores/streamStore')>('../stores/streamStore');
+  const original =
+    await vi.importActual<typeof import('../stores/streamStore')>('../stores/streamStore');
   return {
     ...original,
     streamStore: hoistedStore.actualTestStreamStore, // Provide our actual store
