@@ -169,10 +169,14 @@ describe('localStreamManager', () => {
     });
     mockAddLocalStream.mockReturnValue('new-stream-id');
     mockProcessAudio.mockResolvedValue({
-      source: { mediaStream: mockMediaStream } as MediaStreamAudioSourceNode, // Made more specific
+      context: {} as AudioContext,
+      source: {
+        mediaStream: mockMediaStream,
+        disconnect: vi.fn()
+      } as unknown as MediaStreamAudioSourceNode,
       analyser: {} as AnalyserNode,
-      gainNode: {} as GainNode, // Corrected: gain to gainNode
-      scriptProcessor: {} as ScriptProcessorNode, // or AudioWorkletNode
+      dataArray: new Uint8Array(),
+      fftSize: 256,
       animationFrame: 0
     });
   });
@@ -228,11 +232,12 @@ describe('localStreamManager', () => {
         id: existingStreamId
       };
       mockGetLocalStreamsByType.mockReturnValueOnce({ [existingStreamId]: existingStreamData });
-      const mockAudioNodes = {
-        source: {} as AudioNode,
+      const mockAudioNodes: streamUtils.AudioNodes = {
+        context: {} as AudioContext,
+        source: { disconnect: vi.fn() } as unknown as MediaStreamAudioSourceNode,
         analyser: {} as AnalyserNode,
-        gainNode: {} as GainNode, // Corrected: gain to gainNode
-        scriptProcessor: {} as ScriptProcessorNode,
+        dataArray: new Uint8Array(),
+        fftSize: 256,
         animationFrame: 0
       };
       mockGetAudioProcessingContext.mockReturnValueOnce(mockAudioNodes);
@@ -279,11 +284,12 @@ describe('localStreamManager', () => {
         id: streamId1
       };
       mockGetLocalStreamsByType.mockReturnValueOnce({ [streamId1]: streamData1 });
-      const mockAudioNodes = {
-        source: {} as AudioNode,
+      const mockAudioNodes: streamUtils.AudioNodes = {
+        context: {} as AudioContext,
+        source: { disconnect: vi.fn() } as unknown as MediaStreamAudioSourceNode,
         analyser: {} as AnalyserNode,
-        gainNode: {} as GainNode, // Corrected: gain to gainNode
-        scriptProcessor: {} as ScriptProcessorNode,
+        dataArray: new Uint8Array(),
+        fftSize: 256,
         animationFrame: 0
       };
       mockGetAudioProcessingContext.mockReturnValueOnce(mockAudioNodes);
