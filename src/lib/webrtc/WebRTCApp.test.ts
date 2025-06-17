@@ -46,12 +46,7 @@ const mockPeerConnectionInstance = {
 };
 
 global.RTCPeerConnection = vi.fn().mockImplementation(() => mockPeerConnectionInstance) as any;
-// Add the static method mock
-(global.RTCPeerConnection as any).generateCertificate = vi
-  .fn()
-  .mockResolvedValue({} as RTCCertificate); // Mock a basic certificate object
-
-// global.crypto will be stubbed in beforeEach using vi.stubGlobal
+// global.RTCPeerConnection and global.crypto will be stubbed in beforeEach
 
 const mockDiffsElement = {
   classList: {
@@ -227,6 +222,12 @@ describe('WebRTCApp', () => {
       ?.mockClear()
       .mockImplementation((text = '') => ({ nodeType: 3, textContent: text, data: text }));
 
+    // Stub global.RTCPeerConnection for each test
+    global.RTCPeerConnection = vi.fn().mockImplementation(() => mockPeerConnectionInstance) as any;
+    (global.RTCPeerConnection as any).generateCertificate = vi
+      .fn()
+      .mockResolvedValue({} as RTCCertificate);
+
     // Stub global.crypto for each test with clean mock implementations
     vi.stubGlobal('crypto', {
       getRandomValues: vi.fn().mockImplementation((arr: Uint8Array) => {
@@ -237,10 +238,17 @@ describe('WebRTCApp', () => {
       }),
       subtle: {
         digest: vi.fn().mockImplementation(async (_algorithm, data) => {
-          const S = 'mockedhash_'; // Keep consistent with previous mock for predictable hash
+          const inputText = new TextDecoder().decode(data as ArrayBuffer);
+          const fullText = 'mockedhash_' + inputText;
           const textEncoder = new TextEncoder();
-          const dataArray = textEncoder.encode(S + new TextDecoder().decode(data as ArrayBuffer));
-          return dataArray.buffer;
+          const encoded = textEncoder.encode(fullText);
+          // Create a fixed 32-byte buffer
+          const fixedBuffer = new ArrayBuffer(32);
+          const fixedBufferView = new Uint8Array(fixedBuffer);
+          for (let i = 0; i < 32; i++) {
+            fixedBufferView[i] = encoded[i % encoded.length] || 0; // Repeat pattern if shorter, pad with 0 if needed
+          }
+          return fixedBuffer;
         })
       }
     });
