@@ -290,9 +290,7 @@ describe('fileTransfer', () => {
         onerror: null,
         result: new ArrayBuffer(mockFile.size) // Simulate successful read
       };
-      (global.FileReader as Mock<new (...args: any[]) => any>).mockImplementation(
-        () => mockReaderInstance
-      );
+      (global.FileReader as unknown as vi.Mock).mockImplementation(() => mockReaderInstance);
 
       // Simulate async read completion
       mockReaderInstance.readAsArrayBuffer.mockImplementation(function (this: any, _blob: Blob) {
@@ -358,9 +356,7 @@ describe('fileTransfer', () => {
         result: null,
         error: new Error('FileReader failed')
       };
-      (global.FileReader as Mock<new (...args: any[]) => any>).mockImplementation(
-        () => mockReaderInstance
-      );
+      (global.FileReader as unknown as vi.Mock).mockImplementation(() => mockReaderInstance);
       mockReaderInstance.readAsArrayBuffer.mockImplementation(function (this: any, _blob: Blob) {
         if (this.onerror) {
           // @ts-ignore
@@ -395,9 +391,7 @@ describe('fileTransfer', () => {
         onload: null as ((e: ProgressEvent<FileReader>) => void) | null,
         result: new ArrayBuffer(mockFile.size)
       };
-      (global.FileReader as Mock<new (...args: any[]) => any>).mockImplementation(
-        () => mockReaderInstance
-      );
+      (global.FileReader as unknown as vi.Mock).mockImplementation(() => mockReaderInstance);
       mockReaderInstance.readAsArrayBuffer.mockImplementation(function (this: any, _blob: Blob) {
         if (this.onload) {
           // @ts-ignore
@@ -439,9 +433,7 @@ describe('fileTransfer', () => {
         onload: null as ((e: ProgressEvent<FileReader>) => void) | null,
         result: fileContent.buffer
       };
-      (global.FileReader as Mock<new (...args: any[]) => any>).mockImplementation(
-        () => mockReaderInstance
-      );
+      (global.FileReader as unknown as vi.Mock).mockImplementation(() => mockReaderInstance);
       mockReaderInstance.readAsArrayBuffer.mockImplementation(function (this: any, _blob: Blob) {
         if (this.onload) {
           // @ts-ignore
