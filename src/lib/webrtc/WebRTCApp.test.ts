@@ -48,6 +48,9 @@ const mockPeerConnectionInstance = {
 global.RTCPeerConnection = vi.fn().mockImplementation(() => mockPeerConnectionInstance) as any;
 // global.RTCPeerConnection and global.crypto will be stubbed in beforeEach
 
+// State for the connectionStore mock
+let mockConnectionStoreClients: Record<string, WebRTCClient> = {};
+
 const mockDiffsElement = {
   classList: {
     remove: vi.fn(),
@@ -99,18 +102,32 @@ vi.mock('../app/forwardLifecycle', () => ({
 }));
 
 vi.mock('../stores/connectionStore', async () => {
-  const actual = await vi.importActual('../stores/connectionStore');
+  const actual = await vi.importActual('../stores/connectionStore'); // To get the original reset function if needed
+
   return {
-    ...actual,
-    addDirectClient: vi.fn(),
+    // Spread actual if there are other functions that should retain original behavior and are not mocked.
+    // For controlled unit testing, explicitly mocking each used function is often better.
+    // ...actual,
+
+    addDirectClient: vi.fn((cid: string, client: WebRTCClient) => {
+      mockConnectionStoreClients[cid] = client;
+    }),
+    getDirectClient: vi.fn((cid: string) => {
+      return mockConnectionStoreClients[cid];
+    }),
+    removeDirectClient: vi.fn((cid: string) => {
+      delete mockConnectionStoreClients[cid];
+    }),
+    getAllClientCids: vi.fn(() => Object.keys(mockConnectionStoreClients)),
+    resetConnectionStore: vi.fn(() => {
+      mockConnectionStoreClients = {};
+      // If actual.resetConnectionStore performs other necessary cleanup, call it:
+      // actual.resetConnectionStore();
+    }),
     updateDirectClientState: vi.fn(),
     updateDirectClientFingerprint: vi.fn(),
-    removeDirectClient: vi.fn(),
     addParticipant: vi.fn(),
-    removeParticipant: vi.fn(),
-    resetConnectionStore: vi.fn(actual.resetConnectionStore as any), // Use actual for reset
-    getDirectClient: vi.fn(),
-    getAllClientCids: vi.fn(() => [])
+    removeParticipant: vi.fn()
   };
 });
 
@@ -239,18 +256,11 @@ describe('WebRTCApp', () => {
         return arr;
       }),
       subtle: {
-        digest: vi.fn().mockImplementation(async (_algorithm, data) => {
-          const inputText = new TextDecoder().decode(data as ArrayBuffer);
-          const fullText = 'mockedhash_' + inputText;
-          const textEncoder = new TextEncoder();
-          const encoded = textEncoder.encode(fullText);
-          // Create a fixed 32-byte buffer
-          const fixedBuffer = new ArrayBuffer(32);
-          const fixedBufferView = new Uint8Array(fixedBuffer);
-          for (let i = 0; i < 32; i++) {
-            fixedBufferView[i] = encoded[i % encoded.length] || 0; // Repeat pattern if shorter, pad with 0 if needed
-          }
-          return fixedBuffer;
+        digest: vi.fn().mockImplementation(async () => {
+          // Return a very simple, predictable, small-valued hash buffer
+          const simpleHash = new Uint8Array(32); // 32 bytes
+          for (let i = 0; i < 4; i++) simpleHash[i] = 1; // e.g., [1,1,1,1,0,0,...]
+          return simpleHash.buffer;
         })
       }
     });
@@ -262,10 +272,13 @@ describe('WebRTCApp', () => {
       get: vi.fn().mockReturnValue(null)
     }));
 
-    // Manually reset stores that have actual implementations for reset
-    resetConnectionStore();
-    resetAppStateStore();
-    resetCidKeyStore();
+    // Manually reset stores
+    // For connectionStore, our mock's resetConnectionStore will clear mockConnectionStoreClients
+    const connectionStore = await import('../stores/connectionStore');
+    (connectionStore.resetConnectionStore as Mock)();
+    
+    resetAppStateStore(); // This is mocked to call the actual reset
+    resetCidKeyStore();   // This is mocked to call the actual reset
 
     // Reset configStore mock
     const configStore = await import('../stores/configStore');
@@ -432,16 +445,20 @@ describe('WebRTCApp', () => {
     it('should use existing client if sid already exists and client is found', async () => {
       webRTCApp = new WebRTCApp();
       const sid = 'existing-sid';
-      // First call to establish the client and sid mapping
+      // First call to establish the client and sid mapping.
+      // The client created here will have its `pc` property as `mockPeerConnectionInstance`
+      // because `new RTCPeerConnection()` is mocked to return `mockPeerConnectionInstance`.
+      // Our stateful `addDirectClient` mock will store this client.
       const firstCid = await webRTCApp.initClient(false, { sid });
-      (getDirectClient as Mock).mockReturnValue(mockPeerConnectionInstance); // Ensure getDirectClient returns something for the existing CID
 
-      // Second call with the same sid
+      // Second call with the same sid.
+      // `initClient` should find the existing client via the stateful `getDirectClient` mock.
+      // The returned client's `pc` property (which is `mockPeerConnectionInstance`) should have `restartIce` called.
       const secondCid = await webRTCApp.initClient(false, { sid });
 
-      expect(secondCid).toBe(firstCid);
-      expect(global.RTCPeerConnection).toHaveBeenCalledTimes(1); // Constructor only called once
-      expect(mockPeerConnectionInstance.restartIce).toHaveBeenCalledTimes(1); // Should call restartIce
+      expect(secondCid).toBe(firstCid); // Should return the same CID
+      expect(global.RTCPeerConnection).toHaveBeenCalledTimes(1); // Constructor only called once for the first client
+      expect(mockPeerConnectionInstance.restartIce).toHaveBeenCalledTimes(1); // Should call restartIce on the existing client's pc
     });
 
     it('should trigger nego_dc.onopen and send challenge', async () => {
