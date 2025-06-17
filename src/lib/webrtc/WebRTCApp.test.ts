@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { WebRTCApp } from './WebRTCApp';
 import { streamInit } from '../app/streamLifecycle';
 import { forwardInit } from '../app/forwardLifecycle';
@@ -25,7 +25,7 @@ vi.mock('../stores/connectionStore', async () => {
     removeDirectClient: vi.fn(),
     addParticipant: vi.fn(),
     removeParticipant: vi.fn(),
-    resetConnectionStore: vi.fn(actual.resetConnectionStore), // Use actual for reset
+    resetConnectionStore: vi.fn(actual.resetConnectionStore as any), // Use actual for reset
     getDirectClient: vi.fn(),
     getAllClientCids: vi.fn(() => [])
   };
@@ -37,7 +37,7 @@ vi.mock('../stores/cidKeyStore', async () => {
     ...actual,
     setCidKeys: vi.fn(),
     removeCidKeys: vi.fn(),
-    resetCidKeyStore: vi.fn(actual.resetCidKeyStore), // Use actual for reset
+    resetCidKeyStore: vi.fn(actual.resetCidKeyStore as any), // Use actual for reset
     getKeysByCid: vi.fn()
   };
 });
@@ -49,7 +49,7 @@ vi.mock('../stores/appStateStore', async () => {
     registerNegoHandler: vi.fn(),
     getNegoHandler: vi.fn(),
     getAllCleanups: vi.fn(() => ({})),
-    resetAppStateStore: vi.fn(actual.resetAppStateStore) // Use actual for reset
+    resetAppStateStore: vi.fn(actual.resetAppStateStore as any) // Use actual for reset
   };
 });
 
@@ -113,14 +113,14 @@ describe('WebRTCApp', () => {
       webRTCApp = new WebRTCApp();
       const mockClient1 = { pc: { close: vi.fn() } as any, nego_dc: { send: vi.fn() } as any };
       const mockClient2 = { pc: { close: vi.fn() } as any, nego_dc: { send: vi.fn() } as any };
-      (getAllClientCids as vi.Mock).mockReturnValue(['cid1', 'cid2']);
-      (getDirectClient as vi.Mock).mockImplementation((cid) => {
+      (getAllClientCids as Mock).mockReturnValue(['cid1', 'cid2']);
+      (getDirectClient as Mock).mockImplementation((cid: string) => {
         if (cid === 'cid1') return mockClient1;
         if (cid === 'cid2') return mockClient2;
         return undefined;
       });
       const mockCleanupFunction = vi.fn();
-      (getAllCleanups as vi.Mock).mockReturnValue({ testCleanup: mockCleanupFunction });
+      (getAllCleanups as Mock).mockReturnValue({ testCleanup: mockCleanupFunction });
 
       const destroyClientSpy = vi.spyOn(webRTCApp, 'destroyClient');
 
@@ -143,8 +143,8 @@ describe('WebRTCApp', () => {
     it('should send hangup message to each client during cleanup', () => {
       webRTCApp = new WebRTCApp();
       const mockClient = { pc: { close: vi.fn() } as any, nego_dc: { send: vi.fn() } as any };
-      (getAllClientCids as vi.Mock).mockReturnValue(['cid1']);
-      (getDirectClient as vi.Mock).mockReturnValue(mockClient);
+      (getAllClientCids as Mock).mockReturnValue(['cid1']);
+      (getDirectClient as Mock).mockReturnValue(mockClient);
       const sendNegoMessageSpy = vi.spyOn(webRTCApp, 'sendNegoMessage');
 
       webRTCApp.cleanup();
