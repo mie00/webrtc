@@ -1,5 +1,5 @@
 import { writable, get, derived } from 'svelte/store';
-import { setupStream, tearDownStream } from '../media/stream';
+import { setupStream, unsendStream } from '../media/stream';
 
 // Stream type definitions
 export type StreamType = 'camera' | 'screen' | 'audio' | 'file' | 'blurred';
@@ -161,7 +161,10 @@ export function updateLocalStreamProperties(
               setupStream(newStreamData.stream, 'low', 'motion', true);
             }
           } else {
-            tearDownStream(newStreamData.stream);
+            // Stop sending to peers, but keep the local capture alive — the same
+            // stream may still be consumed locally (e.g. raw camera -> blur) or
+            // re-sent later. Stopping the source here breaks those consumers.
+            unsendStream(newStreamData.stream);
           }
         } catch (error) {
           console.error(`[streamStore] Error managing tracks for stream ${id}:`, error);

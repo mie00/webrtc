@@ -106,13 +106,14 @@ function stopProcessingAudio(nodes: AudioNodes | null): void {
   // nodes.context?.close(); // Commented as noted in original code
 }
 
-const tearDownStream = async (stream: MediaStream): Promise<void> => {
+// Remove a stream's tracks from every peer connection (and notify peers), WITHOUT
+// stopping the local source tracks. Use this when a stream should stop being sent
+// but the underlying capture is still needed locally (e.g. the raw camera feeding
+// the background-blur pipeline, or a stream that may be re-sent later).
+const unsendStream = (stream: MediaStream): void => {
   const clients = getAllDirectClients(); // Get clients via webRTCApp
   stream.getTracks().forEach(function (track) {
-    track.stop();
-    track.dispatchEvent(new Event('ended'));
     for (var client of Object.values(clients) as WebRTCClient[]) {
-      // Use clients variable
       client.pc?.getTransceivers().forEach((transceiver: RTCRtpTransceiver) => {
         if (transceiver.sender.track?.id === track.id) {
           transceiver.stop();
@@ -125,6 +126,15 @@ const tearDownStream = async (stream: MediaStream): Promise<void> => {
       });
     }
   });
+};
+
+const tearDownStream = async (stream: MediaStream): Promise<void> => {
+  // Stop the local source tracks, then remove them from all peers.
+  stream.getTracks().forEach(function (track) {
+    track.stop();
+    track.dispatchEvent(new Event('ended'));
+  });
+  unsendStream(stream);
 };
 
 const setupTrack = (
@@ -180,6 +190,7 @@ export {
   stopProcessingAudio,
   drawVisualization,
   tearDownStream,
+  unsendStream,
   setupStream,
   type AudioNodes // Export the new type
 };

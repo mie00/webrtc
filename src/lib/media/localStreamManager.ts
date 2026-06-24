@@ -7,7 +7,7 @@ import {
   getIsCameraEnabled
 } from '../stores/streamStore';
 import { getAllConfig, configStore, type Config, type MediaConfig } from '../stores/configStore';
-import { getLocalFileStreamState } from '../stores/localFileStreamStore';
+import { getLocalFileStreamState, removeLocalFileStream } from '../stores/localFileStreamStore';
 import { setupStream, processAudio, stopProcessingAudio, tearDownStream } from './stream';
 import { backgroundChange } from './background';
 import {
@@ -220,7 +220,11 @@ export async function disableScreenSharing(): Promise<void> {
   }
 }
 
-export async function enableFileStream(fileUrl: string): Promise<void> {
+// Fully tear down every active file stream: stop the captured stream, revoke its
+// object URL, and remove it from BOTH the streamStore and the file-stream store.
+// Callers must not pre-remove the file-stream store entry themselves — doing so
+// before this runs would hide the captured stream from teardown and leak it.
+async function teardownFileStreams(): Promise<void> {
   const fileStreams = getLocalStreamsByType('file');
   for (const [streamId, streamData] of Object.entries(fileStreams)) {
     if (streamData.stream) {
@@ -229,24 +233,19 @@ export async function enableFileStream(fileUrl: string): Promise<void> {
       URL.revokeObjectURL(streamData.src);
       const stream = getLocalFileStreamState().localFileStreams[streamData.src];
       if (stream) await tearDownStream(stream);
+      removeLocalFileStream(streamData.src);
     }
     removeLocalStream(streamId);
   }
+}
+
+export async function enableFileStream(fileUrl: string): Promise<void> {
+  await teardownFileStreams();
   addLocalStream('file', null, fileUrl, true, false);
 }
 
 export async function disableFileStream(): Promise<void> {
-  const fileStreams = getLocalStreamsByType('file');
-  for (const [streamId, streamData] of Object.entries(fileStreams)) {
-    if (streamData.stream) {
-      await tearDownStream(streamData.stream);
-    } else if (streamData.src) {
-      URL.revokeObjectURL(streamData.src);
-      const stream = getLocalFileStreamState().localFileStreams[streamData.src];
-      if (stream) await tearDownStream(stream);
-    }
-    removeLocalStream(streamId);
-  }
+  await teardownFileStreams();
 }
 
 // Helper functions for device changes

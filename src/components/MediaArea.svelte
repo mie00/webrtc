@@ -35,7 +35,7 @@
   import ContextMenu from './ContextMenu.svelte';
   import { updateConfig, configStore, getAllConfig } from '../lib/stores/configStore';
   import type { MenuItem } from '../types/menu';
-  import { addLocalFileStream, removeLocalFileStream } from '../lib/stores/localFileStreamStore';
+  import { addLocalFileStream, getLocalFileStreamState } from '../lib/stores/localFileStreamStore';
 
   import LayoutControls from './LayoutControls.svelte';
   import StreamDisplayArea from './StreamDisplayArea.svelte';
@@ -337,18 +337,24 @@
   }
 
   async function handleVideoCleanup() {
-    const fileStreams = getLocalStreamsByType('file');
-    const fileStreamEntry = Object.entries(fileStreams)[0];
-    if (fileStreamEntry && fileStreamEntry[1].src) {
-      removeLocalFileStream(fileStreamEntry[1].src);
-    }
+    // disableFileStream tears down the captured stream and clears it from the
+    // file-stream store; don't remove it beforehand or teardown can't find it.
     await disableFileStream();
   }
 
   async function handleFilePlay(event: Event) {
     const fileStreams = getLocalStreamsByType('file');
     const fileStreamEntry = Object.entries(fileStreams)[0];
-    if (fileStreamEntry && fileStreamEntry[1].stream) return; // Already has a stream
+    // The captured stream lives in the file-stream store (the marker entry's
+    // .stream stays null), so check there to avoid re-capturing on every play
+    // event (e.g. pause/resume, loop restart), which would add duplicate
+    // transceivers to every peer.
+    if (
+      fileStreamEntry &&
+      fileStreamEntry[1].src &&
+      getLocalFileStreamState().localFileStreams[fileStreamEntry[1].src]
+    )
+      return;
 
     const videoNode = event.target as HTMLVideoElement;
     videoNode.play();
