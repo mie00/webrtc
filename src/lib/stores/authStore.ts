@@ -252,7 +252,7 @@ function createAuthStore() {
     try {
       // Verify the JWT using the original base64 URL encoded SPKI string.
       // verifyLoginJWTFromBase64 handles the import of this key for verification.
-      const payload = await verifyLoginJWTFromBase64(newJwt, userPubKeyJwkStringFromCallback);
+      await verifyLoginJWTFromBase64(newJwt, userPubKeyJwkStringFromCallback);
 
       // If verification is successful, store the JWT and the user's public key (as SPKI string).
       update((state) => ({ ...state, jwt: newJwt, userPubKey: userPubKeyJwkStringFromCallback }));

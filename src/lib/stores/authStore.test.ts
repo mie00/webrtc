@@ -61,24 +61,6 @@ interface AuthStoreType extends Pick<Writable<AuthState>, 'subscribe'> {
   getAuthState: () => AuthState;
 }
 
-// Create a mock version of the authStore for tests
-const createMockAuthStore = () => {
-  return {
-    subscribe: vi.fn(() => () => {}),
-    ensureKeyPair: vi.fn().mockResolvedValue(null),
-    getDevicePublicKeyAsSpki: vi.fn().mockResolvedValue(null),
-    setJwtAndVerifyKey: vi.fn().mockResolvedValue(true),
-    logout: vi.fn(),
-    getPrivateKey: vi.fn().mockResolvedValue(null),
-    getAuthState: vi.fn().mockReturnValue({
-      publicKeyJwk: null,
-      privateKeyJwk: null,
-      userPubKey: null,
-      jwt: null
-    })
-  };
-};
-
 // Helper to reset the authStore to its initial state by re-creating it or calling a reset method
 // Since authStore is created immediately, we need to manipulate its internal state or mock its creation for full reset.
 // For now, we'll rely on logout() and clearing localStorage for most reset needs.
@@ -126,9 +108,9 @@ describe('authStore', () => {
       publicKey: { alg: 'ES384', kty: 'EC', crv: 'P-384', x: 'x_val', y: 'y_val' }, // Mock JWK
       privateKey: { alg: 'ES384', kty: 'EC', crv: 'P-384', d: 'd_val', x: 'x_val', y: 'y_val' } // Mock JWK
     } as any); // Changed CryptoKeyPair to any
-    mockCrypto.subtle.exportKey.mockImplementation(async (format, key) => key); // Simple passthrough
+    mockCrypto.subtle.exportKey.mockImplementation(async (_format, key) => key); // Simple passthrough
     mockCrypto.subtle.importKey.mockImplementation(
-      async (format, keyData, alg, extractable, usages) =>
+      async (_format, keyData, alg, extractable, usages) =>
         ({ keyData, alg, extractable, usages }) as unknown as CryptoKey
     ); // Mock CryptoKey
     mockCrypto.subtle.verify.mockResolvedValue(true); // Default to successful verification

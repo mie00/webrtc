@@ -106,7 +106,7 @@ export class NegotiationManager {
       }
     });
 
-    this.context.registerNegoHandler('hangup', (data: HangupNegoMessage, cid: string) => {
+    this.context.registerNegoHandler('hangup', (_data: HangupNegoMessage, cid: string) => {
       const client = this.context.getDirectClient(cid);
       if (client && !client.polite) {
         this.context.destroyClient(cid);
@@ -137,12 +137,12 @@ export class NegotiationManager {
 
     this.context.registerNegoHandler(
       'participant.end',
-      (data: ParticipantEndNegoMessage, cid: string) => {
+      (data: ParticipantEndNegoMessage, _cid: string) => {
         this.context.removeParticipant(data.cid);
       }
     );
 
-    this.context.registerNegoHandler('trusted', (data: TrustedNegoMessage, cid: string) => {
+    this.context.registerNegoHandler('trusted', (_data: TrustedNegoMessage, cid: string) => {
       const client = this.context.getDirectClient(cid);
       if (!client) return;
       client.trusting = true;

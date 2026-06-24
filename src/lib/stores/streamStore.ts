@@ -1,14 +1,5 @@
-import { writable, get } from 'svelte/store';
-import { connectionStore } from './connectionStore'; // Import connectionStore
-
-// Stream configuration interface
-export interface StreamConfig {
-  audio: string | null; // Contains device ID when enabled, null when disabled
-  camera: string | null; // Contains device ID when enabled, null when disabled
-  screen: boolean;
-  file: string | null; // Contains video source URL when enabled, null when disabled
-  videoStream: MediaStream | null; // Still needed for file playback
-}
+import { writable, get, derived } from 'svelte/store';
+import { setupStream, unsendStream } from '../media/stream';
 
 // Stream type definitions
 export type StreamType = 'camera' | 'screen' | 'audio' | 'file' | 'blurred';
@@ -42,8 +33,6 @@ export interface StreamState {
     focusedStream?: string;
     gridSize?: number;
   };
-
-  streamConfig: StreamConfig;
 }
 
 // Initial state
@@ -55,14 +44,6 @@ const initialState: StreamState = {
   // View configuration
   activeView: {
     layout: 'grid'
-  },
-
-  streamConfig: {
-    audio: null,
-    camera: null,
-    screen: false,
-    file: null,
-    videoStream: null
   }
 };
 
@@ -74,15 +55,51 @@ export function getStreamState() {
   return get(streamStore);
 }
 
-// Stream config updates
-export function updateStreamConfig(config: Partial<StreamConfig>): void {
-  streamStore.update((state) => ({
-    ...state,
-    streamConfig: {
-      ...state.streamConfig,
-      ...config
-    }
-  }));
+// Reactive derived stores to check if streams are enabled
+export const isAudioEnabled = derived(streamStore, ($state) =>
+  Object.values($state.localStreams).some((stream) => stream.type === 'audio')
+);
+
+export const isCameraEnabled = derived(streamStore, ($state) =>
+  Object.values($state.localStreams).some((stream) => stream.type === 'camera')
+);
+
+export const isScreenSharingEnabled = derived(streamStore, ($state) =>
+  Object.values($state.localStreams).some((stream) => stream.type === 'screen')
+);
+
+export const isFileStreamEnabled = derived(streamStore, ($state) =>
+  Object.values($state.localStreams).some((stream) => stream.type === 'file')
+);
+
+export const isBlurredStreamEnabled = derived(streamStore, ($state) =>
+  Object.values($state.localStreams).some((stream) => stream.type === 'blurred')
+);
+
+// Helper functions for non-reactive checks (for use in non-reactive contexts)
+export function getIsAudioEnabled(): boolean {
+  const state = getStreamState();
+  return Object.values(state.localStreams).some((stream) => stream.type === 'audio');
+}
+
+export function getIsCameraEnabled(): boolean {
+  const state = getStreamState();
+  return Object.values(state.localStreams).some((stream) => stream.type === 'camera');
+}
+
+export function getIsScreenSharingEnabled(): boolean {
+  const state = getStreamState();
+  return Object.values(state.localStreams).some((stream) => stream.type === 'screen');
+}
+
+export function getIsFileStreamEnabled(): boolean {
+  const state = getStreamState();
+  return Object.values(state.localStreams).some((stream) => stream.type === 'file');
+}
+
+export function getIsBlurredStreamEnabled(): boolean {
+  const state = getStreamState();
+  return Object.values(state.localStreams).some((stream) => stream.type === 'blurred');
 }
 
 // Enhanced stream management functions
@@ -127,7 +144,6 @@ export function updateLocalStreamProperties(
       oldStreamData.sendable !== newStreamData.sendable &&
       newStreamData.stream
     ) {
-      const trackStream = newStreamData.stream;
       const webRTCApp = window.webRTCApp;
 
       if (!webRTCApp || !webRTCApp.negotiationManager) {
@@ -135,38 +151,23 @@ export function updateLocalStreamProperties(
           '[streamStore] WebRTCApp instance or negotiationManager not found on window. Skipping track management for peers.'
         );
       } else {
-        const { directClients } = get(connectionStore);
-        for (const cid in directClients) {
-          const client = directClients[cid];
-          if (client && client.pc) {
-            const pc = client.pc;
-            try {
-              if (newStreamData.sendable) {
-                // Add tracks
-                trackStream.getTracks().forEach((track) => {
-                  if (!pc.getSenders().find((sender) => sender.track === track)) {
-                    pc.addTrack(track, trackStream);
-                  }
-                });
-                console.log(`[streamStore] Added tracks from stream ${id} to peer ${cid}`);
-              } else {
-                // Remove tracks
-                pc.getSenders().forEach((sender) => {
-                  if (sender.track && trackStream.getTracks().includes(sender.track)) {
-                    pc.removeTrack(sender);
-                  }
-                });
-                console.log(`[streamStore] Removed tracks from stream ${id} for peer ${cid}`);
-              }
-              // Trigger renegotiation
-              webRTCApp.negotiationManager.startOrRestartNego(cid, client.polite ?? false);
-            } catch (error) {
-              console.error(
-                `[streamStore] Error managing tracks for stream ${id} with peer ${cid}:`,
-                error
-              );
+        try {
+          if (newStreamData.sendable) {
+            if (newStreamData.type === 'audio') {
+              setupStream(newStreamData.stream, 'high');
+            } else if (newStreamData.type === 'screen') {
+              setupStream(newStreamData.stream, 'medium', 'detail', false);
+            } else {
+              setupStream(newStreamData.stream, 'low', 'motion', true);
             }
+          } else {
+            // Stop sending to peers, but keep the local capture alive — the same
+            // stream may still be consumed locally (e.g. raw camera -> blur) or
+            // re-sent later. Stopping the source here breaks those consumers.
+            unsendStream(newStreamData.stream);
           }
+        } catch (error) {
+          console.error(`[streamStore] Error managing tracks for stream ${id}:`, error);
         }
       }
     }

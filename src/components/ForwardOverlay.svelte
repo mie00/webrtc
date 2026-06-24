@@ -1,10 +1,5 @@
 <script lang="ts">
-  import {
-    forwardStore,
-    setForwardHost,
-    setForwardPeer,
-    type LogMessage
-  } from '../lib/stores/forwardStore';
+  import { forwardStore, setForwardHost, setForwardPeer } from '../lib/stores/forwardStore';
   import { toggleForwardHandler } from '../lib/app/forwardHandler';
   import DraggableOverlayBase from './DraggableOverlayBase.svelte';
 

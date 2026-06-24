@@ -230,7 +230,7 @@ export function calculateStreamPositions(
       groupedStreams[peerId] = { peerId, streams: [] };
     }
 
-    Object.entries(data.streams).forEach(([streamId, stream]) => {
+    Object.entries(data.streams).forEach(([_streamId, stream]) => {
       groupedStreams[peerId].streams.push({
         id: normalizeStreamId(stream.id),
         type: stream.getVideoTracks().length > 0 ? 'camera' : 'audio',
@@ -241,7 +241,7 @@ export function calculateStreamPositions(
   });
 
   // Filter out audio streams that should be hidden (when a peer has video streams)
-  const visibleStreams = Object.values(groupedStreams).flatMap(({ peerId, streams }) => {
+  const visibleStreams = Object.values(groupedStreams).flatMap(({ streams }) => {
     // Check if this peer has any video streams
     const hasVideoStreams = streams.some(
       (s) =>

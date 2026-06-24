@@ -5,7 +5,7 @@
   import { configStore } from '../lib/stores/configStore';
   import { chatStore } from '../lib/stores/chatStore';
   import { fileStore, type FileTransfer } from '../lib/stores/fileStore';
-  import { transcriptionDisplayStore, type TranscriptionSegment } from '../lib/media/transcriber';
+  import { transcriptionDisplayStore } from '../lib/media/transcriber';
   import MediaCarousel, { type CarouselMediaItem } from './MediaCarousel.svelte';
 
   import ParticipantsPanel from './ParticipantsPanel.svelte';
@@ -14,7 +14,6 @@
 
   // State for panel toggle
   let isPanelOpen = $state(false);
-  let controlsPanel: HTMLDivElement | null = null;
 
   // --- State for Transcription Display ---
   let showCompletedTranscriptions = $state(true);
@@ -207,7 +206,6 @@
 </script>
 
 <div
-  bind:this={controlsPanel}
   id="test-control-panel"
   class="w-11/12 lg:w-1/2 xl:w-1/4 2x:w-1/4 flex flex-col fixed bottom-0 top-0"
   class:left-full={!isPanelOpen}

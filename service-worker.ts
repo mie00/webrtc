@@ -180,7 +180,7 @@ function objectToArrayBuffer(data: Record<string, number>): ArrayBufferLike {
   const resp = postRequest()
     .then(
       () =>
-        new Promise<Response>((resolve, reject) => {
+        new Promise<Response>((resolve, _reject) => {
           sw.handlers[id] = (data, err) => {
             console.log('called callback for fetch', data, err);
             if (err) {

@@ -8,11 +8,7 @@ import {
   removeInflight,
   clearLogMessages
 } from '../../stores/forwardStore';
-import {
-  getSendHostInterval,
-  setSendHostInterval,
-  clearSendHostInterval
-} from '../../app/forwardLifecycle';
+import { setSendHostInterval, clearSendHostInterval } from '../../app/forwardLifecycle';
 import { sendData } from '../../utils/arrayUtils';
 import type { ForwardClient } from './types';
 import { toggleForwardHandler } from '../../app/forwardHandler'; // Assuming toggleForwardHandler is here

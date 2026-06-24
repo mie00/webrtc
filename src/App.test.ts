@@ -12,12 +12,6 @@ interface MockAuthStoreState {
   userPubKey: string | null;
 }
 
-interface MockProfileStoreState {
-  isProfileComplete: boolean;
-  profile: { userName: string } | null;
-  userName: string | null; // This was part of MockProfileStoreState, now part of Config's profile
-}
-
 const mockAuthStore = writable<MockAuthStoreState>({
   jwt: null,
   error: null,
@@ -33,7 +27,7 @@ let mockConfigStoreInstance: Writable<Config>;
 
 // Mock child components to isolate App.svelte logic
 vi.mock('./components/AuthHandler.svelte', () => ({
-  default: (target: Element, anchor: Node | null, props?: any) => {
+  default: (target: Element, anchor: Node | null, _props?: any) => {
     const el = document.createElement('div');
     el.textContent = 'AuthHandlerMock';
     // Ensure target is a valid DOM element or a comment node for insertion
@@ -58,7 +52,7 @@ vi.mock('./components/AuthHandler.svelte', () => ({
       );
     }
     return {
-      update: vi.fn((newProps: any) => {
+      update: vi.fn((_newProps: any) => {
         // console.log('[MOCK] AuthHandler update', newProps);
         // If props were actually passed and used, handle updates here.
       }),
@@ -70,7 +64,7 @@ vi.mock('./components/AuthHandler.svelte', () => ({
   }
 }));
 vi.mock('./components/MainAppRouter.svelte', () => ({
-  default: (target: Element, anchor: Node | null, props?: any) => {
+  default: (target: Element, anchor: Node | null, _props?: any) => {
     const el = document.createElement('div');
     el.textContent = 'MainAppRouterMock';
     if (
@@ -102,7 +96,7 @@ vi.mock('./components/MainAppRouter.svelte', () => ({
   }
 }));
 vi.mock('./components/ProfileSetup.svelte', () => ({
-  default: (target: Element, anchor: Node | null, props?: any) => {
+  default: (target: Element, anchor: Node | null, _props?: any) => {
     const el = document.createElement('div');
     el.textContent = 'ProfileSetupMock';
     if (

@@ -12,7 +12,7 @@
 </script>
 
 <script lang="ts">
-  import { onMount, onDestroy, tick } from 'svelte';
+  import { tick } from 'svelte';
   import type { FileTransfer } from '../lib/stores/fileStore';
 
   type Props = {

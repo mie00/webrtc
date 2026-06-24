@@ -1,7 +1,7 @@
 import { VideoStreamMerger, type AddStreamOptions } from 'video-stream-merger';
 import { getStreamState } from '../stores/streamStore';
 import { normalizeStreamId } from './stream';
-import { calculateGridPositions, type Position } from './streamLayout';
+import { calculateGridPositions } from './streamLayout';
 import { getStreamMetadata } from '../stores/localFileStreamStore';
 import type { IRecorder, StreamInfo } from './recorderTypes';
 import { RECORDER_FW, RECORDER_FH } from './recorderTypes';

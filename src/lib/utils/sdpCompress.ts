@@ -1,8 +1,4 @@
 // Type definitions for SDP compression
-interface CompressionVariables {
-  [key: number]: string[];
-}
-
 interface FieldEncoder {
   (value: any): Uint8Array;
 }

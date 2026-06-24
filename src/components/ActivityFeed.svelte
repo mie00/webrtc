@@ -206,7 +206,7 @@
                             src={transfer.url}
                             alt={transfer.name}
                             class="w-full rounded max-h-60 object-contain my-2 pointer-events-none"
-                            onerror={(e) => {
+                            onerror={(_e) => {
                               console.error(
                                 'Image failed to load. URL:',
                                 transfer.url,
